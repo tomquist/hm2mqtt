@@ -1,0 +1,31 @@
+name: "hm2mqtt"
+version: "1.0.0"
+slug: "hm2mqtt"
+description: "Connect Hame energy storage devices to Home Assistant via MQTT"
+url: "https://github.com/tomquist/hm2mqtt"
+image: "ghcr.io/tomquist/hm2mqtt-addon"
+arch:
+  - armv7
+  - aarch64
+  - amd64
+init: false
+startup: application
+boot: auto
+services:
+  - mqtt:need
+hassio_api: true
+hassio_role: default
+options:
+  pollingInterval: 60
+  responseTimeout: 30
+  devices:
+    - deviceType: "HMA-1"
+      deviceId: "device-mac-address"
+schema:
+  mqtt_uri: str?
+  pollingInterval: int?
+  responseTimeout: int?
+  debug: bool?
+  devices:
+    - deviceType: str
+      deviceId: str

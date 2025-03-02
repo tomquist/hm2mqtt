@@ -1,0 +1,10 @@
+configuration:
+  pollingInterval:
+    name: "Abfrageintervall"
+    description: "Intervall in Sekunden zwischen Gerätestatus-Abfragen (Standard: 60)"
+  responseTimeout:
+    name: "Antwort-Timeout"
+    description: "Timeout in Sekunden für Geräteantworten bevor das Gerät als offline deklariert wird (Standard: 30)"
+  devices:
+    name: "Geräte"
+    description: "Liste der Energiespeichergeräte, mit denen eine Verbindung hergestellt werden soll"

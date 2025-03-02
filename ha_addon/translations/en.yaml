@@ -1,0 +1,10 @@
+configuration:
+  pollingInterval:
+    name: Polling Interval
+    description: "Interval in seconds between device status polls (default: 60)"
+  responseTimeout:
+    name: Response Timeout
+    description: "Timeout in seconds for device responses before considering the device to be offline (default: 30)"
+  devices:
+    name: Devices
+    description: "List of energy storage devices to connect to"
