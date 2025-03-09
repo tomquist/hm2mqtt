@@ -229,6 +229,7 @@ export const numberComponent =
     ...baseStateSensor(definition)(args),
     type: 'number',
     command_topic: commandTopic({ ...args, ...definition }),
+    unit_of_measurement: definition.unit_of_measurement,
     min: definition.min,
     max: definition.max,
     step: definition.step,
