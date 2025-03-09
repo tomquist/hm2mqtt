@@ -171,3 +171,129 @@ export interface MqttConfig {
   useFlashCommands?: boolean;
   responseTimeout?: number; // Timeout for device responses in milliseconds
 }
+
+/**
+ * Venus device working status types
+ */
+export type VenusWorkingStatus = 'sleep' | 'standby' | 'charging' | 'discharging' | 'backup' | 'upgrading' | 'bypass';
+
+/**
+ * Venus device CT status types
+ */
+export type VenusCTStatus = 'notConnected' | 'connected' | 'weakSignal';
+
+/**
+ * Venus device battery working status types
+ */
+export type VenusBatteryWorkingStatus = 'notWorking' | 'charging' | 'discharging';
+
+/**
+ * Venus device working mode types
+ */
+export type VenusWorkingMode = 'automatic' | 'manual' | 'trading';
+
+/**
+ * Venus device grid type
+ */
+export type VenusGridType = 
+  | 'adaptive' 
+  | 'en50549' 
+  | 'netherlands' 
+  | 'germany' 
+  | 'austria' 
+  | 'unitedKingdom' 
+  | 'spain' 
+  | 'poland' 
+  | 'italy' 
+  | 'china';
+
+/**
+ * Venus device CT type
+ */
+export type VenusCTType = 'none' | 'ct1' | 'ct2' | 'ct3' | 'shellyPro' | 'p1Meter';
+
+/**
+ * Venus device phase type
+ */
+export type VenusPhaseType = 'unknown' | 'phaseA' | 'phaseB' | 'phaseC' | 'notDetected';
+
+/**
+ * Venus device recharge mode
+ */
+export type VenusRechargeMode = 'singlePhase' | 'threePhase';
+
+/**
+ * Venus time period configuration
+ */
+export interface VenusTimePeriod {
+  startHour: number;
+  startMinute: number;
+  endHour: number;
+  endMinute: number;
+  cycle: number;
+  power: number;
+  enabled: boolean;
+}
+
+/**
+ * Venus device data interface
+ */
+export interface VenusDeviceData extends BaseDeviceData {
+  // Battery information
+  batteryPercentage?: number;
+  batteryCapacity?: number;
+  
+  // Power information
+  totalChargingCapacity?: number;
+  totalDischargeCapacity?: number;
+  dailyChargingCapacity?: number;
+  monthlyChargingCapacity?: number;
+  dailyDischargeCapacity?: number;
+  monthlyDischargeCapacity?: number;
+  
+  // Income information
+  dailyIncome?: number;
+  monthlyIncome?: number;
+  totalIncome?: number;
+  
+  // Grid information
+  offGridPower?: number;
+  combinedPower?: number;
+  workingStatus?: VenusWorkingStatus;
+  
+  // CT information
+  ctStatus?: VenusCTStatus;
+  
+  // Battery status
+  batteryWorkingStatus?: VenusBatteryWorkingStatus;
+  batterySoc?: number;
+  
+  // Error codes
+  errorCode?: number;
+  warningCode?: number;
+  
+  // Device information
+  deviceVersion?: number;
+  gridType?: VenusGridType;
+  workingMode?: VenusWorkingMode;
+  
+  // Time periods for scheduled operations
+  timePeriods?: VenusTimePeriod[];
+  
+  // Additional settings
+  autoSwitchWorkingMode?: boolean;
+  backupEnabled?: boolean;
+  transactionRegionCode?: number;
+  chargingPrice?: number;
+  dischargePrice?: number;
+  wifiSignalStrength?: number;
+  versionSet?: '800W' | '2500W';
+  maxChargingPower?: number;
+  maxDischargePower?: number;
+  ctType?: VenusCTType;
+  phaseType?: VenusPhaseType;
+  rechargeMode?: VenusRechargeMode;
+  bmsVersion?: number;
+  communicationModuleVersion?: string;
+  wifiName?: string;
+}

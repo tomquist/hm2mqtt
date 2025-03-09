@@ -23,6 +23,7 @@ export interface HaBinarySensorComponent extends HaBaseStateComponent {
 export interface HaSensorComponent extends HaBaseStateComponent {
   type: 'sensor';
   unit_of_measurement?: string;
+  state_class?: string;
 }
 
 export interface HaSwitchComponent extends HaBaseStateComponent {
@@ -192,6 +193,7 @@ export const sensorComponent =
     definition: HaBaseStateComponentArgs & {
       unit_of_measurement?: string;
       valueMappings?: Record<T, string>;
+      state_class?: string;
     },
   ): HaStatefulAdvertiseBuilder<T, HaSensorComponent> =>
   args => ({
@@ -199,6 +201,7 @@ export const sensorComponent =
     type: 'sensor',
     value_template: valueTemplate({ ...args, ...definition }),
     unit_of_measurement: definition.unit_of_measurement,
+    state_class: definition.state_class,
   });
 
 function reverseMappings(
@@ -214,7 +217,7 @@ function reverseMappings(
 export const numberComponent =
   (
     definition: HaBaseStateComponentArgs & {
-      unit_of_measurement: string;
+      unit_of_measurement?: string;
       command: string;
       min?: number;
       max?: number;
