@@ -272,6 +272,7 @@ registerDeviceDefinition<B2500V2DeviceData>(
         name: 'Battery Charging Power',
         device_class: 'energy',
         unit_of_measurement: 'Wh',
+        state_class: 'total_increasing',
       }),
     });
     field({
@@ -282,6 +283,7 @@ registerDeviceDefinition<B2500V2DeviceData>(
         name: 'Battery Discharge Power',
         device_class: 'energy',
         unit_of_measurement: 'Wh',
+        state_class: 'total_increasing',
       }),
     });
     field({
@@ -292,6 +294,7 @@ registerDeviceDefinition<B2500V2DeviceData>(
         name: 'Photovoltaic Charging Power',
         device_class: 'energy',
         unit_of_measurement: 'Wh',
+        state_class: 'total_increasing',
       }),
     });
     field({
@@ -302,6 +305,7 @@ registerDeviceDefinition<B2500V2DeviceData>(
         name: 'Micro Reverse Output Power',
         device_class: 'energy',
         unit_of_measurement: 'Wh',
+        state_class: 'total_increasing',
       }),
     });
 
