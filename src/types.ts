@@ -175,7 +175,14 @@ export interface MqttConfig {
 /**
  * Venus device working status types
  */
-export type VenusWorkingStatus = 'sleep' | 'standby' | 'charging' | 'discharging' | 'backup' | 'upgrading' | 'bypass';
+export type VenusWorkingStatus =
+  | 'sleep'
+  | 'standby'
+  | 'charging'
+  | 'discharging'
+  | 'backup'
+  | 'upgrading'
+  | 'bypass';
 
 /**
  * Venus device CT status types
@@ -195,16 +202,16 @@ export type VenusWorkingMode = 'automatic' | 'manual' | 'trading';
 /**
  * Venus device grid type
  */
-export type VenusGridType = 
-  | 'adaptive' 
-  | 'en50549' 
-  | 'netherlands' 
-  | 'germany' 
-  | 'austria' 
-  | 'unitedKingdom' 
-  | 'spain' 
-  | 'poland' 
-  | 'italy' 
+export type VenusGridType =
+  | 'adaptive'
+  | 'en50549'
+  | 'netherlands'
+  | 'germany'
+  | 'austria'
+  | 'unitedKingdom'
+  | 'spain'
+  | 'poland'
+  | 'italy'
   | 'china';
 
 /**
@@ -242,7 +249,7 @@ export interface VenusDeviceData extends BaseDeviceData {
   // Battery information
   batteryPercentage?: number;
   batteryCapacity?: number;
-  
+
   // Power information
   totalChargingCapacity?: number;
   totalDischargeCapacity?: number;
@@ -250,36 +257,36 @@ export interface VenusDeviceData extends BaseDeviceData {
   monthlyChargingCapacity?: number;
   dailyDischargeCapacity?: number;
   monthlyDischargeCapacity?: number;
-  
+
   // Income information
   dailyIncome?: number;
   monthlyIncome?: number;
   totalIncome?: number;
-  
+
   // Grid information
   offGridPower?: number;
   combinedPower?: number;
   workingStatus?: VenusWorkingStatus;
-  
+
   // CT information
   ctStatus?: VenusCTStatus;
-  
+
   // Battery status
   batteryWorkingStatus?: VenusBatteryWorkingStatus;
   batterySoc?: number;
-  
+
   // Error codes
   errorCode?: number;
   warningCode?: number;
-  
+
   // Device information
   deviceVersion?: number;
   gridType?: VenusGridType;
   workingMode?: VenusWorkingMode;
-  
+
   // Time periods for scheduled operations
   timePeriods?: VenusTimePeriod[];
-  
+
   // Additional settings
   autoSwitchWorkingMode?: boolean;
   backupEnabled?: boolean;

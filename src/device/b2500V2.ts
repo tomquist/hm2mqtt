@@ -124,7 +124,7 @@ function buildTimePeriodParams(
 
 registerDeviceDefinition<B2500V2DeviceData>(
   {
-    deviceTypes: ['HMA', 'HMK'],
+    deviceTypes: ['HMA', 'HMF', 'HMK'],
     defaultState: { useFlashCommands: false },
     refreshDataPayload: 'cd=1',
     getAdditionalDeviceInfo: extractAdditionalDeviceInfo,
