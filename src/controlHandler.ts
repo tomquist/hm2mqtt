@@ -74,7 +74,6 @@ export class ControlHandler {
       }
 
       const controlTopicBase = topics.controlSubscriptionTopic;
-      console.log(`Processing control topic for ${device.deviceId}: ${topic}, message: ${message}`);
       const controlPath = topic.substring(controlTopicBase.length + 1); // +1 for the slash
       const handlerParams: ControlHandlerParams<any> = {
         device,

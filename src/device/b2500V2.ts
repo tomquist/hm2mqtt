@@ -249,6 +249,8 @@ registerDeviceDefinition<B2500V2DeviceData>(
           name: `Time Period ${i + 1} Output Value`,
           unit_of_measurement: 'W',
           command: `time-period/${i + 1}/output-value`,
+          min: 80,
+          max: 800,
         }),
       });
 
