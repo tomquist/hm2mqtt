@@ -93,31 +93,32 @@ DEVICE_COUNT=0
 
 # Clean approach to reading the devices array
 if bashio::config.exists 'devices'; then
-    # Get the number of devices in the array
-    # The empty string ensures we get all array items for counting
-    DEVICES=$(bashio::config 'devices[]')
-    DEVICE_COUNT=$(echo "$DEVICES" | wc -l)
+    # Get the actual count of elements directly from the config
+    if DEVICE_COUNT=$(bashio::config 'devices|length'); then
+        bashio::log.info "Found ${DEVICE_COUNT} devices in configuration"
 
-    bashio::log.info "Found ${DEVICE_COUNT} devices in configuration"
+        # Process each device in the array
+        for i in $(seq 0 $((DEVICE_COUNT - 1))); do
+            # Use Bashio to access array elements with proper error handling
+            if bashio::config.exists "devices[${i}].deviceType" && bashio::config.exists "devices[${i}].deviceId"; then
+                DEVICE_TYPE=$(bashio::config "devices[${i}].deviceType")
+                DEVICE_ID=$(bashio::config "devices[${i}].deviceId")
 
-    # Process each device in the array
-    for i in $(seq 0 $((DEVICE_COUNT - 1))); do
-        # Use Bashio to access array elements with proper error handling
-        if bashio::config.exists "devices[${i}].deviceType" && bashio::config.exists "devices[${i}].deviceId"; then
-            DEVICE_TYPE=$(bashio::config "devices[${i}].deviceType")
-            DEVICE_ID=$(bashio::config "devices[${i}].deviceId")
-
-            # Skip if either value is empty
-            if [ -n "$DEVICE_TYPE" ] && [ -n "$DEVICE_ID" ]; then
-                export "DEVICE_${i}=${DEVICE_TYPE}:${DEVICE_ID}"
-                bashio::log.info "Configured device $((i + 1)): ${DEVICE_TYPE}:${DEVICE_ID}"
+                # Skip if either value is empty
+                if [ -n "$DEVICE_TYPE" ] && [ -n "$DEVICE_ID" ]; then
+                    export "DEVICE_${i}=${DEVICE_TYPE}:${DEVICE_ID}"
+                    bashio::log.info "Configured device $((i + 1)): ${DEVICE_TYPE}:${DEVICE_ID}"
+                else
+                    bashio::log.warning "Device ${i} has empty deviceType or deviceId"
+                fi
             else
-                bashio::log.warning "Device ${i} has empty deviceType or deviceId"
+                bashio::log.warning "Device ${i} is missing required parameters (deviceType or deviceId)"
             fi
-        else
-            bashio::log.warning "Device ${i} is missing required parameters (deviceType or deviceId)"
-        fi
-    done
+        done
+    else
+        bashio::log.error "Failed to determine the number of devices in the configuration"
+        DEVICE_COUNT=0
+    fi
 else
     bashio::log.error "No 'devices' configuration found. Please check your configuration."
 

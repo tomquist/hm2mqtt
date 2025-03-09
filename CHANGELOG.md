@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added support for HMF series of B2500
 - Set state class for daily energy sensor to `total_increasing`
 
+### Fixed
+
+- Multiple devices in Addon config
+
 ## [1.0.0] Initial Release
 
 ### Added
