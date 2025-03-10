@@ -229,15 +229,15 @@ export type VenusPhaseType = 'unknown' | 'phaseA' | 'phaseB' | 'phaseC' | 'notDe
  */
 export type VenusRechargeMode = 'singlePhase' | 'threePhase';
 
+export type WeekdaySet = `${0 | ''}${1 | ''}${2 | ''}${3 | ''}${4 | ''}${5 | ''}${6 | ''}`;
+
 /**
  * Venus time period configuration
  */
 export interface VenusTimePeriod {
-  startHour: number;
-  startMinute: number;
-  endHour: number;
-  endMinute: number;
-  cycle: number;
+  startTime: string;
+  endTime: string;
+  weekday: WeekdaySet;
   power: number;
   enabled: boolean;
 }

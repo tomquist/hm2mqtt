@@ -251,14 +251,14 @@ export const switchComponent =
     state_off: false,
   });
 export const textComponent =
-  (
+  <T extends string = string>(
     definition: HaBaseStateComponentArgs & {
       command: string;
       max?: number;
       min?: number;
       pattern?: string;
     },
-  ): HaStatefulAdvertiseBuilder<string> =>
+  ): HaStatefulAdvertiseBuilder<T> =>
   args => ({
     ...baseStateSensor(definition)(args),
     type: 'text',

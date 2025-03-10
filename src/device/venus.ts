@@ -1,5 +1,5 @@
 import { registerDeviceDefinition } from '../deviceDefinition';
-import { CommandParams, VenusDeviceData } from '../types';
+import { CommandParams, VenusDeviceData, VenusTimePeriod, WeekdaySet } from '../types';
 import {
   binarySensorComponent,
   buttonComponent,
@@ -42,6 +42,13 @@ function processCommand(command: CommandType, params: CommandParams = {}): strin
   return `cd=${command}${entries.length > 0 ? ',' : ''}${entries.map(([key, value]) => `${key}=${value}`).join(',')}`;
 }
 
+function bitMaskToWeekdaySet(weekdayBitMask: number) {
+  return '0123456'
+    .split('')
+    .filter((_, index) => weekdayBitMask & (1 << index))
+    .join('') as WeekdaySet;
+}
+
 /**
  * Parse a time period string from the device
  *
@@ -52,25 +59,27 @@ function parseTimePeriod(value: string): NonNullable<VenusDeviceData['timePeriod
   const parts = value.split('|');
   if (parts.length < 7) {
     return {
-      startHour: 0,
-      startMinute: 0,
-      endHour: 0,
-      endMinute: 0,
-      cycle: 0,
+      startTime: '00:00',
+      endTime: '00:00',
+      weekday: '0123456',
       power: 0,
       enabled: false,
     };
   }
 
+  let weekdayBitMask = parseInt(parts[4], 10);
+  const weekday = bitMaskToWeekdaySet(weekdayBitMask);
   return {
-    startHour: parseInt(parts[0], 10),
-    startMinute: parseInt(parts[1], 10),
-    endHour: parseInt(parts[2], 10),
-    endMinute: parseInt(parts[3], 10),
-    cycle: parseInt(parts[4], 10),
+    startTime: `${parseInt(parts[0], 10)}:${parseInt(parts[1], 10).toString().padStart(2, '0')}`,
+    endTime: `${parseInt(parts[2], 10)}:${parseInt(parts[3], 10).toString().padStart(2, '0')}`,
+    weekday: weekday,
     power: parseInt(parts[5], 10),
     enabled: parts[6] === '1',
   };
+}
+
+function weekdaySetToBitMask(weekday: VenusTimePeriod['weekday']): number {
+  return weekday.split('').reduce((mask, day) => mask | (1 << parseInt(day, 10)), 0);
 }
 
 /**
@@ -81,7 +90,7 @@ function parseTimePeriod(value: string): NonNullable<VenusDeviceData['timePeriod
  */
 function extractAdditionalDeviceInfo(state: VenusDeviceData) {
   return {
-    firmwareVersion: state.communicationModuleVersion,
+    firmwareVersion: state.deviceVersion?.toString(),
   };
 }
 
@@ -467,8 +476,62 @@ registerDeviceDefinition<VenusDeviceData>(
     for (let i = 0; i < 10; i++) {
       field({
         key: `tim_${i}`,
-        path: ['timePeriods', i],
-        transform: parseTimePeriod,
+        path: ['timePeriods', i, 'startTime'],
+        transform: v => parseTimePeriod(v).startTime,
+        advertise: textComponent({
+          id: `time_period_${i}_start_time`,
+          name: `Time Period ${i} Time From`,
+          command: `time-period/${i}/start-time`,
+          pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
+        }),
+      });
+      field({
+        key: `tim_${i}`,
+        path: ['timePeriods', i, 'endTime'],
+        transform: v => parseTimePeriod(v).endTime,
+        advertise: textComponent({
+          id: `time_period_${i}_end_time`,
+          name: `Time Period ${i} Time To`,
+          command: `time-period/${i}/end-time`,
+          pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
+        }),
+      });
+      field({
+        key: `tim_${i}`,
+        path: ['timePeriods', i, 'enabled'],
+        transform: v => parseTimePeriod(v).enabled,
+        advertise: switchComponent({
+          id: `time_period_${i}_enabled`,
+          name: `Time Period ${i} Enabled`,
+          icon: 'mdi:clock-time-four-outline',
+          command: `time-period/${i}/enabled`,
+        }),
+      });
+      field({
+        key: `tim_${i}`,
+        path: ['timePeriods', i, 'power'],
+        transform: v => parseTimePeriod(v).power,
+        advertise: numberComponent({
+          id: `time_period_${i}_power`,
+          name: `Time Period ${i} Power`,
+          icon: 'mdi:flash',
+          unit_of_measurement: 'W',
+          command: `time-period/${i}/power`,
+          min: -2500,
+          max: 2500,
+          step: 1,
+        }),
+      });
+      field({
+        key: `tim_${i}`,
+        path: ['timePeriods', i, 'weekday'],
+        transform: v => parseTimePeriod(v).weekday,
+        advertise: textComponent<WeekdaySet>({
+          id: `time_period_${i}_weekday`,
+          name: `Time Period ${i} Weekday`,
+          command: `time-period/${i}/weekday`,
+          pattern: '^0?1?2?3?4?5?6?$',
+        }),
       });
     }
 
@@ -920,9 +983,9 @@ registerDeviceDefinition<VenusDeviceData>(
             const params: CommandParams = { md: 1, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
-            params.bt = `${period.startHour}:${period.startMinute}`;
-            params.et = `${period.endHour}:${period.endMinute}`;
-            params.wk = period.cycle;
+            params.bt = period.startTime;
+            params.et = period.endTime;
+            params.wk = period.weekday;
             params.vv = period.power;
             params.as = enabled ? 1 : 0;
 
@@ -931,12 +994,6 @@ registerDeviceDefinition<VenusDeviceData>(
             return { timePeriods };
           });
         },
-        advertise: switchComponent({
-          id: `time_period_${i}_enabled`,
-          name: `Time Period ${i} Enabled`,
-          icon: 'mdi:clock-time-four-outline',
-          command: `time-period/${i}/enabled`,
-        }),
       });
 
       command(`time-period/${i}/start-time`, {
@@ -958,17 +1015,16 @@ registerDeviceDefinition<VenusDeviceData>(
             const timePeriods = [...(state.timePeriods || [])];
             timePeriods[periodIndex] = {
               ...timePeriods[periodIndex],
-              startHour: hours,
-              startMinute: minutes,
+              startTime: `${hours}:${minutes.toString().padStart(2, '0')}`,
             };
 
             // Build the command parameters
             const params: CommandParams = { md: 1, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
-            params.bt = `${period.startHour}:${period.startMinute}`;
-            params.et = `${period.endHour}:${period.endMinute}`;
-            params.wk = period.cycle;
+            params.bt = period.startTime;
+            params.et = period.endTime;
+            params.wk = period.weekday;
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
 
@@ -977,13 +1033,6 @@ registerDeviceDefinition<VenusDeviceData>(
             return { timePeriods };
           });
         },
-        advertise: textComponent({
-          id: `time_period_${i}_start_time`,
-          name: `Time Period ${i} Start Time`,
-          icon: 'mdi:clock-start',
-          command: `time-period/${i}/start-time`,
-          pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
-        }),
       });
 
       command(`time-period/${i}/end-time`, {
@@ -1005,17 +1054,16 @@ registerDeviceDefinition<VenusDeviceData>(
             const timePeriods = [...(state.timePeriods || [])];
             timePeriods[periodIndex] = {
               ...timePeriods[periodIndex],
-              endHour: hours,
-              endMinute: minutes,
+              endTime: `${hours}:${minutes.toString().padStart(2, '0')}`,
             };
 
             // Build the command parameters
             const params: CommandParams = { md: 1, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
-            params.bt = `${period.startHour}:${period.startMinute}`;
-            params.et = `${period.endHour}:${period.endMinute}`;
-            params.wk = period.cycle;
+            params.bt = period.startTime;
+            params.et = period.endTime;
+            params.wk = period.weekday;
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
 
@@ -1024,13 +1072,6 @@ registerDeviceDefinition<VenusDeviceData>(
             return { timePeriods };
           });
         },
-        advertise: textComponent({
-          id: `time_period_${i}_end_time`,
-          name: `Time Period ${i} End Time`,
-          icon: 'mdi:clock-end',
-          command: `time-period/${i}/end-time`,
-          pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
-        }),
       });
 
       command(`time-period/${i}/power`, {
@@ -1057,9 +1098,9 @@ registerDeviceDefinition<VenusDeviceData>(
             const params: CommandParams = { md: 1, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
-            params.bt = `${period.startHour}:${period.startMinute}`;
-            params.et = `${period.endHour}:${period.endMinute}`;
-            params.wk = period.cycle;
+            params.bt = period.startTime;
+            params.et = period.endTime;
+            params.wk = period.weekday;
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
 
@@ -1068,22 +1109,18 @@ registerDeviceDefinition<VenusDeviceData>(
             return { timePeriods };
           });
         },
-        advertise: numberComponent({
-          id: `time_period_${i}_power`,
-          name: `Time Period ${i} Power`,
-          icon: 'mdi:flash',
-          unit_of_measurement: 'W',
-          command: `time-period/${i}/power`,
-        }),
       });
 
-      command(`time-period/${i}/cycle`, {
+      command(`time-period/${i}/weekday`, {
         handler: ({ updateDeviceState, message, publishCallback }) => {
-          const cycle = parseInt(message, 10);
-          if (isNaN(cycle) || cycle < 0 || cycle > 127) {
-            console.error('Invalid cycle value (should be 0-127):', message);
+          if (!/^[0-6]*$/.test(message)) {
+            console.error(
+              'Invalid weekday value (should be a string only consisting of numbers 0-6):',
+              message,
+            );
             return;
           }
+          const weekday = weekdaySetToBitMask(message as WeekdaySet);
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
@@ -1094,16 +1131,16 @@ registerDeviceDefinition<VenusDeviceData>(
             const timePeriods = [...(state.timePeriods || [])];
             timePeriods[periodIndex] = {
               ...timePeriods[periodIndex],
-              cycle,
+              weekday: bitMaskToWeekdaySet(weekday),
             };
 
             // Build the command parameters
             const params: CommandParams = { md: 1, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
-            params.bt = `${period.startHour}:${period.startMinute}`;
-            params.et = `${period.endHour}:${period.endMinute}`;
-            params.wk = period.cycle;
+            params.bt = period.startTime;
+            params.et = period.endTime;
+            params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
 
@@ -1112,14 +1149,6 @@ registerDeviceDefinition<VenusDeviceData>(
             return { timePeriods };
           });
         },
-        advertise: numberComponent({
-          id: `time_period_${i}_cycle`,
-          name: `Time Period ${i} Cycle`,
-          icon: 'mdi:repeat',
-          command: `time-period/${i}/cycle`,
-          min: 0,
-          max: 127,
-        }),
       });
     }
 
