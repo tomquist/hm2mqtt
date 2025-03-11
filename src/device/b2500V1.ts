@@ -7,7 +7,12 @@ import {
   registerBaseCommands,
   registerBaseFields,
 } from './b2500Base';
-import { selectComponent, switchComponent } from '../homeAssistantDiscovery';
+import {
+  numberComponent,
+  selectComponent,
+  sensorComponent,
+  switchComponent,
+} from '../homeAssistantDiscovery';
 import { transformBitBoolean } from './helpers';
 
 registerDeviceDefinition<B2500V1DeviceData>(
@@ -66,6 +71,19 @@ registerDeviceDefinition<B2500V1DeviceData>(
           processCommand(CommandType.CHARGING_MODE, { md: mode }, deviceState.useFlashCommands),
         );
       },
+    });
+    field({
+      key: 'lv',
+      path: ['batteryOutputThreshold'],
+      advertise: numberComponent({
+        id: 'battery_output_threshold',
+        name: 'Battery Output Threshold',
+        device_class: 'power',
+        unit_of_measurement: 'W',
+        command: 'battery-threshold',
+        min: 0,
+        max: 800,
+      }),
     });
 
     command('battery-threshold', {

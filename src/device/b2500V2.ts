@@ -135,6 +135,16 @@ registerDeviceDefinition<B2500V2DeviceData>(
 
     // Charging and discharging settings
     field({
+      key: 'lv',
+      path: ['batteryOutputThreshold'],
+      advertise: sensorComponent<number>({
+        id: 'battery_output_threshold',
+        name: 'Battery Output Threshold',
+        device_class: 'power',
+        unit_of_measurement: 'W',
+      }),
+    });
+    field({
       key: 'cs',
       path: ['chargingMode'],
       transform: v => {

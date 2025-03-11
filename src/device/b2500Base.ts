@@ -50,16 +50,6 @@ export function registerBaseFields(
     }),
   });
   field({
-    key: 'lv',
-    path: ['batteryOutputThreshold'],
-    advertise: sensorComponent<number>({
-      id: 'battery_output_threshold',
-      name: 'Battery Output Threshold',
-      device_class: 'power',
-      unit_of_measurement: 'W',
-    }),
-  });
-  field({
     key: 'do',
     path: ['dischargeDepth'],
     advertise: sensorComponent<number>({
