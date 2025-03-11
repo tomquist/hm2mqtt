@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5]
+
+### Added
+
+- Support changing output threshold for B2500 v1 devices
+- Allow v2 timer output values below 80 
+
 ## [1.0.4]
 
 ### Fixed
