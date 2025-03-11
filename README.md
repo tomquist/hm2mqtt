@@ -6,6 +6,19 @@ Reads Hame energy storage MQTT data, parses it and exposes it as JSON.
 
 hm2mqtt is a bridge application that connects Hame energy storage devices (like the B2500 series) to Home Assistant through MQTT. It provides real-time monitoring and control of your energy storage system directly from your Home Assistant dashboard.
 
+## Supported Devices
+
+- B2500 series (e.g. Marstek B2500-D, Greensolar, BluePalm, Plenti SOLAR B2500H, Be Cool BC2500B)
+  - First generation without timer support
+  - Seconds and third generation with timer support
+- Marstek Venus
+
+## Prerequisites
+
+Before you start, you need to configure your energy storage device to send MQTT data to your MQTT broker. There are two options:
+1. For the B2500, contact the support to enable MQTT on your device, then configure the MQTT broker in the device settings through the PowerZero or Marstek app.
+2. For the Marstek Venus (or for your B2500 if you don't want to do 1., install the [Hame Relay](https://github.com/tomquist/hame-relay), which forwards the data to your MQTT broker.
+
 ## Installation
 
 ### As a Home Assistant Add-on (Recommended)
