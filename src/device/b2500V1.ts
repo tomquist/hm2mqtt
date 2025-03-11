@@ -155,7 +155,8 @@ registerDeviceDefinition<B2500V1DeviceData>(
             processCommand(
               CommandType.DISCHARGE_MODE,
               { md: modeValue },
-              deviceState.useFlashCommands,
+              // v1 doesn't (yet) support non-flash command for discharge mode
+              true,
             ),
           );
         },
