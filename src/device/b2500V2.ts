@@ -4,8 +4,7 @@ import {
   CommandType,
   extractAdditionalDeviceInfo,
   processCommand,
-  registerBaseCommands,
-  registerBaseFields,
+  registerBaseMessage,
 } from './b2500Base';
 import { registerDeviceDefinition } from '../deviceDefinition';
 import {
@@ -129,21 +128,24 @@ registerDeviceDefinition<B2500V2DeviceData>(
     refreshDataPayload: 'cd=1',
     getAdditionalDeviceInfo: extractAdditionalDeviceInfo,
   },
-  (field, command) => {
-    registerBaseFields(field);
-    registerBaseCommands(command);
+  args => {
+    registerBaseMessage(args);
+    const { field, command, advertise } = args;
 
     // Charging and discharging settings
     field({
       key: 'lv',
       path: ['batteryOutputThreshold'],
-      advertise: sensorComponent<number>({
+    });
+    advertise(
+      ['batteryOutputThreshold'],
+      sensorComponent<number>({
         id: 'battery_output_threshold',
         name: 'Battery Output Threshold',
         device_class: 'power',
         unit_of_measurement: 'W',
       }),
-    });
+    );
     field({
       key: 'cs',
       path: ['chargingMode'],
@@ -155,7 +157,10 @@ registerDeviceDefinition<B2500V2DeviceData>(
             return 'chargeThenDischarge';
         }
       },
-      advertise: selectComponent({
+    });
+    advertise(
+      ['chargingMode'],
+      selectComponent({
         id: 'charging_mode',
         name: 'Charging Mode',
         command: 'charging-mode',
@@ -164,7 +169,7 @@ registerDeviceDefinition<B2500V2DeviceData>(
           chargeThenDischarge: 'Fully Charge Then Discharge',
         },
       }),
-    });
+    );
     command('charging-mode', {
       handler: ({ message, publishCallback, deviceState }) => {
         const validModes = ['chargeDischargeSimultaneously', 'chargeThenDischarge'];
@@ -195,13 +200,16 @@ registerDeviceDefinition<B2500V2DeviceData>(
       key: 'md',
       path: ['adaptiveMode'],
       transform: transformBoolean,
-      advertise: switchComponent({
+    });
+    advertise(
+      ['adaptiveMode'],
+      switchComponent({
         id: 'adaptive_mode',
         name: 'Adaptive Mode',
         icon: 'mdi:auto-fix',
         command: 'adaptive-mode',
       }),
-    });
+    );
 
     /**
      * Control handler for adaptive mode
@@ -222,39 +230,51 @@ registerDeviceDefinition<B2500V2DeviceData>(
         key: `d${i + 1}`,
         path: ['timePeriods', i, 'enabled'],
         transform: transformBoolean,
-        advertise: switchComponent({
+      });
+      advertise(
+        ['timePeriods', i, 'enabled'],
+        switchComponent({
           id: `time_period_${i + 1}_enabled`,
           name: `Time Period ${i + 1} Enabled`,
           icon: 'mdi:clock-time-four-outline',
           command: `time-period/${i + 1}/enabled`,
         }),
-      });
+      );
       field({
         key: `e${i + 1}`,
         path: ['timePeriods', i, 'startTime'],
         transform: transformTimeString,
-        advertise: textComponent({
+      });
+      advertise(
+        ['timePeriods', i, 'startTime'],
+        textComponent({
           id: `time_period_${i + 1}_start_time`,
           name: `Time Period ${i + 1} Start Time`,
           command: `time-period/${i + 1}/start-time`,
           pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
         }),
-      });
+      );
       field({
         key: `f${i + 1}`,
         path: ['timePeriods', i, 'endTime'],
         transform: transformTimeString,
-        advertise: textComponent({
+      });
+      advertise(
+        ['timePeriods', i, 'endTime'],
+        textComponent({
           id: `time_period_${i + 1}_end_time`,
           name: `Time Period ${i + 1} End Time`,
           command: `time-period/${i + 1}/end-time`,
           pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
         }),
-      });
+      );
       field({
         key: `h${i + 1}`,
         path: ['timePeriods', i, 'outputValue'],
-        advertise: numberComponent({
+      });
+      advertise(
+        ['timePeriods', i, 'outputValue'],
+        numberComponent({
           id: `time_period_${i + 1}_output_value`,
           name: `Time Period ${i + 1} Output Value`,
           unit_of_measurement: 'W',
@@ -262,7 +282,7 @@ registerDeviceDefinition<B2500V2DeviceData>(
           min: 0,
           max: 800,
         }),
-      });
+      );
 
       const timerPeriodCommands = [
         timePeriodSettingHandler(i, 'enabled'),
@@ -279,79 +299,100 @@ registerDeviceDefinition<B2500V2DeviceData>(
     field({
       key: 'bc',
       path: ['dailyStats', 'batteryChargingPower'],
-      advertise: sensorComponent<number>({
+    });
+    advertise(
+      ['dailyStats', 'batteryChargingPower'],
+      sensorComponent<number>({
         id: 'battery_charging_power',
         name: 'Battery Charging Power',
         device_class: 'energy',
         unit_of_measurement: 'Wh',
         state_class: 'total_increasing',
       }),
-    });
+    );
     field({
       key: 'bs',
       path: ['dailyStats', 'batteryDischargePower'],
-      advertise: sensorComponent<number>({
+    });
+    advertise(
+      ['dailyStats', 'batteryDischargePower'],
+      sensorComponent<number>({
         id: 'battery_discharge_power',
         name: 'Battery Discharge Power',
         device_class: 'energy',
         unit_of_measurement: 'Wh',
         state_class: 'total_increasing',
       }),
-    });
+    );
     field({
       key: 'pt',
       path: ['dailyStats', 'photovoltaicChargingPower'],
-      advertise: sensorComponent<number>({
+    });
+    advertise(
+      ['dailyStats', 'photovoltaicChargingPower'],
+      sensorComponent<number>({
         id: 'photovoltaic_charging_power',
         name: 'Photovoltaic Charging Power',
         device_class: 'energy',
         unit_of_measurement: 'Wh',
         state_class: 'total_increasing',
       }),
-    });
+    );
     field({
       key: 'it',
       path: ['dailyStats', 'microReverseOutputPower'],
-      advertise: sensorComponent<number>({
+    });
+    advertise(
+      ['dailyStats', 'microReverseOutputPower'],
+      sensorComponent<number>({
         id: 'micro_reverse_output_power',
         name: 'Micro Reverse Output Power',
         device_class: 'energy',
         unit_of_measurement: 'Wh',
         state_class: 'total_increasing',
       }),
-    });
+    );
 
     // CT information
     field({
       key: 'sg',
       path: ['ctInfo', 'connected'],
       transform: transformBoolean,
-      advertise: binarySensorComponent({
+    });
+    advertise(
+      ['ctInfo', 'connected'],
+      binarySensorComponent({
         id: 'ct_connected',
         name: 'CT Connected',
         device_class: 'power',
       }),
-    });
+    );
     field({
       key: 'sp',
       path: ['ctInfo', 'automaticPowerSize'],
-      advertise: sensorComponent<number>({
+    });
+    advertise(
+      ['ctInfo', 'automaticPowerSize'],
+      sensorComponent<number>({
         id: 'ct_automatic_power_size',
         name: 'CT Automatic Power Size',
         device_class: 'power',
         unit_of_measurement: 'W',
       }),
-    });
+    );
     field({
       key: 'st',
       path: ['ctInfo', 'transmittedPower'],
-      advertise: sensorComponent<number>({
+    });
+    advertise(
+      ['ctInfo', 'transmittedPower'],
+      sensorComponent<number>({
         id: 'ct_transmitted_power',
         name: 'CT Transmitted Power',
         device_class: 'power',
         unit_of_measurement: 'W',
       }),
-    });
+    );
     field({
       key: 'c0',
       path: ['ctInfo', 'connectedPhase'],
@@ -369,9 +410,10 @@ registerDeviceDefinition<B2500V2DeviceData>(
             return 'unknown';
         }
       },
-      advertise: selectComponent<
-        NonNullable<NonNullable<B2500V2DeviceData['ctInfo']>['connectedPhase']>
-      >({
+    });
+    advertise(
+      ['ctInfo', 'connectedPhase'],
+      selectComponent<NonNullable<NonNullable<B2500V2DeviceData['ctInfo']>['connectedPhase']>>({
         id: 'ct_connected_phase',
         command: 'connected-phase',
         name: 'CT Connected Phase',
@@ -383,7 +425,7 @@ registerDeviceDefinition<B2500V2DeviceData>(
           unknown: 'None',
         },
       }),
-    });
+    );
     command('connected-phase', {
       handler: ({ message, publishCallback, deviceState }) => {
         let channelValue = message;
@@ -430,7 +472,10 @@ registerDeviceDefinition<B2500V2DeviceData>(
             return 'notInDiagnosis';
         }
       },
-      advertise: sensorComponent<B2500V2SmartMeterStatus>({
+    });
+    advertise(
+      ['ctInfo', 'status'],
+      sensorComponent<B2500V2SmartMeterStatus>({
         id: 'ct_status',
         name: 'CT Status',
         valueMappings: {
@@ -444,75 +489,96 @@ registerDeviceDefinition<B2500V2DeviceData>(
           notInDiagnosis: 'Not in diagnosis',
         } satisfies Record<B2500V2SmartMeterStatus, string>,
       }),
-    });
+    );
     field({
       key: 'm0',
       path: ['ctInfo', 'phase1'],
-      advertise: sensorComponent<number>({
+    });
+    advertise(
+      ['ctInfo', 'phase1'],
+      sensorComponent<number>({
         id: 'ct_clip_power1',
         name: 'CT Clip Power 1',
         device_class: 'power',
         unit_of_measurement: 'W',
       }),
-    });
+    );
     field({
       key: 'm1',
       path: ['ctInfo', 'phase2'],
-      advertise: sensorComponent<number>({
+    });
+    advertise(
+      ['ctInfo', 'phase2'],
+      sensorComponent<number>({
         id: 'ct_clip_power2',
         name: 'CT Clip Power 2',
         device_class: 'power',
         unit_of_measurement: 'W',
       }),
-    });
+    );
     field({
       key: 'm2',
       path: ['ctInfo', 'phase3'],
-      advertise: sensorComponent<number>({
+    });
+    advertise(
+      ['ctInfo', 'phase3'],
+      sensorComponent<number>({
         id: 'ct_clip_power3',
         name: 'CT Clip Power 3',
         device_class: 'power',
         unit_of_measurement: 'W',
       }),
-    });
+    );
     field({
       key: 'm3',
       path: ['ctInfo', 'microInverterPower'],
-      advertise: sensorComponent<number>({
+    });
+    advertise(
+      ['ctInfo', 'microInverterPower'],
+      sensorComponent<number>({
         id: 'micro_inverter_power',
         name: 'Micro Inverter Power',
         device_class: 'power',
         unit_of_measurement: 'W',
       }),
-    });
+    );
 
     // Power ratings
     field({
       key: 'lmo',
       path: ['ratedPower', 'output'],
-      advertise: sensorComponent<number>({
+    });
+    advertise(
+      ['ratedPower', 'output'],
+      sensorComponent<number>({
         id: 'rated_output_power',
         name: 'Rated Output Power',
         device_class: 'power',
         unit_of_measurement: 'W',
       }),
-    });
+    );
     field({
       key: 'lmi',
       path: ['ratedPower', 'input'],
-      advertise: sensorComponent<number>({
+    });
+    advertise(
+      ['ratedPower', 'input'],
+      sensorComponent<number>({
         id: 'rated_input_power',
         name: 'Rated Input Power',
         device_class: 'power',
         unit_of_measurement: 'W',
       }),
-    });
+    );
     field({
       key: 'lmf',
       path: ['ratedPower', 'isLimited'],
       transform: transformBoolean,
-      advertise: binarySensorComponent({ id: 'rated_power_limited', name: 'Rated Power Limited' }),
     });
+    advertise(
+      ['ratedPower', 'isLimited'],
+      binarySensorComponent({ id: 'rated_power_limited', name: 'Rated Power Limited' }),
+    );
 
     command('time-zone', {
       handler: ({ message, publishCallback, deviceState }) => {
@@ -570,7 +636,10 @@ registerDeviceDefinition<B2500V2DeviceData>(
           console.error('Invalid time sync data:', message);
         }
       },
-      advertise: buttonComponent({
+    });
+    advertise(
+      [],
+      buttonComponent({
         id: 'sync_time',
         name: 'Sync Time',
         icon: 'mdi:clock-sync',
@@ -578,6 +647,6 @@ registerDeviceDefinition<B2500V2DeviceData>(
         payload_press: 'PRESS',
         enabled_by_default: false,
       }),
-    });
+    );
   },
 );

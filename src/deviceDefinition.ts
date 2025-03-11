@@ -19,7 +19,7 @@ type _KeyPath<T> = T extends object
 /**
  * Helper type to get the type at a given path in an object type
  */
-type TypeAtPath<T, P extends KeyPath<T>> = P extends readonly [infer First, ...infer Rest]
+export type TypeAtPath<T, P extends KeyPath<T>> = P extends readonly [infer First, ...infer Rest]
   ? First extends keyof T
     ? Rest extends KeyPath<FixArr<T[First]>>
       ? TypeAtPath<FixArr<NonNullable<T[First]>>, Rest>
@@ -45,7 +45,6 @@ export type FieldDefinition<T extends BaseDeviceData, KP extends KeyPath<T>> = {
   key: string;
   path: KP;
   transform?: (value: string) => TypeAtPath<T, KP>;
-  advertise?: HaStatefulAdvertiseBuilder<TypeAtPath<T, KP>>;
 } & (TypeAtPath<T, KP> extends number | undefined
   ? {}
   : {
@@ -58,6 +57,7 @@ export type FieldDefinition<T extends BaseDeviceData, KP extends KeyPath<T>> = {
 export interface DeviceDefinition<T extends BaseDeviceData> {
   fields: FieldDefinition<T, KeyPath<T>>[];
   commands: ControlHandlerDefinition<T>[];
+  advertisements: HaAdvertisement<T, KeyPath<T> | []>[];
   defaultState: T;
   refreshDataPayload: string;
   getAdditionalDeviceInfo: (state: T) => AdditionalDeviceInfo;
@@ -77,9 +77,18 @@ export type RegisterCommandDefinitionFn<T extends BaseDeviceData> = (
   name: string,
   command: Omit<ControlHandlerDefinition<T>, 'command'>,
 ) => void;
+export type AdvertiseComponentFn<T extends BaseDeviceData> = <KP extends KeyPath<T> | []>(
+  keyPath: KP,
+  component: HaStatefulAdvertiseBuilder<KP extends KeyPath<T> ? TypeAtPath<T, KP> : void>,
+) => void;
+
+export type BuildMessageDefinitionArgs<T extends BaseDeviceData> = {
+  field: RegisterFieldDefinitionFn<T>;
+  advertise: AdvertiseComponentFn<T>;
+  command: RegisterCommandDefinitionFn<T>;
+};
 export type BuildMessageDefinitionFn<T extends BaseDeviceData> = (
-  field: RegisterFieldDefinitionFn<T>,
-  command: RegisterCommandDefinitionFn<T>,
+  args: BuildMessageDefinitionArgs<T>,
 ) => void;
 
 export interface AdditionalDeviceInfo {
@@ -107,10 +116,19 @@ export function registerDeviceDefinition<T extends BaseDeviceData>(
   ) => {
     commands.push({ ...command, command: name } as ControlHandlerDefinition<any>);
   };
-  build(registerField, registerCommand);
+  const advertisedComponents: HaAdvertisement<T, KeyPath<T> | []>[] = [];
+  const advertiseComponent: AdvertiseComponentFn<T> = (keyPath, advertise) => {
+    advertisedComponents.push({
+      keyPath,
+      advertise,
+    });
+  };
+
+  build({ field: registerField, command: registerCommand, advertise: advertiseComponent });
   let deviceDefinition = {
     fields,
     commands,
+    advertisements: advertisedComponents,
     defaultState: options.defaultState,
     refreshDataPayload: options.refreshDataPayload,
     getAdditionalDeviceInfo: options.getAdditionalDeviceInfo,
@@ -133,3 +151,4 @@ export function getDeviceDefinition(
 }
 
 import './device/registry';
+import { HaAdvertisement } from './generateDiscoveryConfigs';

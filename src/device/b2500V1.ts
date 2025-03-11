@@ -4,8 +4,7 @@ import {
   CommandType,
   extractAdditionalDeviceInfo,
   processCommand,
-  registerBaseCommands,
-  registerBaseFields,
+  registerBaseMessage,
 } from './b2500Base';
 import {
   numberComponent,
@@ -22,9 +21,9 @@ registerDeviceDefinition<B2500V1DeviceData>(
     refreshDataPayload: 'cd=1',
     getAdditionalDeviceInfo: extractAdditionalDeviceInfo,
   },
-  (field, command) => {
-    registerBaseFields(field);
-    registerBaseCommands(command);
+  args => {
+    registerBaseMessage(args);
+    const { field, command, advertise } = args;
 
     field({
       key: 'cs',
@@ -37,7 +36,10 @@ registerDeviceDefinition<B2500V1DeviceData>(
             return 'chargeThenDischarge';
         }
       },
-      advertise: selectComponent({
+    });
+    advertise(
+      ['chargingMode'],
+      selectComponent({
         id: 'charging_mode',
         name: 'Charging Mode',
         command: 'charging-mode',
@@ -46,7 +48,7 @@ registerDeviceDefinition<B2500V1DeviceData>(
           chargeThenDischarge: 'Fully Charge Then Discharge',
         },
       }),
-    });
+    );
     command('charging-mode', {
       handler: ({ device, message, publishCallback, deviceState }) => {
         const validModes = ['pv2PassThrough', 'chargeThenDischarge'];
@@ -75,7 +77,10 @@ registerDeviceDefinition<B2500V1DeviceData>(
     field({
       key: 'lv',
       path: ['batteryOutputThreshold'],
-      advertise: numberComponent({
+    });
+    advertise(
+      ['batteryOutputThreshold'],
+      numberComponent({
         id: 'battery_output_threshold',
         name: 'Battery Output Threshold',
         device_class: 'power',
@@ -84,7 +89,7 @@ registerDeviceDefinition<B2500V1DeviceData>(
         min: 0,
         max: 800,
       }),
-    });
+    );
 
     command('battery-threshold', {
       handler: ({ message, publishCallback, deviceState }) => {
@@ -109,13 +114,16 @@ registerDeviceDefinition<B2500V1DeviceData>(
         key: 'cd',
         path: ['outputEnabled', `output${outputNumber}`],
         transform: transformBitBoolean(outputNumber - 1),
-        advertise: switchComponent({
+      });
+      advertise(
+        [`outputEnabled`, `output${outputNumber}`],
+        switchComponent({
           id: `output${outputNumber}_enabled`,
           name: `Output ${outputNumber} Enabled`,
           icon: 'mdi:power-socket',
           command: `output${outputNumber}`,
         }),
-      });
+      );
 
       command(`output${outputNumber}`, {
         handler: ({ updateDeviceState, message, publishCallback, deviceState }) => {

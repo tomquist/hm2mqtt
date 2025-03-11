@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Always use flash-command for discharge mode on B2500 v1 device since the non-flash command is not supported
 
+### Changed
+
+- Refactored advertisement registration
+
 ## [1.0.5]
 
 ### Added

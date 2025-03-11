@@ -34,13 +34,7 @@ export type HaNonStatefulComponentAdvertiseBuilder = (
 export type ControlHandlerDefinition<T> = {
   command: string;
   handler: (params: ControlHandlerParams<T>) => void;
-} & (
-  | { path?: undefined; advertise?: HaNonStatefulComponentAdvertiseBuilder }
-  | {
-      path: KeyPath<T>;
-      advertise?: HaStatefulAdvertiseBuilder<any>;
-    }
-);
+};
 
 /**
  * Control Handler class

@@ -1,8 +1,19 @@
 import { DeviceTopics } from './deviceManager';
 import { HaDiscoveryConfig } from './homeAssistantDiscovery';
 import { MqttClient } from 'mqtt';
-import { AdditionalDeviceInfo, getDeviceDefinition } from './deviceDefinition';
+import {
+  AdditionalDeviceInfo,
+  getDeviceDefinition,
+  HaStatefulAdvertiseBuilder,
+  KeyPath,
+  TypeAtPath,
+} from './deviceDefinition';
 import { Device } from './types';
+
+export interface HaAdvertisement<T, KP extends KeyPath<T> | []> {
+  keyPath: KP;
+  advertise: HaStatefulAdvertiseBuilder<KP extends KeyPath<T> ? TypeAtPath<T, KeyPath<T>> : void>;
+}
 
 export function generateDiscoveryConfigs(
   device: Device,
@@ -47,10 +58,7 @@ export function generateDiscoveryConfigs(
   };
   let nodeId = `${device.deviceType}_${device.deviceId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
 
-  for (const field of [
-    ...(deviceDefinition?.fields ?? []),
-    ...(deviceDefinition?.commands ?? []),
-  ]) {
+  for (const field of deviceDefinition?.advertisements ?? []) {
     if (field.advertise == null) {
       continue;
     }
@@ -61,7 +69,7 @@ export function generateDiscoveryConfigs(
     } = field.advertise({
       commandTopic: topics.controlSubscriptionTopic,
       stateTopic: topics.publishTopic,
-      keyPath: field.path ?? [],
+      keyPath: field.keyPath,
     });
     const objectId = _objectId.replace(/[^a-zA-Z0-9_-]/g, '_');
     configs.push({
