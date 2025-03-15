@@ -62,8 +62,11 @@ function applyMessageDefinition<T extends BaseDeviceData>(
     let key = field.key;
     if (typeof key === 'string') {
       let transform = field.transform ?? transformNumber;
-      const transformedValue = transform(values[key]);
-      setValueAtPath(parsedData, field.path, transformedValue);
+      let value = values[key];
+      if (value != null) {
+        const transformedValue = transform(value);
+        setValueAtPath(parsedData, field.path, transformedValue);
+      }
     } else if (field.transform != null) {
       let entries = key.map(key => [key, values[key]] as const);
       if (entries.every(([, value]) => value !== undefined)) {
