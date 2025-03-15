@@ -105,7 +105,7 @@ registerDeviceDefinition<VenusDeviceData>(
     field({
       key: 'cel_p',
       path: ['batteryCapacity'],
-      transform: v => parseFloat(v) * 100, // Convert to Wh
+      transform: v => parseFloat(v) * 10, // Convert to Wh
     });
     advertise(
       ['batteryCapacity'],
