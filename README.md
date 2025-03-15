@@ -4,7 +4,7 @@ Reads Hame energy storage MQTT data, parses it and exposes it as JSON.
 
 ## Overview
 
-hm2mqtt is a bridge application that connects Hame energy storage devices (like the B2500 series) to Home Assistant through MQTT. It provides real-time monitoring and control of your energy storage system directly from your Home Assistant dashboard.
+hm2mqtt is a bridge application that connects Hame energy storage devices (like the B2500 series) to Home Assistant (or other home automation systems) through MQTT. It provides real-time monitoring and control of your energy storage system directly from your Home Assistant dashboard.
 
 ## Supported Devices
 
@@ -15,9 +15,14 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 
 ## Prerequisites
 
-Before you start, you need to configure your energy storage device to send MQTT data to your MQTT broker. There are two options:
-1. For the B2500, contact the support to enable MQTT on your device, then configure the MQTT broker in the device settings through the PowerZero or Marstek app.
-2. For the Marstek Venus (or for your B2500 if you don't want to do 1., install the [Hame Relay](https://github.com/tomquist/hame-relay), which forwards the data to your MQTT broker.
+- Before you start, you need a local MQTT broker. You can install one via as a Home Assistant Addon: https://www.home-assistant.io/integrations/mqtt/#setting-up-a-broker
+- After setting up an MQTT broker, configure your energy storage device to send MQTT data to your MQTT broker. There are two options:
+  1. For the **B2500**, you have two options:
+     1. Contact the support and ask them to enable MQTT for your device, then configure the MQTT broker in the device settings through the PowerZero or Marstek app.
+     2. With your an Android Smartphone or with a Bluetooth enabled PC use [this tool](https://tomquist.github.io/hame-relay/b2500.html) to configure the MQTT broker directly via Bluetooth.
+   
+     **Warning:** Enabling MQTT on the device will disable the cloud connection. You will not be able to use the PowerZero or Marstek app to monitor or control your device anymore. You can re-enable the cloud connection by installing [Hame Relay](https://github.com/tomquist/hame-relay#mode-1-storage-configured-with-local-broker-inverse_forwarding-false) in Mode 1.
+  2. The **Marstek Venus** doesn't officially support MQTT. However, you can install the [Hame Relay](https://github.com/tomquist/hame-relay) in [Mode 2](https://github.com/tomquist/hame-relay#mode-2-storage-configured-with-hame-broker-inverse_forwarding-true) to forward the Cloud MQTT data to your local MQTT broker.
 
 ## Installation
 
@@ -25,7 +30,9 @@ Before you start, you need to configure your energy storage device to send MQTT 
 
 The easiest way to use hm2mqtt is as a Home Assistant add-on:
 
-1. Add this repository URL to your Home Assistant add-on store: [![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Ftomquist%2Fhm2mqtt)
+1. Add this repository URL to your Home Assistant add-on store:
+   
+   [![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Ftomquist%2Fhm2mqtt)
 2. Install the "hm2mqtt" add-on
 3. Configure your devices in the add-on configuration
 4. Start the add-on
