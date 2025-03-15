@@ -12,3 +12,8 @@ export const transformTimeString = (value: string): string => {
 export const transformBitBoolean = (bit: number) => (value: string) =>
   Boolean(Number(value) & (1 << bit));
 export const transformBoolean = transformBitBoolean(0);
+
+export const transformNumber = (value: string) => {
+  const number = parseFloat(value);
+  return isNaN(number) ? 0 : number;
+};

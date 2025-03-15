@@ -1,18 +1,13 @@
-import {
-  AdditionalDeviceInfo,
-  BuildMessageDefinitionArgs,
-  FieldDefinition,
-  KeyPath,
-  RegisterCommandDefinitionFn,
-} from '../deviceDefinition';
+import { AdditionalDeviceInfo, BuildMessageDefinitionArgs } from '../deviceDefinition';
 import { B2500BaseDeviceData, CommandParams } from '../types';
 import {
   binarySensorComponent,
   buttonComponent,
+  numberComponent,
   sensorComponent,
   switchComponent,
 } from '../homeAssistantDiscovery';
-import { transformBitBoolean, transformBoolean } from './helpers';
+import { transformBitBoolean, transformBoolean, transformNumber } from './helpers';
 
 export function extractAdditionalDeviceInfo(state: B2500BaseDeviceData): AdditionalDeviceInfo {
   let firmwareVersion: string | undefined;
@@ -62,10 +57,15 @@ export function registerBaseMessage({
   });
   advertise(
     ['dischargeDepth'],
-    sensorComponent<number>({
+    numberComponent({
       id: 'discharge_depth',
       name: 'Discharge Depth',
       unit_of_measurement: '%',
+      command: 'discharge-depth',
+      min: 0,
+      max: 100,
+      step: 1,
+      icon: 'mdi:battery-arrow-down',
     }),
   );
 
@@ -148,6 +148,22 @@ export function registerBaseMessage({
       unit_of_measurement: 'W',
     }),
   );
+  field({
+    key: ['w1', 'w2'],
+    path: ['solarPower', 'total'],
+    transform({ w1, w2 }) {
+      return transformNumber(w1) + transformNumber(w2);
+    },
+  });
+  advertise(
+    ['solarPower', 'total'],
+    sensorComponent<number>({
+      id: 'solar_total_power',
+      name: 'Total Input Power',
+      device_class: 'power',
+      unit_of_measurement: 'W',
+    }),
+  );
 
   // Device information
   field({ key: 'vv', path: ['deviceInfo', 'deviceVersion'] as const });
@@ -157,54 +173,47 @@ export function registerBaseMessage({
   field({ key: 'uv', path: ['deviceInfo', 'bootloaderVersion'] });
 
   // Output state information
+  for (const outputNumber of [1, 2] as const) {
+    field({
+      key: `o${outputNumber}`,
+      path: ['outputState', `output${outputNumber}` as const],
+      transform: transformBoolean,
+    });
+    advertise(
+      ['outputState', `output${outputNumber}` as const],
+      binarySensorComponent({
+        id: `output${outputNumber}_active_state`,
+        name: `Output ${outputNumber} Active`,
+        device_class: 'power',
+      }),
+    );
+    field({
+      key: `g${outputNumber}`,
+      path: ['outputPower', `output${outputNumber}` as const],
+    });
+    advertise(
+      ['outputPower', `output${outputNumber}` as const],
+      sensorComponent<number>({
+        id: `output${outputNumber}_power`,
+        name: `Output ${outputNumber} Power`,
+        device_class: 'power',
+        unit_of_measurement: 'W',
+      }),
+    );
+  }
+
   field({
-    key: 'o1',
-    path: ['outputState', 'output1'],
-    transform: transformBoolean,
+    key: ['g1', 'g2'],
+    path: ['outputPower', 'total'],
+    transform({ g1, g2 }) {
+      return transformNumber(g1) + transformNumber(g2);
+    },
   });
   advertise(
-    ['outputState', 'output1'],
-    binarySensorComponent({
-      id: 'output1_active_state',
-      name: 'Output 1 Active',
-      device_class: 'power',
-    }),
-  );
-  field({
-    key: 'o2',
-    path: ['outputState', 'output2'],
-    transform: transformBoolean,
-  });
-  advertise(
-    ['outputState', 'output2'],
-    binarySensorComponent({
-      id: 'output2_active_state',
-      name: 'Output 2 Active',
-      device_class: 'power',
-    }),
-  );
-  field({
-    key: 'g1',
-    path: ['outputPower', 'output1'],
-  });
-  advertise(
-    ['outputPower', 'output1'],
+    ['outputPower', 'total'],
     sensorComponent<number>({
-      id: 'output1_power',
-      name: 'Output 1 Power',
-      device_class: 'power',
-      unit_of_measurement: 'W',
-    }),
-  );
-  field({
-    key: 'g2',
-    path: ['outputPower', 'output2'],
-  });
-  advertise(
-    ['outputPower', 'output2'],
-    sensorComponent<number>({
-      id: 'output2_power',
-      name: 'Output 2 Power',
+      id: 'output_total_power',
+      name: 'Total Output Power',
       device_class: 'power',
       unit_of_measurement: 'W',
     }),

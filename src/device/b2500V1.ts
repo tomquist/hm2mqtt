@@ -6,12 +6,7 @@ import {
   processCommand,
   registerBaseMessage,
 } from './b2500Base';
-import {
-  numberComponent,
-  selectComponent,
-  sensorComponent,
-  switchComponent,
-} from '../homeAssistantDiscovery';
+import { numberComponent, selectComponent, switchComponent } from '../homeAssistantDiscovery';
 import { transformBitBoolean } from './helpers';
 
 registerDeviceDefinition<B2500V1DeviceData>(
@@ -50,7 +45,7 @@ registerDeviceDefinition<B2500V1DeviceData>(
       }),
     );
     command('charging-mode', {
-      handler: ({ device, message, publishCallback, deviceState }) => {
+      handler: ({ message, publishCallback, deviceState }) => {
         const validModes = ['pv2PassThrough', 'chargeThenDischarge'];
         if (!validModes.includes(message)) {
           console.error('Invalid charging mode value:', message);

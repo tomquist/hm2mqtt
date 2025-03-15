@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.7]
 
+### Added
+
+- B2500: Add total input and output power sensors
+
 ### Fixed
 
 - Venus battery capacity

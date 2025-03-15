@@ -43,6 +43,7 @@ export interface B2500BaseDeviceData extends BaseDeviceData {
   solarPower?: {
     input1: number;
     input2: number;
+    total: number;
   };
 
   // Output state information
@@ -53,6 +54,7 @@ export interface B2500BaseDeviceData extends BaseDeviceData {
   outputPower?: {
     output1: number;
     output2: number;
+    total: number;
   };
 
   // Device information

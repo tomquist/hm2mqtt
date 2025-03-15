@@ -38,13 +38,20 @@ export type HaStatefulAdvertiseBuilder<
   T,
   R extends HaComponentConfig = HaComponentConfig,
 > = Flavored<(args: AdvertiseBuilderArgs) => R, T>;
+type TransformParams<K extends string | readonly string[]> = K extends string
+  ? [K: string]
+  : [{ [P in K[number]]: string }];
 /**
  * Interface for field definition
  */
-export type FieldDefinition<T extends BaseDeviceData, KP extends KeyPath<T>> = {
-  key: string;
+export type FieldDefinition<
+  T extends BaseDeviceData,
+  KP extends KeyPath<T>,
+  K extends string | readonly string[] = string | readonly string[],
+> = {
+  key: K;
   path: KP;
-  transform?: (value: string) => TypeAtPath<T, KP>;
+  transform?: (...value: TransformParams<K>) => TypeAtPath<T, KP>;
 } & (TypeAtPath<T, KP> extends number | undefined
   ? {}
   : {
@@ -70,8 +77,11 @@ export type BaseDeviceData = {
   values: Record<string, string>;
 };
 
-export type RegisterFieldDefinitionFn<T extends BaseDeviceData> = <KP extends KeyPath<T>>(
-  fd: FieldDefinition<T, KP>,
+export type RegisterFieldDefinitionFn<T extends BaseDeviceData> = <
+  KP extends KeyPath<T>,
+  K extends string | readonly string[],
+>(
+  fd: FieldDefinition<T, KP, K>,
 ) => void;
 export type RegisterCommandDefinitionFn<T extends BaseDeviceData> = (
   name: string,
@@ -106,7 +116,9 @@ export function registerDeviceDefinition<T extends BaseDeviceData>(
   build: BuildMessageDefinitionFn<T>,
 ) {
   const fields: FieldDefinition<T, KeyPath<T>>[] = [];
-  const registerField = <KP extends KeyPath<T>>(fd: FieldDefinition<T, KP>) => {
+  const registerField = <KP extends KeyPath<T>, K extends string | readonly string[]>(
+    fd: FieldDefinition<T, KP, K>,
+  ) => {
     fields.push(fd as FieldDefinition<T, KeyPath<T>>);
   };
   const commands: ControlHandlerDefinition<any>[] = [];

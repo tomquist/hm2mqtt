@@ -1,5 +1,12 @@
 import { B2500V2DeviceData } from './types';
-import { KeyPath, BaseDeviceData, getDeviceDefinition, FieldDefinition } from './deviceDefinition';
+import {
+  KeyPath,
+  BaseDeviceData,
+  getDeviceDefinition,
+  FieldDefinition,
+  TypeAtPath,
+} from './deviceDefinition';
+import { transformNumber } from './device/helpers';
 
 /**
  * Parse the incoming MQTT message and transform it into the required format
@@ -51,19 +58,22 @@ function applyMessageDefinition<T extends BaseDeviceData>(
   values: Record<string, string>,
   fields: FieldDefinition<T, KeyPath<T>>[],
 ): void {
-  const transformNumber = (value: string) => {
-    const number = parseFloat(value);
-    return isNaN(number) ? undefined : number;
-  };
   for (const field of fields) {
-    const value = values[field.key];
-
-    if (value !== undefined) {
-      // Apply transformation if provided
-      const transformedValue = (field.transform ?? transformNumber)(value);
-
-      // Set the value at the specified path
+    let key = field.key;
+    if (typeof key === 'string') {
+      let transform = field.transform ?? transformNumber;
+      const transformedValue = transform(values[key]);
       setValueAtPath(parsedData, field.path, transformedValue);
+    } else if (field.transform != null) {
+      let entries = key.map(key => [key, values[key]] as const);
+      if (entries.every(([, value]) => value !== undefined)) {
+        const transformedValue = field.transform(Object.fromEntries(entries));
+        setValueAtPath(parsedData, field.path, transformedValue);
+      } else {
+        console.warn(`Some values are missing for field ${field.path.join('.')}`);
+      }
+    } else {
+      console.warn(`No transform function provided for field ${field.path.join('.')}`);
     }
   }
 }
