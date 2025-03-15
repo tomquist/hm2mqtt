@@ -159,6 +159,76 @@ Run the container:
 docker run -e MQTT_BROKER_URL=mqtt://your-broker:1883 -e DEVICE_0=HMA-1:your-device-id hm2mqtt
 ```
 
+## MQTT Topics
+
+### Device Data Topic
+
+Your device data is published to the following MQTT topic:
+
+```
+hame_energy/{device_type}/device/{device_id}/data
+```
+
+This topic contains the current state of your device in JSON format, including battery status, power flow data, and device settings.
+
+### Control Topics
+
+You can control your device by publishing messages to specific MQTT topics. The base topic pattern for commands is:
+
+```
+hame_energy/{device_type}/control/{device_id}/{command}
+```
+
+### Common Commands (All Devices)
+- `refresh`: Refreshes the device data
+- `factory-reset`: Resets the device to factory settings
+
+### B2500 Commands (All Versions)
+- `discharge-depth`: Controls battery discharge depth (0-100%)
+- `restart`: Restarts the device
+- `use-flash-commands`: Toggles flash command mode
+
+### B2500 V1 Specific Commands
+- `charging-mode`: Sets charging mode (`pv2PassThrough` or `chargeThenDischarge`)
+- `battery-threshold`: Sets battery output threshold (0-800W)
+- `output1`: Enables/disables output port 1 (`on` or `off`)
+- `output2`: Enables/disables output port 2 (`on` or `off`)
+
+### B2500 V2/V3 Specific Commands
+- `charging-mode`: Sets charging mode (`chargeDischargeSimultaneously` or `chargeThenDischarge`)
+- `adaptive-mode`: Toggles adaptive mode (`on` or `off`)
+- `time-period/[1-5]/enabled`: Enables/disables specific time period (`on` or `off`)
+- `time-period/[1-5]/start-time`: Sets start time for period (HH:MM format)
+- `time-period/[1-5]/end-time`: Sets end time for period (HH:MM format)
+- `time-period/[1-5]/output-value`: Sets output power for period (0-800W)
+- `connected-phase`: Sets connected phase for CT meter (`1`, `2`, or `3`)
+- `time-zone`: Sets time zone (UTC offset in hours)
+- `sync-time`: Synchronizes device time with server
+
+### Venus Device Commands
+- `working-mode`: Sets working mode (`automatic`, `manual`, or `trading`)
+- `auto-switch-working-mode`: Toggles automatic mode switching (`on` or `off`)
+- `time-period/[0-9]/enabled`: Enables/disables time period (`on` or `off`)
+- `time-period/[0-9]/start-time`: Sets start time for period (HH:MM format)
+- `time-period/[0-9]/end-time`: Sets end time for period (HH:MM format)
+- `time-period/[0-9]/power`: Sets power value for period (-2500 to 2500W)
+- `time-period/[0-9]/weekday`: Sets days of week for period (0-6, where 0 is Sunday)
+- `get-ct-power`: Gets current transformer power readings
+- `transaction-mode`: Sets transaction mode parameters
+
+### Examples
+
+```
+# Refresh data from a B2500 device
+mosquitto_pub -t "hame_energy/HMA-1/control/abcdef123456/refresh" -m ""
+
+# Set charging mode for B2500
+mosquitto_pub -t "hame_energy/HMA-1/control/abcdef123456/charging-mode" -m "chargeThenDischarge"
+
+# Enable timer period 1 on Venus device
+mosquitto_pub -t "hame_energy/HMG-50/control/abcdef123456/time-period/1/enabled" -m "on"
+```
+
 ## License
 
 [MIT License](LICENSE)
