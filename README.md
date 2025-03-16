@@ -48,7 +48,7 @@ docker run -d --name hm2mqtt \
   -e MQTT_BROKER_URL=mqtt://your-broker:1883 \
   -e MQTT_USERNAME=your-username \
   -e MQTT_PASSWORD=your-password \
-  -e DEVICE_0=HMA-1:your-device-id \
+  -e DEVICE_0=HMA-1:your-device-mac \
   ghcr.io/tomquist/hm2mqtt:latest
 ```
 
@@ -57,8 +57,8 @@ Configure multiple devices by adding more environment variables:
 ```bash
 docker run -d --name hm2mqtt \
   -e MQTT_BROKER_URL=mqtt://your-broker:1883 \
-  -e DEVICE_0=HMA-1:device-id-1 \
-  -e DEVICE_1=HMB-1:device-id-2 \
+  -e DEVICE_0=HMA-1:device-mac-1 \
+  -e DEVICE_1=HMB-1:device-mac-2 \
   ghcr.io/tomquist/hm2mqtt:latest
 ```
 
@@ -89,7 +89,7 @@ The Docker image is automatically built and published to the GitHub package regi
    MQTT_PASSWORD=your-password
    MQTT_POLLING_INTERVAL=60000
    MQTT_RESPONSE_TIMEOUT=30000
-   DEVICE_0=HMA-1:your-device-id
+   DEVICE_0=HMA-1:your-device-mac
    ```
 
 5. Run the application:
@@ -109,7 +109,7 @@ The Docker image is automatically built and published to the GitHub package regi
 | `MQTT_PASSWORD` | MQTT password | -                       |
 | `MQTT_POLLING_INTERVAL` | Interval between device polls (ms) | `60000`                 |
 | `MQTT_RESPONSE_TIMEOUT` | Timeout for device responses (ms) | `15000`                 |
-| `DEVICE_n` | Device configuration in format `{type}:{id}` | -                       |
+| `DEVICE_n` | Device configuration in format `{type}:{mac}` | -                       |
 
 ### Add-on Configuration
 
@@ -118,7 +118,7 @@ pollingInterval: 60000  # Interval between device polls in milliseconds
 responseTimeout: 30000  # Timeout for device responses in milliseconds
 devices:
   - deviceType: "HMA-1"
-    deviceId: "your-device-id"
+    deviceId: "your-device-mac"
 ```
 
 The device id is the MAC address of the device in lowercase, without colons.
@@ -156,7 +156,7 @@ docker build -t hm2mqtt .
 Run the container:
 
 ```bash
-docker run -e MQTT_BROKER_URL=mqtt://your-broker:1883 -e DEVICE_0=HMA-1:your-device-id hm2mqtt
+docker run -e MQTT_BROKER_URL=mqtt://your-broker:1883 -e DEVICE_0=HMA-1:your-device-mac hm2mqtt
 ```
 
 ## MQTT Topics
@@ -166,7 +166,7 @@ docker run -e MQTT_BROKER_URL=mqtt://your-broker:1883 -e DEVICE_0=HMA-1:your-dev
 Your device data is published to the following MQTT topic:
 
 ```
-hame_energy/{device_type}/device/{device_id}/data
+hame_energy/{device_type}/device/{device_mac}/data
 ```
 
 This topic contains the current state of your device in JSON format, including battery status, power flow data, and device settings.
@@ -176,7 +176,7 @@ This topic contains the current state of your device in JSON format, including b
 You can control your device by publishing messages to specific MQTT topics. The base topic pattern for commands is:
 
 ```
-hame_energy/{device_type}/control/{device_id}/{command}
+hame_energy/{device_type}/control/{device_mac}/{command}
 ```
 
 ### Common Commands (All Devices)
