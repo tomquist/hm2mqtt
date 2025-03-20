@@ -1,4 +1,4 @@
-import { registerDeviceDefinition } from '../deviceDefinition';
+import { BuildMessageFn, registerDeviceDefinition } from '../deviceDefinition';
 import { CommandParams, VenusDeviceData, VenusTimePeriod, WeekdaySet } from '../types';
 import {
   buttonComponent,
@@ -9,6 +9,7 @@ import {
   textComponent,
 } from '../homeAssistantDiscovery';
 import { transformBoolean } from './helpers';
+import { isB2500RuntimeInfoMessage } from './b2500Base';
 
 /**
  * Command types supported by the Venus device
@@ -93,14 +94,51 @@ function extractAdditionalDeviceInfo(state: VenusDeviceData) {
   };
 }
 
-registerDeviceDefinition<VenusDeviceData>(
+const requiredRuntimeInfoKeys = [
+  'cel_p',
+  'cel_c',
+  'tot_i',
+  'tot_o',
+  'ele_d',
+  'ele_m',
+  'grd_d',
+  'grd_m',
+  'inc_d',
+  'inc_m',
+  'inc_a',
+  'grd_f',
+  'grd_o',
+  'grd_t',
+  'gct_s',
+  'cel_s',
+  'err_t',
+  'err_a',
+  'dev_n',
+  'grd_y',
+  'wor_m',
+];
+function isVenusRuntimeInfoMessage(values: Record<string, string>): boolean {
+  return requiredRuntimeInfoKeys.every(key => key in values);
+}
+
+registerDeviceDefinition(
   {
     deviceTypes: ['HMG'],
-    defaultState: {},
-    refreshDataPayload: 'cd=1',
-    getAdditionalDeviceInfo: extractAdditionalDeviceInfo,
   },
-  ({ field, command, advertise }) => {
+  ({ message }) => {
+    registerRuntimeInfoMessage(message);
+  },
+);
+
+function registerRuntimeInfoMessage(message: BuildMessageFn) {
+  let options = {
+    refreshDataPayload: 'cd=1',
+    isMessage: isVenusRuntimeInfoMessage,
+    publishPath: 'data',
+    defaultState: {},
+    getAdditionalDeviceInfo: extractAdditionalDeviceInfo,
+  };
+  message<VenusDeviceData>(options, ({ field, command, advertise }) => {
     // Battery information
     field({
       key: 'cel_p',
@@ -943,5 +981,5 @@ registerDeviceDefinition<VenusDeviceData>(
         }
       },
     });
-  },
-);
+  });
+}

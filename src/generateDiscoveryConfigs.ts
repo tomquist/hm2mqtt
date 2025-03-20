@@ -58,30 +58,32 @@ export function generateDiscoveryConfigs(
   };
   let nodeId = `${device.deviceType}_${device.deviceId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
 
-  for (const field of deviceDefinition?.advertisements ?? []) {
-    if (field.advertise == null) {
-      continue;
+  for (const messageDefinition of deviceDefinition?.messages ?? []) {
+    for (const field of messageDefinition.advertisements) {
+      if (field.advertise == null) {
+        continue;
+      }
+      const {
+        type: platform,
+        id: _objectId,
+        ...config
+      } = field.advertise({
+        commandTopic: topics.controlSubscriptionTopic,
+        stateTopic: `${topics.publishTopic}/${messageDefinition.publishPath}`,
+        keyPath: field.keyPath,
+      });
+      const objectId = _objectId.replace(/[^a-zA-Z0-9_-]/g, '_');
+      configs.push({
+        topic: `homeassistant/${platform}/${nodeId}/${objectId}/config`,
+        config: {
+          ...config,
+          ...availabilityConfig,
+          unique_id: `${device.deviceId}_${objectId}`,
+          device: deviceInfo,
+          origin,
+        },
+      });
     }
-    const {
-      type: platform,
-      id: _objectId,
-      ...config
-    } = field.advertise({
-      commandTopic: topics.controlSubscriptionTopic,
-      stateTopic: topics.publishTopic,
-      keyPath: field.keyPath,
-    });
-    const objectId = _objectId.replace(/[^a-zA-Z0-9_-]/g, '_');
-    configs.push({
-      topic: `homeassistant/${platform}/${nodeId}/${objectId}/config`,
-      config: {
-        ...config,
-        ...availabilityConfig,
-        unique_id: `${device.deviceId}_${objectId}`,
-        device: deviceInfo,
-        origin,
-      },
-    });
   }
   return configs;
 }

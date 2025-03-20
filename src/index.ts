@@ -164,7 +164,11 @@ function main() {
       JSON.stringify(config, (key, value) => (key === 'password' ? '***' : value), 2),
     );
 
-    const deviceStateUpdateHandler = (device: Device, deviceState: DeviceStateData) => {
+    const deviceStateUpdateHandler = (
+      device: Device,
+      publishPath: string,
+      deviceState: DeviceStateData,
+    ) => {
       console.log('Device state updated');
       const topics = deviceManager.getDeviceTopics(device);
       if (!topics) {
@@ -172,7 +176,7 @@ function main() {
         return;
       }
       mqttClient
-        .publish(topics.publishTopic, JSON.stringify(deviceState), { qos: 1 })
+        .publish(`${topics.publishTopic}/${publishPath}`, JSON.stringify(deviceState), { qos: 1 })
         .catch(err => console.error(`Error publishing message for ${device.deviceId}:`, err));
     };
 

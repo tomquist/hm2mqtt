@@ -69,20 +69,26 @@ export class ControlHandler {
 
       const controlTopicBase = topics.controlSubscriptionTopic;
       const controlPath = topic.substring(controlTopicBase.length + 1); // +1 for the slash
-      const handlerParams: ControlHandlerParams<any> = {
-        device,
-        message,
-        publishCallback: payload => this.publishCallback(device, payload),
-        deviceState: this.deviceManager.getDeviceState(device) as any,
-        updateDeviceState: update =>
-          this.deviceManager.updateDeviceState(device, update as any) as any,
-      };
-
       const deviceDefinition = getDeviceDefinition(device.deviceType);
-      const handler = deviceDefinition?.commands.find(h => h.command === controlPath);
-      if (handler) {
-        handler.handler(handlerParams);
-        return;
+      for (const messageDefinition of deviceDefinition?.messages ?? []) {
+        const handlerParams: ControlHandlerParams<any> = {
+          device,
+          message,
+          publishCallback: payload => this.publishCallback(device, payload),
+          deviceState: this.deviceManager.getDeviceState(device) as any,
+          updateDeviceState: update =>
+            this.deviceManager.updateDeviceState(
+              device,
+              messageDefinition.publishPath,
+              update as any,
+            ) as any,
+        };
+
+        const handler = messageDefinition.commands.find(h => h.command === controlPath);
+        if (handler) {
+          handler.handler(handlerParams);
+          return;
+        }
       }
 
       console.warn('Unknown control topic:', topic);

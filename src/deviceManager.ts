@@ -27,12 +27,16 @@ type DeviceKey = `${string}:${string}`;
 export class DeviceManager {
   // Device state and topic maps
   private deviceTopics: Record<DeviceKey, DeviceTopics> = {};
-  private deviceStates: Record<DeviceKey, DeviceStateData> = {};
+  private deviceStates: Record<DeviceKey, Record<string, DeviceStateData> | undefined> = {};
   private deviceResponseTimeouts: Record<DeviceKey, NodeJS.Timeout | null> = {};
 
   constructor(
     private config: MqttConfig,
-    private readonly onUpdateState: (device: Device, deviceState: DeviceStateData) => void,
+    private readonly onUpdateState: (
+      device: Device,
+      path: string,
+      deviceState: DeviceStateData,
+    ) => void,
   ) {
     this.config.devices.forEach(device => {
       const deviceDefinition = getDeviceDefinition(device.deviceType);
@@ -45,7 +49,7 @@ export class DeviceManager {
 
       this.deviceTopics[deviceKey] = {
         deviceTopic: `hame_energy/${device.deviceType}/device/${device.deviceId}/ctrl`,
-        publishTopic: `hame_energy/${device.deviceType}/device/${device.deviceId}/data`,
+        publishTopic: `hame_energy/${device.deviceType}/device/${device.deviceId}`,
         deviceControlTopic: `hame_energy/${device.deviceType}/App/${device.deviceId}/ctrl`,
         controlSubscriptionTopic: `hame_energy/${device.deviceType}/control/${device.deviceId}`,
         availabilityTopic: `hame_energy/${device.deviceType}/availability/${device.deviceId}`,
@@ -53,9 +57,6 @@ export class DeviceManager {
 
       // Initialize response timeout tracker
       this.deviceResponseTimeouts[deviceKey] = null;
-
-      // Initialize device state
-      this.deviceStates[deviceKey] = deviceDefinition.defaultState;
 
       console.log(`Topics for ${deviceKey}:`, this.deviceTopics[deviceKey]);
     });
@@ -84,26 +85,58 @@ export class DeviceManager {
    */
   getDeviceState(device: Device): DeviceStateData | undefined {
     const deviceKey = this.getDeviceKey(device);
-    return this.deviceStates[deviceKey];
+    const stateByPath = this.deviceStates[deviceKey];
+    const mergedState = Object.values(stateByPath ?? {}).reduce(
+      (acc, state) => ({ ...acc, ...state }),
+      {},
+    );
+    return mergedState;
+  }
+
+  private getDeviceStateForPath<T extends DeviceStateData | undefined>(
+    device: Device,
+    publishPath: string,
+  ): DeviceStateData & T {
+    const deviceKey = this.getDeviceKey(device);
+    const stateByPath = this.deviceStates[deviceKey] ?? {};
+    return (stateByPath[publishPath] ??
+      this.getDefaultDeviceState(device, publishPath)) as DeviceStateData & T;
+  }
+
+  private getDefaultDeviceState<T extends DeviceStateData | undefined>(
+    device: Device,
+    publishPath: string,
+  ): DeviceStateData & T {
+    const deviceDefinition = getDeviceDefinition(device.deviceType);
+    const deviceKey = this.getDeviceKey(device);
+    const defaultState = deviceDefinition?.messages.find(
+      msg => msg.publishPath === publishPath,
+    )?.defaultState;
+    return (defaultState ?? {}) as DeviceStateData & T;
   }
 
   /**
    * Update device state
    *
    * @param device - The device configuration
+   * @param path - The path to update
    * @param updater - Function to update the device state
    */
   updateDeviceState<T extends DeviceStateData | undefined>(
     device: Device,
+    path: string,
     updater: (state: DeviceStateData) => T,
   ): DeviceStateData & T {
     const deviceKey = this.getDeviceKey(device);
-    let newDeviceState = {
-      ...(this.deviceStates[deviceKey] ?? {}),
-      ...(updater(this.deviceStates[deviceKey]) ?? {}),
+    let newDeviceState: T = {
+      ...this.getDeviceStateForPath(device, path),
+      ...updater(this.getDeviceStateForPath(device, path)),
     };
-    this.deviceStates[deviceKey] = newDeviceState;
-    this.onUpdateState(device, newDeviceState);
+    this.deviceStates[deviceKey] = {
+      ...this.deviceStates[deviceKey],
+      [path]: newDeviceState,
+    };
+    this.onUpdateState(device, path, newDeviceState);
     return newDeviceState as DeviceStateData & T;
   }
 
@@ -118,7 +151,11 @@ export class DeviceManager {
     const controlTopicBase = this.deviceTopics[deviceKey].controlSubscriptionTopic;
     const deviceDefinitions = getDeviceDefinition(device.deviceType);
 
-    return deviceDefinitions?.commands.map(({ command }) => `${controlTopicBase}/${command}`) ?? [];
+    return (
+      deviceDefinitions?.messages?.flatMap(msg =>
+        msg.commands.map(({ command }) => `${controlTopicBase}/${command}`),
+      ) ?? []
+    );
   }
 
   /**

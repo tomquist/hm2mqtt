@@ -1,24 +1,34 @@
-import { registerDeviceDefinition } from '../deviceDefinition';
+import { BuildMessageFn, registerDeviceDefinition } from '../deviceDefinition';
 import { B2500V1DeviceData } from '../types';
 import {
   CommandType,
   extractAdditionalDeviceInfo,
+  isB2500RuntimeInfoMessage,
   processCommand,
   registerBaseMessage,
 } from './b2500Base';
 import { numberComponent, selectComponent, switchComponent } from '../homeAssistantDiscovery';
 import { transformBitBoolean } from './helpers';
 
-registerDeviceDefinition<B2500V1DeviceData>(
+registerDeviceDefinition(
   {
     deviceTypes: ['HMB'],
-    defaultState: { useFlashCommands: false },
-    refreshDataPayload: 'cd=1',
-    getAdditionalDeviceInfo: extractAdditionalDeviceInfo,
   },
-  args => {
-    registerBaseMessage(args);
-    const { field, command, advertise } = args;
+  ({ message }) => {
+    registerRuntimeInfoMessage(message);
+  },
+);
+
+function registerRuntimeInfoMessage(message: BuildMessageFn) {
+  let options = {
+    refreshDataPayload: 'cd=1',
+    isMessage: isB2500RuntimeInfoMessage,
+    defaultState: { useFlashCommands: false },
+    getAdditionalDeviceInfo: extractAdditionalDeviceInfo,
+    publishPath: 'data',
+  } as const;
+  message<B2500V1DeviceData>(options, ({ field, command, advertise }) => {
+    registerBaseMessage({ field, command, advertise });
 
     field({
       key: 'cs',
@@ -165,5 +175,5 @@ registerDeviceDefinition<B2500V1DeviceData>(
         },
       });
     }
-  },
-);
+  });
+}

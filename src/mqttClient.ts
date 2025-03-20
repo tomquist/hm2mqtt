@@ -89,9 +89,12 @@ export class MqttClient {
     const deviceState = this.deviceManager.getDeviceState(device);
     let additionalDeviceInfo: AdditionalDeviceInfo = {};
     if (deviceState != null && deviceDefinitions != null) {
-      additionalDeviceInfo = deviceDefinitions.getAdditionalDeviceInfo(
-        deviceState as BaseDeviceData,
-      );
+      for (const message of deviceDefinitions.messages) {
+        additionalDeviceInfo = {
+          ...additionalDeviceInfo,
+          ...message.getAdditionalDeviceInfo(deviceState as BaseDeviceData),
+        };
+      }
     }
     return additionalDeviceInfo;
   }
@@ -222,8 +225,6 @@ export class MqttClient {
 
     console.log(`Requesting device data for ${device.deviceId} on topic: ${controlTopic}`);
 
-    const payload = deviseDefinition.refreshDataPayload;
-
     // Set a timeout for the response
     const timeout = setTimeout(() => {
       console.warn(`No response received from ${device.deviceId} within timeout period`);
@@ -235,10 +236,14 @@ export class MqttClient {
     // Store the timeout
     this.deviceManager.setResponseTimeout(device, timeout);
 
-    // Send the request
-    this.publish(controlTopic, payload, { qos: 1 }).catch(err => {
-      console.error(`Error requesting device data for ${device.deviceId}:`, err);
-    });
+    for (const [idx, message] of deviseDefinition.messages.entries()) {
+      const payload = message.refreshDataPayload;
+      setTimeout(() => {
+        this.publish(controlTopic, payload, { qos: 1 }).catch(err => {
+          console.error(`Error requesting device data for ${device.deviceId}:`, err);
+        });
+      }, idx * 200);
+    }
   }
 
   /**

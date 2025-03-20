@@ -3,10 +3,11 @@ import { B2500V2DeviceData, B2500V2SmartMeterStatus, CommandParams } from '../ty
 import {
   CommandType,
   extractAdditionalDeviceInfo,
+  isB2500RuntimeInfoMessage,
   processCommand,
   registerBaseMessage,
 } from './b2500Base';
-import { registerDeviceDefinition } from '../deviceDefinition';
+import { BuildMessageFn, registerDeviceDefinition } from '../deviceDefinition';
 import {
   binarySensorComponent,
   buttonComponent,
@@ -121,16 +122,25 @@ function buildTimePeriodParams(
   return params;
 }
 
-registerDeviceDefinition<B2500V2DeviceData>(
+registerDeviceDefinition(
   {
     deviceTypes: ['HMA', 'HMF', 'HMK'],
-    defaultState: { useFlashCommands: false },
-    refreshDataPayload: 'cd=1',
-    getAdditionalDeviceInfo: extractAdditionalDeviceInfo,
   },
-  args => {
-    registerBaseMessage(args);
-    const { field, command, advertise } = args;
+  ({ message }) => {
+    registerRuntimeInfoMessage(message);
+  },
+);
+
+function registerRuntimeInfoMessage(message: BuildMessageFn) {
+  let options = {
+    refreshDataPayload: 'cd=1',
+    isMessage: isB2500RuntimeInfoMessage,
+    defaultState: { useFlashCommands: false },
+    getAdditionalDeviceInfo: extractAdditionalDeviceInfo,
+    publishPath: 'data',
+  } as const;
+  message<B2500V2DeviceData>(options, ({ field, command, advertise }) => {
+    registerBaseMessage({ command, advertise, field });
 
     // Charging and discharging settings
     field({
@@ -648,5 +658,5 @@ registerDeviceDefinition<B2500V2DeviceData>(
         enabled_by_default: false,
       }),
     );
-  },
-);
+  });
+}

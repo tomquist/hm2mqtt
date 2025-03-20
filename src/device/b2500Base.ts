@@ -19,6 +19,24 @@ export function extractAdditionalDeviceInfo(state: B2500BaseDeviceData): Additio
   };
 }
 
+export function isB2500RuntimeInfoMessage(values: Record<string, string>) {
+  const requiredRuntimeInfoKeys = [
+    'pe',
+    'kn',
+    'do',
+    'p1',
+    'p2',
+    'w1',
+    'w2',
+    'vv',
+    'o1',
+    'o2',
+    'g1',
+    'g2',
+  ];
+  return requiredRuntimeInfoKeys.every(key => key in values);
+}
+
 export function registerBaseMessage({
   field,
   command,

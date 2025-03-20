@@ -26,7 +26,9 @@ export class DataHandler {
     try {
       const parsedData = parseMessage(message, device.deviceType, device.deviceId);
       this.deviceManager.clearResponseTimeout(device);
-      this.deviceManager.updateDeviceState(device, () => parsedData);
+      for (const [path, data] of Object.entries(parsedData)) {
+        this.deviceManager.updateDeviceState(device, path, () => data);
+      }
     } catch (error) {
       console.error(`Error handling device data for ${device.deviceId}:`, error);
     }
