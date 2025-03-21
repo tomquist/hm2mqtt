@@ -1,5 +1,9 @@
-import { AdditionalDeviceInfo, BuildMessageDefinitionArgs } from '../deviceDefinition';
-import { B2500BaseDeviceData, CommandParams } from '../types';
+import {
+  AdditionalDeviceInfo,
+  BuildMessageDefinitionArgs,
+  BuildMessageFn,
+} from '../deviceDefinition';
+import { B2500BaseDeviceData, B2500CalibrationData, B2500CellData, CommandParams } from '../types';
 import {
   binarySensorComponent,
   buttonComponent,
@@ -640,6 +644,94 @@ export function registerBaseMessage({
       enabled_by_default: false,
     }),
   );
+}
+
+function isB2500CellDataMessage(values: Record<string, string>) {
+  return Array.from({ length: 14 }, (_, i) => `a${i.toString(16)}`).every(key => key in values);
+}
+
+export function registerCellDataMessage(message: BuildMessageFn) {
+  let options = {
+    refreshDataPayload: 'cd=13',
+    isMessage: isB2500CellDataMessage,
+    defaultState: {},
+    getAdditionalDeviceInfo: () => ({}),
+    publishPath: 'cells',
+    pollInterval: 60000,
+  } as const;
+  message<B2500CellData>(options, ({ field, advertise }) => {
+    for (const [key, battery] of Object.entries({
+      a: 'host',
+      b: 'extra1',
+      c: 'extra2',
+    } as const)) {
+      for (let i = 0; i < 14; i++) {
+        field({
+          key: `${key}${i.toString(16)}`,
+          path: ['cellVoltage', battery, i],
+          transform: v => parseFloat(v) / 1000,
+        });
+        advertise(
+          ['cellVoltage', battery, i],
+          sensorComponent({
+            id: `cell_voltage_${battery}_${i}`,
+            name: `Cell Voltage ${battery} ${(i + 1).toString().padStart(2, '0')}`,
+            device_class: 'voltage',
+            unit_of_measurement: 'V',
+            enabled_by_default: false,
+          }),
+        );
+      }
+    }
+  });
+}
+
+function isB2500CalibrationDataMessage(values: Record<string, string>) {
+  const keys = Object.keys(values);
+  return keys.length === 2 && keys.includes('cf') && keys.includes('df');
+}
+
+export function registerCalibrationDataMessage(message: BuildMessageFn) {
+  let options = {
+    refreshDataPayload: 'cd=21',
+    isMessage: isB2500CalibrationDataMessage,
+    defaultState: {},
+    getAdditionalDeviceInfo: () => ({}),
+    publishPath: 'calibration',
+    pollInterval: 60000,
+  } as const;
+  message<B2500CalibrationData>(options, ({ field, advertise }) => {
+    field({
+      key: 'cf',
+      path: ['charge'],
+      transform: v => parseFloat(v) / 1000,
+    });
+    advertise(
+      ['charge'],
+      sensorComponent<number>({
+        id: 'calibration_charge',
+        name: 'Calibration Charge',
+        device_class: 'energy',
+        unit_of_measurement: 'mAh',
+        enabled_by_default: false,
+      }),
+    );
+    field({
+      key: 'df',
+      path: ['discharge'],
+      transform: v => parseFloat(v) / 1000,
+    });
+    advertise(
+      ['discharge'],
+      sensorComponent<number>({
+        id: 'calibration_discharge',
+        name: 'Calibration Discharge',
+        device_class: 'energy',
+        unit_of_measurement: 'mAh',
+        enabled_by_default: false,
+      }),
+    );
+  });
 }
 
 /**

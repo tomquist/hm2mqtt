@@ -82,6 +82,9 @@ export MQTT_CLIENT_ID="hm2mqtt-ha-addon"
 # Try to get config values with proper default handling
 export MQTT_POLLING_INTERVAL=$(bashio::config 'pollingInterval' "60")
 export MQTT_RESPONSE_TIMEOUT=$(bashio::config 'responseTimeout' "30")
+export POLL_CELL_DATA=$(bashio::config 'enableCellData' "false")
+export POLL_CALIBRATION_DATA=$(bashio::config 'enableCalibrationData' "false")
+export POLL_EXTRA_BATTERY_DATA=$(bashio::config 'enableExtraBatteryData' "false")
 export DEBUG=$(bashio::config 'debug' "false")
 
 bashio::log.info "MQTT polling interval: ${MQTT_POLLING_INTERVAL} seconds"

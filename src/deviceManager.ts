@@ -158,6 +158,11 @@ export class DeviceManager {
     );
   }
 
+  hasRunningResponseTimeouts(device: Device): boolean {
+    const deviceKey = this.getDeviceKey(device);
+    return this.deviceResponseTimeouts[deviceKey] !== null;
+  }
+
   /**
    * Set a response timeout for a device
    *
@@ -235,7 +240,23 @@ export class DeviceManager {
    * @returns The polling interval in milliseconds
    */
   getPollingInterval(): number {
-    return this.config.pollingInterval;
+    const allPollingIntervals = this.getDevices().flatMap(device => {
+      return (
+        getDeviceDefinition(device.deviceType)
+          ?.messages.map(message => {
+            return message.pollInterval;
+          })
+          ?.filter(n => n != null) ?? []
+      );
+    });
+    function gcd2(a: number, b: number): number {
+      if (b === 0) {
+        return a;
+      }
+      return gcd2(b, a % b);
+    }
+
+    return allPollingIntervals.reduce(gcd2, allPollingIntervals[0]);
   }
 
   /**

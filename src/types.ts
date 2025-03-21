@@ -110,6 +110,19 @@ export interface B2500V1DeviceData extends B2500BaseDeviceData {
   chargingMode?: B2500V1ChargingMode;
 }
 
+export interface B2500CellData extends BaseDeviceData {
+  cellVoltage?: {
+    host?: number[];
+    extra1?: number[];
+    extra2?: number[];
+  };
+}
+
+export interface B2500CalibrationData extends BaseDeviceData {
+  charge?: number;
+  discharge?: number;
+}
+
 export interface B2500V2DeviceData extends B2500BaseDeviceData {
   // Charging and discharging settings
   chargingMode?: B2500V2ChargingMode;
@@ -152,6 +165,36 @@ export interface B2500V2DeviceData extends B2500BaseDeviceData {
   };
 }
 
+type SolarSocketData = {
+  voltage?: number;
+  current?: number;
+  power?: number;
+};
+
+export interface B2500V1CD16Data extends BaseDeviceData {
+  input1?: SolarSocketData;
+  input2?: SolarSocketData;
+  output1?: SolarSocketData;
+  output2?: SolarSocketData;
+}
+export interface B2500V2CD16Data extends BaseDeviceData {
+  input1?: SolarSocketData;
+  input2?: SolarSocketData;
+  output1?: SolarSocketData;
+  output2?: SolarSocketData;
+  batteryData?: {
+    host?: B2500V2BatteryData;
+    extra1?: B2500V2BatteryData;
+    extra2?: B2500V2BatteryData;
+  };
+}
+
+export interface B2500V2BatteryData {
+  power: number;
+  voltage: number;
+  current: number;
+}
+
 /**
  * Interface for device configuration
  */
@@ -169,7 +212,6 @@ export interface MqttConfig {
   username?: string;
   password?: string;
   devices: Device[];
-  pollingInterval: number;
   useFlashCommands?: boolean;
   responseTimeout?: number; // Timeout for device responses in milliseconds
 }

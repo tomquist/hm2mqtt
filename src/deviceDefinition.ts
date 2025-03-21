@@ -2,6 +2,8 @@ import { HaComponentConfig } from './homeAssistantDiscovery';
 import { ControlHandlerDefinition } from './controlHandler';
 import { HaAdvertisement } from './generateDiscoveryConfigs';
 
+export const globalPollInterval = parseInt(process.env.MQTT_POLLING_INTERVAL || '60', 10) * 1000;
+
 type FixArr<T> = T extends readonly any[] ? Omit<T, Exclude<keyof any[], number>> : T;
 
 /**
@@ -75,6 +77,7 @@ export interface MessageDefinition<T extends BaseDeviceData> {
   isMessage: (values: Record<string, string>) => boolean;
   fields: FieldDefinition<T, KeyPath<T>>[];
   publishPath: string;
+  pollInterval: number;
 }
 
 export type BaseDeviceData = {
@@ -121,6 +124,7 @@ export type BuildMessageFn = <T extends BaseDeviceData>(
     publishPath: string;
     defaultState: Omit<T, keyof BaseDeviceData>;
     getAdditionalDeviceInfo: (state: T) => AdditionalDeviceInfo;
+    pollInterval: number;
   },
   args: BuildMessageDefinitionFn<T>,
 ) => void;

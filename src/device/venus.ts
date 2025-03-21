@@ -1,4 +1,4 @@
-import { BuildMessageFn, registerDeviceDefinition } from '../deviceDefinition';
+import { BuildMessageFn, globalPollInterval, registerDeviceDefinition } from '../deviceDefinition';
 import { CommandParams, VenusDeviceData, VenusTimePeriod, WeekdaySet } from '../types';
 import {
   buttonComponent,
@@ -15,13 +15,15 @@ import { isB2500RuntimeInfoMessage } from './b2500Base';
  * Command types supported by the Venus device
  */
 enum CommandType {
-  READ_DEVICE_INFO = 1,
+  READ_DEVICE_INFO = 1, // -> tot_i=8848,tot_o=7097,ele_d=537,ele_m=8848,grd_d=328,grd_m=7097,inc_d=0,inc_m=0,grd_f=0,grd_o=613,grd_t=3,gct_s=1,cel_s=3,cel_p=327,cel_c=64,err_t=0,err_a=0,dev_n=149,grd_y=0,wor_m=0,tim_0=0|0|8|2|127|300|1,tim_1=0|0|5|23|127|350|0,tim_2=17|21|23|59|127|600|1,tim_3=9|31|16|30|127|-800|1,tim_4=0|0|0|0|0|0|0,tim_5=0|0|0|0|0|0|0,tim_6=0|0|0|0|0|0|0,tim_7=0|0|0|0|0|0|0,tim_8=0|0|0|0|0|0|0,tim_9=0|0|0|0|0|0|0,cts_m=0,bac_u=0,tra_a=1,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=1,wif_s=33,inc_a=0,set_v=0,mcp_w=2500,mdp_w=2500,ct_t=4,phase_t=1,dchrg_t=1,bms_v=212,fc_v=202409090159,wifi_n=XXX,seq_s=0,ctrl_r=1,par=255,gen=255,ble=3,shelly_p=1010,c_ratio=90
   SET_WORKING_MODE = 2,
   SET_TIME_PERIOD = 3,
   SET_DEVICE_TIME = 4,
   FACTORY_RESET = 5,
   UPGRADE_FIRMWARE = 9,
+  GET_FC41D_INFO = 10, // -> wifi_v=202409090159
   ENABLE_BACKUP = 11,
+  GET_BMS_INFO = 14, // -> b_ver=212,b_chv=571,b_rci=1000,b_rdi=1000,b_soc=65,b_soh=100,b_cap=5120,b_vol=5223,b_cur=-94,b_tem=250,b_chf=192,b_slf=0,b_cpc=332,b_err=0,b_war=0,b_ret=102482070,b_ent=0,b_mot=23,b_tp1=18,b_tp2=19,b_tp3=18,b_tp4=19,b_vo1=3265,b_vo2=3265,b_vo3=3265,b_vo4=3265,b_vo5=3264,b_vo6=3264,b_vo7=3265,b_vo8=3265,b_vo9=3264,b_vo10=3265,b_vo11=3264,b_vo12=3265,b_vo13=3265,b_vo14=3265,b_vo15=3264,b_vo16=3262
   SET_VERSION = 15,
   SET_MAX_CHARGING_POWER = 16,
   SET_MAX_DISCHARGE_POWER = 17,
@@ -137,6 +139,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     publishPath: 'data',
     defaultState: {},
     getAdditionalDeviceInfo: extractAdditionalDeviceInfo,
+    pollInterval: globalPollInterval,
   };
   message<VenusDeviceData>(options, ({ field, command, advertise }) => {
     // Battery information
@@ -569,6 +572,20 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           manual: 'Manual',
           trading: 'Trading',
         },
+      }),
+    );
+
+    field({
+      key: 'wifi_n',
+      path: ['wifiName'],
+      transform: v => v,
+    });
+    advertise(
+      ['wifiName'],
+      sensorComponent<string>({
+        id: 'wifi_name',
+        name: 'WiFi Name',
+        icon: 'mdi:wifi',
       }),
     );
 

@@ -160,13 +160,6 @@ export class MqttClient {
       this.requestDeviceData(device);
     });
 
-    // Request again after a short delay to ensure we have the latest data
-    setTimeout(() => {
-      this.deviceManager.getDevices().forEach(device => {
-        this.requestDeviceData(device);
-      });
-    }, 5000);
-
     // Clear any existing interval
     if (this.pollingInterval) {
       clearInterval(this.pollingInterval);
@@ -201,6 +194,8 @@ export class MqttClient {
     }
   }
 
+  private lastRequestTime: Map<string, number> = new Map();
+
   /**
    * Request device data
    *
@@ -225,24 +220,46 @@ export class MqttClient {
 
     console.log(`Requesting device data for ${device.deviceId} on topic: ${controlTopic}`);
 
-    // Set a timeout for the response
-    const timeout = setTimeout(() => {
-      console.warn(`No response received from ${device.deviceId} within timeout period`);
+    const needsRefreshRuntimeInfo = deviseDefinition.messages.some((message, idx) => {
+      if (idx > 0) {
+        return false;
+      }
+      let lastRequestTimeKey = `${device.deviceId}:${message}`;
+      const lastRequestTime = this.lastRequestTime.get(lastRequestTimeKey);
+      let now = Date.now();
+      return lastRequestTime == null || lastRequestTime <= now - message.pollInterval;
+    });
 
-      // Mark device as offline
-      this.publish(availabilityTopic, 'offline', { qos: 1, retain: true });
-    }, this.deviceManager.getResponseTimeout());
+    if (!needsRefreshRuntimeInfo && !this.deviceManager.hasRunningResponseTimeouts(device)) {
+      // Set a timeout for the response
+      const timeout = setTimeout(() => {
+        console.warn(`No response received from ${device.deviceId} within timeout period`);
 
-    // Store the timeout
-    this.deviceManager.setResponseTimeout(device, timeout);
+        // Mark device as offline
+        this.publish(availabilityTopic, 'offline', { qos: 1, retain: true });
+      }, this.deviceManager.getResponseTimeout());
+
+      // Store the timeout
+      this.deviceManager.setResponseTimeout(device, timeout);
+    }
 
     for (const [idx, message] of deviseDefinition.messages.entries()) {
-      const payload = message.refreshDataPayload;
-      setTimeout(() => {
-        this.publish(controlTopic, payload, { qos: 1 }).catch(err => {
-          console.error(`Error requesting device data for ${device.deviceId}:`, err);
-        });
-      }, idx * 200);
+      let lastRequestTimeKey = `${device.deviceId}:${idx}`;
+      const lastRequestTime = this.lastRequestTime.get(lastRequestTimeKey);
+      let now = Date.now();
+      if (lastRequestTime == null || now > lastRequestTime + message.pollInterval) {
+        this.lastRequestTime.set(lastRequestTimeKey, now);
+        const payload = message.refreshDataPayload;
+        setTimeout(
+          () => {
+            this.publish(controlTopic, payload, { qos: 1 }).catch(err => {
+              console.error(`Error requesting device data for ${device.deviceId}:`, err);
+            });
+          },
+          // Spread out the requests to avoid flooding the device
+          idx * 100,
+        );
+      }
     }
   }
 
