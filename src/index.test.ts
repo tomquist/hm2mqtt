@@ -137,7 +137,7 @@ describe('MQTT Client', () => {
     // Trigger a message event with device data
     const deviceTopic = 'hame_energy/HMA-1/device/testdevice/ctrl';
     const message = Buffer.from(
-      'pe=75,kn=500,w1=100,w2=200,g1=150,g2=250,tl=20,th=30,d1=1,e1=00:00,f1=23:59,h1=300',
+      'pe=75,kn=500,w1=100,w2=200,g1=150,g2=250,tl=20,th=30,d1=1,e1=00:00,f1=23:59,h1=300,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0',
     );
     mockClient.triggerEvent('message', deviceTopic, message);
 
@@ -198,7 +198,10 @@ describe('MQTT Client', () => {
 
     // Send the initial device data message with time periods
     const deviceTopic = 'hame_energy/HMA-1/device/testdevice/ctrl';
-    const message = [1, 2, 3, 4, 5].map(i => `d${i}=0,e${i}=00:00,f${i}=23:59,h${i}=300`).join(',');
+    const baseMessage =
+      'pe=75,kn=500,w1=100,w2=200,g1=150,g2=250,tl=20,th=30,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0,';
+    const message =
+      baseMessage + [1, 2, 3, 4, 5].map(i => `d${i}=0,e${i}=00:00,f${i}=23:59,h${i}=300`).join(',');
     mockClient.triggerEvent('message', deviceTopic, Buffer.from(message));
 
     // Reset the publish mock to clear previous calls

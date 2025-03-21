@@ -20,7 +20,7 @@ export function parseMessage(
   message: string,
   deviceType: string,
   deviceId: string,
-): BaseDeviceData {
+): Record<string, BaseDeviceData> {
   const deviceDefinition = getDeviceDefinition(deviceType);
   try {
     // Parse the comma-separated key-value pairs
@@ -33,18 +33,24 @@ export function parseMessage(
       values[key] = value;
     }
 
-    // Create the base parsed data object
-    const parsedData: BaseDeviceData = {
-      deviceType,
-      deviceId,
-      timestamp: new Date().toISOString(),
-      values,
-    };
+    let result: Record<string, BaseDeviceData> = {};
+    for (const messageDefinition of deviceDefinition?.messages ?? []) {
+      if (messageDefinition.isMessage(values)) {
+        // Create the base parsed data object
+        const parsedData: BaseDeviceData = {
+          deviceType,
+          deviceId,
+          timestamp: new Date().toISOString(),
+          values,
+        };
 
-    // Apply the device status message definition
-    applyMessageDefinition(parsedData, values, deviceDefinition?.fields ?? []);
+        // Apply the device status message definition
+        applyMessageDefinition(parsedData, values, messageDefinition?.fields ?? []);
+        result[messageDefinition.publishPath] = parsedData;
+      }
+    }
 
-    return parsedData;
+    return result;
   } catch (error) {
     console.error('Error parsing message:', error);
     throw new Error(

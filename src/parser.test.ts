@@ -4,11 +4,15 @@ import { B2500V2DeviceData } from './types';
 describe('MQTT Message Parser', () => {
   test('should parse comma-separated key-value pairs correctly', () => {
     // Sample message from the provided format
-    const message = 'p1=1,p2=2,w1=0,w2=0,pe=14,vv=224,sv=3,cs=0,cd=0,am=0,o1=0,o2=0,do=90,lv=800';
+    const message =
+      'p1=1,p2=2,w1=0,w2=0,pe=14,vv=224,sv=3,cs=0,cd=0,am=0,o1=0,o2=0,do=90,lv=800,g1=0,g2=0,kn=2000';
     const deviceType = 'HMA-1';
     const deviceId = '12345';
 
-    const result = parseMessage(message, deviceType, deviceId) as B2500V2DeviceData;
+    const parsed = parseMessage(message, deviceType, deviceId);
+    expect(parsed).toHaveProperty('data');
+
+    const result = parsed['data'] as B2500V2DeviceData;
 
     // Check the structure
     expect(result).toHaveProperty('deviceType', deviceType);
@@ -37,8 +41,11 @@ describe('MQTT Message Parser', () => {
 
     // Test with sv (subversion) included
     const messageWithSv =
-      'p1=0,p2=0,w1=0,w2=0,pe=14,vv=224,sv=3,cs=0,cd=0,lmo1=1377,lmi1=614,lmf=0';
-    const resultWithSv = parseMessage(messageWithSv, deviceType, deviceId) as B2500V2DeviceData;
+      'p1=0,p2=0,w1=0,w2=0,pe=14,vv=224,sv=3,cs=0,cd=0,lmo1=1377,lmi1=614,lmf=0,kn=313,do=90,o1=0,o2=0,am=0,g1=0,g2=0,b1=0,b2=0,md=0,d1=1,e1=0:0,f1=23:59,h1=800';
+    const parsedWithSv = parseMessage(messageWithSv, deviceType, deviceId);
+    expect(parsedWithSv).toHaveProperty('data');
+
+    const resultWithSv = parsedWithSv['data'] as B2500V2DeviceData;
     expect(resultWithSv.deviceInfo).toHaveProperty('deviceSubversion', 3);
   });
 
@@ -46,8 +53,7 @@ describe('MQTT Message Parser', () => {
     const message = 'key1=123,malformed,key3=45.67';
     const result = parseMessage(message, 'TestDevice', '12345');
 
-    expect(result.values).toHaveProperty('key1', '123');
-    expect(result.values).toHaveProperty('key3', '45.67');
+    expect(result).toEqual({});
     // The malformed part should be skipped
   });
 
@@ -58,7 +64,10 @@ describe('MQTT Message Parser', () => {
     const deviceType = 'HMA-1';
     const deviceId = 'e88da6f35def';
 
-    const result = parseMessage(message, deviceType, deviceId) as B2500V2DeviceData;
+    const parsed = parseMessage(message, deviceType, deviceId);
+    expect(parsed).toHaveProperty('data');
+
+    const result = parsed['data'] as B2500V2DeviceData;
 
     // Check basic fields
     expect(result).toHaveProperty('batteryPercentage', 14);
@@ -130,8 +139,12 @@ describe('MQTT Message Parser', () => {
 
   test('should handle message definitions correctly', () => {
     // Create a simple test message
-    const message = 'pe=75,kn=500,lv=300,e1=0:0';
-    const result = parseMessage(message, 'HMA-1', '12345') as B2500V2DeviceData;
+    const message =
+      'pe=75,kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0';
+    const parsed = parseMessage(message, 'HMA-1', '12345');
+    expect(parsed).toHaveProperty('data');
+
+    const result = parsed['data'] as B2500V2DeviceData;
 
     // Check that the values were mapped correctly according to the definition
     expect(result).toHaveProperty('batteryPercentage', 75);
@@ -146,16 +159,18 @@ describe('MQTT Message Parser', () => {
 
   test('should transform scene values correctly', () => {
     // Test scene transformation for different values
-    const dayScene = parseMessage('cj=0', 'HMA-1', '12345');
+    const requiredKeys =
+      'pe=75,kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0';
+    const { data: dayScene } = parseMessage(`${requiredKeys},cj=0`, 'HMA-1', '12345');
     expect(dayScene).toHaveProperty('scene', 'day');
 
-    const nightScene = parseMessage('cj=1', 'HMA-1', '12345');
+    const { data: nightScene } = parseMessage(`${requiredKeys},cj=1`, 'HMA-1', '12345');
     expect(nightScene).toHaveProperty('scene', 'night');
 
-    const duskScene = parseMessage('cj=2', 'HMA-1', '12345');
+    const { data: duskScene } = parseMessage(`${requiredKeys},cj=2`, 'HMA-1', '12345');
     expect(duskScene).toHaveProperty('scene', 'dusk');
 
-    const unknownScene = parseMessage('cj=3', 'HMA-1', '12345');
+    const { data: unknownScene } = parseMessage(`${requiredKeys},cj=3`, 'HMA-1', '12345');
     expect(unknownScene).toHaveProperty('scene', undefined);
   });
 });

@@ -41,14 +41,14 @@ describe('ControlHandler', () => {
     deviceState = undefined as any;
     deviceStateV1 = undefined as any;
     deviceStateV2 = undefined as any;
-    const stateUpdateHandler = (device: Device, state: DeviceStateData) => {
+    const stateUpdateHandler = (device: Device, publishPath: string, state: DeviceStateData) => {
       deviceState = state as B2500BaseDeviceData;
       deviceStateV1 = state as B2500V1DeviceData;
       deviceStateV2 = state as B2500V2DeviceData;
     };
     deviceManager = new DeviceManager(config, stateUpdateHandler);
-    deviceManager.updateDeviceState(testDeviceV1, () => ({ useFlashCommands: true }));
-    deviceManager.updateDeviceState(testDeviceV2, () => ({ useFlashCommands: true }));
+    deviceManager.updateDeviceState(testDeviceV1, 'data', () => ({ useFlashCommands: true }));
+    deviceManager.updateDeviceState(testDeviceV2, 'data', () => ({ useFlashCommands: true }));
     publishCallback = jest.fn();
     controlHandler = new ControlHandler(deviceManager, publishCallback);
   });
@@ -316,7 +316,7 @@ describe('ControlHandler', () => {
     });
 
     test('should handle time period settings', () => {
-      deviceManager.updateDeviceState(testDeviceV2, () => ({
+      deviceManager.updateDeviceState(testDeviceV2, 'data', () => ({
         timePeriods: [
           {
             enabled: false,

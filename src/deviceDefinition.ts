@@ -1,5 +1,6 @@
 import { HaComponentConfig } from './homeAssistantDiscovery';
 import { ControlHandlerDefinition } from './controlHandler';
+import { HaAdvertisement } from './generateDiscoveryConfigs';
 
 type FixArr<T> = T extends readonly any[] ? Omit<T, Exclude<keyof any[], number>> : T;
 
@@ -62,12 +63,18 @@ export type FieldDefinition<
  * Interface for message definition
  */
 export interface DeviceDefinition<T extends BaseDeviceData> {
-  fields: FieldDefinition<T, KeyPath<T>>[];
+  messages: MessageDefinition<T>[];
+}
+
+export interface MessageDefinition<T extends BaseDeviceData> {
   commands: ControlHandlerDefinition<T>[];
   advertisements: HaAdvertisement<T, KeyPath<T> | []>[];
   defaultState: T;
   refreshDataPayload: string;
   getAdditionalDeviceInfo: (state: T) => AdditionalDeviceInfo;
+  isMessage: (values: Record<string, string>) => boolean;
+  fields: FieldDefinition<T, KeyPath<T>>[];
+  publishPath: string;
 }
 
 export type BaseDeviceData = {
@@ -106,47 +113,69 @@ export interface AdditionalDeviceInfo {
 }
 
 const deviceDefinitionRegistry: Map<string, DeviceDefinition<any>> = new Map();
-export function registerDeviceDefinition<T extends BaseDeviceData>(
+
+export type BuildMessageFn = <T extends BaseDeviceData>(
   options: {
-    deviceTypes: string[];
-    defaultState: Omit<T, keyof BaseDeviceData>;
     refreshDataPayload: string;
+    isMessage: (values: Record<string, string>) => boolean;
+    publishPath: string;
+    defaultState: Omit<T, keyof BaseDeviceData>;
     getAdditionalDeviceInfo: (state: T) => AdditionalDeviceInfo;
   },
-  build: BuildMessageDefinitionFn<T>,
-) {
-  const fields: FieldDefinition<T, KeyPath<T>>[] = [];
-  const registerField = <KP extends KeyPath<T>, K extends string | readonly string[]>(
-    fd: FieldDefinition<T, KP, K>,
-  ) => {
-    fields.push(fd as FieldDefinition<T, KeyPath<T>>);
-  };
-  const commands: ControlHandlerDefinition<any>[] = [];
-  const registerCommand: RegisterCommandDefinitionFn<T> = <V extends T | void>(
-    name: string,
-    command: Omit<ControlHandlerDefinition<V>, 'command'>,
-  ) => {
-    commands.push({ ...command, command: name } as ControlHandlerDefinition<any>);
-  };
-  const advertisedComponents: HaAdvertisement<T, KeyPath<T> | []>[] = [];
-  const advertiseComponent: AdvertiseComponentFn<T> = (keyPath, advertise) => {
-    advertisedComponents.push({
-      keyPath,
-      advertise,
-    });
-  };
+  args: BuildMessageDefinitionFn<T>,
+) => void;
 
-  build({ field: registerField, command: registerCommand, advertise: advertiseComponent });
-  let deviceDefinition = {
-    fields,
-    commands,
-    advertisements: advertisedComponents,
-    defaultState: options.defaultState,
-    refreshDataPayload: options.refreshDataPayload,
-    getAdditionalDeviceInfo: options.getAdditionalDeviceInfo,
-  } satisfies DeviceDefinition<any>;
-  for (const deviceType of options.deviceTypes) {
-    deviceDefinitionRegistry.set(deviceType, deviceDefinition);
+export type RegisterDeviceBuildArgs = {
+  message: BuildMessageFn;
+};
+
+export function registerDeviceDefinition(
+  {
+    deviceTypes,
+  }: {
+    deviceTypes: string[];
+  },
+  build: ({ message }: RegisterDeviceBuildArgs) => void,
+): void {
+  const messages: MessageDefinition<any>[] = [];
+  const message: BuildMessageFn = (messageOptions, buildMessage) => {
+    const fields: FieldDefinition<any, KeyPath<any>>[] = [];
+    const registerField = <KP extends KeyPath<any>, K extends string | readonly string[]>(
+      fd: FieldDefinition<any, KP, K>,
+    ) => {
+      fields.push(fd as FieldDefinition<any, KeyPath<any>>);
+    };
+
+    const commands: ControlHandlerDefinition<any>[] = [];
+    const command: RegisterCommandDefinitionFn<any> = <V extends any | void>(
+      name: string,
+      command: Omit<ControlHandlerDefinition<V>, 'command'>,
+    ) => {
+      commands.push({ ...command, command: name } as ControlHandlerDefinition<any>);
+    };
+    const advertisements: HaAdvertisement<any, KeyPath<any> | []>[] = [];
+    const advertise: AdvertiseComponentFn<any> = (keyPath, advertise) => {
+      advertisements.push({
+        keyPath,
+        advertise,
+      });
+    };
+
+    buildMessage({ field: registerField, command, advertise });
+    let messageDefinition = {
+      fields,
+      advertisements,
+      commands,
+      ...messageOptions,
+    } satisfies MessageDefinition<any>;
+    messages.push(messageDefinition);
+  };
+  build({ message });
+
+  for (const deviceType of deviceTypes) {
+    deviceDefinitionRegistry.set(deviceType, {
+      messages,
+    });
   }
 }
 
@@ -163,4 +192,3 @@ export function getDeviceDefinition(
 }
 
 import './device/registry';
-import { HaAdvertisement } from './generateDiscoveryConfigs';
