@@ -15,8 +15,8 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 
 ## Prerequisites
 
-- Before you start, you need a local MQTT broker. You can install one via as a Home Assistant Addon: https://www.home-assistant.io/integrations/mqtt/#setting-up-a-broker
-- After setting up an MQTT broker, configure your energy storage device to send MQTT data to your MQTT broker. There are two options:
+- Before you start, you need a local MQTT broker. You can install one as a Home Assistant Addon: https://www.home-assistant.io/integrations/mqtt/#setting-up-a-broker
+- After setting up an MQTT broker, configure your energy storage device to send MQTT data to your MQTT broker:
   1. For the **B2500**, you have two options:
      1. Contact the support and ask them to enable MQTT for your device, then configure the MQTT broker in the device settings through the PowerZero or Marstek app.
      2. With your an Android Smartphone or with a Bluetooth enabled PC use [this tool](https://tomquist.github.io/hame-relay/b2500.html) to configure the MQTT broker directly via Bluetooth.
