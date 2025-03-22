@@ -426,14 +426,14 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       path: ['batteryWorkingStatus'],
       transform: v => {
         switch (v) {
-          case '0':
-            return 'notWorking';
           case '1':
-            return 'charging';
+            return 'notWorking';
           case '2':
+            return 'charging';
+          case '3':
             return 'discharging';
           default:
-            return 'notWorking';
+            return 'unknown';
         }
       },
     });
@@ -447,6 +447,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           notWorking: 'Not Working',
           charging: 'Charging',
           discharging: 'Discharging',
+          unknown: 'Unknown',
         },
       }),
     );
