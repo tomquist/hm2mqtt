@@ -18,6 +18,9 @@ hassio_role: default
 options:
   pollingInterval: 60
   responseTimeout: 30
+  enableCellData: false
+  enableCalibrationData: false
+  enableExtraBatteryData: false
   devices:
     - deviceType: "HMA-1"
       deviceId: "device-mac-address"
@@ -25,6 +28,9 @@ schema:
   mqtt_uri: str?
   pollingInterval: int?
   responseTimeout: int?
+  enableCellData: bool
+  enableCalibrationData: bool
+  enableExtraBatteryData: bool
   debug: bool?
   devices:
     - deviceType: str

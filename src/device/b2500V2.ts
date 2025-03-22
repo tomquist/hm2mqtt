@@ -1,13 +1,20 @@
 import { ControlHandlerDefinition } from '../controlHandler';
-import { B2500V2DeviceData, B2500V2SmartMeterStatus, CommandParams } from '../types';
+import {
+  B2500V2CD16Data,
+  B2500V2DeviceData,
+  B2500V2SmartMeterStatus,
+  CommandParams,
+} from '../types';
 import {
   CommandType,
   extractAdditionalDeviceInfo,
   isB2500RuntimeInfoMessage,
   processCommand,
   registerBaseMessage,
+  registerCalibrationDataMessage,
+  registerCellDataMessage,
 } from './b2500Base';
-import { BuildMessageFn, registerDeviceDefinition } from '../deviceDefinition';
+import { BuildMessageFn, globalPollInterval, registerDeviceDefinition } from '../deviceDefinition';
 import {
   binarySensorComponent,
   buttonComponent,
@@ -128,6 +135,15 @@ registerDeviceDefinition(
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
+    if (process.env.POLL_EXTRA_BATTERY_DATA === 'true') {
+      registerExtraBatteryData(message);
+    }
+    if (process.env.POLL_CELL_DATA === 'true') {
+      registerCellDataMessage(message);
+    }
+    if (process.env.POLL_CALIBRATION_DATA === 'true') {
+      registerCalibrationDataMessage(message);
+    }
   },
 );
 
@@ -138,6 +154,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     defaultState: { useFlashCommands: false },
     getAdditionalDeviceInfo: extractAdditionalDeviceInfo,
     publishPath: 'data',
+    pollInterval: globalPollInterval,
   } as const;
   message<B2500V2DeviceData>(options, ({ field, command, advertise }) => {
     registerBaseMessage({ command, advertise, field });
@@ -314,7 +331,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       ['dailyStats', 'batteryChargingPower'],
       sensorComponent<number>({
         id: 'battery_charging_power',
-        name: 'Battery Charging Power',
+        name: 'Daily Battery Charging',
         device_class: 'energy',
         unit_of_measurement: 'Wh',
         state_class: 'total_increasing',
@@ -328,7 +345,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       ['dailyStats', 'batteryDischargePower'],
       sensorComponent<number>({
         id: 'battery_discharge_power',
-        name: 'Battery Discharge Power',
+        name: 'Daily Battery Discharging',
         device_class: 'energy',
         unit_of_measurement: 'Wh',
         state_class: 'total_increasing',
@@ -342,7 +359,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       ['dailyStats', 'photovoltaicChargingPower'],
       sensorComponent<number>({
         id: 'photovoltaic_charging_power',
-        name: 'Photovoltaic Charging Power',
+        name: 'Daily PV Charging',
         device_class: 'energy',
         unit_of_measurement: 'Wh',
         state_class: 'total_increasing',
@@ -356,7 +373,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       ['dailyStats', 'microReverseOutputPower'],
       sensorComponent<number>({
         id: 'micro_reverse_output_power',
-        name: 'Micro Reverse Output Power',
+        name: 'Daily Micro Reverse Output Power',
         device_class: 'energy',
         unit_of_measurement: 'Wh',
         state_class: 'total_increasing',
@@ -655,6 +672,197 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:clock-sync',
         command: 'sync-time',
         payload_press: 'PRESS',
+        enabled_by_default: false,
+      }),
+    );
+  });
+}
+
+function isB2500CD16Message(message: Record<string, string>): boolean {
+  let cd16BatteryInfo = ['bb', 'bv', 'bc', 'sb', 'sv', 'sc', 'lb', 'lv', 'lc'];
+  if (cd16BatteryInfo.every(k => k in message)) {
+    return true;
+  }
+  const cd16VoltageInfo = ['p1', 'p2', 'm1', 'm2', 'w1', 'w2', 'e1', 'e2', 'o1', 'o2', 'g1', 'g2'];
+  const forbiddenKeys = ['m3', 'cj'];
+  return cd16VoltageInfo.every(k => k in message) && !forbiddenKeys.some(k => k in message);
+}
+
+export function registerExtraBatteryData(message: BuildMessageFn) {
+  let options = {
+    refreshDataPayload: 'cd=16',
+    isMessage: isB2500CD16Message,
+    publishPath: 'extraBatteryData',
+    defaultState: {},
+    pollInterval: 60000,
+    getAdditionalDeviceInfo: () => ({}),
+  } as const;
+  message<B2500V2CD16Data>(options, ({ field, advertise }) => {
+    for (const input of [1, 2] as const) {
+      field({
+        key: `m${input}`,
+        path: [`input${input}`, 'voltage'],
+        transform: v => parseFloat(v) / 1000,
+      });
+      advertise(
+        [`input${input}`, 'voltage'],
+        sensorComponent<number>({
+          id: `solar_input_voltage_${input}`,
+          name: `Input Voltage ${input}`,
+          device_class: 'voltage',
+          unit_of_measurement: 'V',
+        }),
+      );
+      field({
+        key: `c${input}`,
+        path: [`input${input}`, 'current'],
+        transform: v => parseFloat(v) / 1000,
+      });
+      advertise(
+        [`input${input}`, 'current'],
+        sensorComponent<number>({
+          id: `solar_input_current_${input}`,
+          name: `Input Current ${input}`,
+          device_class: 'current',
+          unit_of_measurement: 'A',
+        }),
+      );
+      field({
+        key: `w${input}`,
+        path: [`input${input}`, 'power'],
+      });
+
+      field({
+        key: `i${input}`,
+        path: [`output${input}`, 'voltage'],
+        transform: v => parseFloat(v) / 1000,
+      });
+      advertise(
+        [`output${input}`, 'voltage'],
+        sensorComponent<number>({
+          id: `output_voltage_${input}`,
+          name: `Output Voltage ${input}`,
+          device_class: 'voltage',
+          unit_of_measurement: 'V',
+        }),
+      );
+      field({
+        key: `c${input + 2}`,
+        path: [`output${input}`, 'current'],
+        transform: v => parseFloat(v) / 1000,
+      });
+      advertise(
+        [`output${input}`, 'current'],
+        sensorComponent<number>({
+          id: `output_current_${input}`,
+          name: `Output Current ${input}`,
+          device_class: 'current',
+          unit_of_measurement: 'A',
+        }),
+      );
+      field({
+        key: `g${input}`,
+        path: [`output${input}`, 'power'],
+      });
+    }
+
+    field({
+      key: 'bb',
+      path: ['batteryData', 'host', 'power'],
+    });
+    field({
+      key: 'bv',
+      path: ['batteryData', 'host', 'voltage'],
+      transform: (v: string) => parseFloat(v) / 1000,
+    });
+    advertise(
+      ['batteryData', 'host', 'voltage'],
+      sensorComponent<number>({
+        id: 'battery_voltage',
+        name: 'Host Battery Voltage',
+        device_class: 'voltage',
+        unit_of_measurement: 'V',
+      }),
+    );
+    field({
+      key: 'bc',
+      path: ['batteryData', 'host', 'current'],
+      transform: v => parseFloat(v) / 1000,
+    });
+    advertise(
+      ['batteryData', 'host', 'current'],
+      sensorComponent<number>({
+        id: 'battery_current',
+        name: 'Host Battery Current',
+        device_class: 'current',
+        unit_of_measurement: 'A',
+      }),
+    );
+    field({
+      key: 'sb',
+      path: ['batteryData', 'extra1', 'power'],
+    });
+    field({
+      key: 'sv',
+      path: ['batteryData', 'extra1', 'voltage'],
+      transform: (v: string) => parseFloat(v) / 1000,
+    });
+    advertise(
+      ['batteryData', 'extra1', 'voltage'],
+      sensorComponent<number>({
+        id: 'battery_extra1_voltage',
+        name: 'Extra Battery 1 Voltage',
+        device_class: 'voltage',
+        unit_of_measurement: 'V',
+        enabled_by_default: false,
+      }),
+    );
+    field({
+      key: 'sc',
+      path: ['batteryData', 'extra1', 'current'],
+      transform: v => parseFloat(v) / 1000,
+    });
+    advertise(
+      ['batteryData', 'extra1', 'current'],
+      sensorComponent<number>({
+        id: 'battery_extra1_current',
+        name: 'Extra Battery 1 Current',
+        device_class: 'current',
+        unit_of_measurement: 'A',
+        enabled_by_default: false,
+      }),
+    );
+    field({
+      key: 'lb',
+      path: ['batteryData', 'extra2', 'power'],
+    });
+    field({
+      key: 'lv',
+      path: ['batteryData', 'extra2', 'voltage'],
+      transform: (v: string) => parseFloat(v) / 1000,
+    });
+    advertise(
+      ['batteryData', 'extra2', 'voltage'],
+      sensorComponent<number>({
+        id: 'battery_extra2_voltage',
+        name: 'Extra Battery 2 Voltage',
+        device_class: 'voltage',
+        unit_of_measurement: 'V',
+        enabled_by_default: false,
+      }),
+    );
+    field({
+      key: 'lc',
+      path: ['batteryData', 'extra2', 'current'],
+      transform: v => parseFloat(v) / 1000,
+    });
+    advertise(
+      ['batteryData', 'extra2', 'current'],
+      sensorComponent<number>({
+        id: 'battery_extra2_current',
+        name: 'Extra Battery 2 Current',
+        device_class: 'current',
+        unit_of_measurement: 'A',
         enabled_by_default: false,
       }),
     );

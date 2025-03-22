@@ -5,6 +5,15 @@ configuration:
   responseTimeout:
     name: "Antwort-Timeout"
     description: "Timeout in Sekunden für Geräteantworten bevor das Gerät als offline deklariert wird (Standard: 30)"
+  enableCellData:
+    name: "Zellspannung"
+    description: "Aktiviere Abruf der Zellenspannung (nur verfügbar für B2500)"
+  enableCalibrationData:
+    name: "Kalibrierungsdaten"
+    description: "Aktiviere Abruf der Kalibrierungsdaten (nur verfügbar für B2500)"
+  enableExtraBatteryData:
+    name: "Zusätzliche Batteriedaten"
+    description: "Aktiviere Abruf zusätzlicher Batteriedaten (nur verfügbar für B2500)"
   devices:
     name: "Geräte"
     description: "Liste der Energiespeichergeräte, mit denen eine Verbindung hergestellt werden soll"

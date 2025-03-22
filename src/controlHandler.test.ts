@@ -34,7 +34,6 @@ describe('ControlHandler', () => {
       brokerUrl: 'mqtt://test.mosquitto.org',
       clientId: 'test-client',
       devices: [testDeviceV1, testDeviceV2],
-      pollingInterval: 60000,
       responseTimeout: 15000,
     };
 

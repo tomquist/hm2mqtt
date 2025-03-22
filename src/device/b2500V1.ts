@@ -1,13 +1,20 @@
-import { BuildMessageFn, registerDeviceDefinition } from '../deviceDefinition';
-import { B2500V1DeviceData } from '../types';
+import { BuildMessageFn, globalPollInterval, registerDeviceDefinition } from '../deviceDefinition';
+import { B2500V1CD16Data, B2500V1DeviceData } from '../types';
 import {
   CommandType,
   extractAdditionalDeviceInfo,
   isB2500RuntimeInfoMessage,
   processCommand,
   registerBaseMessage,
+  registerCalibrationDataMessage,
+  registerCellDataMessage,
 } from './b2500Base';
-import { numberComponent, selectComponent, switchComponent } from '../homeAssistantDiscovery';
+import {
+  numberComponent,
+  selectComponent,
+  sensorComponent,
+  switchComponent,
+} from '../homeAssistantDiscovery';
 import { transformBitBoolean } from './helpers';
 
 registerDeviceDefinition(
@@ -16,6 +23,15 @@ registerDeviceDefinition(
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
+    if (process.env.POLL_EXTRA_BATTERY_DATA === 'true') {
+      registerExtraBatteryData(message);
+    }
+    if (process.env.POLL_CELL_DATA === 'true') {
+      registerCellDataMessage(message);
+    }
+    if (process.env.POLL_CALIBRATION_DATA === 'true') {
+      registerCalibrationDataMessage(message);
+    }
   },
 );
 
@@ -26,6 +42,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     defaultState: { useFlashCommands: false },
     getAdditionalDeviceInfo: extractAdditionalDeviceInfo,
     publishPath: 'data',
+    pollInterval: globalPollInterval,
   } as const;
   message<B2500V1DeviceData>(options, ({ field, command, advertise }) => {
     registerBaseMessage({ field, command, advertise });
@@ -173,6 +190,52 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             ),
           );
         },
+      });
+    }
+  });
+}
+
+function isB2500CD16Message(message: Record<string, string>): boolean {
+  const cd16VoltageInfo = ['p1', 'p2', 'm1', 'm2', 'w1', 'w2', 'e1', 'e2', 'o1', 'o2', 'g1', 'g2'];
+  const forbiddenKeys = ['m3', 'cj'];
+  if (cd16VoltageInfo.every(k => k in message) && !forbiddenKeys.some(k => k in message)) {
+    return true;
+  }
+
+  return false;
+}
+
+function registerExtraBatteryData(message: BuildMessageFn) {
+  let options = {
+    refreshDataPayload: 'cd=16',
+    isMessage: isB2500CD16Message,
+    publishPath: 'extraBatteryData',
+    defaultState: {},
+    getAdditionalDeviceInfo: () => ({}),
+    pollInterval: globalPollInterval,
+  } as const;
+  message<B2500V1CD16Data>(options, ({ field, advertise }) => {
+    for (const input of [1, 2] as const) {
+      field({
+        key: `m${input}`,
+        path: [`input${input}`, 'voltage'],
+      });
+      advertise(
+        [`input${input}`, 'voltage'],
+        sensorComponent<number>({
+          id: `solar_input_voltage_${input}`,
+          name: `Input Voltage ${input}`,
+          device_class: 'voltage',
+          unit_of_measurement: 'V',
+        }),
+      );
+      field({
+        key: `w${input}`,
+        path: [`input${input}`, 'power'],
+      });
+      field({
+        key: `g${input}`,
+        path: [`output${input}`, 'power'],
       });
     }
   });

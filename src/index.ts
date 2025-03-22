@@ -1,12 +1,12 @@
 import * as dotenv from 'dotenv';
+// Load environment variables
+dotenv.config();
+
 import { Device, MqttConfig } from './types';
 import { DeviceManager, DeviceStateData } from './deviceManager';
 import { MqttClient } from './mqttClient';
 import { ControlHandler } from './controlHandler';
 import { DataHandler } from './dataHandler';
-
-// Load environment variables
-dotenv.config();
 
 // Debug mode
 const DEBUG = process.env.DEBUG === 'true';
@@ -105,7 +105,6 @@ function createMqttConfig(devices: Device[]): MqttConfig {
     username: process.env.MQTT_USERNAME || undefined,
     password: process.env.MQTT_PASSWORD || undefined,
     devices,
-    pollingInterval: parseInt(process.env.MQTT_POLLING_INTERVAL || '60', 10) * 1000,
     responseTimeout: parseInt(process.env.MQTT_RESPONSE_TIMEOUT || '15', 10) * 1000,
   };
 }
@@ -158,7 +157,6 @@ function main() {
     const config = createMqttConfig(devices);
     console.log(`MQTT Broker: ${config.brokerUrl}`);
     console.log(`MQTT Client ID: ${config.clientId}`);
-    console.log(`MQTT Polling Interval: ${config.pollingInterval}ms`);
     debug(
       'Full MQTT config:',
       JSON.stringify(config, (key, value) => (key === 'password' ? '***' : value), 2),
@@ -212,6 +210,7 @@ function main() {
               mqttClient.publish(topics.availabilityTopic, 'online', { qos: 1, retain: true });
             }
 
+            deviceManager.clearResponseTimeout(device);
             dataHandler.handleDeviceData(device, message.toString());
             break;
 

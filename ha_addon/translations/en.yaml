@@ -5,6 +5,15 @@ configuration:
   responseTimeout:
     name: Response Timeout
     description: "Timeout in seconds for device responses before considering the device to be offline (default: 30)"
+  enableCellData:
+    name: Enable Cell Data
+    description: "Enable cell voltage (only available on B2500 devices)"
+  enableCalibrationData:
+    name: Enable Calibration Data
+    description: "Enable calibration data reporting (only available on B2500 devices)"
+  enableExtraBatteryData:
+    name: Enable Extra Battery Data
+    description: "Enable extra battery data reporting (only available on B2500 devices)"
   devices:
     name: Devices
     description: "List of energy storage devices to connect to"
