@@ -46,6 +46,16 @@ export function registerBaseMessage({
   command,
   advertise,
 }: BuildMessageDefinitionArgs<B2500BaseDeviceData>) {
+  advertise(
+    ['timestamp'],
+    sensorComponent<string>({
+      id: 'timestamp',
+      name: 'Last Update',
+      device_class: 'timestamp',
+      icon: 'mdi:clock',
+    }),
+  );
+
   // Battery information
   field({
     key: 'pe',
@@ -670,6 +680,16 @@ export function registerCellDataMessage(message: BuildMessageFn) {
     pollInterval: 60000,
   } as const;
   message<B2500CellData>(options, ({ field, advertise }) => {
+    advertise(
+      ['timestamp'],
+      sensorComponent<string>({
+        id: 'timestamp_cell_data',
+        name: 'Cell Data Last Updated',
+        device_class: 'timestamp',
+        icon: 'mdi:clock',
+        enabled_by_default: false,
+      }),
+    );
     for (const [key, battery] of Object.entries({
       a: 'host',
       b: 'extra1',
@@ -779,6 +799,16 @@ export function registerCalibrationDataMessage(message: BuildMessageFn) {
     pollInterval: 60000,
   } as const;
   message<B2500CalibrationData>(options, ({ field, advertise }) => {
+    advertise(
+      ['timestamp'],
+      sensorComponent<string>({
+        id: 'timestamp_calibration_data',
+        name: 'Calibration Data Last Updated',
+        device_class: 'timestamp',
+        icon: 'mdi:clock',
+        enabled_by_default: false,
+      }),
+    );
     field({
       key: 'cf',
       path: ['charge'],
