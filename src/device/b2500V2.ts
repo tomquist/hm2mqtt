@@ -775,11 +775,29 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
       path: ['batteryData', 'host', 'voltage'],
       transform: (v: string) => parseFloat(v) / 1000,
     });
+    advertise(
+      ['batteryData', 'host', 'voltage'],
+      sensorComponent<number>({
+        id: 'battery_voltage',
+        name: 'Host Battery Voltage',
+        device_class: 'voltage',
+        unit_of_measurement: 'V',
+      }),
+    );
     field({
       key: 'bc',
       path: ['batteryData', 'host', 'current'],
       transform: v => parseFloat(v) / 1000,
     });
+    advertise(
+      ['batteryData', 'host', 'current'],
+      sensorComponent<number>({
+        id: 'battery_current',
+        name: 'Host Battery Current',
+        device_class: 'current',
+        unit_of_measurement: 'A',
+      }),
+    );
     field({
       key: 'sb',
       path: ['batteryData', 'extra1', 'power'],
@@ -789,11 +807,31 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
       path: ['batteryData', 'extra1', 'voltage'],
       transform: (v: string) => parseFloat(v) / 1000,
     });
+    advertise(
+      ['batteryData', 'extra1', 'voltage'],
+      sensorComponent<number>({
+        id: 'battery_extra1_voltage',
+        name: 'Extra Battery 1 Voltage',
+        device_class: 'voltage',
+        unit_of_measurement: 'V',
+        enabled_by_default: false,
+      }),
+    );
     field({
       key: 'sc',
       path: ['batteryData', 'extra1', 'current'],
       transform: v => parseFloat(v) / 1000,
     });
+    advertise(
+      ['batteryData', 'extra1', 'current'],
+      sensorComponent<number>({
+        id: 'battery_extra1_current',
+        name: 'Extra Battery 1 Current',
+        device_class: 'current',
+        unit_of_measurement: 'A',
+        enabled_by_default: false,
+      }),
+    );
     field({
       key: 'lb',
       path: ['batteryData', 'extra2', 'power'],
@@ -803,10 +841,30 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
       path: ['batteryData', 'extra2', 'voltage'],
       transform: (v: string) => parseFloat(v) / 1000,
     });
+    advertise(
+      ['batteryData', 'extra2', 'voltage'],
+      sensorComponent<number>({
+        id: 'battery_extra2_voltage',
+        name: 'Extra Battery 2 Voltage',
+        device_class: 'voltage',
+        unit_of_measurement: 'V',
+        enabled_by_default: false,
+      }),
+    );
     field({
       key: 'lc',
       path: ['batteryData', 'extra2', 'current'],
       transform: v => parseFloat(v) / 1000,
     });
+    advertise(
+      ['batteryData', 'extra2', 'current'],
+      sensorComponent<number>({
+        id: 'battery_extra2_current',
+        name: 'Extra Battery 2 Current',
+        device_class: 'current',
+        unit_of_measurement: 'A',
+        enabled_by_default: false,
+      }),
+    );
   });
 }

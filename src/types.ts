@@ -110,11 +110,19 @@ export interface B2500V1DeviceData extends B2500BaseDeviceData {
   chargingMode?: B2500V1ChargingMode;
 }
 
+type CellVoltageInfo = {
+  cells: number[];
+  min: number;
+  max: number;
+  diff: number;
+  avg: number;
+};
+
 export interface B2500CellData extends BaseDeviceData {
   cellVoltage?: {
-    host?: number[];
-    extra1?: number[];
-    extra2?: number[];
+    host?: CellVoltageInfo;
+    extra1?: CellVoltageInfo;
+    extra2?: CellVoltageInfo;
   };
 }
 

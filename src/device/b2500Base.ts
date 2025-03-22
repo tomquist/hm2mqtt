@@ -414,6 +414,7 @@ export function registerBaseMessage({
       id: 'extra2_battery_discharging',
       name: 'Extra 2 Battery Discharging',
       device_class: 'power',
+      enabled_by_default: false,
     }),
   );
   field({
@@ -427,6 +428,7 @@ export function registerBaseMessage({
       id: 'extra2_battery_charging',
       name: 'Extra 2 Battery Charging',
       device_class: 'battery_charging',
+      enabled_by_default: false,
     }),
   );
   field({
@@ -440,6 +442,7 @@ export function registerBaseMessage({
       id: 'extra2_battery_depth_of_discharge',
       name: 'Extra 2 Battery Depth of Discharge',
       device_class: 'problem',
+      enabled_by_default: false,
     }),
   );
   field({
@@ -453,6 +456,7 @@ export function registerBaseMessage({
       id: 'extra2_battery_undervoltage',
       name: 'Extra 2 Battery Undervoltage',
       device_class: 'problem',
+      enabled_by_default: false,
     }),
   );
   field({
@@ -466,6 +470,7 @@ export function registerBaseMessage({
       id: 'extra1_battery_discharging',
       name: 'Extra 1 Battery Discharging',
       device_class: 'power',
+      enabled_by_default: false,
     }),
   );
   field({
@@ -479,6 +484,7 @@ export function registerBaseMessage({
       id: 'extra1_battery_charging',
       name: 'Extra 1 Battery Charging',
       device_class: 'battery_charging',
+      enabled_by_default: false,
     }),
   );
   field({
@@ -492,6 +498,7 @@ export function registerBaseMessage({
       id: 'extra1_battery_depth_of_discharge',
       name: 'Extra 1 Battery Depth of Discharge',
       device_class: 'problem',
+      enabled_by_default: false,
     }),
   );
   field({
@@ -505,6 +512,7 @@ export function registerBaseMessage({
       id: 'extra1_battery_undervoltage',
       name: 'Extra 1 Battery Undervoltage',
       device_class: 'problem',
+      enabled_by_default: false,
     }),
   );
 
@@ -533,6 +541,7 @@ export function registerBaseMessage({
       name: 'Extra 1 Battery Capacity',
       device_class: 'energy_storage',
       unit_of_measurement: 'Wh',
+      enabled_by_default: false,
     }),
   );
   field({
@@ -546,6 +555,7 @@ export function registerBaseMessage({
       name: 'Extra 2 Battery Capacity',
       device_class: 'energy_storage',
       unit_of_measurement: 'Wh',
+      enabled_by_default: false,
     }),
   );
 
@@ -665,20 +675,88 @@ export function registerCellDataMessage(message: BuildMessageFn) {
       b: 'extra1',
       c: 'extra2',
     } as const)) {
+      const allKeys = Array.from({ length: 14 }, (_, i) => `${key}${i.toString(16)}` as const);
+      field({
+        key: allKeys,
+        path: ['cellVoltage', battery, 'min'],
+        transform: voltages => Math.min(...Object.values(voltages).map(v => parseFloat(v))) / 1000,
+      });
+      advertise(
+        ['cellVoltage', battery, 'min'],
+        sensorComponent<number>({
+          id: `min_cell_voltage_${battery}`,
+          name: `Min Cell Voltage ${battery}`,
+          device_class: 'voltage',
+          unit_of_measurement: 'V',
+          enabled_by_default: battery === 'host',
+        }),
+      );
+      field({
+        key: allKeys,
+        path: ['cellVoltage', battery, 'max'],
+        transform: voltages => Math.max(...Object.values(voltages).map(v => parseFloat(v))) / 1000,
+      });
+      advertise(
+        ['cellVoltage', battery, 'max'],
+        sensorComponent<number>({
+          id: `max_cell_voltage_${battery}`,
+          name: `Max Cell Voltage ${battery}`,
+          device_class: 'voltage',
+          unit_of_measurement: 'V',
+          enabled_by_default: battery === 'host',
+        }),
+      );
+      field({
+        key: allKeys,
+        path: ['cellVoltage', battery, 'diff'],
+        transform: voltages => {
+          const values = Object.values(voltages).map(v => parseFloat(v));
+          return (Math.max(...values) - Math.min(...values)) / 1000;
+        },
+      });
+      advertise(
+        ['cellVoltage', battery, 'diff'],
+        sensorComponent<number>({
+          id: `diff_cell_voltage_${battery}`,
+          name: `Cell Voltage Difference ${battery}`,
+          device_class: 'voltage',
+          unit_of_measurement: 'V',
+          enabled_by_default: battery === 'host',
+        }),
+      );
+      field({
+        key: allKeys,
+        path: ['cellVoltage', battery, 'avg'],
+        transform: voltages => {
+          const values = Object.values(voltages).map(v => parseFloat(v));
+          return Math.round(values.reduce((sum, v) => sum + v, 0) / values.length) / 1000;
+        },
+      });
+      advertise(
+        ['cellVoltage', battery, 'avg'],
+        sensorComponent<number>({
+          id: `avg_cell_voltage_${battery}`,
+          name: `Average Cell Voltage ${battery}`,
+          device_class: 'voltage',
+          unit_of_measurement: 'V',
+          enabled_by_default: battery === 'host',
+        }),
+      );
+
       for (let i = 0; i < 14; i++) {
         field({
           key: `${key}${i.toString(16)}`,
-          path: ['cellVoltage', battery, i],
+          path: ['cellVoltage', battery, 'cells', i],
           transform: v => parseFloat(v) / 1000,
         });
         advertise(
-          ['cellVoltage', battery, i],
+          ['cellVoltage', battery, 'cells', i],
           sensorComponent({
             id: `cell_voltage_${battery}_${i}`,
             name: `Cell Voltage ${battery} ${(i + 1).toString().padStart(2, '0')}`,
             device_class: 'voltage',
             unit_of_measurement: 'V',
-            enabled_by_default: false,
+            enabled_by_default: battery === 'host',
           }),
         );
       }
@@ -713,7 +791,6 @@ export function registerCalibrationDataMessage(message: BuildMessageFn) {
         name: 'Calibration Charge',
         device_class: 'energy',
         unit_of_measurement: 'mAh',
-        enabled_by_default: false,
       }),
     );
     field({
@@ -728,7 +805,6 @@ export function registerCalibrationDataMessage(message: BuildMessageFn) {
         name: 'Calibration Discharge',
         device_class: 'energy',
         unit_of_measurement: 'mAh',
-        enabled_by_default: false,
       }),
     );
   });
