@@ -244,7 +244,7 @@ export type VenusCTStatus = 'notConnected' | 'connected' | 'weakSignal';
 /**
  * Venus device battery working status types
  */
-export type VenusBatteryWorkingStatus = 'notWorking' | 'charging' | 'discharging';
+export type VenusBatteryWorkingStatus = 'notWorking' | 'charging' | 'discharging' | 'unknown';
 
 /**
  * Venus device working mode types

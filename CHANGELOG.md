@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - B2500: Add calibration information sensors
 - Venus: Add wifi name sensor
 
+### Fixed
+
+- Venus Working Status now uses the correct mapping (thanks jbe)
+
 ## [1.0.7]
 
 ### Added

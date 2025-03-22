@@ -118,7 +118,7 @@ Description of the above parameters:
 | grd_o | Combined power (-: Charging +: Discharging, Unit: W) |
 | grd_t | Working status (0x0: sleep mode; 0x1: standby; 0x2: charging; 0x3: discharging; 0x4: backup mode; 0x5: OTA upgrade; 0x6: bypass status) |
 | gct_s | CT status (0: Not connected; 1: has been connected; 2: Weak signal) |
-| cel_s | Battery working status (0: Not working; 1: Charging; 2: Discharge) |
+| cel_s | Battery working status (1: Not working; 2: Charging; 3: Discharge) |
 | cel_p | Battery energy (0.01kWh) |
 | cel_c | SOC |
 | err_t | Error code (fault code) |
