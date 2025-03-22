@@ -215,6 +215,16 @@ function registerExtraBatteryData(message: BuildMessageFn) {
     pollInterval: globalPollInterval,
   } as const;
   message<B2500V1CD16Data>(options, ({ field, advertise }) => {
+    advertise(
+      ['timestamp'],
+      sensorComponent<string>({
+        id: 'timestamp_extra_battery_data',
+        name: 'Extra Battery Last Updated',
+        device_class: 'timestamp',
+        icon: 'mdi:clock',
+        enabled_by_default: false,
+      }),
+    );
     for (const input of [1, 2] as const) {
       field({
         key: `m${input}`,

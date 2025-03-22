@@ -142,6 +142,16 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     pollInterval: globalPollInterval,
   };
   message<VenusDeviceData>(options, ({ field, command, advertise }) => {
+    advertise(
+      ['timestamp'],
+      sensorComponent<string>({
+        id: 'timestamp',
+        name: 'Last Update',
+        device_class: 'timestamp',
+        icon: 'mdi:clock-time-four-outline',
+      }),
+    );
+
     // Battery information
     field({
       key: 'cel_p',
