@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.2]
 
 - B2500: Add support for devices of the HMJ series
+- B2500: Fix incorrect battery capacity sensor unit for host and extra battery
 
 ## [1.1.1]
 

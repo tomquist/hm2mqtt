@@ -535,9 +535,9 @@ export function registerBaseMessage({
     ['batteryCapacities', 'host'],
     sensorComponent<number>({
       id: 'host_battery_capacity',
-      name: 'Host Battery Capacity',
-      device_class: 'energy_storage',
-      unit_of_measurement: 'Wh',
+      name: 'Host Battery SoC',
+      device_class: 'battery',
+      unit_of_measurement: '%',
     }),
   );
   field({
@@ -548,9 +548,9 @@ export function registerBaseMessage({
     ['batteryCapacities', 'extra1'],
     sensorComponent<number>({
       id: 'extra1_battery_capacity',
-      name: 'Extra 1 Battery Capacity',
-      device_class: 'energy_storage',
-      unit_of_measurement: 'Wh',
+      name: 'Extra 1 Battery SoC',
+      device_class: 'battery',
+      unit_of_measurement: '%',
       enabled_by_default: false,
     }),
   );
