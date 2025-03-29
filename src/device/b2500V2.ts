@@ -131,7 +131,7 @@ function buildTimePeriodParams(
 
 registerDeviceDefinition(
   {
-    deviceTypes: ['HMA', 'HMF', 'HMK'],
+    deviceTypes: ['HMA', 'HMF', 'HMJ', 'HMK'],
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
