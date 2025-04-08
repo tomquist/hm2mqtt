@@ -48,6 +48,9 @@ docker run -d --name hm2mqtt \
   -e MQTT_BROKER_URL=mqtt://your-broker:1883 \
   -e MQTT_USERNAME=your-username \
   -e MQTT_PASSWORD=your-password \
+  -e POLL_CELL_DATA=false \
+  -e POLL_EXTRA_BATTERY_DATA=false \
+  -e POLL_CALIBRATION_DATA=false \
   -e DEVICE_0=HMA-1:your-device-mac \
   ghcr.io/tomquist/hm2mqtt:latest
 ```
@@ -89,6 +92,9 @@ The Docker image is automatically built and published to the GitHub package regi
    MQTT_PASSWORD=your-password
    MQTT_POLLING_INTERVAL=60000
    MQTT_RESPONSE_TIMEOUT=30000
+   POLL_CELL_DATA=false
+   POLL_EXTRA_BATTERY_DATA=false
+   POLL_CALIBRATION_DATA=false
    DEVICE_0=HMA-1:your-device-mac
    ```
 
@@ -109,6 +115,9 @@ The Docker image is automatically built and published to the GitHub package regi
 | `MQTT_PASSWORD` | MQTT password | -                       |
 | `MQTT_POLLING_INTERVAL` | Interval between device polls (ms) | `60000`                 |
 | `MQTT_RESPONSE_TIMEOUT` | Timeout for device responses (ms) | `15000`                 |
+| `POLL_CELL_DATA` | Enable cell voltage (only available on B2500 devices) | false |
+| `POLL_EXTRA_BATTERY_DATA` | Enable extra battery data reporting (only available on B2500 devices) | false |
+| `POLL_CALIBRATION_DATA` | Enable calibration data reporting (only available on B2500 devices) | false |
 | `DEVICE_n` | Device configuration in format `{type}:{mac}` | -                       |
 
 ### Add-on Configuration
