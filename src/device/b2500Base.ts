@@ -562,9 +562,9 @@ export function registerBaseMessage({
     ['batteryCapacities', 'extra2'],
     sensorComponent<number>({
       id: 'extra2_battery_capacity',
-      name: 'Extra 2 Battery Capacity',
-      device_class: 'energy_storage',
-      unit_of_measurement: 'Wh',
+      name: 'Extra 2 Battery SoC',
+      device_class: 'battery',
+      unit_of_measurement: '%',
       enabled_by_default: false,
     }),
   );
