@@ -32,7 +32,7 @@ export class MqttClient {
       connectTimeout: 30000, // 30 seconds timeout
       // Set up last will message for availability
       will: {
-        topic: `hame_energy/availability`,
+        topic: `${this.config.devices[0]?.topicPrefix ?? 'hame_energy'}/availability`,
         payload: 'offline',
         qos: 1 as const,
         retain: true,
@@ -64,7 +64,10 @@ export class MqttClient {
     console.log('Connected to MQTT broker');
 
     // Publish global availability status
-    this.publish('hame_energy/availability', 'online', { qos: 1, retain: true });
+    this.publish(`${this.config.devices[0]?.topicPrefix ?? 'hame_energy'}/availability`, 'online', {
+      qos: 1,
+      retain: true,
+    });
 
     // For each device, subscribe to topics and set up polling
     this.deviceManager.getDevices().forEach(device => {
@@ -309,7 +312,11 @@ export class MqttClient {
 
     // Publish global offline status
     publishPromises.push(
-      this.publish('hame_energy/availability', 'offline', { qos: 1, retain: true }),
+      this.publish(
+        `${this.config.devices[0]?.topicPrefix ?? 'hame_energy'}/availability`,
+        'offline',
+        { qos: 1, retain: true },
+      ),
     );
 
     // Wait for all publish operations to complete (with timeout)

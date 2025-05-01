@@ -44,13 +44,23 @@ function parseDeviceConfigurations(): Device[] {
     if (key.startsWith('DEVICE_')) {
       const value = process.env[key];
       if (value) {
-        const [deviceType, deviceId] = value.split(':');
+        const parts = value.split(':');
+        const deviceType = parts[0];
+        const deviceId = parts[1];
+        const topicPrefix = parts[2]; // Optional topic prefix
+
         if (deviceType && deviceId) {
-          console.log(`Adding device: ${deviceType}:${deviceId} from ${key}=${value}`);
-          devices.push({ deviceType, deviceId });
+          console.log(
+            `Adding device: ${deviceType}:${deviceId}${topicPrefix ? ` with topic prefix: ${topicPrefix}` : ''} from ${key}=${value}`,
+          );
+          devices.push({
+            deviceType,
+            deviceId,
+            ...(topicPrefix && { topicPrefix }), // Only add topicPrefix if it exists
+          });
         } else {
           console.warn(
-            `Invalid device format for ${key}=${value}, expected format: deviceType:deviceId`,
+            `Invalid device format for ${key}=${value}, expected format: deviceType:deviceId[:topicPrefix]`,
           );
         }
       }
@@ -76,7 +86,10 @@ function parseDeviceConfigurations(): Device[] {
     console.error(
       JSON.stringify(
         {
-          devices: [{ deviceType: 'HMA-1', deviceId: '12345' }],
+          devices: [
+            { deviceType: 'HMA-1', deviceId: '12345' },
+            { deviceType: 'HMA-1', deviceId: '67890', topicPrefix: 'marstek_energy' },
+          ],
           pollingInterval: 60,
           responseTimeout: 30,
           debug: true,

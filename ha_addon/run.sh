@@ -3,6 +3,19 @@
 # Enable error handling
 set -e
 
+# Function to start the application
+start_application() {
+    bashio::log.info "Starting hm2mqtt..."
+    cd /app && node dist/index.js || bashio::log.error "Application crashed with exit code $?"
+}
+
+# Function to output environment variables for testing
+output_env_for_testing() {
+    bashio::log.info "Running in test mode, outputting environment variables"
+    # Output all environment variables that start with MQTT_ or DEVICE_
+    env | grep -E "^(MQTT_|DEVICE_|POLL_|DEBUG=)" | sort
+}
+
 # Function to manually parse options.json
 parse_options_json() {
     local file="$1"
@@ -106,11 +119,22 @@ if bashio::config.exists 'devices'; then
             if bashio::config.exists "devices[${i}].deviceType" && bashio::config.exists "devices[${i}].deviceId"; then
                 DEVICE_TYPE=$(bashio::config "devices[${i}].deviceType")
                 DEVICE_ID=$(bashio::config "devices[${i}].deviceId")
+                TOPIC_PREFIX=""
+
+                # Get topic prefix if it exists
+                if bashio::config.exists "devices[${i}].topicPrefix"; then
+                    TOPIC_PREFIX=$(bashio::config "devices[${i}].topicPrefix")
+                fi
 
                 # Skip if either value is empty
                 if [ -n "$DEVICE_TYPE" ] && [ -n "$DEVICE_ID" ]; then
-                    export "DEVICE_${i}=${DEVICE_TYPE}:${DEVICE_ID}"
-                    bashio::log.info "Configured device $((i + 1)): ${DEVICE_TYPE}:${DEVICE_ID}"
+                    if [ -n "$TOPIC_PREFIX" ]; then
+                        export "DEVICE_${i}=${DEVICE_TYPE}:${DEVICE_ID}:${TOPIC_PREFIX}"
+                        bashio::log.info "Configured device $((i + 1)): ${DEVICE_TYPE}:${DEVICE_ID} with topic prefix: ${TOPIC_PREFIX}"
+                    else
+                        export "DEVICE_${i}=${DEVICE_TYPE}:${DEVICE_ID}"
+                        bashio::log.info "Configured device $((i + 1)): ${DEVICE_TYPE}:${DEVICE_ID}"
+                    fi
                 else
                     bashio::log.warning "Device ${i} has empty deviceType or deviceId"
                 fi
@@ -178,6 +202,9 @@ if [ "$DEVICE_COUNT" -eq 0 ]; then
     fi
 fi
 
-# Start the application
-bashio::log.info "Starting hm2mqtt..."
-cd /app && node dist/index.js || bashio::log.error "Application crashed with exit code $?"
+# Check if we're in test mode
+if [ "${TEST_MODE:-false}" = "true" ]; then
+    output_env_for_testing
+else
+    start_application
+fi

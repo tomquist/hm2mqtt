@@ -59,20 +59,22 @@ docker run -d --name hm2mqtt \
 Configure multiple devices by adding more environment variables:
 
 ```bash
+# Example with devices using different firmware versions:
 docker run -d --name hm2mqtt \
   -e MQTT_BROKER_URL=mqtt://your-broker:1883 \
-  -e DEVICE_0=HMA-1:device-mac-1 \
-  -e DEVICE_1=HMB-1:device-mac-2 \
+  -e DEVICE_0=HMA-1:001a2b3c4d5e \  # Firmware < 226 (12-character MAC address)
+  -e DEVICE_1=HMA-1:1234567890abcdef1234567890abcdef:marstek_energy \  # Firmware >= 226 (32-character device ID)
   ghcr.io/tomquist/hm2mqtt:latest
 ```
 
 The Docker image is automatically built and published to the GitHub package registry with each release.
 
-### docker-compose
+### Using Docker Compose
 
 A docker-compose example for a Marstek B2500-D V2:
 
-```version: '3.7'
+```yaml
+version: '3.7'
 
 services:
   hm2mqtt:
@@ -86,7 +88,10 @@ services:
       - POLL_CELL_DATA=true
       - POLL_EXTRA_BATTERY_DATA=true
       - POLL_CALIBRATION_DATA=true
-      - DEVICE_0=HMA-1:0019aa0d4dcb (example MAC address)
+      # For firmware < 226:
+      - DEVICE_0=HMA-1:0019aa0d4dcb  # 12-character MAC address
+      # For firmware >= 226:
+      # - DEVICE_0=HMA-1:1234567890abcdef1234567890abcdef:marstek_energy  # 32-character device ID
 ```
 
 ### Manual Installation
@@ -117,7 +122,10 @@ services:
    POLL_CELL_DATA=false
    POLL_EXTRA_BATTERY_DATA=false
    POLL_CALIBRATION_DATA=false
-   DEVICE_0=HMA-1:your-device-mac
+   # For firmware < 226:
+   DEVICE_0=HMA-1:001a2b3c4d5e  # 12-character MAC address
+   # For firmware >= 226:
+   # DEVICE_0=HMA-1:1234567890abcdef1234567890abcdef:marstek_energy  # 32-character device ID
    ```
 
 5. Run the application:
@@ -150,9 +158,22 @@ responseTimeout: 30000  # Timeout for device responses in milliseconds
 devices:
   - deviceType: "HMA-1"
     deviceId: "your-device-mac"
+    topicPrefix: "marstek_energy"  # Required for B2500 devices with firmware version 226 or higher
 ```
 
 The device id is the MAC address of the device in lowercase, without colons.
+
+**Important Note for B2500 Devices:**
+- For B2500 devices with firmware version 226 or higher:
+  - You must set `topicPrefix: "marstek_energy"` in the device configuration
+  - The device ID is different from the MAC address. To find the correct device ID:
+    1. Use an MQTT client (like MQTT Explorer) to observe the "marstek_energy" topic
+    2. Wait for up to 20 minutes until a message is published to `marstek_energy/{deviceType}/device/{deviceId}/ctrl`
+    3. Copy the `{deviceId}` from that topic into your configuration
+- For B2500 devices with firmware version below 226:
+  - Leave the `topicPrefix` empty or omit it (it will use the default "hame_energy" prefix)
+  - Use the MAC address shown in the Marstek/PowerZero app's device list or in the Bluetooth configuration tool
+  - **Important:** Do not use the WiFi interface MAC address - it must be the one shown in the app or Bluetooth tool
 
 The device type can be one of the following:
 - HMB-X: (e.g. HMB-1, HMB-2, ...) B2500 storage v1
@@ -197,8 +218,12 @@ docker run -e MQTT_BROKER_URL=mqtt://your-broker:1883 -e DEVICE_0=HMA-1:your-dev
 Your device data is published to the following MQTT topic:
 
 ```
-hame_energy/{device_type}/device/{device_mac}/data
+{prefix}/{device_type}/device/{device_mac}/data
 ```
+
+Where `{prefix}` is:
+- `marstek_energy` for B2500 devices with firmware version 226 or higher
+- `hame_energy` for all other devices
 
 This topic contains the current state of your device in JSON format, including battery status, power flow data, and device settings.
 
@@ -207,8 +232,12 @@ This topic contains the current state of your device in JSON format, including b
 You can control your device by publishing messages to specific MQTT topics. The base topic pattern for commands is:
 
 ```
-hame_energy/{device_type}/control/{device_mac}/{command}
+{prefix}/{device_type}/control/{device_mac}/{command}
 ```
+
+Where `{prefix}` is:
+- `marstek_energy` for B2500 devices with firmware version 226 or higher
+- `hame_energy` for all other devices
 
 ### Common Commands (All Devices)
 - `refresh`: Refreshes the device data
@@ -250,11 +279,17 @@ hame_energy/{device_type}/control/{device_mac}/{command}
 ### Examples
 
 ```
-# Refresh data from a B2500 device
+# Refresh data from a B2500 device (firmware < 226)
 mosquitto_pub -t "hame_energy/HMA-1/control/abcdef123456/refresh" -m ""
 
-# Set charging mode for B2500
+# Refresh data from a B2500 device (firmware >= 226)
+mosquitto_pub -t "marstek_energy/HMA-1/control/abcdef123456/refresh" -m ""
+
+# Set charging mode for B2500 (firmware < 226)
 mosquitto_pub -t "hame_energy/HMA-1/control/abcdef123456/charging-mode" -m "chargeThenDischarge"
+
+# Set charging mode for B2500 (firmware >= 226)
+mosquitto_pub -t "marstek_energy/HMA-1/control/abcdef123456/charging-mode" -m "chargeThenDischarge"
 
 # Enable timer period 1 on Venus device
 mosquitto_pub -t "hame_energy/HMG-50/control/abcdef123456/time-period/1/enabled" -m "on"

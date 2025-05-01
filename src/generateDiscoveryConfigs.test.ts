@@ -10,7 +10,7 @@ describe('Home Assistant Discovery', () => {
     const deviceTopic = 'hame_energy/HMA-1/device/test123/ctrl';
     const publishTopic = 'hame_energy/HMA-1/device/test123/data';
     const deviceControlTopic = 'hame_energy/HMA-1/App/test123/ctrl';
-    const controlSubscriptionTopic = 'hame_energy/HMA-1/App/test123/control';
+    const controlSubscriptionTopic = 'hame_energy/HMA-1/control/test123/control';
     const availabilityTopic = 'hame_energy/HMA-1/availability/test123';
 
     // Make sure to pass the availability topic

@@ -209,6 +209,7 @@ export interface B2500V2BatteryData {
 export interface Device {
   deviceType: string;
   deviceId: string;
+  topicPrefix?: string; // Optional topic prefix, defaults to 'hame_energy'
 }
 
 /**
