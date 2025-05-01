@@ -19,7 +19,7 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 - After setting up an MQTT broker, configure your energy storage device to send MQTT data to your MQTT broker:
   1. For the **B2500**, you have two options:
      1. Contact the support and ask them to enable MQTT for your device, then configure the MQTT broker in the device settings through the PowerZero or Marstek app.
-     2. With your an Android Smartphone or with a Bluetooth enabled PC use [this tool](https://tomquist.github.io/hame-relay/b2500.html) to configure the MQTT broker directly via Bluetooth.
+     2. With your an Android Smartphone or with a Bluetooth enabled PC use [this tool](https://tomquist.github.io/hame-relay/b2500.html) to configure the MQTT broker directly via Bluetooth. **Make sure you write down the MAC address that is displayed in this tool or in the Marstek app! You will need it later on and the WIFI MAC address of the battery is the wrong one.**
    
      **Warning:** Enabling MQTT on the device will disable the cloud connection. You will not be able to use the PowerZero or Marstek app to monitor or control your device anymore. You can re-enable the cloud connection by installing [Hame Relay](https://github.com/tomquist/hame-relay#mode-1-storage-configured-with-local-broker-inverse_forwarding-false) in Mode 1.
   2. The **Marstek Venus** doesn't officially support MQTT. However, you can install the [Hame Relay](https://github.com/tomquist/hame-relay) in [Mode 2](https://github.com/tomquist/hame-relay#mode-2-storage-configured-with-hame-broker-inverse_forwarding-true) to forward the Cloud MQTT data to your local MQTT broker.
@@ -54,6 +54,7 @@ docker run -d --name hm2mqtt \
   -e DEVICE_0=HMA-1:your-device-mac \
   ghcr.io/tomquist/hm2mqtt:latest
 ```
+**your-device-mac** has to be formatted like this: 001a2b3c4d5e  (no colon and all lowercase). It's the one mentiond before!
 
 Configure multiple devices by adding more environment variables:
 
@@ -66,6 +67,27 @@ docker run -d --name hm2mqtt \
 ```
 
 The Docker image is automatically built and published to the GitHub package registry with each release.
+
+### docker-compose
+
+A docker-compose example for a Marstek B2500-D V2:
+
+```version: '3.7'
+
+services:
+  hm2mqtt:
+    container_name: hm2mqtt
+    image: ghcr.io/tomquist/hm2mqtt:latest
+    restart: unless-stopped
+    environment:
+      - MQTT_BROKER_URL=mqtt://x.x.x.x:1883
+      - MQTT_USERNAME=''
+      - MQTT_PASSWORD=''
+      - POLL_CELL_DATA=true
+      - POLL_EXTRA_BATTERY_DATA=true
+      - POLL_CALIBRATION_DATA=true
+      - DEVICE_0=HMA-1:0019aa0d4dcb (example MAC address)
+```
 
 ### Manual Installation
 
