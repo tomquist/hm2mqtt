@@ -48,11 +48,11 @@ export class DeviceManager {
       console.log(`Initializing topics for device: ${deviceKey}`);
 
       this.deviceTopics[deviceKey] = {
-        deviceTopic: `hame_energy/${device.deviceType}/device/${device.deviceId}/ctrl`,
-        publishTopic: `hame_energy/${device.deviceType}/device/${device.deviceId}`,
-        deviceControlTopic: `hame_energy/${device.deviceType}/App/${device.deviceId}/ctrl`,
-        controlSubscriptionTopic: `hame_energy/${device.deviceType}/control/${device.deviceId}`,
-        availabilityTopic: `hame_energy/${device.deviceType}/availability/${device.deviceId}`,
+        deviceTopic: `${device.topicPrefix ?? 'hame_energy'}/${device.deviceType}/device/${device.deviceId}/ctrl`,
+        publishTopic: `${device.topicPrefix ?? 'hame_energy'}/${device.deviceType}/device/${device.deviceId}`,
+        deviceControlTopic: `${device.topicPrefix ?? 'hame_energy'}/${device.deviceType}/App/${device.deviceId}/ctrl`,
+        controlSubscriptionTopic: `${device.topicPrefix ?? 'hame_energy'}/${device.deviceType}/control/${device.deviceId}`,
+        availabilityTopic: `${device.topicPrefix ?? 'hame_energy'}/${device.deviceType}/availability/${device.deviceId}`,
       };
 
       // Initialize response timeout tracker
