@@ -3,6 +3,19 @@
 # Enable error handling
 set -e
 
+# Function to start the application
+start_application() {
+    bashio::log.info "Starting hm2mqtt..."
+    cd /app && node dist/index.js || bashio::log.error "Application crashed with exit code $?"
+}
+
+# Function to output environment variables for testing
+output_env_for_testing() {
+    bashio::log.info "Running in test mode, outputting environment variables"
+    # Output all environment variables that start with MQTT_ or DEVICE_
+    env | grep -E "^(MQTT_|DEVICE_|POLL_|DEBUG=)" | sort
+}
+
 # Function to manually parse options.json
 parse_options_json() {
     local file="$1"
@@ -189,6 +202,9 @@ if [ "$DEVICE_COUNT" -eq 0 ]; then
     fi
 fi
 
-# Start the application
-bashio::log.info "Starting hm2mqtt..."
-cd /app && node dist/index.js || bashio::log.error "Application crashed with exit code $?"
+# Check if we're in test mode
+if [ "${TEST_MODE:-false}" = "true" ]; then
+    output_env_for_testing
+else
+    start_application
+fi
