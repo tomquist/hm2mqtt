@@ -69,8 +69,8 @@ export const timePeriodSettingHandler = (
           break;
         case 'output-value':
           const outputValue = parseInt(message, 10);
-          if (isNaN(outputValue) || outputValue < 80 || outputValue > 800) {
-            console.error('Invalid output value (should be 80-800):', message);
+          if (isNaN(outputValue) || outputValue < 0 || outputValue > 800) {
+            console.error('Invalid output value (should be 0-800):', message);
             return;
           }
           newTimePeriodSettings[periodIndex].outputValue = outputValue;
