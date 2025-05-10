@@ -16,4 +16,4 @@ configuration:
     description: "Enable extra battery data reporting (only available on B2500 devices)"
   devices:
     name: Devices
-    description: "List of energy storage devices to connect to. For each device, specify: deviceType (e.g. HMA-1 for B2500 v2, HMB-1 for B2500 v1, HMG-50 for Venus), deviceId (for firmware < 226: 12-character MAC address from app, not WiFi MAC; for firmware >= 226: 32-character device ID from MQTT topic), and topicPrefix (for firmware >= 226: must be 'marstek_energy'; for firmware < 226: leave empty)"
+    description: "List of energy storage devices to connect to. For each device, specify: deviceType (e.g. HMA-1 for B2500 v2, HMB-1 for B2500 v1, HMG-50 for Venus), deviceId (12-character MAC address from app, not WiFi MAC)"

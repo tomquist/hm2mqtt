@@ -119,22 +119,11 @@ if bashio::config.exists 'devices'; then
             if bashio::config.exists "devices[${i}].deviceType" && bashio::config.exists "devices[${i}].deviceId"; then
                 DEVICE_TYPE=$(bashio::config "devices[${i}].deviceType")
                 DEVICE_ID=$(bashio::config "devices[${i}].deviceId")
-                TOPIC_PREFIX=""
-
-                # Get topic prefix if it exists
-                if bashio::config.exists "devices[${i}].topicPrefix"; then
-                    TOPIC_PREFIX=$(bashio::config "devices[${i}].topicPrefix")
-                fi
 
                 # Skip if either value is empty
                 if [ -n "$DEVICE_TYPE" ] && [ -n "$DEVICE_ID" ]; then
-                    if [ -n "$TOPIC_PREFIX" ]; then
-                        export "DEVICE_${i}=${DEVICE_TYPE}:${DEVICE_ID}:${TOPIC_PREFIX}"
-                        bashio::log.info "Configured device $((i + 1)): ${DEVICE_TYPE}:${DEVICE_ID} with topic prefix: ${TOPIC_PREFIX}"
-                    else
-                        export "DEVICE_${i}=${DEVICE_TYPE}:${DEVICE_ID}"
-                        bashio::log.info "Configured device $((i + 1)): ${DEVICE_TYPE}:${DEVICE_ID}"
-                    fi
+                    export "DEVICE_${i}=${DEVICE_TYPE}:${DEVICE_ID}"
+                    bashio::log.info "Configured device $((i + 1)): ${DEVICE_TYPE}:${DEVICE_ID}"
                 else
                     bashio::log.warning "Device ${i} has empty deviceType or deviceId"
                 fi

@@ -16,4 +16,4 @@ configuration:
     description: "Aktiviere Abruf zusätzlicher Batteriedaten (nur verfügbar für B2500)"
   devices:
     name: "Geräte"
-    description: "Liste der Energiespeichergeräte, mit denen eine Verbindung hergestellt werden soll. Für jedes Gerät angeben: deviceType (z.B. HMA-1 für B2500 v2, HMB-1 für B2500 v1, HMG-50 für Venus), deviceId (bei Firmware < 226: 12-stellige MAC-Adresse aus der App, nicht WLAN-MAC; bei Firmware >= 226: 32-stellige Geräte-ID aus dem MQTT-Topic) und topicPrefix (bei Firmware >= 226: muss 'marstek_energy' sein; bei Firmware < 226: leer lassen)"
+    description: "Liste der Energiespeichergeräte, mit denen eine Verbindung hergestellt werden soll. Für jedes Gerät angeben: deviceType (z.B. HMA-1 für B2500 v2, HMB-1 für B2500 v1, HMG-50 für Venus), deviceId (12-stellige MAC-Adresse aus der App, nicht WLAN-MAC"

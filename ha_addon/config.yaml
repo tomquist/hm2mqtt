@@ -35,4 +35,3 @@ schema:
   devices:
     - deviceType: str
       deviceId: str
-      topicPrefix: str?

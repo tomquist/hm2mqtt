@@ -32,7 +32,7 @@ export class MqttClient {
       connectTimeout: 30000, // 30 seconds timeout
       // Set up last will message for availability
       will: {
-        topic: `${this.config.devices[0]?.topicPrefix ?? 'hame_energy'}/availability`,
+        topic: `hm2mqtt/availability`,
         payload: 'offline',
         qos: 1 as const,
         retain: true,
@@ -64,7 +64,7 @@ export class MqttClient {
     console.log('Connected to MQTT broker');
 
     // Publish global availability status
-    this.publish(`${this.config.devices[0]?.topicPrefix ?? 'hame_energy'}/availability`, 'online', {
+    this.publish(`hm2mqtt/availability`, 'online', {
       qos: 1,
       retain: true,
     });
@@ -77,7 +77,8 @@ export class MqttClient {
         console.error(`No topics found for device ${device.deviceId}`);
         return;
       }
-      this.subscribe(topics.deviceTopic);
+      this.subscribe(topics.deviceTopicOld);
+      this.subscribe(topics.deviceTopicNew);
       this.subscribeToControlTopics(device);
       this.publish(topics.availabilityTopic, 'offline', { qos: 1, retain: true });
       this.publishDiscoveryConfigs(device);
@@ -218,10 +219,13 @@ export class MqttClient {
       return;
     }
 
-    const controlTopic = topics.deviceControlTopic;
+    const controlTopicOld = topics.deviceControlTopicOld;
+    const controlTopicNew = topics.deviceControlTopicNew;
     const availabilityTopic = topics.availabilityTopic;
 
-    console.log(`Requesting device data for ${device.deviceId} on topic: ${controlTopic}`);
+    console.log(
+      `Requesting device data for ${device.deviceId} on topic: ${controlTopicOld} and ${controlTopicNew}`,
+    );
 
     const needsRefreshRuntimeInfo = deviseDefinition.messages.some((message, idx) => {
       if (idx > 0) {
@@ -255,7 +259,10 @@ export class MqttClient {
         const payload = message.refreshDataPayload;
         setTimeout(
           () => {
-            this.publish(controlTopic, payload, { qos: 1 }).catch(err => {
+            this.publish(controlTopicOld, payload, { qos: 1 }).catch(err => {
+              console.error(`Error requesting device data for ${device.deviceId}:`, err);
+            });
+            this.publish(controlTopicNew, payload, { qos: 1 }).catch(err => {
               console.error(`Error requesting device data for ${device.deviceId}:`, err);
             });
           },
@@ -311,13 +318,7 @@ export class MqttClient {
     });
 
     // Publish global offline status
-    publishPromises.push(
-      this.publish(
-        `${this.config.devices[0]?.topicPrefix ?? 'hame_energy'}/availability`,
-        'offline',
-        { qos: 1, retain: true },
-      ),
-    );
+    publishPromises.push(this.publish(`hm2mqtt/availability`, 'offline', { qos: 1, retain: true }));
 
     // Wait for all publish operations to complete (with timeout)
     try {
