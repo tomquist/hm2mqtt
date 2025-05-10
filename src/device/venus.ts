@@ -1,5 +1,11 @@
 import { BuildMessageFn, globalPollInterval, registerDeviceDefinition } from '../deviceDefinition';
-import { CommandParams, VenusDeviceData, VenusTimePeriod, WeekdaySet } from '../types';
+import {
+  CommandParams,
+  VenusBMSInfo,
+  VenusDeviceData,
+  VenusTimePeriod,
+  WeekdaySet,
+} from '../types';
 import {
   buttonComponent,
   numberComponent,
@@ -129,6 +135,7 @@ registerDeviceDefinition(
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
+    registerBMSInfoMessage(message);
   },
 );
 
@@ -1010,4 +1017,85 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       },
     });
   });
+}
+
+const requiredBMSFields = ['b_ver', 'b_soc', 'b_tp1', 'b_vo1'];
+
+function isVenusBmsInfoMessage(values: Record<string, string>): boolean {
+  return requiredBMSFields.every(field => field in values);
+}
+function registerBMSInfoMessage(message: BuildMessageFn) {
+  message<VenusBMSInfo>(
+    {
+      refreshDataPayload: `cd=${CommandType.GET_BMS_INFO}`,
+      isMessage: isVenusBmsInfoMessage,
+      publishPath: 'bms',
+      defaultState: {},
+      getAdditionalDeviceInfo: () => ({}),
+      pollInterval: 60000,
+    },
+    ({ field, advertise }) => {
+      for (let i = 1; i <= 16; i++) {
+        const key = `b_vo${i}`;
+        field({ key, path: ['cells', 'voltages', i - 1] });
+        advertise(
+          ['cells', 'voltages', i - 1],
+          sensorComponent<number>({
+            id: `cell_voltage_${i}`,
+            name: `Cell Voltage ${i}`,
+            unit_of_measurement: 'mV',
+            device_class: 'voltage',
+            enabled_by_default: false,
+          }),
+        );
+      }
+
+      for (let i = 1; i <= 4; i++) {
+        const key = `b_tp${i}`;
+        field({ key, path: ['cells', 'temperatures', i - 1] });
+        advertise(
+          ['cells', 'temperatures', i - 1],
+          sensorComponent<number>({
+            id: `cell_temperature_${i}`,
+            name: `Cell Temperature ${i}`,
+            unit_of_measurement: '°C',
+            device_class: 'temperature',
+            enabled_by_default: false,
+          }),
+        );
+      }
+
+      const bmsFields = [
+        ['b_ver', { id: 'version' }],
+        ['b_soc', { id: 'soc' }],
+        ['b_soh', { id: 'soh' }],
+        ['b_cap', { id: 'capacity' }],
+        ['b_vol', { id: 'voltage', deviceClass: 'voltage', unitOfMeasurement: 'V' }],
+        ['b_cur', { id: 'current', deviceClass: 'current', unitOfMeasurement: 'mA' }],
+        ['b_tem', { id: 'temperature', deviceClass: 'temperature', unitOfMeasurement: '°C' }],
+        ['b_chv', { id: 'chargeVoltage', deviceClass: 'voltage', unitOfMeasurement: 'V' }],
+        ['b_chf', { id: 'fullChargeCapacity' }],
+        ['b_cpc', { id: 'cellCycle' }],
+        ['b_err', { id: 'error' }],
+        ['b_war', { id: 'warning' }],
+        ['b_ret', { id: 'totalRuntime' }],
+        ['b_ent', { id: 'energyThroughput' }],
+        ['b_mot', { id: 'mosfetTemp', deviceClass: 'temperature', unitOfMeasurement: '°C' }],
+      ] as const;
+
+      for (const [key, info] of bmsFields) {
+        field({ key, path: ['bms', info.id] });
+        advertise(
+          ['bms', info.id],
+          sensorComponent<number>({
+            id: info.id,
+            name: `BMS ${info.id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`,
+            unit_of_measurement: 'unitOfMeasurement' in info ? info.unitOfMeasurement : undefined,
+            device_class: 'deviceClass' in info ? info.deviceClass : undefined,
+            enabled_by_default: false,
+          }),
+        );
+      }
+    },
+  );
 }
