@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **B2500**: Better support for devices with firmware >=226 (for HMA, HMF or HMK) or >=108 (for HMJ):
   - Automatically calculate new encrypted device ID: No need to wait for 20 minutes to get the encrypted id. Instead, just enter the MAC address.
+  - Remove the need to manually enter the topicPrefix
 - **Venus**: Add BMS information sensors including:
   - Cell voltages (up to 16 cells)
   - Cell temperatures (up to 4 sensors)

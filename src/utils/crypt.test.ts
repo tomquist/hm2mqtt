@@ -1,4 +1,4 @@
-import { calculateNewVersionTopicId } from './crypt';
+import { calculateNewVersionTopicId, decryptNewVersionTopicId } from './crypt';
 
 describe('crypt', () => {
   it.each`
@@ -8,5 +8,8 @@ describe('crypt', () => {
   `('should encrypt "$input" to the expected hex string', ({ input, output }) => {
     const result = calculateNewVersionTopicId(input);
     expect(result).toBe(output);
+
+    const decrypted = decryptNewVersionTopicId(result);
+    expect(decrypted).toBe(input);
   });
 });

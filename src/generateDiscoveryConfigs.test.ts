@@ -7,17 +7,21 @@ describe('Home Assistant Discovery', () => {
   test('should generate discovery configs for a device', () => {
     const deviceType = 'HMA-1';
     const deviceId = 'test123';
-    const deviceTopic = 'hame_energy/HMA-1/device/test123/ctrl';
+    const deviceTopicOld = 'hame_energy/HMA-1/device/test123/ctrl';
+    const deviceTopicNew = 'marstek_energy/HMA-1/device/test123/ctrl';
     const publishTopic = 'hame_energy/HMA-1/device/test123/data';
-    const deviceControlTopic = 'hame_energy/HMA-1/App/test123/ctrl';
+    const deviceControlTopicOld = 'hame_energy/HMA-1/App/test123/ctrl';
+    const deviceControlTopicNew = 'marstek_energy/HMA-1/App/test123/ctrl';
     const controlSubscriptionTopic = 'hame_energy/HMA-1/control/test123/control';
     const availabilityTopic = 'hame_energy/HMA-1/availability/test123';
 
     // Make sure to pass the availability topic
     let device: Device = { deviceType, deviceId };
     let deviceTopics: DeviceTopics = {
-      deviceTopic,
-      deviceControlTopic,
+      deviceTopicOld,
+      deviceTopicNew,
+      deviceControlTopicOld,
+      deviceControlTopicNew,
       availabilityTopic,
       controlSubscriptionTopic,
       publishTopic,

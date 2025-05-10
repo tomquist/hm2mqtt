@@ -84,13 +84,12 @@ run_test "Configuration with firmware >= 226" \
         "devices": [
             {
                 "deviceType": "HMA-1",
-                "deviceId": "1234567890abcdef1234567890abcdef",
-                "topicPrefix": "marstek_energy"
+                "deviceId": "1234567890abcdef1234567890abcdef"
             }
         ]
     }' \
     "MQTT_BROKER_URL=mqtt://test:1883
-DEVICE_0=HMA-1:1234567890abcdef1234567890abcdef:marstek_energy"
+DEVICE_0=HMA-1:1234567890abcdef1234567890abcdef"
 
 # Test 3: Multiple devices with different firmware versions
 run_test "Multiple devices with different firmware versions" \
@@ -103,14 +102,13 @@ run_test "Multiple devices with different firmware versions" \
             },
             {
                 "deviceType": "HMA-1",
-                "deviceId": "1234567890abcdef1234567890abcdef",
-                "topicPrefix": "marstek_energy"
+                "deviceId": "1234567890abcdef1234567890abcdef"
             }
         ]
     }' \
     "MQTT_BROKER_URL=mqtt://test:1883
 DEVICE_0=HMA-1:001a2b3c4d5e
-DEVICE_1=HMA-1:1234567890abcdef1234567890abcdef:marstek_energy"
+DEVICE_1=HMA-1:1234567890abcdef1234567890abcdef"
 
 # Test 4: Additional configuration options
 run_test "Additional configuration options" \

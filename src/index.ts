@@ -47,20 +47,16 @@ function parseDeviceConfigurations(): Device[] {
         const parts = value.split(':');
         const deviceType = parts[0];
         const deviceId = parts[1];
-        const topicPrefix = parts[2]; // Optional topic prefix
 
         if (deviceType && deviceId) {
-          console.log(
-            `Adding device: ${deviceType}:${deviceId}${topicPrefix ? ` with topic prefix: ${topicPrefix}` : ''} from ${key}=${value}`,
-          );
+          console.log(`Adding device: ${deviceType}:${deviceId} from ${key}=${value}`);
           devices.push({
             deviceType,
             deviceId,
-            ...(topicPrefix && { topicPrefix }), // Only add topicPrefix if it exists
           });
         } else {
           console.warn(
-            `Invalid device format for ${key}=${value}, expected format: deviceType:deviceId[:topicPrefix]`,
+            `Invalid device format for ${key}=${value}, expected format: deviceType:deviceId`,
           );
         }
       }
@@ -88,7 +84,7 @@ function parseDeviceConfigurations(): Device[] {
         {
           devices: [
             { deviceType: 'HMA-1', deviceId: '12345' },
-            { deviceType: 'HMA-1', deviceId: '67890', topicPrefix: 'marstek_energy' },
+            { deviceType: 'HMA-1', deviceId: '67890' },
           ],
           pollingInterval: 60,
           responseTimeout: 30,
@@ -248,8 +244,10 @@ function main() {
         return;
       }
 
-      mqttClient
-        .publish(topics.deviceControlTopic, payload, { qos: 1 })
+      Promise.all([
+        mqttClient.publish(topics.deviceControlTopicOld, payload, { qos: 1 }),
+        mqttClient.publish(topics.deviceControlTopicNew, payload, { qos: 1 }),
+      ])
         .then(() => {
           // Request updated device data after sending a command
           // Wait a short delay to allow the device to process the command
