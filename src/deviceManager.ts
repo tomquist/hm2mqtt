@@ -1,5 +1,6 @@
 import { Device, MqttConfig } from './types';
 import { getDeviceDefinition } from './deviceDefinition';
+import { calculateNewVersionTopicId } from './utils/crypt';
 
 /**
  * Interface for device state data
@@ -46,13 +47,21 @@ export class DeviceManager {
       }
       const deviceKey = this.getDeviceKey(device);
       console.log(`Initializing topics for device: ${deviceKey}`);
+      const topicPrefix = device.topicPrefix ?? 'hame_energy';
+      const deviceId = device.deviceId;
+      let deviceTopicDeviceId = deviceId;
+      // If the topicPrefix is marstek_energy, the deviceId must use the new encrypted format
+      // Auto-convert the deviceId to the new format if needed
+      if (deviceId.length === 12 && topicPrefix === 'marstek_energy') {
+        deviceTopicDeviceId = calculateNewVersionTopicId(deviceId);
+      }
 
       this.deviceTopics[deviceKey] = {
-        deviceTopic: `${device.topicPrefix ?? 'hame_energy'}/${device.deviceType}/device/${device.deviceId}/ctrl`,
-        publishTopic: `${device.topicPrefix ?? 'hame_energy'}/${device.deviceType}/device/${device.deviceId}`,
-        deviceControlTopic: `${device.topicPrefix ?? 'hame_energy'}/${device.deviceType}/App/${device.deviceId}/ctrl`,
-        controlSubscriptionTopic: `${device.topicPrefix ?? 'hame_energy'}/${device.deviceType}/control/${device.deviceId}`,
-        availabilityTopic: `${device.topicPrefix ?? 'hame_energy'}/${device.deviceType}/availability/${device.deviceId}`,
+        deviceTopic: `${topicPrefix}/${device.deviceType}/device/${deviceTopicDeviceId}/ctrl`,
+        publishTopic: `hm2mqtt/${device.deviceType}/device/${device.deviceId}`,
+        deviceControlTopic: `${topicPrefix}/${device.deviceType}/App/${deviceTopicDeviceId}/ctrl`,
+        controlSubscriptionTopic: `hm2mqtt/${device.deviceType}/control/${device.deviceId}`,
+        availabilityTopic: `hm2mqtt/${device.deviceType}/availability/${device.deviceId}`,
       };
 
       // Initialize response timeout tracker

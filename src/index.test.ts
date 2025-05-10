@@ -143,7 +143,7 @@ describe('MQTT Client', () => {
 
     // Check that the parsed data was published
     expect(mockClient.publish).toHaveBeenCalledWith(
-      expect.stringContaining('hame_energy/HMA-1/device/testdevice/data'),
+      expect.stringContaining('hm2mqtt/HMA-1/device/testdevice/data'),
       expect.any(String),
       expect.any(Object),
       expect.any(Function),
@@ -176,7 +176,7 @@ describe('MQTT Client', () => {
     mockClient.publish.mockClear();
 
     // Trigger a message event with a control topic message
-    const controlTopic = 'hame_energy/HMA-1/control/testdevice/charging-mode';
+    const controlTopic = 'hm2mqtt/HMA-1/control/testdevice/charging-mode';
     mockClient.triggerEvent('message', controlTopic, Buffer.from('chargeDischargeSimultaneously'));
 
     // Check that the command was published to the control topic
@@ -223,7 +223,7 @@ describe('MQTT Client', () => {
     );
 
     // Trigger a message event with a time period setting
-    const controlTopic = 'hame_energy/HMA-1/control/testdevice/time-period/1/enabled';
+    const controlTopic = 'hm2mqtt/HMA-1/control/testdevice/time-period/1/enabled';
     mockClient.triggerEvent('message', controlTopic, Buffer.from('true'));
 
     // Check that the command was published to the control topic with the expected parameters

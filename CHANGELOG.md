@@ -5,11 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.1]
+## [1.3.0]
+
+### Breaking Change
+
+- Previously hm2mqtt published its own data to the `hame_energy/{deviceType}/` or `marstek_energy/{deviceType}` topic. From 1.3.0 onwards the topic changed to `hm2mqtt/{deviceType}`
 
 ### Added
 
-- Venus: Add BMS information sensors including:
+- **B2500**: Better support for devices with firmware >=226 (for HMA, HMF or HMK) or >=108 (for HMJ):
+  - Automatically calculate new encrypted device ID: No need to wait for 20 minutes to get the encrypted id. Instead, just enter the MAC address.
+- **Venus**: Add BMS information sensors including:
   - Cell voltages (up to 16 cells)
   - Cell temperatures (up to 4 sensors)
   - BMS version, SOC, SOH, capacity
