@@ -1,6 +1,8 @@
 import { BuildMessageFn, globalPollInterval, registerDeviceDefinition } from '../deviceDefinition';
 import {
   CommandParams,
+  isValidVenusVersionSet,
+  isValidVenusWorkingMode,
   VenusBMSInfo,
   VenusDeviceData,
   VenusTimePeriod,
@@ -541,11 +543,10 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     });
     advertise(
       ['gridType'],
-      selectComponent<NonNullable<VenusDeviceData['gridType']>>({
+      sensorComponent<NonNullable<VenusDeviceData['gridType']>>({
         id: 'grid_type',
         name: 'Grid Type',
         icon: 'mdi:transmission-tower',
-        command: 'grid-type',
         valueMappings: {
           adaptive: 'Adaptive (220-240V) (50-60Hz) AUTO',
           en50549: 'EN50549',
@@ -723,12 +724,15 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     );
 
     command('version-set', {
-      handler: ({ message, publishCallback }) => {
-        const validVersions = ['800W', '2500W'];
-        if (!validVersions.includes(message)) {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        if (!isValidVenusVersionSet(message)) {
           console.error('Invalid version value:', message);
           return;
         }
+
+        updateDeviceState(() => ({
+          versionSet: message,
+        }));
 
         const version = message === '2500W' ? 2500 : 800;
         publishCallback(processCommand(CommandType.SET_VERSION, { vs: version }));
@@ -1040,12 +1044,15 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     });
 
     command('working-mode', {
-      handler: ({ message, publishCallback }) => {
-        const validModes = ['automatic', 'manual', 'trading'];
-        if (!validModes.includes(message)) {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        if (!isValidVenusWorkingMode(message)) {
           console.error('Invalid working mode value:', message);
           return;
         }
+
+        updateDeviceState(() => ({
+          workingMode: message,
+        }));
 
         let mode: number;
         switch (message) {
@@ -1085,12 +1092,16 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     );
 
     command('max-discharge-power', {
-      handler: ({ message, publishCallback }) => {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
         const power = parseInt(message, 10);
         if (isNaN(power) || power < 0 || power > 2500) {
           console.error('Invalid maximum discharge power value:', message);
           return;
         }
+
+        updateDeviceState(() => ({
+          maxDischargePower: power,
+        }));
 
         publishCallback(processCommand(CommandType.SET_VERSION, { mdp_w: power }));
       },
@@ -1115,12 +1126,16 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     );
 
     command('max-charging-power', {
-      handler: ({ message, publishCallback }) => {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
         const power = parseInt(message, 10);
         if (isNaN(power) || power < 300 || power > 2500) {
           console.error('Invalid maximum charging power value:', message);
           return;
         }
+
+        updateDeviceState(() => ({
+          maxChargingPower: power,
+        }));
 
         publishCallback(processCommand(CommandType.SET_MAX_CHARGING_POWER, { cp: power }));
       },

@@ -246,10 +246,15 @@ export type VenusCTStatus = 'notConnected' | 'connected' | 'weakSignal';
  */
 export type VenusBatteryWorkingStatus = 'notWorking' | 'charging' | 'discharging' | 'unknown';
 
+const validModes = ['automatic', 'manual', 'trading'] as const;
 /**
  * Venus device working mode types
  */
-export type VenusWorkingMode = 'automatic' | 'manual' | 'trading';
+export type VenusWorkingMode = (typeof validModes)[number];
+
+export function isValidVenusWorkingMode(mode: string): mode is VenusWorkingMode {
+  return validModes.includes(mode as VenusWorkingMode);
+}
 
 /**
  * Venus device grid type
@@ -282,6 +287,13 @@ export type VenusPhaseType = 'unknown' | 'phaseA' | 'phaseB' | 'phaseC' | 'notDe
 export type VenusRechargeMode = 'singlePhase' | 'threePhase';
 
 export type WeekdaySet = `${0 | ''}${1 | ''}${2 | ''}${3 | ''}${4 | ''}${5 | ''}${6 | ''}`;
+
+const validVersionSets = ['800W', '2500W'] as const;
+export type VenusVersionSet = (typeof validVersionSets)[number];
+
+export function isValidVenusVersionSet(set: string): set is VenusVersionSet {
+  return validVersionSets.includes(set as VenusVersionSet);
+}
 
 /**
  * Venus time period configuration
@@ -346,7 +358,7 @@ export interface VenusDeviceData extends BaseDeviceData {
   chargingPrice?: number;
   dischargePrice?: number;
   wifiSignalStrength?: number;
-  versionSet?: '800W' | '2500W';
+  versionSet?: VenusVersionSet;
   maxChargingPower?: number;
   maxDischargePower?: number;
   ctType?: VenusCTType;
