@@ -543,11 +543,10 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     });
     advertise(
       ['gridType'],
-      selectComponent<NonNullable<VenusDeviceData['gridType']>>({
+      sensorComponent<NonNullable<VenusDeviceData['gridType']>>({
         id: 'grid_type',
         name: 'Grid Type',
         icon: 'mdi:transmission-tower',
-        command: 'grid-type',
         valueMappings: {
           adaptive: 'Adaptive (220-240V) (50-60Hz) AUTO',
           en50549: 'EN50549',
