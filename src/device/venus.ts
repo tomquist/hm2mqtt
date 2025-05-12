@@ -15,8 +15,6 @@ import {
   textComponent,
   binarySensorComponent,
 } from '../homeAssistantDiscovery';
-import { transformBoolean } from './helpers';
-import { isB2500RuntimeInfoMessage } from './b2500Base';
 
 /**
  * Command types supported by the Venus device

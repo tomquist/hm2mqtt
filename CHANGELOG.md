@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fix working mode command
   - Add max charging/discharging power command
   - Add version command
+- B2500: Support setting output power to a value below 80W
 
 ## [1.3.0]
 
