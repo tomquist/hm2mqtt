@@ -13,6 +13,7 @@ import {
   sensorComponent,
   switchComponent,
   textComponent,
+  binarySensorComponent,
 } from '../homeAssistantDiscovery';
 import { transformBoolean } from './helpers';
 import { isB2500RuntimeInfoMessage } from './b2500Base';
@@ -697,19 +698,42 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     });
     advertise(
       ['autoSwitchWorkingMode'],
-      switchComponent({
+      binarySensorComponent({
         id: 'auto_switch_working_mode',
         name: 'Auto Switch Working Mode',
         icon: 'mdi:auto-fix',
-        command: 'auto-switch-working-mode',
       }),
     );
 
-    command('auto-switch-working-mode', {
+    field({
+      key: 'set_v',
+      path: ['versionSet'],
+      transform: v => (v === '1' ? '2500W' : '800W'),
+    });
+    advertise(
+      ['versionSet'],
+      selectComponent<NonNullable<VenusDeviceData['versionSet']>>({
+        id: 'version_set',
+        name: 'Version Set',
+        icon: 'mdi:power-socket',
+        command: 'version-set',
+        valueMappings: {
+          '800W': '800W Version',
+          '2500W': '2500W Version',
+        },
+      }),
+    );
+
+    command('version-set', {
       handler: ({ message, publishCallback }) => {
-        const enabled = message.toLowerCase() === 'true' || message === '1' || message === 'ON';
-        // This command is not explicitly documented, but inferred from the data structure
-        publishCallback(processCommand(CommandType.SET_WORKING_MODE, { cts_m: enabled ? 1 : 0 }));
+        const validVersions = ['800W', '2500W'];
+        if (!validVersions.includes(message)) {
+          console.error('Invalid version value:', message);
+          return;
+        }
+
+        const version = message === '2500W' ? 2500 : 800;
+        publishCallback(processCommand(CommandType.SET_VERSION, { vs: version }));
       },
     });
 
@@ -1014,6 +1038,93 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         } catch (error) {
           console.error('Invalid transaction mode data:', message, error);
         }
+      },
+    });
+
+    command('working-mode', {
+      handler: ({ message, publishCallback }) => {
+        const validModes = ['automatic', 'manual', 'trading'];
+        if (!validModes.includes(message)) {
+          console.error('Invalid working mode value:', message);
+          return;
+        }
+
+        let mode: number;
+        switch (message) {
+          case 'automatic':
+            mode = 0;
+            break;
+          case 'manual':
+            mode = 1;
+            break;
+          case 'trading':
+            mode = 2;
+            break;
+          default:
+            mode = 0;
+        }
+
+        publishCallback(processCommand(CommandType.SET_WORKING_MODE, { md: mode }));
+      },
+    });
+
+    field({
+      key: 'mdp_w',
+      path: ['maxDischargePower'],
+    });
+    advertise(
+      ['maxDischargePower'],
+      numberComponent({
+        id: 'max_discharge_power',
+        name: 'Maximum Discharge Power',
+        icon: 'mdi:flash',
+        unit_of_measurement: 'W',
+        command: 'max-discharge-power',
+        min: 0,
+        max: 2500,
+        step: 1,
+      }),
+    );
+
+    command('max-discharge-power', {
+      handler: ({ message, publishCallback }) => {
+        const power = parseInt(message, 10);
+        if (isNaN(power) || power < 0 || power > 2500) {
+          console.error('Invalid maximum discharge power value:', message);
+          return;
+        }
+
+        publishCallback(processCommand(CommandType.SET_VERSION, { mdp_w: power }));
+      },
+    });
+
+    field({
+      key: 'mcp_w',
+      path: ['maxChargingPower'],
+    });
+    advertise(
+      ['maxChargingPower'],
+      numberComponent({
+        id: 'max_charging_power',
+        name: 'Maximum Charging Power',
+        icon: 'mdi:flash',
+        unit_of_measurement: 'W',
+        command: 'max-charging-power',
+        min: 300,
+        max: 2500,
+        step: 1,
+      }),
+    );
+
+    command('max-charging-power', {
+      handler: ({ message, publishCallback }) => {
+        const power = parseInt(message, 10);
+        if (isNaN(power) || power < 300 || power > 2500) {
+          console.error('Invalid maximum charging power value:', message);
+          return;
+        }
+
+        publishCallback(processCommand(CommandType.SET_MAX_CHARGING_POWER, { cp: power }));
       },
     });
   });
