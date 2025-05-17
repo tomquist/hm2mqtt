@@ -10,8 +10,9 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 
 - B2500 series (e.g. Marstek B2500-D, Greensolar, BluePalm, Plenti SOLAR B2500H, Be Cool BC2500B)
   - First generation without timer support
-  - Seconds and third generation with timer support
+  - Second and third generation with timer support
 - Marstek Venus
+- Marstek Jupiter
 
 ## Prerequisites
 
@@ -255,6 +256,19 @@ hm2mqtt/{device_type}/control/{device_mac}/{command}
 - `time-period/[0-9]/weekday`: Sets days of week for period (0-6, where 0 is Sunday)
 - `get-ct-power`: Gets current transformer power readings
 - `transaction-mode`: Sets transaction mode parameters
+
+### Jupiter Device Commands
+- `refresh`: Refreshes the device data
+- `factory-reset`: Resets the device to factory settings
+- `sync-time`: Synchronizes device time with server
+- `working-mode`: Sets working mode (`automatic` or `manual`)
+- `time-period/[0-4]/enabled`: Enables/disables time period (`on` or `off`)
+- `time-period/[0-4]/start-time`: Sets start time for period (HH:MM format)
+- `time-period/[0-4]/end-time`: Sets end time for period (HH:MM format)
+- `time-period/[0-4]/power`: Sets power value for period (W)
+- `time-period/[0-4]/weekday`: Sets days of week for period (0-6, where 0 is Sunday)
+
+> **Note:** The Jupiter E does not support trading mode or auto-switch working mode.
 
 ### Examples
 
