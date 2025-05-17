@@ -562,9 +562,9 @@ export function registerBaseMessage({
     ['batteryCapacities', 'extra2'],
     sensorComponent<number>({
       id: 'extra2_battery_capacity',
-      name: 'Extra 2 Battery Capacity',
-      device_class: 'energy_storage',
-      unit_of_measurement: 'Wh',
+      name: 'Extra 2 Battery SoC',
+      device_class: 'battery',
+      unit_of_measurement: '%',
       enabled_by_default: false,
     }),
   );
@@ -855,6 +855,7 @@ export enum CommandType {
   SOFTWARE_RESTART = 10,
   FACTORY_RESET = 11,
   SET_CONNECTED_PHASE = 22,
+  SURPLUS_FEED_IN = 31,
 }
 
 /**
@@ -873,6 +874,7 @@ const noFlashCommands: Record<CommandType, number> = {
   [CommandType.TIME_ZONE]: CommandType.TIME_ZONE,
   [CommandType.SOFTWARE_RESTART]: CommandType.SOFTWARE_RESTART,
   [CommandType.FACTORY_RESET]: CommandType.FACTORY_RESET,
+  [CommandType.SURPLUS_FEED_IN]: 31,
 };
 
 export function processCommand(

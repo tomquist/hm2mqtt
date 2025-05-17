@@ -171,6 +171,9 @@ export interface B2500V2DeviceData extends B2500BaseDeviceData {
     input?: number;
     isLimited?: boolean;
   };
+
+  // Surplus Feed-in state
+  surplusFeedInEnabled?: boolean;
 }
 
 type SolarSocketData = {
