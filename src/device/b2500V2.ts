@@ -675,6 +675,37 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         enabled_by_default: false,
       }),
     );
+
+    // Surplus Feed-in switch
+    field({
+      key: 'tc_dis',
+      path: ['surplusFeedInEnabled'],
+      transform: v => v === '0',
+    });
+    advertise(
+      ['surplusFeedInEnabled'],
+      switchComponent({
+        id: 'surplus_feed_in',
+        name: 'Surplus Feed-in',
+        icon: 'mdi:transfer',
+        command: 'surplus-feed-in',
+      }),
+    );
+    // Surplus Feed-in command
+    command('surplus-feed-in', {
+      handler: ({ message, publishCallback, deviceState }) => {
+        // Accepts 'true'/'1'/'ON' to enable, 'false'/'0'/'OFF' to disable
+        const enable = message.toLowerCase() === 'true' || message === '1' || message === 'on';
+        const value = enable ? 0 : 1;
+        publishCallback(
+          processCommand(
+            CommandType.SURPLUS_FEED_IN,
+            { touchuan_disa: value },
+            deviceState.useFlashCommands,
+          ),
+        );
+      },
+    });
   });
 }
 

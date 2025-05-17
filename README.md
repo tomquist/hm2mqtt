@@ -241,6 +241,7 @@ hm2mqtt/{device_type}/control/{device_mac}/{command}
 - `connected-phase`: Sets connected phase for CT meter (`1`, `2`, or `3`)
 - `time-zone`: Sets time zone (UTC offset in hours)
 - `sync-time`: Synchronizes device time with server
+- `surplus-feed-in`: Toggles Surplus Feed-in mode (`on` or `off`). When enabled, surplus PV power is fed into the home grid when the battery is nearly full.
 
 ### Venus Device Commands
 - `working-mode`: Sets working mode (`automatic`, `manual`, or `trading`)
@@ -261,6 +262,12 @@ mosquitto_pub -t "hm2mqtt/HMA-1/control/abcdef123456/refresh" -m ""
 
 # Set charging mode for B2500
 mosquitto_pub -t "hm2mqtt/HMA-1/control/abcdef123456/charging-mode" -m "chargeThenDischarge"
+
+# Enable Surplus Feed-in on B2500 V2
+mosquitto_pub -t "hm2mqtt/HMA-1/control/abcdef123456/surplus-feed-in" -m "on"
+
+# Disable Surplus Feed-in on B2500 V2
+mosquitto_pub -t "hm2mqtt/HMA-1/control/abcdef123456/surplus-feed-in" -m "off"
 
 # Enable timer period 1 on Venus device
 mosquitto_pub -t "hm2mqtt/HMG-50/control/abcdef123456/time-period/1/enabled" -m "on"
