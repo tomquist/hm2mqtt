@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Next]
+## [1.3.2] - 2025-05-17
 
 - B2500: Added Surplus Feed-in switch. This allows toggling surplus PV feed-in to the home grid when the battery is nearly full, via MQTT and Home Assistant.
 - B2500: Fix unit and device class of Extra 2 battery SoC
