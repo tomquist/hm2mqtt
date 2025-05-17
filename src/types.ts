@@ -400,3 +400,40 @@ export interface VenusBMSInfo extends BaseDeviceData {
     mosfetTemp?: number;
   };
 }
+
+export interface JupiterTimePeriod {
+  startTime: string;
+  endTime: string;
+  weekday: string;
+  power: number;
+  enabled: boolean;
+}
+
+export interface JupiterDeviceData extends BaseDeviceData {
+  dailyChargingCapacity?: number; // ele_d
+  monthlyChargingCapacity?: number; // ele_m
+  yearlyChargingCapacity?: number; // ele_y
+  pv1Power?: number; // pv1_p
+  pv2Power?: number; // pv2_p
+  pv3Power?: number; // pv3_p
+  pv4Power?: number; // pv4_p
+  dailyDischargeCapacity?: number; // grd_d
+  monthlyDischargeCapacity?: number; // grd_m
+  combinedPower?: number; // grd_o
+  workingStatus?: number; // grd_t
+  ctStatus?: number; // gct_s
+  batteryWorkingStatus?: number; // cel_s
+  batteryEnergy?: number; // cel_p
+  batterySoc?: number; // cel_c
+  errorCode?: number; // err_t
+  workingMode?: number; // wor_m
+  autoSwitchWorkingMode?: number; // cts_m
+  httpServerType?: number; // htt_p
+  wifiSignalStrength?: number; // wif_s
+  ctType?: number; // ct_t
+  phaseType?: number; // phase_t
+  rechargeMode?: number; // dchrg
+  wifiName?: string; // ssid
+  deviceVersion?: number; // dev_n
+  timePeriods?: JupiterTimePeriod[];
+}
