@@ -409,6 +409,8 @@ export interface JupiterTimePeriod {
   enabled: boolean;
 }
 
+export type JupiterBatteryWorkingStatus = 'keep' | 'charging' | 'discharging' | 'unknown';
+
 export interface JupiterDeviceData extends BaseDeviceData {
   dailyChargingCapacity?: number; // ele_d
   monthlyChargingCapacity?: number; // ele_m
@@ -422,7 +424,7 @@ export interface JupiterDeviceData extends BaseDeviceData {
   combinedPower?: number; // grd_o
   workingStatus?: number; // grd_t
   ctStatus?: number; // gct_s
-  batteryWorkingStatus?: number; // cel_s
+  batteryWorkingStatus?: JupiterBatteryWorkingStatus; // cel_s
   batteryEnergy?: number; // cel_p
   batterySoc?: number; // cel_c
   errorCode?: number; // err_t
@@ -436,4 +438,33 @@ export interface JupiterDeviceData extends BaseDeviceData {
   wifiName?: string; // ssid
   deviceVersion?: number; // dev_n
   timePeriods?: JupiterTimePeriod[];
+  surplusFeedInEnabled?: boolean; // ful_d
+  alarmCode?: number; // ala_c
+}
+
+export interface JupiterBMSInfo extends BaseDeviceData {
+  cells?: {
+    voltages?: number[]; // vol0-vol15
+    temperatures?: number[]; // b_temp0-b_temp3
+  };
+  bms?: {
+    soc?: number; // soc
+    soh?: number; // soh
+    capacity?: number; // b_cap
+    voltage?: number; // b_vol
+    current?: number; // b_cur
+    temperature?: number; // b_temp
+    chargeVoltage?: number; // c_vol
+    chargeCurrent?: number; // c_cur
+    dischargeCurrent?: number; // d_cur
+    error?: number; // b_err
+    warning?: number; // b_war
+    error2?: number; // b_err2
+    warning2?: number; // b_war2
+    cellFlag?: number; // c_flag
+    statusFlag?: number; // s_flag
+    bmsNumber?: number; // b_num
+    mosfetTemp?: number; // mos_t
+    envTemp?: number; // env_t
+  };
 }
