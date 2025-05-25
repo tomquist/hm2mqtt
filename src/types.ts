@@ -225,6 +225,11 @@ export interface MqttConfig {
   devices: Device[];
   useFlashCommands?: boolean;
   responseTimeout?: number; // Timeout for device responses in milliseconds
+  /**
+   * Number of consecutive timeouts before marking a device as offline
+   * (default: 3)
+   */
+  allowedConsecutiveTimeouts?: number;
 }
 
 /**

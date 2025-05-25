@@ -115,6 +115,7 @@ function createMqttConfig(devices: Device[]): MqttConfig {
     password: process.env.MQTT_PASSWORD || undefined,
     devices,
     responseTimeout: parseInt(process.env.MQTT_RESPONSE_TIMEOUT || '15', 10) * 1000,
+    allowedConsecutiveTimeouts: parseInt(process.env.MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS || '3', 10),
   };
 }
 
@@ -217,6 +218,7 @@ function main() {
           case 'device':
             if (topics) {
               mqttClient.publish(topics.availabilityTopic, 'online', { qos: 1, retain: true });
+              mqttClient.resetTimeoutCounter(device.deviceId);
             }
 
             deviceManager.clearResponseTimeout(device);

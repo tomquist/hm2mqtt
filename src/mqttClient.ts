@@ -8,6 +8,8 @@ export class MqttClient {
   private client: mqtt.MqttClient;
   private pollingInterval: NodeJS.Timeout | null = null;
   private discoveryInterval: NodeJS.Timeout | null = null;
+  private timeoutCounters: Map<string, number> = new Map();
+  private allowedConsecutiveTimeouts: number;
 
   constructor(
     private config: MqttConfig,
@@ -15,6 +17,7 @@ export class MqttClient {
     private messageHandler: (topic: string, message: Buffer) => void,
   ) {
     this.client = this.setupClient();
+    this.allowedConsecutiveTimeouts = config.allowedConsecutiveTimeouts ?? 3;
   }
 
   /**
@@ -223,12 +226,6 @@ export class MqttClient {
     const controlTopicNew = topics.deviceControlTopicNew;
     const availabilityTopic = topics.availabilityTopic;
 
-    // Only send a new request if there is no outstanding response timeout for this device
-    if (this.deviceManager.hasRunningResponseTimeouts(device)) {
-      // There is already a pending request, do not send another
-      return;
-    }
-
     // Find the first message that needs to be refreshed
     let now = Date.now();
     let messageToRequestIdx = -1;
@@ -248,8 +245,14 @@ export class MqttClient {
 
     const timeout = setTimeout(() => {
       console.warn(`No response received from ${device.deviceId} within timeout period`);
-      // Mark device as offline
-      this.publish(availabilityTopic, 'offline', { qos: 1, retain: true });
+      // Increment timeout counter
+      const currentCount = this.timeoutCounters.get(device.deviceId) || 0;
+      const newCount = currentCount + 1;
+      this.timeoutCounters.set(device.deviceId, newCount);
+      if (newCount >= this.allowedConsecutiveTimeouts) {
+        // Mark device as offline after allowed consecutive timeouts
+        this.publish(availabilityTopic, 'offline', { qos: 1, retain: true });
+      }
       // Clear the timeout
       this.deviceManager.clearResponseTimeout(device);
     }, this.deviceManager.getResponseTimeout());
@@ -348,5 +351,9 @@ export class MqttClient {
 
     // End the client connection
     this.client.end();
+  }
+
+  public resetTimeoutCounter(deviceId: string): void {
+    this.timeoutCounters.set(deviceId, 0);
   }
 }
