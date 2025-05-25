@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] - 2025-05-25
+
+- Fix: Prevent overlapping device requests and ensure robust polling. Only send new requests if there is no outstanding response timeout for the device, set the response timeout before sending requests, and use a consistent key for lastRequestTime. This resolves issues with multi-device polling, especially for B2500 devices. (Closes #41)
+
 ## [1.3.2] - 2025-05-17
 
 - B2500: Added Surplus Feed-in switch. This allows toggling surplus PV feed-in to the home grid when the battery is nearly full, via MQTT and Home Assistant.
