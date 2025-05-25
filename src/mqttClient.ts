@@ -223,37 +223,42 @@ export class MqttClient {
     const controlTopicNew = topics.deviceControlTopicNew;
     const availabilityTopic = topics.availabilityTopic;
 
-    console.log(
-      `Requesting device data for ${device.deviceId} on topic: ${controlTopicOld} and ${controlTopicNew}`,
-    );
-
-    const needsRefreshRuntimeInfo = deviseDefinition.messages.some((message, idx) => {
-      if (idx > 0) {
-        return false;
-      }
-      let lastRequestTimeKey = `${device.deviceId}:${message}`;
-      const lastRequestTime = this.lastRequestTime.get(lastRequestTimeKey);
-      let now = Date.now();
-      return lastRequestTime == null || lastRequestTime <= now - message.pollInterval;
-    });
-
-    if (!needsRefreshRuntimeInfo && !this.deviceManager.hasRunningResponseTimeouts(device)) {
-      // Set a timeout for the response
-      const timeout = setTimeout(() => {
-        console.warn(`No response received from ${device.deviceId} within timeout period`);
-
-        // Mark device as offline
-        this.publish(availabilityTopic, 'offline', { qos: 1, retain: true });
-      }, this.deviceManager.getResponseTimeout());
-
-      // Store the timeout
-      this.deviceManager.setResponseTimeout(device, timeout);
+    // Only send a new request if there is no outstanding response timeout for this device
+    if (this.deviceManager.hasRunningResponseTimeouts(device)) {
+      // There is already a pending request, do not send another
+      return;
     }
 
+    // Find the first message that needs to be refreshed
+    let now = Date.now();
+    let messageToRequestIdx = -1;
     for (const [idx, message] of deviseDefinition.messages.entries()) {
       let lastRequestTimeKey = `${device.deviceId}:${idx}`;
       const lastRequestTime = this.lastRequestTime.get(lastRequestTimeKey);
-      let now = Date.now();
+      if (lastRequestTime == null || now > lastRequestTime + message.pollInterval) {
+        messageToRequestIdx = idx;
+        break;
+      }
+    }
+
+    if (messageToRequestIdx === -1) {
+      // No message needs to be refreshed
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      console.warn(`No response received from ${device.deviceId} within timeout period`);
+      // Mark device as offline
+      this.publish(availabilityTopic, 'offline', { qos: 1, retain: true });
+      // Clear the timeout
+      this.deviceManager.clearResponseTimeout(device);
+    }, this.deviceManager.getResponseTimeout());
+    this.deviceManager.setResponseTimeout(device, timeout);
+
+    // Send requests for all messages that need to be refreshed, but only if no outstanding timeout
+    for (const [idx, message] of deviseDefinition.messages.entries()) {
+      let lastRequestTimeKey = `${device.deviceId}:${idx}`;
+      const lastRequestTime = this.lastRequestTime.get(lastRequestTimeKey);
       if (lastRequestTime == null || now > lastRequestTime + message.pollInterval) {
         this.lastRequestTime.set(lastRequestTimeKey, now);
         const payload = message.refreshDataPayload;
