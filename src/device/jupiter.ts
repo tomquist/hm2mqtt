@@ -1,5 +1,10 @@
 import { BuildMessageFn, globalPollInterval, registerDeviceDefinition } from '../deviceDefinition';
-import { CommandParams, JupiterDeviceData } from '../types';
+import {
+  CommandParams,
+  JupiterBatteryWorkingStatus,
+  JupiterDeviceData,
+  JupiterBMSInfo,
+} from '../types';
 import {
   sensorComponent,
   textComponent,
@@ -18,6 +23,8 @@ enum CommandType {
   SET_DEVICE_TIME = 4,
   SET_TIME_PERIOD = 3,
   SET_WORKING_MODE = 2,
+  SURPLUS_FEED_IN = 13,
+  GET_BMS_INFO = 14,
 }
 
 function processCommand(command: CommandType, params: CommandParams = {}): string {
@@ -61,12 +68,24 @@ function isJupiterRuntimeInfoMessage(values: Record<string, string>): boolean {
   return requiredRuntimeInfoKeys.every(key => key in values);
 }
 
+function isJupiterBmsInfoMessage(values: Record<string, string>): boolean {
+  // Check for a few unique BMS keys
+  return (
+    'soc' in values &&
+    'b_vol' in values &&
+    'b_cur' in values &&
+    'vol0' in values &&
+    'b_temp0' in values
+  );
+}
+
 registerDeviceDefinition(
   {
     deviceTypes: ['HMN'],
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
+    registerJupiterBMSInfoMessage(message);
   },
 );
 
@@ -203,12 +222,34 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'CT Status',
       }),
     );
-    field({ key: 'cel_s', path: ['batteryWorkingStatus'] });
+    field({
+      key: 'cel_s',
+      path: ['batteryWorkingStatus'],
+      transform: v => {
+        switch (v) {
+          case '0':
+            return 'keep';
+          case '1':
+            return 'charging';
+          case '2':
+            return 'discharging';
+          default:
+            return 'unknown';
+        }
+      },
+    });
     advertise(
       ['batteryWorkingStatus'],
-      sensorComponent<number>({
+      sensorComponent<JupiterBatteryWorkingStatus>({
         id: 'battery_working_status',
         name: 'Battery Working Status',
+        icon: 'mdi:battery',
+        valueMappings: {
+          keep: 'Keep Level',
+          charging: 'Charging',
+          discharging: 'Discharging',
+          unknown: 'Unknown',
+        },
       }),
     );
     field({ key: 'cel_p', path: ['batteryEnergy'] });
@@ -217,7 +258,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       sensorComponent<number>({
         id: 'battery_energy',
         name: 'Battery Energy',
-        unit_of_measurement: 'kWh',
+        unit_of_measurement: 'Wh',
       }),
     );
     field({ key: 'cel_c', path: ['batterySoc'] });
@@ -308,6 +349,36 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         id: 'wifi_name',
         name: 'WiFi Name',
         icon: 'mdi:wifi',
+      }),
+    );
+
+    // Surplus Feed-in (ful_d)
+    field({ key: 'ful_d', path: ['surplusFeedInEnabled'], transform: v => v === '0' });
+    advertise(
+      ['surplusFeedInEnabled'],
+      switchComponent({
+        id: 'surplus_feed_in',
+        name: 'Surplus Feed-in',
+        icon: 'mdi:transmission-tower-export',
+        command: 'surplus-feed-in',
+      }),
+    );
+    command('surplus-feed-in', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const enable = message.toLowerCase() === 'true' || message === '1' || message === 'on';
+        updateDeviceState(() => ({ surplusFeedInEnabled: enable }));
+        publishCallback(processCommand(CommandType.SURPLUS_FEED_IN, { ful_d: enable ? 0 : 1 }));
+      },
+    });
+
+    // Alarm Code (ala_c)
+    field({ key: 'ala_c', path: ['alarmCode'] });
+    advertise(
+      ['alarmCode'],
+      sensorComponent<number>({
+        id: 'alarm_code',
+        name: 'Alarm Code',
+        icon: 'mdi:alert',
       }),
     );
 
@@ -492,6 +563,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           icon: 'mdi:flash',
           unit_of_measurement: 'W',
           command: `time-period/${i}/power`,
+          min: 0,
+          max: 800,
+          step: 1,
         }),
       );
       command(`time-period/${i}/power`, {
@@ -537,6 +611,85 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
   });
 }
 
+function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
+  message<JupiterBMSInfo>(
+    {
+      refreshDataPayload: `cd=${CommandType.GET_BMS_INFO}`,
+      isMessage: isJupiterBmsInfoMessage,
+      publishPath: 'bms',
+      defaultState: {},
+      getAdditionalDeviceInfo: () => ({}),
+      pollInterval: 60000,
+    },
+    ({ field, advertise }) => {
+      // Cell voltages (vol0-vol15)
+      for (let i = 0; i < 16; i++) {
+        const key = `vol${i}`;
+        field({ key, path: ['cells', 'voltages', i] });
+        advertise(
+          ['cells', 'voltages', i],
+          sensorComponent<number>({
+            id: `cell_voltage_${i + 1}`,
+            name: `Cell Voltage ${i + 1}`,
+            unit_of_measurement: 'mV',
+            device_class: 'voltage',
+            enabled_by_default: false,
+          }),
+        );
+      }
+      // Cell temperatures (b_temp0-b_temp3)
+      for (let i = 0; i < 4; i++) {
+        const key = `b_temp${i}`;
+        field({ key, path: ['cells', 'temperatures', i] });
+        advertise(
+          ['cells', 'temperatures', i],
+          sensorComponent<number>({
+            id: `cell_temperature_${i + 1}`,
+            name: `Cell Temperature ${i + 1}`,
+            unit_of_measurement: '°C',
+            device_class: 'temperature',
+            enabled_by_default: false,
+          }),
+        );
+      }
+      // BMS fields
+      const bmsFields = [
+        ['soc', { id: 'soc' }],
+        ['soh', { id: 'soh' }],
+        ['b_cap', { id: 'capacity' }],
+        ['b_vol', { id: 'voltage', deviceClass: 'voltage', unitOfMeasurement: 'mV' }],
+        ['b_cur', { id: 'current', deviceClass: 'current', unitOfMeasurement: 'mA' }],
+        ['b_temp', { id: 'temperature', deviceClass: 'temperature', unitOfMeasurement: '°C' }],
+        ['c_vol', { id: 'chargeVoltage', deviceClass: 'voltage', unitOfMeasurement: 'mV' }],
+        ['c_cur', { id: 'chargeCurrent', deviceClass: 'current', unitOfMeasurement: 'mA' }],
+        ['d_cur', { id: 'dischargeCurrent', deviceClass: 'current', unitOfMeasurement: 'mA' }],
+        ['b_err', { id: 'error' }],
+        ['b_war', { id: 'warning' }],
+        ['b_err2', { id: 'error2' }],
+        ['b_war2', { id: 'warning2' }],
+        ['c_flag', { id: 'cellFlag' }],
+        ['s_flag', { id: 'statusFlag' }],
+        ['b_num', { id: 'bmsNumber' }],
+        ['mos_t', { id: 'mosfetTemp', deviceClass: 'temperature', unitOfMeasurement: '°C' }],
+        ['env_t', { id: 'envTemp', deviceClass: 'temperature', unitOfMeasurement: '°C' }],
+      ] as const;
+      for (const [key, info] of bmsFields) {
+        field({ key, path: ['bms', info.id] });
+        advertise(
+          ['bms', info.id],
+          sensorComponent<number>({
+            id: info.id,
+            name: `BMS ${info.id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`,
+            unit_of_measurement: 'unitOfMeasurement' in info ? info.unitOfMeasurement : undefined,
+            device_class: 'deviceClass' in info ? info.deviceClass : undefined,
+            enabled_by_default: false,
+          }),
+        );
+      }
+    },
+  );
+}
+
 // Helper: parseTimePeriod for Jupiter (same format as Venus)
 function parseTimePeriod(value: string) {
   const parts = value.split('|');
@@ -549,11 +702,20 @@ function parseTimePeriod(value: string) {
       enabled: false,
     };
   }
+  // Convert weekday bitmask to string
+  const weekdayBitMask = parseInt(parts[4], 10);
   return {
     startTime: `${parseInt(parts[0], 10)}:${parts[1].padStart(2, '0')}`,
     endTime: `${parseInt(parts[2], 10)}:${parts[3].padStart(2, '0')}`,
-    weekday: parts[4],
+    weekday: bitMaskToWeekdaySet(weekdayBitMask),
     power: parseInt(parts[5], 10),
     enabled: parts[6] === '1',
   };
+}
+
+function bitMaskToWeekdaySet(weekdayBitMask: number) {
+  return '0123456'
+    .split('')
+    .filter((_, index) => weekdayBitMask & (1 << index))
+    .join('');
 }
