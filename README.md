@@ -52,6 +52,7 @@ docker run -d --name hm2mqtt \
   -e POLL_EXTRA_BATTERY_DATA=false \
   -e POLL_CALIBRATION_DATA=false \
   -e DEVICE_0=HMA-1:your-device-mac \
+  --restart=unless-stopped \
   ghcr.io/tomquist/hm2mqtt:latest
 ```
 **your-device-mac** has to be formatted like this: 001a2b3c4d5e  (no colon and all lowercase). It's the one mentiond before!
@@ -64,6 +65,7 @@ docker run -d --name hm2mqtt \
   -e MQTT_BROKER_URL=mqtt://your-broker:1883 \
   -e DEVICE_0=HMA-1:001a2b3c4d5e \
   -e DEVICE_1=HMA-1:001a2b3c4d5e \
+  --restart=unless-stopped \
   ghcr.io/tomquist/hm2mqtt:latest
 ```
 
