@@ -24,6 +24,4 @@ configuration:
     name: Devices
     description: "List of energy storage devices to connect to. For each device, specify: deviceType (e.g. HMA-1 for B2500 v2, HMB-1 for B2500 v1, HMG-50 for Venus), deviceId (12-character MAC address from app, not WiFi MAC)"
 network:
-  1884/tcp:
-    name: "MQTT Proxy Port"
-    description: "Port for the MQTT proxy server (default: 1884)"
+  1884/tcp: "Port for the MQTT proxy server (default: 1884)"
