@@ -99,9 +99,10 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       firmwareVersion: state.deviceVersion?.toString(),
     }),
     pollInterval: globalPollInterval,
+    controlsDeviceAvailability: true,
   };
   message<JupiterDeviceData>(options, ({ field, advertise, command }) => {
-    field({ key: 'ele_d', path: ['dailyChargingCapacity'] });
+    field({ key: 'ele_d', path: ['dailyChargingCapacity'], transform: v => parseFloat(v) / 100 });
     advertise(
       ['dailyChargingCapacity'],
       sensorComponent<number>({
@@ -112,7 +113,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'total',
       }),
     );
-    field({ key: 'ele_m', path: ['monthlyChargingCapacity'] });
+    field({ key: 'ele_m', path: ['monthlyChargingCapacity'], transform: v => parseFloat(v) / 100 });
     advertise(
       ['monthlyChargingCapacity'],
       sensorComponent<number>({
@@ -123,7 +124,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'total',
       }),
     );
-    field({ key: 'ele_y', path: ['yearlyChargingCapacity'] });
+    field({ key: 'ele_y', path: ['yearlyChargingCapacity'], transform: v => parseFloat(v) / 100 });
     advertise(
       ['yearlyChargingCapacity'],
       sensorComponent<number>({
@@ -252,7 +253,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         },
       }),
     );
-    field({ key: 'cel_p', path: ['batteryEnergy'] });
+    field({ key: 'cel_p', path: ['batteryEnergy'], transform: v => parseFloat(v) * 10 });
     advertise(
       ['batteryEnergy'],
       sensorComponent<number>({
@@ -620,6 +621,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
       defaultState: {},
       getAdditionalDeviceInfo: () => ({}),
       pollInterval: 60000,
+      controlsDeviceAvailability: false,
     },
     ({ field, advertise }) => {
       // Cell voltages (vol0-vol15)
