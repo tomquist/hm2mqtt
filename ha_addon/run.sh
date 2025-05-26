@@ -99,6 +99,8 @@ export POLL_CELL_DATA=$(bashio::config 'enableCellData' "false")
 export POLL_CALIBRATION_DATA=$(bashio::config 'enableCalibrationData' "false")
 export POLL_EXTRA_BATTERY_DATA=$(bashio::config 'enableExtraBatteryData' "false")
 export DEBUG=$(bashio::config 'debug' "false")
+export MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS=$(bashio::config 'allowedConsecutiveTimeouts' "3")
+bashio::log.info "MQTT allowed consecutive timeouts: ${MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS}"
 
 bashio::log.info "MQTT polling interval: ${MQTT_POLLING_INTERVAL} seconds"
 bashio::log.info "MQTT response timeout: ${MQTT_RESPONSE_TIMEOUT} seconds"

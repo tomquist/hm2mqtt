@@ -32,7 +32,7 @@ export class DeviceManager {
   // Device state and topic maps
   private deviceTopics: Record<DeviceKey, DeviceTopics> = {};
   private deviceStates: Record<DeviceKey, Record<string, DeviceStateData> | undefined> = {};
-  private deviceResponseTimeouts: Record<DeviceKey, NodeJS.Timeout | null> = {};
+  private deviceResponseTimeouts: Record<DeviceKey, NodeJS.Timeout[]> = {};
 
   constructor(
     private config: MqttConfig,
@@ -64,7 +64,7 @@ export class DeviceManager {
       };
 
       // Initialize response timeout tracker
-      this.deviceResponseTimeouts[deviceKey] = null;
+      this.deviceResponseTimeouts[deviceKey] = [];
 
       console.log(`Topics for ${deviceKey}:`, this.deviceTopics[deviceKey]);
     });
@@ -168,7 +168,7 @@ export class DeviceManager {
 
   hasRunningResponseTimeouts(device: Device): boolean {
     const deviceKey = this.getDeviceKey(device);
-    return this.deviceResponseTimeouts[deviceKey] !== null;
+    return this.deviceResponseTimeouts[deviceKey].length > 0;
   }
 
   /**
@@ -179,21 +179,20 @@ export class DeviceManager {
    */
   setResponseTimeout(device: Device, timeout: NodeJS.Timeout): void {
     const deviceKey = this.getDeviceKey(device);
-    // Clear any existing timeout
-    this.clearResponseTimeout(device);
-    this.deviceResponseTimeouts[deviceKey] = timeout;
+    this.deviceResponseTimeouts[deviceKey].push(timeout);
   }
 
   /**
-   * Clear a response timeout for a device
+   * Clear all response timeouts for a device
    *
    * @param device - The device configuration
    */
   clearResponseTimeout(device: Device): void {
     const deviceKey = this.getDeviceKey(device);
-    if (this.deviceResponseTimeouts[deviceKey]) {
-      clearTimeout(this.deviceResponseTimeouts[deviceKey]!);
-      this.deviceResponseTimeouts[deviceKey] = null;
+    const timeouts = this.deviceResponseTimeouts[deviceKey];
+    if (timeouts && timeouts.length > 0) {
+      timeouts.forEach(timeout => clearTimeout(timeout));
+      this.deviceResponseTimeouts[deviceKey] = [];
     }
   }
 

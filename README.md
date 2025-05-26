@@ -143,12 +143,14 @@ services:
 | `POLL_EXTRA_BATTERY_DATA` | Enable extra battery data reporting (only available on B2500 devices) | false |
 | `POLL_CALIBRATION_DATA` | Enable calibration data reporting (only available on B2500 devices) | false |
 | `DEVICE_n` | Device configuration in format `{type}:{mac}` | -                       |
+| `MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS` | Number of consecutive timeouts before a device is marked offline | `3` |
 
 ### Add-on Configuration
 
 ```yaml
 pollingInterval: 60000  # Interval between device polls in milliseconds
 responseTimeout: 30000  # Timeout for device responses in milliseconds
+allowedConsecutiveTimeouts: 3  # Number of consecutive timeouts before a device is marked offline
 devices:
   - deviceType: "HMA-1"
     deviceId: "your-device-mac"

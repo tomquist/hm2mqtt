@@ -136,7 +136,9 @@ registerDeviceDefinition(
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
-    registerBMSInfoMessage(message);
+    if (process.env.POLL_CELL_DATA === 'true') {
+      registerBMSInfoMessage(message);
+    }
   },
 );
 
@@ -148,6 +150,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     defaultState: {},
     getAdditionalDeviceInfo: extractAdditionalDeviceInfo,
     pollInterval: globalPollInterval,
+    controlsDeviceAvailability: true,
   };
   message<VenusDeviceData>(options, ({ field, command, advertise }) => {
     advertise(
@@ -1157,6 +1160,7 @@ function registerBMSInfoMessage(message: BuildMessageFn) {
       defaultState: {},
       getAdditionalDeviceInfo: () => ({}),
       pollInterval: 60000,
+      controlsDeviceAvailability: false,
     },
     ({ field, advertise }) => {
       for (let i = 1; i <= 16; i++) {

@@ -14,6 +14,9 @@ configuration:
   enableExtraBatteryData:
     name: Enable Extra Battery Data
     description: "Enable extra battery data reporting (only available on B2500 devices)"
+  allowedConsecutiveTimeouts:
+    name: Allowed Consecutive Timeouts
+    description: "Number of consecutive timeouts before a device is marked offline (default: 3)"
   devices:
     name: Devices
     description: "List of energy storage devices to connect to. For each device, specify: deviceType (e.g. HMA-1 for B2500 v2, HMB-1 for B2500 v1, HMG-50 for Venus), deviceId (12-character MAC address from app, not WiFi MAC)"

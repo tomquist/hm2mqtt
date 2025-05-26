@@ -21,6 +21,7 @@ options:
   enableCellData: false
   enableCalibrationData: false
   enableExtraBatteryData: false
+  allowedConsecutiveTimeouts: 3
   devices:
     - deviceType: "HMA-1"
       deviceId: "device-mac-address"
@@ -31,6 +32,7 @@ schema:
   enableCellData: bool
   enableCalibrationData: bool
   enableExtraBatteryData: bool
+  allowedConsecutiveTimeouts: int?
   debug: bool?
   devices:
     - deviceType: str

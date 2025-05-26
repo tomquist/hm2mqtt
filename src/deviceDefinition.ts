@@ -78,6 +78,7 @@ export interface MessageDefinition<T extends BaseDeviceData> {
   fields: FieldDefinition<T, KeyPath<T>>[];
   publishPath: string;
   pollInterval: number;
+  controlsDeviceAvailability: boolean;
 }
 
 export type BaseDeviceData = {
@@ -125,6 +126,7 @@ export type BuildMessageFn = <T extends BaseDeviceData>(
     defaultState: Omit<T, keyof BaseDeviceData>;
     getAdditionalDeviceInfo: (state: T) => AdditionalDeviceInfo;
     pollInterval: number;
+    controlsDeviceAvailability: boolean;
   },
   args: BuildMessageDefinitionFn<T>,
 ) => void;
