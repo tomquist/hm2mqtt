@@ -103,10 +103,6 @@ export MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS=$(bashio::config 'allowedConsecutiveTim
 export MQTT_PROXY_ENABLED=$(bashio::config 'mqttProxyEnabled' "false")
 bashio::log.info "MQTT allowed consecutive timeouts: ${MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS}"
 bashio::log.info "MQTT proxy enabled: ${MQTT_PROXY_ENABLED}"
-if [ "${MQTT_PROXY_ENABLED}" = "true" ]; then
-    bashio::log.info "MQTT proxy port: ${MQTT_PROXY_PORT}"
-fi
-
 bashio::log.info "MQTT polling interval: ${MQTT_POLLING_INTERVAL} seconds"
 bashio::log.info "MQTT response timeout: ${MQTT_RESPONSE_TIMEOUT} seconds"
 
