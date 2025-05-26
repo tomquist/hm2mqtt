@@ -16,7 +16,7 @@ services:
 hassio_api: true
 hassio_role: default
 ports:
-  - 1884/tcp: 1884
+  1884/tcp: 1884
 options:
   pollingInterval: 60
   responseTimeout: 30
