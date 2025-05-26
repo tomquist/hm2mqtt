@@ -7,9 +7,14 @@ import { DeviceManager, DeviceStateData } from './deviceManager';
 import { MqttClient } from './mqttClient';
 import { ControlHandler } from './controlHandler';
 import { DataHandler } from './dataHandler';
+import { MqttProxy, MqttProxyConfig } from './mqttProxy';
 
 // Debug mode
 const DEBUG = process.env.DEBUG === 'true';
+
+// MQTT Proxy configuration
+const MQTT_PROXY_ENABLED = process.env.MQTT_PROXY_ENABLED === 'true';
+const MQTT_PROXY_PORT = parseInt(process.env.MQTT_PROXY_PORT || '1884', 10);
 
 // Debug logger
 function debug(...args: any[]) {
@@ -122,11 +127,14 @@ function createMqttConfig(devices: Device[]): MqttConfig {
 /**
  * Main application function
  */
-function main() {
+async function main() {
   try {
     console.log('Starting hm2mqtt application...');
     console.log(`Environment: ${process.env.NODE_ENV || 'production'}`);
     console.log(`Debug mode: ${DEBUG ? 'enabled' : 'disabled'}`);
+    console.log(
+      `MQTT Proxy: ${MQTT_PROXY_ENABLED ? `enabled on port ${MQTT_PROXY_PORT}` : 'disabled'}`,
+    );
 
     // Log all environment variables in debug mode
     if (DEBUG) {
@@ -266,8 +274,45 @@ function main() {
     // Create data handler
     const dataHandler = new DataHandler(deviceManager);
 
+    // Initialize MQTT Proxy if enabled
+    let mqttProxy: MqttProxy | null = null;
+    if (MQTT_PROXY_ENABLED) {
+      console.log('MQTT Proxy is enabled');
+      console.log(`MQTT Proxy will start on port ${MQTT_PROXY_PORT}`);
+
+      const proxyConfig: MqttProxyConfig = {
+        port: MQTT_PROXY_PORT,
+        mainBrokerUrl: config.brokerUrl,
+        mainBrokerUsername: config.username,
+        mainBrokerPassword: config.password,
+        proxyClientId: `${config.clientId}-proxy`,
+        autoResolveClientIdConflicts: true, // Enable automatic client ID conflict resolution
+      };
+
+      mqttProxy = new MqttProxy(proxyConfig, deviceManager);
+
+      try {
+        await mqttProxy.start();
+        console.log(`MQTT Proxy started successfully on port ${MQTT_PROXY_PORT}`);
+        console.log('B2500 devices can now connect to this proxy to avoid client ID conflicts');
+      } catch (error) {
+        console.error('Failed to start MQTT Proxy:', error);
+        console.warn('Continuing without proxy functionality...');
+        mqttProxy = null;
+      }
+    } else {
+      console.log('MQTT Proxy is disabled (set MQTT_PROXY_ENABLED=true to enable)');
+    }
+
     // Handle process termination
     process.on('SIGINT', async () => {
+      console.log('Shutting down...');
+
+      if (mqttProxy) {
+        console.log('Stopping MQTT Proxy...');
+        await mqttProxy.stop();
+      }
+
       await mqttClient.close();
       process.exit();
     });
@@ -291,7 +336,11 @@ function main() {
 
 // Start the application
 try {
-  main();
+  main().catch(error => {
+    console.error('Unhandled error in main application:', error);
+    console.error('Error details:', error instanceof Error ? error.stack : String(error));
+    process.exit(1);
+  });
 } catch (error) {
   console.error('Unhandled error in main application:', error);
   console.error('Error details:', error instanceof Error ? error.stack : String(error));
