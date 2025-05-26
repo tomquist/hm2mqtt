@@ -155,6 +155,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     getAdditionalDeviceInfo: extractAdditionalDeviceInfo,
     publishPath: 'data',
     pollInterval: globalPollInterval,
+    controlsDeviceAvailability: true,
   } as const;
   message<B2500V2DeviceData>(options, ({ field, command, advertise }) => {
     registerBaseMessage({ command, advertise, field });
@@ -726,6 +727,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
     publishPath: 'extraBatteryData',
     defaultState: {},
     pollInterval: 60000,
+    controlsDeviceAvailability: false,
     getAdditionalDeviceInfo: () => ({}),
   } as const;
   message<B2500V2CD16Data>(options, ({ field, advertise }) => {

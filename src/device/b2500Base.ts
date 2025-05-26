@@ -678,6 +678,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
     getAdditionalDeviceInfo: () => ({}),
     publishPath: 'cells',
     pollInterval: 60000,
+    controlsDeviceAvailability: false,
   } as const;
   message<B2500CellData>(options, ({ field, advertise }) => {
     advertise(
@@ -797,6 +798,7 @@ export function registerCalibrationDataMessage(message: BuildMessageFn) {
     getAdditionalDeviceInfo: () => ({}),
     publishPath: 'calibration',
     pollInterval: 60000,
+    controlsDeviceAvailability: false,
   } as const;
   message<B2500CalibrationData>(options, ({ field, advertise }) => {
     advertise(
