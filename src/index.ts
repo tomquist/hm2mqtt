@@ -14,7 +14,7 @@ const DEBUG = process.env.DEBUG === 'true';
 
 // MQTT Proxy configuration
 const MQTT_PROXY_ENABLED = process.env.MQTT_PROXY_ENABLED === 'true';
-const MQTT_PROXY_PORT = parseInt(process.env.MQTT_PROXY_PORT || '1884', 10);
+const MQTT_PROXY_PORT = parseInt(process.env.MQTT_PROXY_PORT || '1890', 10);
 
 // Debug logger
 function debug(...args: any[]) {

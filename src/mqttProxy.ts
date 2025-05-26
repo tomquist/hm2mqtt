@@ -1,7 +1,6 @@
 import * as mqtt from 'mqtt';
 import Aedes from 'aedes';
 import * as net from 'net';
-import { Device } from './types';
 import { DeviceManager } from './deviceManager';
 
 export interface MqttProxyConfig {

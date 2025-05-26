@@ -13,25 +13,13 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
   - Seconds and third generation with timer support
 - Marstek Venus
 
-## Important Notice for Multiple B2500 Devices
-
-⚠️ **Known Issue with B2500 Firmware 226.5/108 and later**: If you have multiple B2500 devices, you may experience connection conflicts where devices frequently disconnect from MQTT. This is due to a firmware bug where all B2500 devices use the same MQTT client ID (`mst_`).
-
-**Symptoms:**
-- Only one B2500 device stays connected at a time
-- Devices frequently go offline and come back online
-- Missing data from some devices
-- Unreliable device communication
-
-**Solution:** hm2mqtt includes an MQTT proxy feature to resolve this issue. See the [MQTT Proxy Configuration](#mqtt-proxy-for-b2500-client-id-conflicts) section below for setup instructions.
-
 ## Prerequisites
 
 - Before you start, you need a local MQTT broker. You can install one as a Home Assistant Addon: https://www.home-assistant.io/integrations/mqtt/#setting-up-a-broker
 - After setting up an MQTT broker, configure your energy storage device to send MQTT data to your MQTT broker:
   1. For the **B2500**, you have two options:
   
-     > **⚠️ Important for Multiple B2500 Devices**: If you plan to use multiple B2500 devices, configure them to connect to the MQTT proxy port (default: 1884) instead of your main MQTT broker. See the [MQTT Proxy Configuration](#mqtt-proxy-for-b2500-client-id-conflicts) section for details.
+     > **⚠️ Important for Multiple B2500 Devices**: If you plan to use multiple B2500 devices with firmware 226.5 or 108.7, configure them to connect to the MQTT proxy port (default: 1890) instead of your main MQTT broker. See the [MQTT Proxy Configuration](#mqtt-proxy-for-b2500-client-id-conflicts) section for details.
      1. Contact the support and ask them to enable MQTT for your device, then configure the MQTT broker in the device settings through the PowerZero or Marstek app.
      2. With your an Android Smartphone or with a Bluetooth enabled PC use [this tool](https://tomquist.github.io/hame-relay/b2500.html) to configure the MQTT broker directly via Bluetooth. **Make sure you write down the MAC address that is displayed in this tool or in the Marstek app! You will need it later on and the WIFI MAC address of the battery is the wrong one.**
    
@@ -77,10 +65,10 @@ Configure multiple devices by adding more environment variables:
 docker run -d --name hm2mqtt \
   -e MQTT_BROKER_URL=mqtt://your-broker:1883 \
   -e MQTT_PROXY_ENABLED=true \
-  -e MQTT_PROXY_PORT=1884 \
+  -e MQTT_PROXY_PORT=1890 \
   -e DEVICE_0=HMA-1:001a2b3c4d5e \
   -e DEVICE_1=HMA-1:001a2b3c4d5f \
-  -p 1884:1884 \
+  -p 1890:1890 \
   ghcr.io/tomquist/hm2mqtt:latest
 ```
 
@@ -99,13 +87,13 @@ services:
     image: ghcr.io/tomquist/hm2mqtt:latest
     restart: unless-stopped
     ports:
-      - "1884:1884"  # Expose proxy port for B2500 devices
+      - "1890:1890"  # Expose proxy port for B2500 devices
     environment:
       - MQTT_BROKER_URL=mqtt://x.x.x.x:1883
       - MQTT_USERNAME=''
       - MQTT_PASSWORD=''
       - MQTT_PROXY_ENABLED=true  # Enable proxy for multiple B2500s
-      - MQTT_PROXY_PORT=1884
+      - MQTT_PROXY_PORT=1890
       - POLL_CELL_DATA=true
       - POLL_EXTRA_BATTERY_DATA=true
       - POLL_CALIBRATION_DATA=true
@@ -187,7 +175,7 @@ services:
 | `DEVICE_n` | Device configuration in format `{type}:{mac}` | -                       |
 | `MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS` | Number of consecutive timeouts before a device is marked offline | `3` |
 | `MQTT_PROXY_ENABLED` | Enable MQTT proxy server for B2500 client ID conflict resolution | `false` |
-| `MQTT_PROXY_PORT` | Port for the MQTT proxy server | `1884` |
+| `MQTT_PROXY_PORT` | Port for the MQTT proxy server | `1890` |
 
 ### Add-on Configuration
 
@@ -210,7 +198,7 @@ The device id is the MAC address of the device in lowercase, without colons.
 
 **🔧 Recommended for Multiple B2500 Devices**
 
-If you have multiple B2500 devices (especially with firmware 226.5/108 or later), you **must** use the MQTT proxy to avoid client ID conflicts. The proxy resolves the firmware bug where all B2500 devices try to connect with the same client ID (`mst_`).
+If you have multiple B2500 devices (especially with firmware 226.5/108.7 or later), you **must** use the MQTT proxy to avoid client ID conflicts. The proxy resolves the firmware bug where all B2500 devices try to connect with the same client ID (`mst_`).
 
 #### How It Works
 
@@ -220,7 +208,7 @@ If you have multiple B2500 devices (especially with firmware 226.5/108 or later)
 │ Client: mst_│    │ Client: mst_│    │ Client: mst_│
 └──────┬──────┘    └──────┬──────┘    └──────┬──────┘
        │                  │                  │
-       │ Port 1884        │ Port 1884        │ Port 1884
+       │ Port 1890        │ Port 1890        │ Port 1890
        │                  │                  │
        └──────────────────┼──────────────────┘
                           │
@@ -247,12 +235,12 @@ If you have multiple B2500 devices (especially with firmware 226.5/108 or later)
 ```bash
 # Enable the MQTT proxy
 MQTT_PROXY_ENABLED=true
-MQTT_PROXY_PORT=1884  # Port for B2500 devices to connect to
+MQTT_PROXY_PORT=1890  # Port for B2500 devices to connect to
 ```
 
 **Step 2: Configure your B2500 devices**
 - **Before (problematic):** B2500 devices connect to `your-server:1883`
-- **After (working):** B2500 devices connect to `your-server:1884`
+- **After (working):** B2500 devices connect to `your-server:1890`
 
 #### Environment Variables
 
@@ -262,7 +250,7 @@ MQTT_BROKER_URL=mqtt://your-broker:1883
 
 # Enable proxy for B2500 devices
 MQTT_PROXY_ENABLED=true
-MQTT_PROXY_PORT=1884
+MQTT_PROXY_PORT=1890
 
 # Your devices
 DEVICE_0=HMA-1:device1mac
@@ -274,7 +262,6 @@ DEVICE_2=HMB-1:device3mac
 
 ```yaml
 mqttProxyEnabled: true
-mqttProxyPort: 1884
 devices:
   - deviceType: "HMA-1"
     deviceId: "device1-mac"
@@ -295,37 +282,17 @@ services:
     image: ghcr.io/tomquist/hm2mqtt:latest
     restart: unless-stopped
     ports:
-      - "1884:1884"  # Expose proxy port for B2500 devices
+      - "1890:1890"  # Expose proxy port for B2500 devices
     environment:
       - MQTT_BROKER_URL=mqtt://your-broker:1883
       - MQTT_PROXY_ENABLED=true
-      - MQTT_PROXY_PORT=1884
+      - MQTT_PROXY_PORT=1890
       - DEVICE_0=HMA-1:001a2b3c4d5e
       - DEVICE_1=HMA-1:001a2b3c4d5f
       - DEVICE_2=HMB-1:001a2b3c4d60
 ```
 
-#### Troubleshooting Multiple B2500 Devices
-
-**Problem:** Devices still disconnecting after enabling proxy
-- ✅ Verify all B2500 devices are configured to connect to port 1884
-- ✅ Check that `MQTT_PROXY_ENABLED=true` is set
-- ✅ Ensure port 1884 is accessible from your B2500 devices
-- ✅ Review logs for "MQTT Proxy" messages
-
-**Problem:** Only one device shows data
-- ✅ Check if devices are connecting to different ports (some to 1883, some to 1884)
-- ✅ Verify all devices have unique MAC addresses in configuration
-- ✅ Enable debug logging: `DEBUG=true`
-
-**Problem:** Proxy won't start
-- ✅ Check if port 1884 is already in use: `netstat -ln | grep 1884`
-- ✅ Try a different port: `MQTT_PROXY_PORT=1885`
-- ✅ Check firewall settings
-
-For detailed troubleshooting, see the [MQTT Proxy Guide](MQTT_PROXY_GUIDE.md).
-
-> **📖 Background**: This issue was first reported in [GitHub Issue #41](https://github.com/tomquist/hm2mqtt/issues/41) where users experienced problems with multiple B2500 devices after firmware update 226.5. The MQTT proxy solution was developed based on community feedback and the workaround suggested by Martin0745 in the Photovoltaikforum.
+> **📖 Background**: This issue was first reported in [GitHub Issue #41](https://github.com/tomquist/hm2mqtt/issues/41) where users experienced problems with multiple B2500 devices after firmware update 226.5.
 
 ## Device Types
 
