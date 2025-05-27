@@ -114,8 +114,8 @@ services:
    MQTT_BROKER_URL=mqtt://your-broker:1883
    MQTT_USERNAME=your-username
    MQTT_PASSWORD=your-password
-   MQTT_POLLING_INTERVAL=60000
-   MQTT_RESPONSE_TIMEOUT=30000
+   MQTT_POLLING_INTERVAL=60
+   MQTT_RESPONSE_TIMEOUT=30
    POLL_CELL_DATA=false
    POLL_EXTRA_BATTERY_DATA=false
    POLL_CALIBRATION_DATA=false
@@ -137,8 +137,8 @@ services:
 | `MQTT_CLIENT_ID` | MQTT client ID | `hm2mqtt-{random}`      |
 | `MQTT_USERNAME` | MQTT username | -                       |
 | `MQTT_PASSWORD` | MQTT password | -                       |
-| `MQTT_POLLING_INTERVAL` | Interval between device polls (ms) | `60000`                 |
-| `MQTT_RESPONSE_TIMEOUT` | Timeout for device responses (ms) | `15000`                 |
+| `MQTT_POLLING_INTERVAL` | Interval between device polls (ms) | `60`                 |
+| `MQTT_RESPONSE_TIMEOUT` | Timeout for device responses (ms) | `15`                 |
 | `POLL_CELL_DATA` | Enable cell voltage (only available on B2500 devices) | false |
 | `POLL_EXTRA_BATTERY_DATA` | Enable extra battery data reporting (only available on B2500 devices) | false |
 | `POLL_CALIBRATION_DATA` | Enable calibration data reporting (only available on B2500 devices) | false |
@@ -148,8 +148,8 @@ services:
 ### Add-on Configuration
 
 ```yaml
-pollingInterval: 60000  # Interval between device polls in milliseconds
-responseTimeout: 30000  # Timeout for device responses in milliseconds
+pollingInterval: 60  # Interval between device polls in milliseconds
+responseTimeout: 30  # Timeout for device responses in milliseconds
 allowedConsecutiveTimeouts: 3  # Number of consecutive timeouts before a device is marked offline
 devices:
   - deviceType: "HMA-1"
