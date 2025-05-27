@@ -186,7 +186,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'total',
       }),
     );
-    field({ key: 'grd_m', path: ['monthlyDischargeCapacity'] });
+    field({ key: 'grd_m', path: ['monthlyDischargeCapacity'], transform: v => parseFloat(v) / 100 });
     advertise(
       ['monthlyDischargeCapacity'],
       sensorComponent<number>({
@@ -253,13 +253,13 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         },
       }),
     );
-    field({ key: 'cel_p', path: ['batteryEnergy'], transform: v => parseFloat(v) * 10 });
+    field({ key: 'cel_p', path: ['batteryEnergy'], transform: v => parseFloat(v) / 100 });
     advertise(
       ['batteryEnergy'],
       sensorComponent<number>({
         id: 'battery_energy',
         name: 'Battery Energy',
-        unit_of_measurement: 'Wh',
+        unit_of_measurement: 'kWh',
       }),
     );
     field({ key: 'cel_c', path: ['batterySoc'] });
