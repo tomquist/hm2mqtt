@@ -187,7 +187,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         unit_of_measurement: 'W',
       }),
     );
-    field({ key: 'grd_d', path: ['dailyDischargeCapacity'], transform: v => parseFloat(v) / 100 }); 
+    field({ key: 'grd_d', path: ['dailyDischargeCapacity'], transform: v => parseFloat(v) / 100 });
     advertise(
       ['dailyDischargeCapacity'],
       sensorComponent<number>({
@@ -198,7 +198,11 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'total',
       }),
     );
-    field({ key: 'grd_m', path: ['monthlyDischargeCapacity'], transform: v => parseFloat(v) / 100 });
+    field({
+      key: 'grd_m',
+      path: ['monthlyDischargeCapacity'],
+      transform: v => parseFloat(v) / 100,
+    });
     advertise(
       ['monthlyDischargeCapacity'],
       sensorComponent<number>({
