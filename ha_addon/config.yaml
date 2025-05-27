@@ -15,6 +15,8 @@ services:
   - mqtt:need
 hassio_api: true
 hassio_role: default
+ports:
+  1890/tcp: 1890
 options:
   pollingInterval: 60
   responseTimeout: 30
@@ -22,6 +24,7 @@ options:
   enableCalibrationData: false
   enableExtraBatteryData: false
   allowedConsecutiveTimeouts: 3
+  mqttProxyEnabled: false
   devices:
     - deviceType: "HMA-1"
       deviceId: "device-mac-address"
@@ -34,6 +37,7 @@ schema:
   enableExtraBatteryData: bool
   allowedConsecutiveTimeouts: int?
   debug: bool?
+  mqttProxyEnabled: bool?
   devices:
     - deviceType: str
       deviceId: str
