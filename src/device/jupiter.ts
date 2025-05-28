@@ -5,14 +5,16 @@ import {
   JupiterDeviceData,
   JupiterBMSInfo,
   isValidJupiterWorkingMode,
+  WeekdaySet,
+  JupiterTimePeriod,
 } from '../types';
 import {
   sensorComponent,
-  textComponent,
   switchComponent,
-  numberComponent,
   buttonComponent,
   selectComponent,
+  textComponent,
+  numberComponent,
 } from '../homeAssistantDiscovery';
 
 /**
@@ -519,6 +521,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
     // Time period sensors and commands (tim_0 to tim_4)
     for (let i = 0; i < 5; i++) {
+      const periodIndex = i;
       // Start time
       field({
         key: `tim_${i}`,
@@ -536,14 +539,41 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       );
       command(`time-period/${i}/start-time`, {
         handler: ({ updateDeviceState, message, publishCallback }) => {
+          // Validate time format (HH:MM)
           if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
             console.error('Invalid start time format (should be HH:MM):', message);
             return;
           }
-          // You would update state here if you track time periods
-          // Build the command parameters
-          const params: CommandParams = { md: 1, nm: i, bt: message };
-          publishCallback(processCommand(CommandType.SET_TIME_PERIOD, params));
+
+          const [hours, minutes] = message.split(':').map(part => parseInt(part, 10));
+
+          updateDeviceState(state => {
+            if (!state.timePeriods || !state.timePeriods[periodIndex]) {
+              console.error(`Time period ${periodIndex} not found in device state`);
+              return;
+            }
+
+            const timePeriods = [...(state.timePeriods || [])];
+            timePeriods[periodIndex] = {
+              ...timePeriods[periodIndex],
+              startTime: `${hours}:${minutes.toString().padStart(2, '0')}`,
+            };
+
+            // Build the command parameters
+            const md = state.workingMode === 'manual' ? 2 : 1;
+            const params: CommandParams = { md, nm: periodIndex };
+            const period = timePeriods[periodIndex];
+
+            params.bt = period.startTime;
+            params.et = period.endTime;
+            params.wk = period.weekday;
+            params.vv = period.power;
+            params.as = period.enabled ? 1 : 0;
+
+            publishCallback(processCommand(CommandType.SET_TIME_PERIOD, params));
+
+            return { timePeriods };
+          });
         },
       });
       // End time
@@ -563,12 +593,41 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       );
       command(`time-period/${i}/end-time`, {
         handler: ({ updateDeviceState, message, publishCallback }) => {
+          // Validate time format (HH:MM)
           if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
             console.error('Invalid end time format (should be HH:MM):', message);
             return;
           }
-          const params: CommandParams = { md: 1, nm: i, et: message };
-          publishCallback(processCommand(CommandType.SET_TIME_PERIOD, params));
+
+          const [hours, minutes] = message.split(':').map(part => parseInt(part, 10));
+
+          updateDeviceState(state => {
+            if (!state.timePeriods || !state.timePeriods[periodIndex]) {
+              console.error(`Time period ${periodIndex} not found in device state`);
+              return;
+            }
+
+            const timePeriods = [...(state.timePeriods || [])];
+            timePeriods[periodIndex] = {
+              ...timePeriods[periodIndex],
+              endTime: `${hours}:${minutes.toString().padStart(2, '0')}`,
+            };
+
+            // Build the command parameters
+            const md = state.workingMode === 'manual' ? 2 : 1;
+            const params: CommandParams = { md, nm: periodIndex };
+            const period = timePeriods[periodIndex];
+
+            params.bt = period.startTime;
+            params.et = period.endTime;
+            params.wk = period.weekday;
+            params.vv = period.power;
+            params.as = period.enabled ? 1 : 0;
+
+            publishCallback(processCommand(CommandType.SET_TIME_PERIOD, params));
+
+            return { timePeriods };
+          });
         },
       });
       // Enabled
@@ -589,8 +648,34 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       command(`time-period/${i}/enabled`, {
         handler: ({ updateDeviceState, message, publishCallback }) => {
           const enabled = message.toLowerCase() === 'true' || message === '1' || message === 'ON';
-          const params: CommandParams = { md: 1, nm: i, as: enabled ? 1 : 0 };
-          publishCallback(processCommand(CommandType.SET_TIME_PERIOD, params));
+
+          updateDeviceState(state => {
+            if (!state.timePeriods || !state.timePeriods[periodIndex]) {
+              console.error(`Time period ${periodIndex} not found in device state`);
+              return;
+            }
+
+            const timePeriods = [...(state.timePeriods || [])];
+            timePeriods[periodIndex] = {
+              ...timePeriods[periodIndex],
+              enabled,
+            };
+
+            // Build the command parameters
+            const md = state.workingMode === 'manual' ? 2 : 1;
+            const params: CommandParams = { md, nm: periodIndex };
+            const period = timePeriods[periodIndex];
+
+            params.bt = period.startTime;
+            params.et = period.endTime;
+            params.wk = period.weekday;
+            params.vv = period.power;
+            params.as = enabled ? 1 : 0;
+
+            publishCallback(processCommand(CommandType.SET_TIME_PERIOD, params));
+
+            return { timePeriods };
+          });
         },
       });
       // Power
@@ -615,12 +700,38 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       command(`time-period/${i}/power`, {
         handler: ({ updateDeviceState, message, publishCallback }) => {
           const power = parseInt(message, 10);
-          if (isNaN(power)) {
+          if (isNaN(power) || power < 0) {
             console.error('Invalid power value:', message);
             return;
           }
-          const params: CommandParams = { md: 1, nm: i, vv: power };
-          publishCallback(processCommand(CommandType.SET_TIME_PERIOD, params));
+
+          updateDeviceState(state => {
+            if (!state.timePeriods || !state.timePeriods[periodIndex]) {
+              console.error(`Time period ${i} not found in device state`);
+              return;
+            }
+
+            const timePeriods = [...(state.timePeriods || [])];
+            timePeriods[periodIndex] = {
+              ...timePeriods[periodIndex],
+              power,
+            };
+
+            // Build the command parameters
+            const md = state.workingMode === 'manual' ? 2 : 1;
+            const params: CommandParams = { md, nm: periodIndex };
+            const period = timePeriods[periodIndex];
+
+            params.bt = period.startTime;
+            params.et = period.endTime;
+            params.wk = period.weekday;
+            params.vv = period.power;
+            params.as = period.enabled ? 1 : 0;
+
+            publishCallback(processCommand(CommandType.SET_TIME_PERIOD, params));
+
+            return { timePeriods };
+          });
         },
       });
       // Weekday
@@ -631,7 +742,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       });
       advertise(
         ['timePeriods', i, 'weekday'],
-        textComponent({
+        textComponent<WeekdaySet>({
           id: `time_period_${i}_weekday`,
           name: `Time Period ${i} Weekday`,
           command: `time-period/${i}/weekday`,
@@ -647,8 +758,35 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             );
             return;
           }
-          const params: CommandParams = { md: 1, nm: i, wk: message };
-          publishCallback(processCommand(CommandType.SET_TIME_PERIOD, params));
+          const weekday = weekdaySetToBitMask(message as WeekdaySet);
+
+          updateDeviceState(state => {
+            if (!state.timePeriods || !state.timePeriods[periodIndex]) {
+              console.error(`Time period ${periodIndex} not found in device state`);
+              return;
+            }
+
+            const timePeriods = [...(state.timePeriods || [])];
+            timePeriods[periodIndex] = {
+              ...timePeriods[periodIndex],
+              weekday: bitMaskToWeekdaySet(weekday),
+            };
+
+            // Build the command parameters
+            const md = state.workingMode === 'manual' ? 2 : 1;
+            const params: CommandParams = { md, nm: periodIndex };
+            const period = timePeriods[periodIndex];
+
+            params.bt = period.startTime;
+            params.et = period.endTime;
+            params.wk = weekdaySetToBitMask(period.weekday);
+            params.vv = period.power;
+            params.as = period.enabled ? 1 : 0;
+
+            publishCallback(processCommand(CommandType.SET_TIME_PERIOD, params));
+
+            return { timePeriods };
+          });
         },
       });
     }
@@ -736,7 +874,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
 }
 
 // Helper: parseTimePeriod for Jupiter (same format as Venus)
-function parseTimePeriod(value: string) {
+function parseTimePeriod(value: string): NonNullable<JupiterDeviceData['timePeriods']>[number] {
   const parts = value.split('|');
   if (parts.length < 7) {
     return {
@@ -747,20 +885,25 @@ function parseTimePeriod(value: string) {
       enabled: false,
     };
   }
-  // Convert weekday bitmask to string
-  const weekdayBitMask = parseInt(parts[4], 10);
+
+  let weekdayBitMask = parseInt(parts[4], 10);
+  const weekday = bitMaskToWeekdaySet(weekdayBitMask);
   return {
-    startTime: `${parseInt(parts[0], 10)}:${parts[1].padStart(2, '0')}`,
-    endTime: `${parseInt(parts[2], 10)}:${parts[3].padStart(2, '0')}`,
-    weekday: bitMaskToWeekdaySet(weekdayBitMask),
+    startTime: `${parseInt(parts[0], 10)}:${parseInt(parts[1], 10).toString().padStart(2, '0')}`,
+    endTime: `${parseInt(parts[2], 10)}:${parseInt(parts[3], 10).toString().padStart(2, '0')}`,
+    weekday: weekday,
     power: parseInt(parts[5], 10),
     enabled: parts[6] === '1',
   };
 }
 
-function bitMaskToWeekdaySet(weekdayBitMask: number) {
+function bitMaskToWeekdaySet(weekdayBitMask: number): JupiterTimePeriod['weekday'] {
   return '0123456'
     .split('')
     .filter((_, index) => weekdayBitMask & (1 << index))
     .join('');
+}
+
+function weekdaySetToBitMask(weekday: JupiterTimePeriod['weekday']): number {
+  return weekday.split('').reduce((mask, day) => mask | (1 << parseInt(day, 10)), 0);
 }
