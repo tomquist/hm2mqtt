@@ -391,7 +391,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     );
 
     // Surplus Feed-in (ful_d)
-    field({ key: 'ful_d', path: ['surplusFeedInEnabled'], transform: v => v === '0' });
+    field({ key: 'ful_d', path: ['surplusFeedInEnabled'], transform: v => v === '1' });
     advertise(
       ['surplusFeedInEnabled'],
       switchComponent({
@@ -405,7 +405,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       handler: ({ message, publishCallback, updateDeviceState }) => {
         const enable = message.toLowerCase() === 'true' || message === '1' || message === 'on';
         updateDeviceState(() => ({ surplusFeedInEnabled: enable }));
-        publishCallback(processCommand(CommandType.SURPLUS_FEED_IN, { ful_d: enable ? 0 : 1 }));
+        publishCallback(processCommand(CommandType.SURPLUS_FEED_IN, { ful_d: enable ? 1 : 0 }));
       },
     });
 
