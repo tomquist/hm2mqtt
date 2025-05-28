@@ -254,14 +254,14 @@ export type VenusCTStatus = 'notConnected' | 'connected' | 'weakSignal';
  */
 export type VenusBatteryWorkingStatus = 'notWorking' | 'charging' | 'discharging' | 'unknown';
 
-const validModes = ['automatic', 'manual', 'trading'] as const;
+const validVenusWorkingModes = ['automatic', 'manual', 'trading'] as const;
 /**
  * Venus device working mode types
  */
-export type VenusWorkingMode = (typeof validModes)[number];
+export type VenusWorkingMode = (typeof validVenusWorkingModes)[number];
 
 export function isValidVenusWorkingMode(mode: string): mode is VenusWorkingMode {
-  return validModes.includes(mode as VenusWorkingMode);
+  return validVenusWorkingModes.includes(mode as VenusWorkingMode);
 }
 
 /**
@@ -296,11 +296,11 @@ export type VenusRechargeMode = 'singlePhase' | 'threePhase';
 
 export type WeekdaySet = `${0 | ''}${1 | ''}${2 | ''}${3 | ''}${4 | ''}${5 | ''}${6 | ''}`;
 
-const validVersionSets = ['800W', '2500W'] as const;
-export type VenusVersionSet = (typeof validVersionSets)[number];
+const venusValidVersionSets = ['800W', '2500W'] as const;
+export type VenusVersionSet = (typeof venusValidVersionSets)[number];
 
 export function isValidVenusVersionSet(set: string): set is VenusVersionSet {
-  return validVersionSets.includes(set as VenusVersionSet);
+  return venusValidVersionSets.includes(set as VenusVersionSet);
 }
 
 /**
@@ -411,6 +411,13 @@ export interface JupiterTimePeriod {
 
 export type JupiterBatteryWorkingStatus = 'keep' | 'charging' | 'discharging' | 'unknown';
 
+const validJupiterWorkingModes = ['automatic', 'manual'] as const;
+export type JupiterWorkingMode = (typeof validJupiterWorkingModes)[number];
+
+export function isValidJupiterWorkingMode(mode: string): mode is JupiterWorkingMode {
+  return validJupiterWorkingModes.includes(mode as JupiterWorkingMode);
+}
+
 export interface JupiterDeviceData extends BaseDeviceData {
   dailyChargingCapacity?: number; // ele_d
   monthlyChargingCapacity?: number; // ele_m
@@ -428,7 +435,7 @@ export interface JupiterDeviceData extends BaseDeviceData {
   batteryEnergy?: number; // cel_p
   batterySoc?: number; // cel_c
   errorCode?: number; // err_t
-  workingMode?: number; // wor_m
+  workingMode?: JupiterWorkingMode; // wor_m
   autoSwitchWorkingMode?: number; // cts_m
   httpServerType?: number; // htt_p
   wifiSignalStrength?: number; // wif_s

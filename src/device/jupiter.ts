@@ -4,6 +4,7 @@ import {
   JupiterBatteryWorkingStatus,
   JupiterDeviceData,
   JupiterBMSInfo,
+  isValidJupiterWorkingMode,
 } from '../types';
 import {
   sensorComponent,
@@ -11,6 +12,7 @@ import {
   switchComponent,
   numberComponent,
   buttonComponent,
+  selectComponent,
 } from '../homeAssistantDiscovery';
 
 /**
@@ -295,12 +297,31 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Error Code',
       }),
     );
-    field({ key: 'wor_m', path: ['workingMode'] });
+    field({
+      key: 'wor_m',
+      path: ['workingMode'],
+      transform: v => {
+        switch (v) {
+          case '1':
+            return 'automatic';
+          case '2':
+            return 'manual';
+          default:
+            return 'automatic';
+        }
+      },
+    });
     advertise(
       ['workingMode'],
-      sensorComponent<number>({
+      selectComponent<NonNullable<JupiterDeviceData['workingMode']>>({
         id: 'working_mode',
         name: 'Working Mode',
+        icon: 'mdi:cog',
+        command: 'working-mode',
+        valueMappings: {
+          automatic: 'Automatic',
+          manual: 'Manual',
+        },
       }),
     );
     field({ key: 'cts_m', path: ['autoSwitchWorkingMode'] });
@@ -423,6 +444,14 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     // Working mode (no button, just command)
     command('working-mode', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
+        if (!isValidJupiterWorkingMode(message)) {
+          console.error('Invalid working mode value:', message);
+          return;
+        }
+
+        updateDeviceState(() => ({
+          workingMode: message,
+        }));
         let mode: number;
         switch (message) {
           case 'automatic':
@@ -434,9 +463,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           default:
             mode = 1;
         }
-        updateDeviceState(() => ({
-          workingMode: mode,
-        }));
+
         publishCallback(processCommand(CommandType.SET_WORKING_MODE, { md: mode }));
       },
     });
