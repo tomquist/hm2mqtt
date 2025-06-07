@@ -10,8 +10,10 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 
 - B2500 series (e.g. Marstek B2500-D, Greensolar, BluePalm, Plenti SOLAR B2500H, Be Cool BC2500B)
   - First generation without timer support
-  - Seconds and third generation with timer support
+  - Second and third generation with timer support
 - Marstek Venus
+- Marstek Jupiter
+- Marstek Jupiter Plus
 
 ## Prerequisites
 
@@ -24,8 +26,8 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
      2. With your an Android Smartphone or with a Bluetooth enabled PC use [this tool](https://tomquist.github.io/hame-relay/b2500.html) to configure the MQTT broker directly via Bluetooth. **Make sure you write down the MAC address that is displayed in this tool or in the Marstek app! You will need it later on and the WIFI MAC address of the battery is the wrong one.**
    
      **Warning:** Enabling MQTT on the device will disable the cloud connection. You will not be able to use the PowerZero or Marstek app to monitor or control your device anymore. You can re-enable the cloud connection by installing [Hame Relay](https://github.com/tomquist/hame-relay#mode-1-storage-configured-with-local-broker-inverse_forwarding-false) in Mode 1.
-  2. The **Marstek Venus** doesn't officially support MQTT. However, you can install the [Hame Relay](https://github.com/tomquist/hame-relay) in [Mode 2](https://github.com/tomquist/hame-relay#mode-2-storage-configured-with-hame-broker-inverse_forwarding-true) to forward the Cloud MQTT data to your local MQTT broker.
-
+  2. The **Marstek Venus**, **Marstek Jupiter** and **Jupiter Plus** don't officially support MQTT. However, you can install the [Hame Relay](https://github.com/tomquist/hame-relay) in [Mode 2](https://github.com/tomquist/hame-relay#mode-2-storage-configured-with-hame-broker-inverse_forwarding-true) to forward the Cloud MQTT data to your local MQTT broker.
+  
 ## Installation
 
 ### As a Home Assistant Add-on (Recommended)
@@ -301,6 +303,7 @@ The device type can be one of the following:
 - **HMA-X**: (e.g. HMA-1, HMA-2, ...) B2500 storage v2  
 - **HMK-X**: (e.g. HMK-1, HMK-2, ...) Greensolar storage v3
 - **HMG-X**: (e.g. HMG-50) Marstek Venus
+- **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus
 
 ## Development
 
@@ -390,6 +393,22 @@ hm2mqtt/{device_type}/control/{device_mac}/{command}
 - `get-ct-power`: Gets current transformer power readings
 - `transaction-mode`: Sets transaction mode parameters
 
+### Jupiter Device Commands
+
+The following commands are supported by both Jupiter and Jupiter Plus devices:
+
+- `refresh`: Refreshes the device data
+- `factory-reset`: Resets the device to factory settings
+- `sync-time`: Synchronizes device time with server
+- `working-mode`: Sets working mode (`automatic` or `manual`)
+- `time-period/[0-4]/enabled`: Enables/disables time period (`on` or `off`)
+- `time-period/[0-4]/start-time`: Sets start time for period (HH:MM format)
+- `time-period/[0-4]/end-time`: Sets end time for period (HH:MM format)
+- `time-period/[0-4]/power`: Sets power value for period (W)
+- `time-period/[0-4]/weekday`: Sets days of week for period (0-6, where 0 is Sunday)
+
+> **Note:** The Jupiter E does not support trading mode or auto-switch working mode.
+
 ### Examples
 
 ```
@@ -407,6 +426,9 @@ mosquitto_pub -t "hm2mqtt/HMA-1/control/abcdef123456/surplus-feed-in" -m "off"
 
 # Enable timer period 1 on Venus device
 mosquitto_pub -t "hm2mqtt/HMG-50/control/abcdef123456/time-period/1/enabled" -m "on"
+
+# Enable timer period 0 on Jupiter Plus device
+mosquitto_pub -t "hm2mqtt/JPLS/control/abcdef123456/time-period/0/enabled" -m "on"
 ```
 
 ## License

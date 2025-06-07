@@ -948,7 +948,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       command(`time-period/${i}/power`, {
         handler: ({ updateDeviceState, message, publishCallback }) => {
           const power = parseInt(message, 10);
-          if (isNaN(power) || power < 0) {
+          if (isNaN(power)) {
             console.error('Invalid power value:', message);
             return;
           }
