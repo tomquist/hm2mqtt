@@ -44,25 +44,32 @@ export class MqttProxy {
         const originalClientId = packet.clientId || '';
 
         // If auto-resolve is enabled and the client ID is already in use
-        if (this.config.autoResolveClientIdConflicts !== false && this.usedClientIds.has(originalClientId)) {
+        if (
+          this.config.autoResolveClientIdConflicts !== false &&
+          this.usedClientIds.has(originalClientId)
+        ) {
           // Generate unique client ID by appending timestamp and random suffix
           let uniqueId: string;
           let attempts = 0;
           const maxAttempts = 10;
-          
+
           do {
             uniqueId = `${originalClientId}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
             attempts++;
           } while (this.usedClientIds.has(uniqueId) && attempts < maxAttempts);
-          
+
           if (attempts >= maxAttempts) {
-            console.error(`MQTT Proxy: Failed to generate unique client ID after ${maxAttempts} attempts for '${originalClientId}'`);
+            console.error(
+              `MQTT Proxy: Failed to generate unique client ID after ${maxAttempts} attempts for '${originalClientId}'`,
+            );
             callback(new Error('Unable to generate unique client ID'), false);
             return;
           }
-          
+
           packet.clientId = uniqueId;
-          console.log(`MQTT Proxy: Modified client ID from '${originalClientId}' to '${uniqueId}' (conflict resolution)`);
+          console.log(
+            `MQTT Proxy: Modified client ID from '${originalClientId}' to '${uniqueId}' (conflict resolution)`,
+          );
         }
 
         // Add the client ID to our tracking set
