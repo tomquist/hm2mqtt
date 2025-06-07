@@ -159,6 +159,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'PV1 Power',
         device_class: 'power',
         unit_of_measurement: 'W',
+        state_class: 'measurement',
       }),
     );
     field({ key: 'pv2_p', path: ['pv2Power'] });
@@ -169,6 +170,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'PV2 Power',
         device_class: 'power',
         unit_of_measurement: 'W',
+        state_class: 'measurement',
       }),
     );
     field({ key: 'pv3_p', path: ['pv3Power'] });
@@ -179,6 +181,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'PV3 Power',
         device_class: 'power',
         unit_of_measurement: 'W',
+        state_class: 'measurement',
       }),
     );
     field({ key: 'pv4_p', path: ['pv4Power'] });
@@ -189,6 +192,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'PV4 Power',
         device_class: 'power',
         unit_of_measurement: 'W',
+        state_class: 'measurement',
       }),
     );
     field({ key: 'grd_d', path: ['dailyDischargeCapacity'], transform: v => parseFloat(v) / 100 });
@@ -225,6 +229,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Combined Power',
         device_class: 'power',
         unit_of_measurement: 'W',
+        state_class: 'measurement',
       }),
     );
     field({ key: 'grd_t', path: ['workingStatus'] });
