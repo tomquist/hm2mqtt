@@ -17,6 +17,11 @@ configuration:
   allowedConsecutiveTimeouts:
     name: Maximale aufeinanderfolgende Timeouts
     description: "Anzahl aufeinanderfolgender Timeouts, bevor ein Gerät als offline markiert wird (Standard: 3)"
+  mqttProxyEnabled:
+    name: MQTT Proxy aktivieren
+    description: "MQTT Proxy-Server aktivieren um B2500 Client-ID-Konflikte zu lösen (Standard: false)"
   devices:
     name: "Geräte"
     description: "Liste der Energiespeichergeräte, mit denen eine Verbindung hergestellt werden soll. Für jedes Gerät angeben: deviceType (z.B. HMA-1 für B2500 v2, HMB-1 für B2500 v1, HMG-50 für Venus), deviceId (12-stellige MAC-Adresse aus der App, nicht WLAN-MAC"
+network:
+  "1890/tcp": "Port für den MQTT Proxy-Server (Standard: 1890)"

@@ -31,7 +31,7 @@ enum CommandType {
   GET_FC41D_INFO = 10, // -> wifi_v=202409090159
   ENABLE_BACKUP = 11,
   GET_BMS_INFO = 14, // -> b_ver=212,b_chv=571,b_rci=1000,b_rdi=1000,b_soc=65,b_soh=100,b_cap=5120,b_vol=5223,b_cur=-94,b_tem=250,b_chf=192,b_slf=0,b_cpc=332,b_err=0,b_war=0,b_ret=102482070,b_ent=0,b_mot=23,b_tp1=18,b_tp2=19,b_tp3=18,b_tp4=19,b_vo1=3265,b_vo2=3265,b_vo3=3265,b_vo4=3265,b_vo5=3264,b_vo6=3264,b_vo7=3265,b_vo8=3265,b_vo9=3264,b_vo10=3265,b_vo11=3264,b_vo12=3265,b_vo13=3265,b_vo14=3265,b_vo15=3264,b_vo16=3262
-  SET_VERSION = 15,
+  SET_DISCHARGE_POWER = 15,
   SET_MAX_CHARGING_POWER = 16,
   SET_MAX_DISCHARGE_POWER = 17,
   SET_METER_TYPE = 18,
@@ -365,6 +365,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Combined Power',
         device_class: 'power',
         unit_of_measurement: 'W',
+        state_class: 'measurement',
       }),
     );
 
@@ -710,7 +711,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'set_v',
       path: ['versionSet'],
-      transform: v => (v === '1' ? '2500W' : '800W'),
+      transform: v => (v === '0' ? '800W' : '2500W'),
     });
     advertise(
       ['versionSet'],
@@ -738,7 +739,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         }));
 
         const version = message === '2500W' ? 2500 : 800;
-        publishCallback(processCommand(CommandType.SET_VERSION, { vs: version }));
+        publishCallback(processCommand(CommandType.SET_DISCHARGE_POWER, { vs: version }));
       },
     });
 
@@ -855,7 +856,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
             params.bt = period.startTime;
             params.et = period.endTime;
-            params.wk = period.weekday;
+            params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = enabled ? 1 : 0;
 
@@ -894,7 +895,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
             params.bt = period.startTime;
             params.et = period.endTime;
-            params.wk = period.weekday;
+            params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
 
@@ -933,7 +934,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
             params.bt = period.startTime;
             params.et = period.endTime;
-            params.wk = period.weekday;
+            params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
 
@@ -947,7 +948,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       command(`time-period/${i}/power`, {
         handler: ({ updateDeviceState, message, publishCallback }) => {
           const power = parseInt(message, 10);
-          if (isNaN(power) || power < 0) {
+          if (isNaN(power)) {
             console.error('Invalid power value:', message);
             return;
           }
@@ -970,7 +971,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
             params.bt = period.startTime;
             params.et = period.endTime;
-            params.wk = period.weekday;
+            params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
 
@@ -1106,7 +1107,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           maxDischargePower: power,
         }));
 
-        publishCallback(processCommand(CommandType.SET_VERSION, { mdp_w: power }));
+        publishCallback(processCommand(CommandType.SET_DISCHARGE_POWER, { vs: power }));
       },
     });
 

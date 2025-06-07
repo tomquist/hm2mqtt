@@ -254,14 +254,14 @@ export type VenusCTStatus = 'notConnected' | 'connected' | 'weakSignal';
  */
 export type VenusBatteryWorkingStatus = 'notWorking' | 'charging' | 'discharging' | 'unknown';
 
-const validModes = ['automatic', 'manual', 'trading'] as const;
+const validVenusWorkingModes = ['automatic', 'manual', 'trading'] as const;
 /**
  * Venus device working mode types
  */
-export type VenusWorkingMode = (typeof validModes)[number];
+export type VenusWorkingMode = (typeof validVenusWorkingModes)[number];
 
 export function isValidVenusWorkingMode(mode: string): mode is VenusWorkingMode {
-  return validModes.includes(mode as VenusWorkingMode);
+  return validVenusWorkingModes.includes(mode as VenusWorkingMode);
 }
 
 /**
@@ -296,11 +296,11 @@ export type VenusRechargeMode = 'singlePhase' | 'threePhase';
 
 export type WeekdaySet = `${0 | ''}${1 | ''}${2 | ''}${3 | ''}${4 | ''}${5 | ''}${6 | ''}`;
 
-const validVersionSets = ['800W', '2500W'] as const;
-export type VenusVersionSet = (typeof validVersionSets)[number];
+const venusValidVersionSets = ['800W', '2500W'] as const;
+export type VenusVersionSet = (typeof venusValidVersionSets)[number];
 
 export function isValidVenusVersionSet(set: string): set is VenusVersionSet {
-  return validVersionSets.includes(set as VenusVersionSet);
+  return venusValidVersionSets.includes(set as VenusVersionSet);
 }
 
 /**
@@ -398,5 +398,80 @@ export interface VenusBMSInfo extends BaseDeviceData {
     totalRuntime?: number;
     energyThroughput?: number;
     mosfetTemp?: number;
+  };
+}
+
+export interface JupiterTimePeriod {
+  startTime: string;
+  endTime: string;
+  weekday: string;
+  power: number;
+  enabled: boolean;
+}
+
+export type JupiterBatteryWorkingStatus = 'keep' | 'charging' | 'discharging' | 'unknown';
+
+const validJupiterWorkingModes = ['automatic', 'manual'] as const;
+export type JupiterWorkingMode = (typeof validJupiterWorkingModes)[number];
+
+export function isValidJupiterWorkingMode(mode: string): mode is JupiterWorkingMode {
+  return validJupiterWorkingModes.includes(mode as JupiterWorkingMode);
+}
+
+export interface JupiterDeviceData extends BaseDeviceData {
+  dailyChargingCapacity?: number; // ele_d
+  monthlyChargingCapacity?: number; // ele_m
+  yearlyChargingCapacity?: number; // ele_y
+  pv1Power?: number; // pv1_p
+  pv2Power?: number; // pv2_p
+  pv3Power?: number; // pv3_p
+  pv4Power?: number; // pv4_p
+  dailyDischargeCapacity?: number; // grd_d
+  monthlyDischargeCapacity?: number; // grd_m
+  combinedPower?: number; // grd_o
+  workingStatus?: number; // grd_t
+  ctStatus?: number; // gct_s
+  batteryWorkingStatus?: JupiterBatteryWorkingStatus; // cel_s
+  batteryEnergy?: number; // cel_p
+  batterySoc?: number; // cel_c
+  errorCode?: number; // err_t
+  workingMode?: JupiterWorkingMode; // wor_m
+  autoSwitchWorkingMode?: number; // cts_m
+  httpServerType?: number; // htt_p
+  wifiSignalStrength?: number; // wif_s
+  ctType?: number; // ct_t
+  phaseType?: number; // phase_t
+  rechargeMode?: number; // dchrg
+  wifiName?: string; // ssid
+  deviceVersion?: number; // dev_n
+  timePeriods?: JupiterTimePeriod[];
+  surplusFeedInEnabled?: boolean; // ful_d
+  alarmCode?: number; // ala_c
+}
+
+export interface JupiterBMSInfo extends BaseDeviceData {
+  cells?: {
+    voltages?: number[]; // vol0-vol15
+    temperatures?: number[]; // b_temp0-b_temp3
+  };
+  bms?: {
+    soc?: number; // soc
+    soh?: number; // soh
+    capacity?: number; // b_cap
+    voltage?: number; // b_vol
+    current?: number; // b_cur
+    temperature?: number; // b_temp
+    chargeVoltage?: number; // c_vol
+    chargeCurrent?: number; // c_cur
+    dischargeCurrent?: number; // d_cur
+    error?: number; // b_err
+    warning?: number; // b_war
+    error2?: number; // b_err2
+    warning2?: number; // b_war2
+    cellFlag?: number; // c_flag
+    statusFlag?: number; // s_flag
+    bmsNumber?: number; // b_num
+    mosfetTemp?: number; // mos_t
+    envTemp?: number; // env_t
   };
 }

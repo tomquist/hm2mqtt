@@ -188,7 +188,7 @@ export function registerDeviceDefinition(
 export function getDeviceDefinition(
   deviceType: string,
 ): DeviceDefinition<BaseDeviceData> | undefined {
-  const regex = /(.*)-\d+/;
+  const regex = /(.*)-[\d\w]+/;
   const match = regex.exec(deviceType);
   if (match == null) {
     return;
