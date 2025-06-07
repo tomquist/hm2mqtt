@@ -32,24 +32,41 @@ export class MqttProxy {
   private mainBrokerClient: mqtt.MqttClient;
   private isRunning: boolean = false;
   private connectedClients: Set<string> = new Set();
+  private usedClientIds: Set<string> = new Set();
 
   constructor(
     private config: MqttProxyConfig,
     private deviceManager: DeviceManager,
   ) {
     this.aedesServer = new Aedes({
-      // Handle client ID conflicts by appending unique suffix
+      // Handle client ID conflicts by ensuring unique client IDs
       preConnect: (client, packet, callback) => {
         const originalClientId = packet.clientId || '';
 
-        // If auto-resolve is enabled and this is a B2500 device with the problematic client ID
-        if (this.config.autoResolveClientIdConflicts !== false && originalClientId === 'mst_') {
+        // If auto-resolve is enabled and the client ID is already in use
+        if (this.config.autoResolveClientIdConflicts !== false && this.usedClientIds.has(originalClientId)) {
           // Generate unique client ID by appending timestamp and random suffix
-          const uniqueId = `${originalClientId}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+          let uniqueId: string;
+          let attempts = 0;
+          const maxAttempts = 10;
+          
+          do {
+            uniqueId = `${originalClientId}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+            attempts++;
+          } while (this.usedClientIds.has(uniqueId) && attempts < maxAttempts);
+          
+          if (attempts >= maxAttempts) {
+            console.error(`MQTT Proxy: Failed to generate unique client ID after ${maxAttempts} attempts for '${originalClientId}'`);
+            callback(new Error('Unable to generate unique client ID'), false);
+            return;
+          }
+          
           packet.clientId = uniqueId;
-          console.log(`MQTT Proxy: Modified client ID from '${originalClientId}' to '${uniqueId}'`);
+          console.log(`MQTT Proxy: Modified client ID from '${originalClientId}' to '${uniqueId}' (conflict resolution)`);
         }
 
+        // Add the client ID to our tracking set
+        this.usedClientIds.add(packet.clientId);
         callback(null, true);
       },
     });
@@ -168,6 +185,8 @@ export class MqttProxy {
     this.aedesServer.on('clientDisconnect', client => {
       console.log(`Client ${client.id} disconnected from MQTT proxy`);
       this.connectedClients.delete(client.id);
+      // Remove the client ID from our tracking set when client disconnects
+      this.usedClientIds.delete(client.id);
     });
 
     this.aedesServer.on('publish', (packet, client) => {
