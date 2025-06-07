@@ -165,6 +165,7 @@ export function registerBaseMessage({
       name: 'Input 1 Power',
       device_class: 'power',
       unit_of_measurement: 'W',
+      state_class: 'measurement',
     }),
   );
   field({
@@ -178,6 +179,7 @@ export function registerBaseMessage({
       name: 'Input 2 Power',
       device_class: 'power',
       unit_of_measurement: 'W',
+      state_class: 'measurement',
     }),
   );
   field({
@@ -194,6 +196,7 @@ export function registerBaseMessage({
       name: 'Total Input Power',
       device_class: 'power',
       unit_of_measurement: 'W',
+      state_class: 'measurement',
     }),
   );
 
@@ -230,6 +233,7 @@ export function registerBaseMessage({
         name: `Output ${outputNumber} Power`,
         device_class: 'power',
         unit_of_measurement: 'W',
+        state_class: 'measurement',
       }),
     );
   }
@@ -248,6 +252,7 @@ export function registerBaseMessage({
       name: 'Total Output Power',
       device_class: 'power',
       unit_of_measurement: 'W',
+      state_class: 'measurement',
     }),
   );
 
