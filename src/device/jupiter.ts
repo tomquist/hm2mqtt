@@ -85,7 +85,7 @@ function isJupiterBmsInfoMessage(values: Record<string, string>): boolean {
 
 registerDeviceDefinition(
   {
-    deviceTypes: ['HMN'],
+    deviceTypes: ['HMN', 'JPLS'],
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
