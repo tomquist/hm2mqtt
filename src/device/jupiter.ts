@@ -700,14 +700,14 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       command(`time-period/${i}/power`, {
         handler: ({ updateDeviceState, message, publishCallback }) => {
           const power = parseInt(message, 10);
-          if (isNaN(power) || power < 0) {
-            console.error('Invalid power value:', message);
+          if (isNaN(power) || power < 0 || power > 800) {
+            console.error('Invalid power value (should be 0-800):', message);
             return;
           }
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              console.error(`Time period ${i} not found in device state`);
+              console.error(`Time period ${periodIndex} not found in device state`);
               return;
             }
 
