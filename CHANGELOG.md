@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Next]
+
+- Add support for Marstek Jupiter and Jupiter Plus (JPLS-8H) devices
+
 ## [1.3.4] - 2025-05-27
 
 - Add optional MQTT proxy server to workaround a bug in the B2500 firmware 226.5 or 108.7 which disconnects other devices when connecting multiple devices simultaneously. See [this issue](https://github.com/tomquist/hm2mqtt/issues/41) and read the [README](https://github.com/tomquist/hm2mqtt) for more information.
