@@ -5,9 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Next]
+## [1.4.0] - 2025-06-07
 
-- Add support for Marstek Jupiter and Jupiter Plus (JPLS-8H) devices
+### Added
+
+- Add support for Marstek Jupiter and Jupiter Plus (JPLS-8H) devices (#38)
+
+### Fixed
+
+- Venus: Fix version set and discharge power commands (#67, related to #60)
+- Fix time period weekday bug when changing power settings via MQTT - weekdays would change unexpectedly when modifying power, start/end times, or enabled status (#65, fixes #61)
+- MQTT proxy: Prevent all client ID conflicts (not just 'mst_' prefixed ones) to resolve connection issues with multiple devices (#64)
+
+### Changed
+
+- Add `state_class: 'measurement'` to power sensors for Home Assistant statistics and Energy Dashboard support (#66, fixes #62)
+- MQTT proxy: Improved conflict resolution with retry logic and proper cleanup when clients disconnect (#64)
 
 ## [1.3.4] - 2025-05-27
 
