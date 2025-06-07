@@ -855,7 +855,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
             params.bt = period.startTime;
             params.et = period.endTime;
-            params.wk = period.weekday;
+            params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = enabled ? 1 : 0;
 
@@ -894,7 +894,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
             params.bt = period.startTime;
             params.et = period.endTime;
-            params.wk = period.weekday;
+            params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
 
@@ -933,7 +933,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
             params.bt = period.startTime;
             params.et = period.endTime;
-            params.wk = period.weekday;
+            params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
 
@@ -970,7 +970,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
             params.bt = period.startTime;
             params.et = period.endTime;
-            params.wk = period.weekday;
+            params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
 
