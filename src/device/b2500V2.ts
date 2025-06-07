@@ -406,6 +406,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'CT Automatic Power Size',
         device_class: 'power',
         unit_of_measurement: 'W',
+        state_class: 'measurement',
       }),
     );
     field({
@@ -419,6 +420,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'CT Transmitted Power',
         device_class: 'power',
         unit_of_measurement: 'W',
+        state_class: 'measurement',
       }),
     );
     field({
@@ -529,6 +531,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'CT Clip Power 1',
         device_class: 'power',
         unit_of_measurement: 'W',
+        state_class: 'measurement',
       }),
     );
     field({
@@ -542,6 +545,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'CT Clip Power 2',
         device_class: 'power',
         unit_of_measurement: 'W',
+        state_class: 'measurement',
       }),
     );
     field({
@@ -555,6 +559,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'CT Clip Power 3',
         device_class: 'power',
         unit_of_measurement: 'W',
+        state_class: 'measurement',
       }),
     );
     field({
@@ -568,6 +573,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Micro Inverter Power',
         device_class: 'power',
         unit_of_measurement: 'W',
+        state_class: 'measurement',
       }),
     );
 
@@ -583,6 +589,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Rated Output Power',
         device_class: 'power',
         unit_of_measurement: 'W',
+        state_class: 'measurement',
       }),
     );
     field({
@@ -596,6 +603,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Rated Input Power',
         device_class: 'power',
         unit_of_measurement: 'W',
+        state_class: 'measurement',
       }),
     );
     field({

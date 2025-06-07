@@ -365,6 +365,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Combined Power',
         device_class: 'power',
         unit_of_measurement: 'W',
+        state_class: 'measurement',
       }),
     );
 
