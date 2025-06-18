@@ -41,7 +41,7 @@ export function generateDiscoveryConfigs(
   const availabilityConfig = {
     availability: [
       {
-        topic: 'hame_energy/availability',
+        topic: 'hm2mqtt/availability',
         payload_available: 'online',
         payload_not_available: 'offline',
       },
