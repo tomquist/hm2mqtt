@@ -61,7 +61,7 @@ docker run -d --name hm2mqtt \
   --restart=unless-stopped \
   ghcr.io/tomquist/hm2mqtt:latest
 ```
-**your-device-mac** has to be formatted like this: 001a2b3c4d5e  (no colon and all lowercase). It's the one mentiond before!
+**your-device-mac** has to be formatted like this: 001a2b3c4d5e  (no colon and all lowercase). It's the one mentioned before!
 
 Configure multiple devices by adding more environment variables:
 
