@@ -107,17 +107,32 @@ describe('Home Assistant Discovery', () => {
       }),
     };
 
+    const deviceType = 'HMA-1';
+    const deviceId = 'test123';
+    const deviceTopicOld = 'hame_energy/HMA-1/device/test123/ctrl';
+    const deviceTopicNew = 'marstek_energy/HMA-1/device/test123/ctrl';
+    const publishTopic = 'hame_energy/HMA-1/device/test123/data';
+    const deviceControlTopicOld = 'hame_energy/HMA-1/App/test123/ctrl';
+    const deviceControlTopicNew = 'marstek_energy/HMA-1/App/test123/ctrl';
+    const controlSubscriptionTopic = 'hame_energy/HMA-1/control/test123/control';
+    const availabilityTopic = 'hame_energy/HMA-1/availability/test123';
+
+    const device: Device = { deviceType, deviceId };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld,
+      deviceTopicNew,
+      deviceControlTopicOld,
+      deviceControlTopicNew,
+      availabilityTopic,
+      controlSubscriptionTopic,
+      publishTopic,
+    };
+
     // Import the function
     const { publishDiscoveryConfigs } = require('./generateDiscoveryConfigs');
 
     // Call the function with the mock client
-    publishDiscoveryConfigs(
-      mockClient,
-      { deviceType: 'HMA-1', deviceId: 'test123' },
-      'hame_energy/HMA-1/device/test123/data',
-      'hame_energy/HMA-1/App/test123/control',
-      'hame_energy/HMA-1/availability/test123',
-    );
+    publishDiscoveryConfigs(mockClient, device, deviceTopics, {});
 
     // Check that publish was called
     expect(mockClient.publish).toHaveBeenCalled();
@@ -130,12 +145,6 @@ describe('Home Assistant Discovery', () => {
     };
 
     // Call with error client
-    publishDiscoveryConfigs(
-      mockClientWithError,
-      'HMA-1',
-      'test123',
-      'hame_energy/HMA-1/device/test123/data',
-      'hame_energy/HMA-1/App/test123/control',
-    );
+    publishDiscoveryConfigs(mockClientWithError, device, deviceTopics, {});
   });
 });
