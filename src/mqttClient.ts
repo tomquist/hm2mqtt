@@ -35,7 +35,7 @@ export class MqttClient {
       connectTimeout: 30000, // 30 seconds timeout
       // Set up last will message for availability
       will: {
-        topic: `hm2mqtt/availability`,
+        topic: `${this.config.topicPrefix}/availability`,
         payload: 'offline',
         qos: 1 as const,
         retain: true,
@@ -67,7 +67,7 @@ export class MqttClient {
     console.log('Connected to MQTT broker');
 
     // Publish global availability status
-    this.publish(`hm2mqtt/availability`, 'online', {
+    this.publish(`${this.config.topicPrefix}/availability`, 'online', {
       qos: 1,
       retain: true,
     });
@@ -197,7 +197,13 @@ export class MqttClient {
 
     if (topics) {
       let additionalDeviceInfo = this.getAdditionalDeviceInfo(device);
-      publishDiscoveryConfigs(this.client, device, topics, additionalDeviceInfo);
+      publishDiscoveryConfigs(
+        this.client,
+        device,
+        topics,
+        additionalDeviceInfo,
+        this.config.topicPrefix,
+      );
     }
   }
 
@@ -329,7 +335,12 @@ export class MqttClient {
     });
 
     // Publish global offline status
-    publishPromises.push(this.publish(`hm2mqtt/availability`, 'offline', { qos: 1, retain: true }));
+    publishPromises.push(
+      this.publish(`${this.config.topicPrefix}/availability`, 'offline', {
+        qos: 1,
+        retain: true,
+      }),
+    );
 
     // Wait for all publish operations to complete (with timeout)
     try {

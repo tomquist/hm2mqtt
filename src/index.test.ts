@@ -1,3 +1,5 @@
+import { DEFAULT_TOPIC_PREFIX } from './constants';
+
 beforeAll(() => {
   jest.clearAllMocks();
 });
@@ -70,6 +72,7 @@ jest.mock('dotenv', () => ({
     process.env.MQTT_PASSWORD = 'testpass';
     process.env.DEVICE_1 = 'HMA-1:testdevice';
     process.env.MQTT_POLLING_INTERVAL = '5000';
+    process.env.MQTT_TOPIC_PREFIX = DEFAULT_TOPIC_PREFIX;
   }),
 }));
 
@@ -85,6 +88,7 @@ describe('MQTT Client', () => {
     process.env.MQTT_PASSWORD = 'testpass';
     process.env.DEVICE_1 = 'HMA-1:testdevice';
     process.env.MQTT_POLLING_INTERVAL = '5000';
+    process.env.MQTT_TOPIC_PREFIX = DEFAULT_TOPIC_PREFIX;
   });
 
   test('should initialize MQTT client with correct options', () => {
@@ -142,8 +146,9 @@ describe('MQTT Client', () => {
     mockClient.triggerEvent('message', deviceTopic, message);
 
     // Check that the parsed data was published
+    const prefix = process.env.MQTT_TOPIC_PREFIX || DEFAULT_TOPIC_PREFIX;
     expect(mockClient.publish).toHaveBeenCalledWith(
-      expect.stringContaining('hm2mqtt/HMA-1/device/testdevice/data'),
+      expect.stringContaining(`${prefix}/HMA-1/device/testdevice/data`),
       expect.any(String),
       expect.any(Object),
       expect.any(Function),
@@ -176,7 +181,8 @@ describe('MQTT Client', () => {
     mockClient.publish.mockClear();
 
     // Trigger a message event with a control topic message
-    const controlTopic = 'hm2mqtt/HMA-1/control/testdevice/charging-mode';
+    const prefix = process.env.MQTT_TOPIC_PREFIX || DEFAULT_TOPIC_PREFIX;
+    const controlTopic = `${prefix}/HMA-1/control/testdevice/charging-mode`;
     mockClient.triggerEvent('message', controlTopic, Buffer.from('chargeDischargeSimultaneously'));
 
     // Check that the command was published to the control topic
@@ -223,7 +229,8 @@ describe('MQTT Client', () => {
     );
 
     // Trigger a message event with a time period setting
-    const controlTopic = 'hm2mqtt/HMA-1/control/testdevice/time-period/1/enabled';
+    const prefix = process.env.MQTT_TOPIC_PREFIX || DEFAULT_TOPIC_PREFIX;
+    const controlTopic = `${prefix}/HMA-1/control/testdevice/time-period/1/enabled`;
     mockClient.triggerEvent('message', controlTopic, Buffer.from('true'));
 
     // Check that the command was published to the control topic with the expected parameters

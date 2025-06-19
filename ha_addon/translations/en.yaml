@@ -17,6 +17,9 @@ configuration:
   allowedConsecutiveTimeouts:
     name: Allowed Consecutive Timeouts
     description: "Number of consecutive timeouts before a device is marked offline (default: 3)"
+  topicPrefix:
+    name: MQTT Topic Prefix
+    description: "Base MQTT topic prefix for published data (default: hm2mqtt)"
   mqttProxyEnabled:
     name: Enable MQTT Proxy
     description: "Enable MQTT proxy server to resolve B2500 client ID conflicts (default: false)"

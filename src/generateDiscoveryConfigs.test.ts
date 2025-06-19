@@ -2,6 +2,7 @@ import { generateDiscoveryConfigs } from './generateDiscoveryConfigs';
 import { Device } from './types';
 import { DeviceTopics } from './deviceManager';
 import { AdditionalDeviceInfo } from './deviceDefinition';
+import { DEFAULT_TOPIC_PREFIX } from './constants';
 
 describe('Home Assistant Discovery', () => {
   test('should generate discovery configs for a device', () => {
@@ -27,7 +28,12 @@ describe('Home Assistant Discovery', () => {
       publishTopic,
     };
     let additionalDeviceInfo: AdditionalDeviceInfo = {};
-    const configs = generateDiscoveryConfigs(device, deviceTopics, additionalDeviceInfo);
+    const configs = generateDiscoveryConfigs(
+      device,
+      deviceTopics,
+      additionalDeviceInfo,
+      DEFAULT_TOPIC_PREFIX,
+    );
 
     // Check that we have configs
     expect(configs.length).toBeGreaterThan(0);
@@ -132,7 +138,7 @@ describe('Home Assistant Discovery', () => {
     const { publishDiscoveryConfigs } = require('./generateDiscoveryConfigs');
 
     // Call the function with the mock client
-    publishDiscoveryConfigs(mockClient, device, deviceTopics, {});
+    publishDiscoveryConfigs(mockClient, device, deviceTopics, {}, DEFAULT_TOPIC_PREFIX);
 
     // Check that publish was called
     expect(mockClient.publish).toHaveBeenCalled();
@@ -145,6 +151,6 @@ describe('Home Assistant Discovery', () => {
     };
 
     // Call with error client
-    publishDiscoveryConfigs(mockClientWithError, device, deviceTopics, {});
+    publishDiscoveryConfigs(mockClientWithError, device, deviceTopics, {}, DEFAULT_TOPIC_PREFIX);
   });
 });

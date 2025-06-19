@@ -3,6 +3,7 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 import { Device, MqttConfig } from './types';
+import { DEFAULT_TOPIC_PREFIX } from './constants';
 import { DeviceManager, DeviceStateData } from './deviceManager';
 import { MqttClient } from './mqttClient';
 import { ControlHandler } from './controlHandler';
@@ -118,6 +119,7 @@ function createMqttConfig(devices: Device[]): MqttConfig {
     clientId: process.env.MQTT_CLIENT_ID || `hm2mqtt-${Math.random().toString(16).slice(2, 8)}`,
     username: process.env.MQTT_USERNAME || undefined,
     password: process.env.MQTT_PASSWORD || undefined,
+    topicPrefix: process.env.MQTT_TOPIC_PREFIX || DEFAULT_TOPIC_PREFIX,
     devices,
     responseTimeout: parseInt(process.env.MQTT_RESPONSE_TIMEOUT || '15', 10) * 1000,
     allowedConsecutiveTimeouts: parseInt(process.env.MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS || '3', 10),
