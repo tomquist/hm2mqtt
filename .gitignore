@@ -17,4 +17,6 @@ npm-debug.log*
 # OS specific files
 .DS_Store
 coverage/
+.nyc_output/
+reports/
 .env
