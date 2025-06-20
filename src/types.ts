@@ -454,6 +454,12 @@ export interface JupiterDeviceData extends BaseDeviceData {
   alarmCode?: number; // ala_c
 }
 
+export interface JupiterMPPTPVInfo {
+  voltage?: number;
+  current?: number;
+  power?: number;
+}
+
 export interface JupiterBMSInfo extends BaseDeviceData {
   cells?: {
     voltages?: number[]; // vol0-vol15
@@ -478,5 +484,11 @@ export interface JupiterBMSInfo extends BaseDeviceData {
     bmsNumber?: number; // b_num
     mosfetTemp?: number; // mos_t
     envTemp?: number; // env_t
+  };
+  mppt?: {
+    temperature?: number; // m_temp
+    error?: number; // m_err
+    warning?: number; // m_war
+    pv?: JupiterMPPTPVInfo[]; // pv1-pv4
   };
 }

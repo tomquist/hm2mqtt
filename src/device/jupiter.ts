@@ -4,6 +4,7 @@ import {
   JupiterBatteryWorkingStatus,
   JupiterDeviceData,
   JupiterBMSInfo,
+  JupiterMPPTPVInfo,
   isValidJupiterWorkingMode,
   WeekdaySet,
   JupiterTimePeriod,
@@ -883,6 +884,48 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
           }),
         );
       }
+      // MPPT fields
+      const mpptFields = [
+        ['m_temp', { id: 'temperature', deviceClass: 'temperature', unitOfMeasurement: '°C', stateClass: 'measurement' }],
+        ['m_err', { id: 'error' }],
+        ['m_war', { id: 'warning' }],
+      ] as const;
+      for (const [key, info] of mpptFields) {
+        field({ key, path: ['mppt', info.id] });
+        advertise(
+          ['mppt', info.id],
+          sensorComponent<number>({
+            id: `mppt_${info.id}`,
+            name: `MPPT ${info.id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`,
+            unit_of_measurement: 'unitOfMeasurement' in info ? info.unitOfMeasurement : undefined,
+            device_class: 'deviceClass' in info ? info.deviceClass : undefined,
+            state_class: 'stateClass' in info ? info.stateClass : undefined,
+            enabled_by_default: false,
+          }),
+        );
+      }
+      // MPPT PV fields
+      const mpptPVFields = [
+        { id: 'voltage', deviceClass: 'voltage', unitOfMeasurement: 'V' },
+        { id: 'current', deviceClass: 'current', unitOfMeasurement: 'A' },
+        { id: 'power', deviceClass: 'power', unitOfMeasurement: 'W' },
+      ] as const
+      for (let i = 0; i < 4; ++i) {
+        for (const info of mpptPVFields) {
+          field({ key: `pv${i + 1}`, path: ['mppt', 'pv', i, info.id], transform: v => parseMPPTPVInfo(v)[info.id] });
+          advertise(
+            ['mppt', 'pv', i, info.id],
+            sensorComponent<number>({
+              id: `mppt_pv${i + 1}_${info.id}`,
+              name: `MPPT PV${i + 1} ${info.id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`,
+              unit_of_measurement: info.unitOfMeasurement,
+              device_class: info.deviceClass,
+              state_class: 'measurement',
+              enabled_by_default: false,
+            }),
+          )
+        }
+      }
     },
   );
 }
@@ -920,4 +963,21 @@ function bitMaskToWeekdaySet(weekdayBitMask: number): JupiterTimePeriod['weekday
 
 function weekdaySetToBitMask(weekday: JupiterTimePeriod['weekday']): number {
   return weekday.split('').reduce((mask, day) => mask | (1 << parseInt(day, 10)), 0);
+}
+
+function parseMPPTPVInfo(value: string): JupiterMPPTPVInfo {
+  const parts = value.split('|');
+  if (parts.length < 3) {
+    return {
+      voltage: 0,
+      current: 0,
+      power: 0,
+    }
+  }
+
+  return {
+    voltage: parseInt(parts[0]) / 10,
+    current: parseInt(parts[1]) / 10,
+    power: parseInt(parts[2]) / 10,
+  }
 }
