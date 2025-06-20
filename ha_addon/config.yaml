@@ -24,6 +24,7 @@ options:
   enableCalibrationData: false
   enableExtraBatteryData: false
   allowedConsecutiveTimeouts: 3
+  topicPrefix: hm2mqtt
   mqttProxyEnabled: false
   devices:
     - deviceType: "HMA-1"
@@ -36,6 +37,7 @@ schema:
   enableCalibrationData: bool
   enableExtraBatteryData: bool
   allowedConsecutiveTimeouts: int?
+  topicPrefix: str?
   debug: bool?
   mqttProxyEnabled: bool?
   devices:

@@ -53,14 +53,15 @@ export class DeviceManager {
       let deviceId = device.deviceId;
       let deviceIdNew = calculateNewVersionTopicId(deviceId);
 
+      const prefix = this.config.topicPrefix;
       this.deviceTopics[deviceKey] = {
         deviceTopicOld: `hame_energy/${device.deviceType}/device/${deviceId}/ctrl`,
         deviceTopicNew: `marstek_energy/${device.deviceType}/device/${deviceIdNew}/ctrl`,
         deviceControlTopicOld: `hame_energy/${device.deviceType}/App/${deviceId}/ctrl`,
         deviceControlTopicNew: `marstek_energy/${device.deviceType}/App/${deviceIdNew}/ctrl`,
-        publishTopic: `hm2mqtt/${device.deviceType}/device/${device.deviceId}`,
-        controlSubscriptionTopic: `hm2mqtt/${device.deviceType}/control/${device.deviceId}`,
-        availabilityTopic: `hm2mqtt/${device.deviceType}/availability/${device.deviceId}`,
+        publishTopic: `${prefix}/${device.deviceType}/device/${device.deviceId}`,
+        controlSubscriptionTopic: `${prefix}/${device.deviceType}/control/${device.deviceId}`,
+        availabilityTopic: `${prefix}/${device.deviceType}/availability/${device.deviceId}`,
       };
 
       // Initialize response timeout tracker

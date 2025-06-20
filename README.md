@@ -171,6 +171,7 @@ services:
 |----------|-------------|-------------------------|
 | `MQTT_BROKER_URL` | MQTT broker URL | `mqtt://localhost:1883` |
 | `MQTT_CLIENT_ID` | MQTT client ID | `hm2mqtt-{random}`      |
+| `MQTT_TOPIC_PREFIX` | Base MQTT topic prefix for published data | `hm2mqtt` |
 | `MQTT_USERNAME` | MQTT username | -                       |
 | `MQTT_PASSWORD` | MQTT password | -                       |
 | `MQTT_POLLING_INTERVAL` | Interval between device polls in seconds | `60`                 |
@@ -189,6 +190,7 @@ services:
 pollingInterval: 60  # Interval between device polls in seconds
 responseTimeout: 30  # Timeout for device responses in seconds
 allowedConsecutiveTimeouts: 3  # Number of consecutive timeouts before a device is marked offline
+topicPrefix: hm2mqtt  # Base MQTT topic prefix for published data
 devices:
   - deviceType: "HMA-1"
     deviceId: "your-device-mac"
@@ -268,6 +270,7 @@ DEVICE_2=HMB-1:device3mac
 
 ```yaml
 mqttProxyEnabled: true
+topicPrefix: hm2mqtt
 devices:
   - deviceType: "HMA-1"
     deviceId: "device1-mac"
@@ -345,7 +348,7 @@ docker run -e MQTT_BROKER_URL=mqtt://your-broker:1883 -e DEVICE_0=HMA-1:your-dev
 
 ### Device Data Topic
 
-Your device data is published to the following MQTT topic:
+Your device data is published to the following MQTT topic (prefix configurable via `MQTT_TOPIC_PREFIX`):
 
 ```
 hm2mqtt/{device_type}/device/{device_mac}/data
@@ -355,7 +358,7 @@ This topic contains the current state of your device in JSON format, including b
 
 ### Control Topics
 
-You can control your device by publishing messages to specific MQTT topics. The base topic pattern for commands is:
+You can control your device by publishing messages to specific MQTT topics. The base topic pattern for commands is (using the same prefix):
 
 ```
 hm2mqtt/{device_type}/control/{device_mac}/{command}

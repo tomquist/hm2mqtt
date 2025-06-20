@@ -19,6 +19,7 @@ export function generateDiscoveryConfigs(
   device: Device,
   topics: DeviceTopics,
   additionalDeviceInfo: AdditionalDeviceInfo,
+  topicPrefix: string,
 ): Array<{ topic: string; config: HaDiscoveryConfig }> {
   const deviceDefinition = getDeviceDefinition(device.deviceType);
   const configs: Array<{ topic: string; config: any }> = [];
@@ -41,7 +42,7 @@ export function generateDiscoveryConfigs(
   const availabilityConfig = {
     availability: [
       {
-        topic: 'hm2mqtt/availability',
+        topic: `${topicPrefix}/availability`,
         payload_available: 'online',
         payload_not_available: 'offline',
       },
@@ -93,8 +94,9 @@ export function publishDiscoveryConfigs(
   device: Device,
   deviceTopics: DeviceTopics,
   additionalDeviceInfo: AdditionalDeviceInfo,
+  topicPrefix: string,
 ): void {
-  const configs = generateDiscoveryConfigs(device, deviceTopics, additionalDeviceInfo);
+  const configs = generateDiscoveryConfigs(device, deviceTopics, additionalDeviceInfo, topicPrefix);
 
   configs.forEach(({ topic, config }) => {
     let message = JSON.stringify(config);

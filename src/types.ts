@@ -223,6 +223,11 @@ export interface MqttConfig {
   username?: string;
   password?: string;
   devices: Device[];
+  /**
+   * Base MQTT topic prefix used for publishing and subscribing to hm2mqtt
+   * specific topics (default: 'hm2mqtt')
+   */
+  topicPrefix: string;
   useFlashCommands?: boolean;
   responseTimeout?: number; // Timeout for device responses in milliseconds
   /**

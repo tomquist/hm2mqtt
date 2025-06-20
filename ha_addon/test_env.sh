@@ -75,6 +75,7 @@ run_test "Basic configuration (firmware < 226)" \
         ]
     }' \
     "MQTT_BROKER_URL=mqtt://test:1883
+MQTT_TOPIC_PREFIX=hm2mqtt
 DEVICE_0=HMA-1:001a2b3c4d5e"
 
 # Test 2: Configuration with firmware >= 226
@@ -89,6 +90,7 @@ run_test "Configuration with firmware >= 226" \
         ]
     }' \
     "MQTT_BROKER_URL=mqtt://test:1883
+MQTT_TOPIC_PREFIX=hm2mqtt
 DEVICE_0=HMA-1:1234567890abcdef1234567890abcdef"
 
 # Test 3: Multiple devices with different firmware versions
@@ -107,6 +109,7 @@ run_test "Multiple devices with different firmware versions" \
         ]
     }' \
     "MQTT_BROKER_URL=mqtt://test:1883
+MQTT_TOPIC_PREFIX=hm2mqtt
 DEVICE_0=HMA-1:001a2b3c4d5e
 DEVICE_1=HMA-1:1234567890abcdef1234567890abcdef"
 
@@ -119,6 +122,7 @@ run_test "Additional configuration options" \
         "enableCellData": true,
         "enableCalibrationData": true,
         "enableExtraBatteryData": true,
+        "topicPrefix": "custom",
         "devices": [
             {
                 "deviceType": "HMA-1",
@@ -127,6 +131,7 @@ run_test "Additional configuration options" \
         ]
     }' \
     "MQTT_BROKER_URL=mqtt://test:1883
+MQTT_TOPIC_PREFIX=custom
 MQTT_POLLING_INTERVAL=30
 MQTT_RESPONSE_TIMEOUT=15
 POLL_CELL_DATA=true

@@ -7,6 +7,7 @@ import {
   B2500BaseDeviceData,
   B2500V1DeviceData,
 } from './types';
+import { DEFAULT_TOPIC_PREFIX } from './constants';
 
 describe('ControlHandler', () => {
   let controlHandler: ControlHandler;
@@ -33,6 +34,7 @@ describe('ControlHandler', () => {
     const config: MqttConfig = {
       brokerUrl: 'mqtt://test.mosquitto.org',
       clientId: 'test-client',
+      topicPrefix: DEFAULT_TOPIC_PREFIX,
       devices: [testDeviceV1, testDeviceV2],
       responseTimeout: 15000,
     };
