@@ -335,7 +335,6 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Total Income',
         device_class: 'monetary',
         unit_of_measurement: '€',
-        state_class: 'total_increasing',
       }),
     );
 
