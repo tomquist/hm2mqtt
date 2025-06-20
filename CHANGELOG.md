@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2025-06-20
+
+- Add configurable MQTT topic prefix in Home Assistant addon configuration (#78, fixes #72)
+- Correct state class from incorrect type to proper monetary sensor state class (#81, fixes #80)
+- Fix global availability topic to use correct path `hm2mqtt/availability` (#74)  
+
 ## [1.4.1] - 2025-06-07
 
 - Add support for Jupiter C
