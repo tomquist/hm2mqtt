@@ -4,6 +4,7 @@ import {
   JupiterBatteryWorkingStatus,
   JupiterDeviceData,
   JupiterBMSInfo,
+  JupiterMPPTPVInfo,
   isValidJupiterWorkingMode,
   WeekdaySet,
   JupiterTimePeriod,
@@ -284,7 +285,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       sensorComponent<number>({
         id: 'battery_energy',
         name: 'Battery Energy',
+        device_class: 'energy_storage',
         unit_of_measurement: 'kWh',
+        state_class: 'measurement',
       }),
     );
     field({ key: 'cel_c', path: ['batterySoc'] });
@@ -293,7 +296,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       sensorComponent<number>({
         id: 'battery_soc',
         name: 'Battery SOC',
+        device_class: 'battery',
         unit_of_measurement: '%',
+        state_class: 'measurement',
       }),
     );
     field({ key: 'err_t', path: ['errorCode'] });
@@ -347,12 +352,15 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'HTTP Server Type',
       }),
     );
-    field({ key: 'wif_s', path: ['wifiSignalStrength'] });
+    field({ key: 'wif_s', path: ['wifiSignalStrength'], transform: v => -parseInt(v) });
     advertise(
       ['wifiSignalStrength'],
       sensorComponent<number>({
         id: 'wifi_signal_strength',
         name: 'WiFi Signal Strength',
+        device_class: 'signal_strength',
+        unit_of_measurement: 'dBm',
+        state_class: 'measurement',
       }),
     );
     field({ key: 'ct_t', path: ['ctType'] });
@@ -836,18 +844,49 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             name: `Cell Temperature ${i + 1}`,
             unit_of_measurement: '°C',
             device_class: 'temperature',
+            state_class: 'measurement',
             enabled_by_default: false,
           }),
         );
       }
       // BMS fields
       const bmsFields = [
-        ['soc', { id: 'soc' }],
+        [
+          'soc',
+          { id: 'soc', deviceClass: 'battery', unitOfMeasurement: '%', stateClass: 'measurement' },
+        ],
         ['soh', { id: 'soh' }],
-        ['b_cap', { id: 'capacity' }],
-        ['b_vol', { id: 'voltage', deviceClass: 'voltage', unitOfMeasurement: 'mV' }],
-        ['b_cur', { id: 'current', deviceClass: 'current', unitOfMeasurement: 'mA' }],
-        ['b_temp', { id: 'temperature', deviceClass: 'temperature', unitOfMeasurement: '°C' }],
+        ['b_cap', { id: 'capacity', deviceClass: 'energy_storage', unitOfMeasurement: 'Wh' }],
+        [
+          'b_vol',
+          {
+            id: 'voltage',
+            deviceClass: 'voltage',
+            unitOfMeasurement: 'V',
+            stateClass: 'measurement',
+            transform: (v: string) => parseInt(v) / 100,
+          },
+        ],
+        [
+          'b_cur',
+          {
+            id: 'current',
+            deviceClass: 'current',
+            unitOfMeasurement: 'A',
+            stateClass: 'measurement',
+            transform: (v: string) => parseInt(v) / 10,
+          },
+        ],
+        [
+          'b_temp',
+          {
+            id: 'temperature',
+            deviceClass: 'temperature',
+            unitOfMeasurement: '°C',
+            stateClass: 'measurement',
+            transform: (v: string) => parseInt(v) / 10,
+          },
+        ],
         ['c_vol', { id: 'chargeVoltage', deviceClass: 'voltage', unitOfMeasurement: 'mV' }],
         ['c_cur', { id: 'chargeCurrent', deviceClass: 'current', unitOfMeasurement: 'mA' }],
         ['d_cur', { id: 'dischargeCurrent', deviceClass: 'current', unitOfMeasurement: 'mA' }],
@@ -858,11 +897,31 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
         ['c_flag', { id: 'cellFlag' }],
         ['s_flag', { id: 'statusFlag' }],
         ['b_num', { id: 'bmsNumber' }],
-        ['mos_t', { id: 'mosfetTemp', deviceClass: 'temperature', unitOfMeasurement: '°C' }],
-        ['env_t', { id: 'envTemp', deviceClass: 'temperature', unitOfMeasurement: '°C' }],
+        [
+          'mos_t',
+          {
+            id: 'mosfetTemp',
+            deviceClass: 'temperature',
+            unitOfMeasurement: '°C',
+            stateClass: 'measurement',
+          },
+        ],
+        [
+          'env_t',
+          {
+            id: 'envTemp',
+            deviceClass: 'temperature',
+            unitOfMeasurement: '°C',
+            stateClass: 'measurement',
+          },
+        ],
       ] as const;
       for (const [key, info] of bmsFields) {
-        field({ key, path: ['bms', info.id] });
+        field({
+          key,
+          path: ['bms', info.id],
+          transform: 'transform' in info ? info.transform : undefined,
+        });
         advertise(
           ['bms', info.id],
           sensorComponent<number>({
@@ -870,9 +929,64 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             name: `BMS ${info.id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`,
             unit_of_measurement: 'unitOfMeasurement' in info ? info.unitOfMeasurement : undefined,
             device_class: 'deviceClass' in info ? info.deviceClass : undefined,
+            state_class: 'stateClass' in info ? info.stateClass : undefined,
             enabled_by_default: false,
           }),
         );
+      }
+      // MPPT fields
+      const mpptFields = [
+        [
+          'm_temp',
+          {
+            id: 'temperature',
+            deviceClass: 'temperature',
+            unitOfMeasurement: '°C',
+            stateClass: 'measurement',
+          },
+        ],
+        ['m_err', { id: 'error' }],
+        ['m_war', { id: 'warning' }],
+      ] as const;
+      for (const [key, info] of mpptFields) {
+        field({ key, path: ['mppt', info.id] });
+        advertise(
+          ['mppt', info.id],
+          sensorComponent<number>({
+            id: `mppt_${info.id}`,
+            name: `MPPT ${info.id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`,
+            unit_of_measurement: 'unitOfMeasurement' in info ? info.unitOfMeasurement : undefined,
+            device_class: 'deviceClass' in info ? info.deviceClass : undefined,
+            state_class: 'stateClass' in info ? info.stateClass : undefined,
+            enabled_by_default: false,
+          }),
+        );
+      }
+      // MPPT PV fields
+      const mpptPVFields = [
+        { id: 'voltage', deviceClass: 'voltage', unitOfMeasurement: 'V' },
+        { id: 'current', deviceClass: 'current', unitOfMeasurement: 'A' },
+        { id: 'power', deviceClass: 'power', unitOfMeasurement: 'W' },
+      ] as const;
+      for (let i = 0; i < 4; ++i) {
+        for (const info of mpptPVFields) {
+          field({
+            key: `pv${i + 1}`,
+            path: ['mppt', 'pv', i, info.id],
+            transform: v => parseMPPTPVInfo(v)[info.id],
+          });
+          advertise(
+            ['mppt', 'pv', i, info.id],
+            sensorComponent<number>({
+              id: `mppt_pv${i + 1}_${info.id}`,
+              name: `MPPT PV${i + 1} ${info.id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`,
+              unit_of_measurement: info.unitOfMeasurement,
+              device_class: info.deviceClass,
+              state_class: 'measurement',
+              enabled_by_default: false,
+            }),
+          );
+        }
       }
     },
   );
@@ -911,4 +1025,21 @@ function bitMaskToWeekdaySet(weekdayBitMask: number): JupiterTimePeriod['weekday
 
 function weekdaySetToBitMask(weekday: JupiterTimePeriod['weekday']): number {
   return weekday.split('').reduce((mask, day) => mask | (1 << parseInt(day, 10)), 0);
+}
+
+function parseMPPTPVInfo(value: string): JupiterMPPTPVInfo {
+  const parts = value.split('|');
+  if (parts.length < 3) {
+    return {
+      voltage: 0,
+      current: 0,
+      power: 0,
+    };
+  }
+
+  return {
+    voltage: parseInt(parts[0]) / 10,
+    current: parseInt(parts[1]) / 10,
+    power: parseInt(parts[2]) / 10,
+  };
 }
