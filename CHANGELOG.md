@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.3] - 2025-06-22
+
+- Jupiter: Add MPPT sensors for PV voltage, current, and power (#82)
+- Jupiter: Add MPPT temperature, error, and warning sensors (#82)
+- Jupiter: Fix BMS voltage, current, and temperature sensors by adding proper divisors (#82)
+- Jupiter: Fix WiFi signal strength sensor (reverse sign and add dBm unit) (#82)
+- Use `total_increasing` state class for Jupiter and Venus period energy sensors instead of `total` (#86, fixes #84)
+- Jupiter: Add missing device and state classes to various sensors (#82)
+
 ## [1.4.2] - 2025-06-20
 
 - Add configurable MQTT topic prefix in Home Assistant addon configuration (#78, fixes #72)
