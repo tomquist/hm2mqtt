@@ -126,7 +126,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Daily Charging Capacity',
         device_class: 'energy',
         unit_of_measurement: 'kWh',
-        state_class: 'total',
+        state_class: 'total_increasing',
       }),
     );
     field({ key: 'ele_m', path: ['monthlyChargingCapacity'], transform: v => parseFloat(v) / 100 });
@@ -137,7 +137,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Monthly Charging Capacity',
         device_class: 'energy',
         unit_of_measurement: 'kWh',
-        state_class: 'total',
+        state_class: 'total_increasing',
       }),
     );
     field({ key: 'ele_y', path: ['yearlyChargingCapacity'], transform: v => parseFloat(v) / 100 });
@@ -148,7 +148,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Yearly Charging Capacity',
         device_class: 'energy',
         unit_of_measurement: 'kWh',
-        state_class: 'total',
+        state_class: 'total_increasing',
       }),
     );
     field({ key: 'pv1_p', path: ['pv1Power'] });
@@ -203,7 +203,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Daily Discharge Capacity',
         device_class: 'energy',
         unit_of_measurement: 'kWh',
-        state_class: 'total',
+        state_class: 'total_increasing',
       }),
     );
     field({
@@ -218,7 +218,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Monthly Discharge Capacity',
         device_class: 'energy',
         unit_of_measurement: 'kWh',
-        state_class: 'total',
+        state_class: 'total_increasing',
       }),
     );
     field({ key: 'grd_o', path: ['combinedPower'] });
