@@ -238,7 +238,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Daily Charging Capacity',
         device_class: 'energy',
         unit_of_measurement: 'kWh',
-        state_class: 'total',
+        state_class: 'total_increasing',
       }),
     );
 
@@ -254,7 +254,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Monthly Charging Capacity',
         device_class: 'energy',
         unit_of_measurement: 'kWh',
-        state_class: 'total',
+        state_class: 'total_increasing',
       }),
     );
 
@@ -270,7 +270,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Daily Discharge Capacity',
         device_class: 'energy',
         unit_of_measurement: 'kWh',
-        state_class: 'total',
+        state_class: 'total_increasing',
       }),
     );
 
@@ -286,7 +286,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Monthly Discharge Capacity',
         device_class: 'energy',
         unit_of_measurement: 'kWh',
-        state_class: 'total',
+        state_class: 'total_increasing',
       }),
     );
 
