@@ -32,6 +32,10 @@ on:
       digest-prefix:
         required: true
         type: string
+      push:
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   build:
@@ -55,6 +59,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Log in to Container registry
+        if: ${{ inputs.push }}
         uses: docker/login-action@v3
         with:
           registry: ${{ inputs.registry }}
@@ -67,8 +72,8 @@ jobs:
           context: ${{ inputs.context }}
           platforms: ${{ inputs.platform }}
           file: ${{ inputs.dockerfile }}
-          push: true
-          outputs: type=image,name=${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          push: ${{ inputs.push }}
+          outputs: type=image,name=${{ inputs.registry }}/${{ steps.lower-repo.outputs.IMAGE_NAME }},push-by-digest=${{ inputs.push }},name-canonical=true,push=${{ inputs.push }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             ${{ inputs.build-args }}
@@ -77,16 +82,19 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Export digest
+        if: ${{ inputs.push }}
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
       - name: Set platform name
+        if: ${{ inputs.push }}
         id: platform
         run: |
           SAFE_PLATFORM=$(echo "${{ inputs.platform }}" | sed 's|/|-|g')
           echo "name=$SAFE_PLATFORM" >> $GITHUB_OUTPUT
       - name: Upload digest
+        if: ${{ inputs.push }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.digest-prefix }}${{ steps.platform.outputs.name }}
