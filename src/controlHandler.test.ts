@@ -1,3 +1,4 @@
+import logger from './logger';
 import { ControlHandler } from './controlHandler';
 import { DeviceManager, DeviceStateData } from './deviceManager';
 import {
@@ -268,11 +269,10 @@ describe('ControlHandler', () => {
         testDeviceV2,
         expect.stringContaining(`cd=8,wy=${expectedWy},yy=123,mm=0,rr=1,hh=12,mn=30,ss=45`),
       );
-
       // Restore Date
+      jest.useRealTimers();
       jest.restoreAllMocks();
     });
-
     test('should handle sync-time control topic with JSON', () => {
       // Call the method with a sync time JSON message
       const timeData = {
@@ -339,14 +339,14 @@ describe('ControlHandler', () => {
     });
 
     test('should handle invalid time period number', () => {
-      // Spy on console.warn
-      const consoleWarnSpy = jest.spyOn(console, 'warn');
+      // Spy on logger.warn
+      const loggerWarnSpy = jest.spyOn(logger, 'warn');
 
       // Call the method with an invalid time period number
       handleControlTopic(testDeviceV2, 'time-period/6/enabled', 'true');
 
-      // Check that console.warn was called
-      expect(consoleWarnSpy).toHaveBeenCalled();
+      // Check that logger.warn was called
+      expect(loggerWarnSpy).toHaveBeenCalled();
 
       // Check that the publish callback was not called
       expect(publishCallback).not.toHaveBeenCalled();

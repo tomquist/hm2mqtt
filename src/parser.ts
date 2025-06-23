@@ -7,6 +7,7 @@ import {
   TypeAtPath,
 } from './deviceDefinition';
 import { transformNumber } from './device/helpers';
+import logger from './logger';
 
 /**
  * Parse the incoming MQTT message and transform it into the required format
@@ -52,7 +53,7 @@ export function parseMessage(
 
     return result;
   } catch (error) {
-    console.error('Error parsing message:', error);
+    logger.error('Error parsing message:', error);
     throw new Error(
       `Failed to parse message: ${error instanceof Error ? error.message : String(error)}`,
     );
@@ -79,10 +80,10 @@ function applyMessageDefinition<T extends BaseDeviceData>(
         const transformedValue = field.transform(Object.fromEntries(entries));
         setValueAtPath(parsedData, field.path, transformedValue);
       } else {
-        console.warn(`Some values are missing for field ${field.path.join('.')}`);
+        logger.warn(`Some values are missing for field ${field.path.join('.')}`);
       }
     } else {
-      console.warn(`No transform function provided for field ${field.path.join('.')}`);
+      logger.warn(`No transform function provided for field ${field.path.join('.')}`);
     }
   }
 }
