@@ -388,7 +388,7 @@ hm2mqtt/{device_type}/control/{device_mac}/{command}
 - `time-period/[1-5]/output-value`: Sets output power for period (0-800W)
 - `connected-phase`: Sets connected phase for CT meter (`1`, `2`, or `3`)
 - `time-zone`: Sets time zone (UTC offset in hours)
-- `sync-time`: Synchronizes device time with server
+- `sync-time`: Synchronizes device time with server using the server's time zone
 - `surplus-feed-in`: Toggles Surplus Feed-in mode (`on` or `off`). When enabled, surplus PV power is fed into the home grid when the battery is nearly full.
 
 ### Venus Device Commands

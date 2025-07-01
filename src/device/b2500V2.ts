@@ -636,7 +636,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           if (message === 'PRESS' || message === 'press' || message === 'true' || message === '1') {
             const now = new Date();
             const timeData = {
-              wy: 480, // Default timezone offset
+              wy: -now.getTimezoneOffset(),
               yy: now.getFullYear() - 1900,
               mm: now.getMonth(),
               rr: now.getDate(),

@@ -263,9 +263,10 @@ describe('ControlHandler', () => {
       handleControlTopic(testDeviceV2, 'sync-time', 'PRESS');
 
       // Check that the publish callback was called with the correct payload
+      const expectedWy = -mockDate.getTimezoneOffset();
       expect(publishCallback).toHaveBeenCalledWith(
         testDeviceV2,
-        expect.stringContaining('cd=8,wy=480,yy=123,mm=0,rr=1,hh=12,mn=30,ss=45'),
+        expect.stringContaining(`cd=8,wy=${expectedWy},yy=123,mm=0,rr=1,hh=12,mn=30,ss=45`),
       );
 
       // Restore Date
