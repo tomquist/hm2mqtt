@@ -256,16 +256,17 @@ describe('ControlHandler', () => {
 
     test('should handle sync-time control topic with PRESS', () => {
       // Mock Date.now to return a consistent date for testing
-      const mockDate = new Date(2023, 0, 1, 12, 30, 45);
-      jest.spyOn(global, 'Date').mockImplementation(() => mockDate);
+      const mockDate = new Date(Date.UTC(2023, 0, 1, 12, 30, 45));
+      jest.spyOn(global, 'Date').mockImplementation(() => mockDate as any);
 
       // Call the method with a sync time message
       handleControlTopic(testDeviceV2, 'sync-time', 'PRESS');
 
       // Check that the publish callback was called with the correct payload
+      const expectedWy = -mockDate.getTimezoneOffset();
       expect(publishCallback).toHaveBeenCalledWith(
         testDeviceV2,
-        expect.stringContaining('cd=8,wy=480,yy=123,mm=0,rr=1,hh=12,mn=30,ss=45'),
+        expect.stringContaining(`cd=8,wy=${expectedWy},yy=123,mm=0,rr=1,hh=12,mn=30,ss=45`),
       );
 
       // Restore Date
