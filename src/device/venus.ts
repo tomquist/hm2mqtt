@@ -8,6 +8,7 @@ import {
   VenusTimePeriod,
   WeekdaySet,
 } from '../types';
+import logger from '../logger';
 import {
   buttonComponent,
   numberComponent,
@@ -729,7 +730,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     command('version-set', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
         if (!isValidVenusVersionSet(message)) {
-          console.error('Invalid version value:', message);
+          logger.error('Invalid version value:', message);
           return;
         }
 
@@ -839,7 +840,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              console.error(`Time period ${periodIndex} not found in device state`);
+              logger.error(`Time period ${periodIndex} not found in device state`);
               return;
             }
 
@@ -870,7 +871,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         handler: ({ updateDeviceState, message, publishCallback }) => {
           // Validate time format (HH:MM)
           if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
-            console.error('Invalid start time format (should be HH:MM):', message);
+            logger.error('Invalid start time format (should be HH:MM):', message);
             return;
           }
 
@@ -878,7 +879,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              console.error(`Time period ${periodIndex} not found in device state`);
+              logger.error(`Time period ${periodIndex} not found in device state`);
               return;
             }
 
@@ -909,7 +910,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         handler: ({ updateDeviceState, message, publishCallback }) => {
           // Validate time format (HH:MM)
           if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
-            console.error('Invalid end time format (should be HH:MM):', message);
+            logger.error('Invalid end time format (should be HH:MM):', message);
             return;
           }
 
@@ -917,7 +918,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              console.error(`Time period ${periodIndex} not found in device state`);
+              logger.error(`Time period ${periodIndex} not found in device state`);
               return;
             }
 
@@ -948,13 +949,13 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         handler: ({ updateDeviceState, message, publishCallback }) => {
           const power = parseInt(message, 10);
           if (isNaN(power)) {
-            console.error('Invalid power value:', message);
+            logger.error('Invalid power value:', message);
             return;
           }
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              console.error(`Time period ${periodIndex} not found in device state`);
+              logger.error(`Time period ${periodIndex} not found in device state`);
               return;
             }
 
@@ -984,7 +985,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       command(`time-period/${i}/weekday`, {
         handler: ({ updateDeviceState, message, publishCallback }) => {
           if (!/^[0-6]*$/.test(message)) {
-            console.error(
+            logger.error(
               'Invalid weekday value (should be a string only consisting of numbers 0-6):',
               message,
             );
@@ -994,7 +995,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              console.error(`Time period ${periodIndex} not found in device state`);
+              logger.error(`Time period ${periodIndex} not found in device state`);
               return;
             }
 
@@ -1028,7 +1029,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         try {
           const params = JSON.parse(message);
           if (!params.id || !params.in || !params.on) {
-            console.error('Missing transaction mode parameters:', message);
+            logger.error('Missing transaction mode parameters:', message);
             return;
           }
 
@@ -1041,7 +1042,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             }),
           );
         } catch (error) {
-          console.error('Invalid transaction mode data:', message, error);
+          logger.error('Invalid transaction mode data:', message, error);
         }
       },
     });
@@ -1049,7 +1050,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     command('working-mode', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
         if (!isValidVenusWorkingMode(message)) {
-          console.error('Invalid working mode value:', message);
+          logger.error('Invalid working mode value:', message);
           return;
         }
 
@@ -1098,7 +1099,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       handler: ({ message, publishCallback, updateDeviceState }) => {
         const power = parseInt(message, 10);
         if (isNaN(power) || power < 0 || power > 2500) {
-          console.error('Invalid maximum discharge power value:', message);
+          logger.error('Invalid maximum discharge power value:', message);
           return;
         }
 
@@ -1132,7 +1133,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       handler: ({ message, publishCallback, updateDeviceState }) => {
         const power = parseInt(message, 10);
         if (isNaN(power) || power < 300 || power > 2500) {
-          console.error('Invalid maximum charging power value:', message);
+          logger.error('Invalid maximum charging power value:', message);
           return;
         }
 

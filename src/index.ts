@@ -7,6 +7,7 @@ import { DEFAULT_TOPIC_PREFIX } from './constants';
 import { DeviceManager, DeviceStateData } from './deviceManager';
 import { MqttClient } from './mqttClient';
 import { ControlHandler } from './controlHandler';
+import logger from './logger';
 import { DataHandler } from './dataHandler';
 import { MqttProxy, MqttProxyConfig } from './mqttProxy';
 
@@ -20,7 +21,7 @@ const MQTT_PROXY_PORT = parseInt(process.env.MQTT_PROXY_PORT || '1890', 10);
 // Debug logger
 function debug(...args: any[]) {
   if (DEBUG) {
-    console.log('[DEBUG]', ...args);
+    logger.debug('[DEBUG]', ...args);
   }
 }
 
@@ -33,16 +34,16 @@ function parseDeviceConfigurations(): Device[] {
   const devices: Device[] = [];
 
   // Log all device-related environment variables
-  console.log('Device environment variables:');
+  logger.info('Device environment variables:');
   const deviceEnvVars = Object.keys(process.env)
     .filter(key => key.startsWith('DEVICE_'))
     .sort();
 
   if (deviceEnvVars.length === 0) {
-    console.warn('No DEVICE_ environment variables found!');
+    logger.warn('No DEVICE_ environment variables found!');
   } else {
     deviceEnvVars.forEach(key => {
-      console.log(`${key}=${process.env[key]}`);
+      logger.info(`${key}=${process.env[key]}`);
     });
   }
 
@@ -55,13 +56,13 @@ function parseDeviceConfigurations(): Device[] {
         const deviceId = parts[1];
 
         if (deviceType && deviceId) {
-          console.log(`Adding device: ${deviceType}:${deviceId} from ${key}=${value}`);
+          logger.info(`Adding device: ${deviceType}:${deviceId} from ${key}=${value}`);
           devices.push({
             deviceType,
             deviceId,
           });
         } else {
-          console.warn(
+          logger.warn(
             `Invalid device format for ${key}=${value}, expected format: deviceType:deviceId`,
           );
         }
@@ -70,22 +71,22 @@ function parseDeviceConfigurations(): Device[] {
   });
 
   if (devices.length === 0) {
-    console.error('No devices found in environment variables');
-    console.error('This could be due to:');
-    console.error('1. Missing device configuration in the addon config');
-    console.error('2. Environment variables not being properly set');
+    logger.error('No devices found in environment variables');
+    logger.error('This could be due to:');
+    logger.error('1. Missing device configuration in the addon config');
+    logger.error('2. Environment variables not being properly set');
 
-    console.error('\nEnvironment variables:');
+    logger.error('\nEnvironment variables:');
     Object.keys(process.env)
       .filter(key => !key.toLowerCase().includes('password'))
       .sort()
       .forEach(key => {
-        console.error(`${key}=${process.env[key]}`);
+        logger.error(`${key}=${process.env[key]}`);
       });
 
-    console.error('\nPlease check your addon configuration and ensure you have added devices.');
-    console.error('Example configuration:');
-    console.error(
+    logger.error('\nPlease check your addon configuration and ensure you have added devices.');
+    logger.error('Example configuration:');
+    logger.error(
       JSON.stringify(
         {
           devices: [
@@ -131,27 +132,27 @@ function createMqttConfig(devices: Device[]): MqttConfig {
  */
 async function main() {
   try {
-    console.log('Starting hm2mqtt application...');
-    console.log(`Environment: ${process.env.NODE_ENV || 'production'}`);
-    console.log(`Debug mode: ${DEBUG ? 'enabled' : 'disabled'}`);
-    console.log(
+    logger.info('Starting hm2mqtt application...');
+    logger.info(`Environment: ${process.env.NODE_ENV || 'production'}`);
+    logger.info(`Debug mode: ${DEBUG ? 'enabled' : 'disabled'}`);
+    logger.info(
       `MQTT Proxy: ${MQTT_PROXY_ENABLED ? `enabled on port ${MQTT_PROXY_PORT}` : 'disabled'}`,
     );
 
     // Log all environment variables in debug mode
     if (DEBUG) {
-      console.log('Environment variables:');
+      logger.info('Environment variables:');
       Object.keys(process.env)
         .filter(key => !key.toLowerCase().includes('password'))
         .sort()
         .forEach(key => {
-          console.log(`${key}=${process.env[key]}`);
+          logger.info(`${key}=${process.env[key]}`);
         });
 
       // Print full configuration
-      console.log('Full configuration:');
+      logger.info('Full configuration:');
       const config = createMqttConfig(parseDeviceConfigurations());
-      console.log(
+      logger.info(
         JSON.stringify(
           config,
           (key, value) => {
@@ -165,18 +166,18 @@ async function main() {
     }
 
     // Parse device configurations
-    console.log('Parsing device configurations...');
+    logger.info('Parsing device configurations...');
     const devices = parseDeviceConfigurations();
-    console.log(`Found ${devices.length} device(s)`);
+    logger.info(`Found ${devices.length} device(s)`);
     devices.forEach(device => {
-      console.log(`- Device: ${device.deviceType}:${device.deviceId}`);
+      logger.info(`- Device: ${device.deviceType}:${device.deviceId}`);
     });
 
     // Create MQTT configuration
-    console.log('Creating MQTT configuration...');
+    logger.info('Creating MQTT configuration...');
     const config = createMqttConfig(devices);
-    console.log(`MQTT Broker: ${config.brokerUrl}`);
-    console.log(`MQTT Client ID: ${config.clientId}`);
+    logger.info(`MQTT Broker: ${config.brokerUrl}`);
+    logger.info(`MQTT Client ID: ${config.clientId}`);
     debug(
       'Full MQTT config:',
       JSON.stringify(config, (key, value) => (key === 'password' ? '***' : value), 2),
@@ -187,15 +188,15 @@ async function main() {
       publishPath: string,
       deviceState: DeviceStateData,
     ) => {
-      console.log('Device state updated');
+      logger.info('Device state updated');
       const topics = deviceManager.getDeviceTopics(device);
       if (!topics) {
-        console.warn(`No topics found for device ${device.deviceId}`);
+        logger.warn(`No topics found for device ${device.deviceId}`);
         return;
       }
       mqttClient
         .publish(`${topics.publishTopic}/${publishPath}`, JSON.stringify(deviceState), { qos: 1 })
-        .catch(err => console.error(`Error publishing message for ${device.deviceId}:`, err));
+        .catch(err => logger.error(`Error publishing message for ${device.deviceId}:`, err));
     };
 
     // Create device manager
@@ -207,14 +208,14 @@ async function main() {
     // Create message handler function
     const messageHandler = (topic: string, message: Buffer) => {
       try {
-        console.log(`Received message on topic: ${topic}`);
+        logger.info(`Received message on topic: ${topic}`);
         debug(`Message content: ${message.toString()}`);
 
         // Find which device this topic belongs to
         const deviceInfo = deviceManager.findDeviceForTopic(topic);
 
         if (!deviceInfo) {
-          console.warn(`Received message on unrecognized topic: ${topic}`);
+          logger.warn(`Received message on unrecognized topic: ${topic}`);
           return;
         }
         const topics = deviceManager.getDeviceTopics(deviceInfo.device);
@@ -240,7 +241,7 @@ async function main() {
             break;
         }
       } catch (error) {
-        console.error('Error processing message:', error);
+        logger.error('Error processing message:', error);
       }
     };
 
@@ -252,7 +253,7 @@ async function main() {
       const topics = deviceManager.getDeviceTopics(device);
 
       if (!topics) {
-        console.error(`No topics found for device ${device.deviceId}`);
+        logger.error(`No topics found for device ${device.deviceId}`);
         return;
       }
 
@@ -264,12 +265,12 @@ async function main() {
           // Request updated device data after sending a command
           // Wait a short delay to allow the device to process the command
           setTimeout(() => {
-            console.log(`Requesting updated device data for ${device.deviceId} after command`);
+            logger.info(`Requesting updated device data for ${device.deviceId} after command`);
             mqttClient.requestDeviceData(device);
           }, 500);
         })
         .catch(err => {
-          console.error(`Error sending command to ${device.deviceId}:`, err);
+          logger.error(`Error sending command to ${device.deviceId}:`, err);
         });
     });
 
@@ -279,8 +280,8 @@ async function main() {
     // Initialize MQTT Proxy if enabled
     let mqttProxy: MqttProxy | null = null;
     if (MQTT_PROXY_ENABLED) {
-      console.log('MQTT Proxy is enabled');
-      console.log(`MQTT Proxy will start on port ${MQTT_PROXY_PORT}`);
+      logger.info('MQTT Proxy is enabled');
+      logger.info(`MQTT Proxy will start on port ${MQTT_PROXY_PORT}`);
 
       const proxyConfig: MqttProxyConfig = {
         port: MQTT_PROXY_PORT,
@@ -295,23 +296,23 @@ async function main() {
 
       try {
         await mqttProxy.start();
-        console.log(`MQTT Proxy started successfully on port ${MQTT_PROXY_PORT}`);
-        console.log('B2500 devices can now connect to this proxy to avoid client ID conflicts');
+        logger.info(`MQTT Proxy started successfully on port ${MQTT_PROXY_PORT}`);
+        logger.info('B2500 devices can now connect to this proxy to avoid client ID conflicts');
       } catch (error) {
-        console.error('Failed to start MQTT Proxy:', error);
-        console.warn('Continuing without proxy functionality...');
+        logger.error('Failed to start MQTT Proxy:', error);
+        logger.warn('Continuing without proxy functionality...');
         mqttProxy = null;
       }
     } else {
-      console.log('MQTT Proxy is disabled (set MQTT_PROXY_ENABLED=true to enable)');
+      logger.info('MQTT Proxy is disabled (set MQTT_PROXY_ENABLED=true to enable)');
     }
 
     // Handle process termination
     process.on('SIGINT', async () => {
-      console.log('Shutting down...');
+      logger.info('Shutting down...');
 
       if (mqttProxy) {
-        console.log('Stopping MQTT Proxy...');
+        logger.info('Stopping MQTT Proxy...');
         await mqttProxy.stop();
       }
 
@@ -329,9 +330,9 @@ async function main() {
       };
     }
 
-    console.log('Application initialized successfully');
+    logger.info('Application initialized successfully');
   } catch (error) {
-    console.error('Failed to initialize application:', error);
+    logger.error('Failed to initialize application:', error);
     process.exit(1);
   }
 }
@@ -339,19 +340,19 @@ async function main() {
 // Start the application
 try {
   main().catch(error => {
-    console.error('Unhandled error in main application:', error);
-    console.error('Error details:', error instanceof Error ? error.stack : String(error));
+    logger.error('Unhandled error in main application:', error);
+    logger.error('Error details:', error instanceof Error ? error.stack : String(error));
     process.exit(1);
   });
 } catch (error) {
-  console.error('Unhandled error in main application:', error);
-  console.error('Error details:', error instanceof Error ? error.stack : String(error));
+  logger.error('Unhandled error in main application:', error);
+  logger.error('Error details:', error instanceof Error ? error.stack : String(error));
 
   // Log environment information to help with debugging
-  console.error('Environment information:');
-  console.error(`Node.js version: ${process.version}`);
-  console.error(`Platform: ${process.platform}`);
-  console.error(`Working directory: ${process.cwd()}`);
+  logger.error('Environment information:');
+  logger.error(`Node.js version: ${process.version}`);
+  logger.error(`Platform: ${process.platform}`);
+  logger.error(`Working directory: ${process.cwd()}`);
 
   // Exit with error code
   process.exit(1);
@@ -359,11 +360,11 @@ try {
 
 // Log uncaught exceptions
 process.on('uncaughtException', error => {
-  console.error('Uncaught exception:', error);
+  logger.error('Uncaught exception:', error);
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled rejection at:', promise, 'reason:', reason);
+  logger.error('Unhandled rejection at:', promise, 'reason:', reason);
   // Don't exit here to allow the application to continue running
 });

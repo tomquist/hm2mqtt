@@ -19,7 +19,8 @@
   "dependencies": {
     "aedes": "^0.51.3",
     "dotenv": "^16.3.1",
-    "mqtt": "^5.3.0"
+    "mqtt": "^5.3.0",
+    "pino": "^9.7.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.5",

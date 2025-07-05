@@ -1,3 +1,4 @@
+import logger from './logger';
 import { DEFAULT_TOPIC_PREFIX } from './constants';
 
 beforeAll(() => {
@@ -165,7 +166,7 @@ describe('MQTT Client', () => {
       expect(publishedData.timePeriods[0].enabled).toBe(true);
     } else {
       // Skip the test if the payload isn't valid JSON
-      console.log('Skipping JSON parsing test - payload is not valid JSON');
+      logger.info('Skipping JSON parsing test - payload is not valid JSON');
     }
   });
 
