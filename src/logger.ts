@@ -1,10 +1,19 @@
 import pino from 'pino';
 
-const level = process.env.LOG_LEVEL || (process.env.DEBUG === 'true' ? 'debug' : 'info');
-
 const logger = pino({
-  level,
-  timestamp: pino.stdTimeFunctions.isoTime,
+  level: process.env.LOG_LEVEL || 'info',
+  transport: {
+    targets: [
+      {
+        target: require.resolve('pino-pretty'),
+        options: {
+          colorize: false,
+          translateTime: 'HH:MM:ss',
+          ignore: 'pid,hostname',
+        },
+      },
+    ],
+  },
 });
 
 export default logger;
