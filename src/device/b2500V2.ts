@@ -636,13 +636,13 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           if (message === 'PRESS' || message === 'press' || message === 'true' || message === '1') {
             const now = new Date();
             const timeData = {
-              wy: 480, // Default timezone offset
-              yy: now.getFullYear() - 1900,
-              mm: now.getMonth(),
-              rr: now.getDate(),
-              hh: now.getHours(),
-              mn: now.getMinutes(),
-              ss: now.getSeconds(),
+              wy: -now.getTimezoneOffset(),
+              yy: now.getUTCFullYear() - 1900,
+              mm: now.getUTCMonth(),
+              rr: now.getUTCDate(),
+              hh: now.getUTCHours(),
+              mn: now.getUTCMinutes(),
+              ss: now.getUTCSeconds(),
             };
             publishCallback(
               processCommand(CommandType.SYNC_TIME, timeData, deviceState.useFlashCommands),
