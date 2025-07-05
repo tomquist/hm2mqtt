@@ -256,9 +256,9 @@ describe('ControlHandler', () => {
     });
 
     test('should handle sync-time control topic with PRESS', () => {
-      // Mock Date.now to return a consistent date for testing
+      // Use fake timers to provide a consistent date for testing
       const mockDate = new Date(Date.UTC(2023, 0, 1, 12, 30, 45));
-      jest.spyOn(global, 'Date').mockImplementation(() => mockDate as any);
+      jest.useFakeTimers().setSystemTime(mockDate);
 
       // Call the method with a sync time message
       handleControlTopic(testDeviceV2, 'sync-time', 'PRESS');
