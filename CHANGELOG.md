@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Next]
 
 - Fix time synchronization to use local timezone offset (#98)
+- Add support for CT002 smart meter device type HME
 
 
 ## [1.4.3] - 2025-06-22
