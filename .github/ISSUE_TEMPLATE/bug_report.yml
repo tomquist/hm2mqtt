@@ -12,7 +12,7 @@ body:
     attributes:
       label: Device Model
       description: |
-        Supported models: B2500 HMA/HMB/HMJ, Marstek Venus C, Marstek Venus E, Marstek Jupiter C, Marstek Jupiter E, Marstek Jupiter Plus
+        Supported models: B2500 HMA/HMB/HMJ, Marstek Venus C, Marstek Venus E, Marstek Jupiter C, Marstek Jupiter E, Marstek Jupiter Plus, Marstek CT002 Smart Meter
     validations:
       required: true
   - type: input
