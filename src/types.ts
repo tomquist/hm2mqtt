@@ -454,6 +454,41 @@ export interface JupiterDeviceData extends BaseDeviceData {
   alarmCode?: number; // ala_c
 }
 
+/**
+ * MI800 micro inverter data interface
+ */
+export interface MI800DeviceData extends BaseDeviceData {
+  // Energy statistics
+  dailyEnergyGenerated?: number; // ele_d
+  weeklyEnergyGenerated?: number; // ele_w
+  monthlyEnergyGenerated?: number; // ele_m
+
+  // PV Input 1
+  pv1Voltage?: number; // pv1_v
+  pv1Current?: number; // pv1_i
+  pv1Power?: number; // pv1_p
+  pv1Status?: boolean; // pv1_s
+
+  // PV Input 2
+  pv2Voltage?: number; // pv2_v
+  pv2Current?: number; // pv2_i
+  pv2Power?: number; // pv2_p
+  pv2Status?: boolean; // pv2_s
+
+  // Grid information
+  gridFrequency?: number; // grd_f
+  gridVoltage?: number; // grd_v
+  gridStatus?: boolean; // grd_s
+  gridOutputPower?: number; // grd_o
+
+  // Device status
+  chipTemperature?: number; // chp_t
+  errorType?: number; // err_t
+  errorCount?: number; // err_c
+  errorDetails?: number; // err_d
+  firmwareVersion?: number; // ver_s
+}
+
 export interface JupiterMPPTPVInfo {
   voltage?: number;
   current?: number;
