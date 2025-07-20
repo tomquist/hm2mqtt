@@ -492,3 +492,15 @@ export interface JupiterBMSInfo extends BaseDeviceData {
     pv?: JupiterMPPTPVInfo[]; // pv1-pv4
   };
 }
+
+export interface CT002DeviceData extends BaseDeviceData {
+  phase1Power?: number; // pwr_a
+  phase2Power?: number; // pwr_b
+  phase3Power?: number; // pwr_c
+  totalPower?: number; // pwr_t
+  bluetoothSignal?: number; // ble_s
+  wifiRssi?: number; // wif_r
+  fc4Version?: string; // fc4_v
+  firmwareVersion?: number; // ver_v
+  wifiStatus?: number; // wif_s
+}

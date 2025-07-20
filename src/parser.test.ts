@@ -173,4 +173,22 @@ describe('MQTT Message Parser', () => {
     const { data: unknownScene } = parseMessage(`${requiredKeys},cj=3`, 'HMA-1', '12345');
     expect(unknownScene).toHaveProperty('scene', undefined);
   });
+
+  test('should parse CT002 smart meter message', () => {
+    const message =
+      'pwr_a=119,pwr_b=15,pwr_c=-136,pwr_t=-1,ble_s=5,wif_r=-79,fc4_v=202409090159,ver_v=119,wif_s=2,slv_n=1,cur_d=0';
+    const { data } = parseMessage(message, 'HME-4', 'abcd');
+
+    expect(data).toBeDefined();
+    const result = data as any;
+    expect(result).toHaveProperty('phase1Power', 119);
+    expect(result).toHaveProperty('phase2Power', 15);
+    expect(result).toHaveProperty('phase3Power', -136);
+    expect(result).toHaveProperty('totalPower', -1);
+    expect(result).toHaveProperty('bluetoothSignal', 5);
+    expect(result).toHaveProperty('wifiRssi', -79);
+    expect(result).toHaveProperty('fc4Version', '202409090159');
+    expect(result).toHaveProperty('firmwareVersion', 119);
+    expect(result).toHaveProperty('wifiStatus', 2);
+  });
 });

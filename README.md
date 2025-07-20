@@ -16,6 +16,7 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 - Marstek Jupiter C
 - Marstek Jupiter E
 - Marstek Jupiter Plus
+- Marstek CT002 Smart Meter
 
 ## Prerequisites
 
