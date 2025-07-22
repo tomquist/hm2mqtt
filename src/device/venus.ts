@@ -1123,7 +1123,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:flash',
         unit_of_measurement: 'W',
         command: 'max-charging-power',
-        min: 300,
+        min: 0,
         max: 2500,
         step: 1,
       }),
@@ -1132,7 +1132,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     command('max-charging-power', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
         const power = parseInt(message, 10);
-        if (isNaN(power) || power < 300 || power > 2500) {
+        if (isNaN(power) || power < 0 || power > 2500) {
           logger.error('Invalid maximum charging power value:', message);
           return;
         }

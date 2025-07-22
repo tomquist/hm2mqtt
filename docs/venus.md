@@ -321,7 +321,7 @@ hame_energy/{type}/App/{uid or mac}/ctrl
 
 Payload:
 ```
-cd=16,cp=[300,2500]
+cd=16,cp=[0,2500]
 ```
 
 ### 12.2 Receive
