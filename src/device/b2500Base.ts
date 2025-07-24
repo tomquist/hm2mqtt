@@ -3,6 +3,7 @@ import {
   BuildMessageDefinitionArgs,
   BuildMessageFn,
 } from '../deviceDefinition';
+import logger from '../logger';
 import { B2500BaseDeviceData, B2500CalibrationData, B2500CellData, CommandParams } from '../types';
 import {
   binarySensorComponent,
@@ -578,7 +579,7 @@ export function registerBaseMessage({
     handler: ({ message, publishCallback, deviceState }) => {
       const depth = parseInt(message, 10);
       if (isNaN(depth) || depth < 0 || depth > 100) {
-        console.error('Invalid discharge depth value:', message);
+        logger.error('Invalid discharge depth value:', message);
         return;
       }
 
@@ -654,7 +655,7 @@ export function registerBaseMessage({
     handler: ({ device, updateDeviceState, message }) => {
       const useFlash = message.toLowerCase() === 'true' || message === '1';
       const { useFlashCommands } = updateDeviceState(() => ({ useFlashCommands: useFlash }));
-      console.log(
+      logger.info(
         `Flash commands ${useFlashCommands ? 'enabled' : 'disabled'} for ${device.deviceId}`,
       );
     },

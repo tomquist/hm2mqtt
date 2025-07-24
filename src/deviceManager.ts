@@ -1,6 +1,7 @@
 import { Device, MqttConfig } from './types';
 import { getDeviceDefinition } from './deviceDefinition';
 import { calculateNewVersionTopicId, decryptNewVersionTopicId } from './utils/crypt';
+import logger from './logger';
 
 /**
  * Interface for device state data
@@ -45,11 +46,11 @@ export class DeviceManager {
     this.config.devices.forEach(device => {
       const deviceDefinition = getDeviceDefinition(device.deviceType);
       if (!deviceDefinition) {
-        console.warn(`Skipping unknown device type: ${device.deviceType}`);
+        logger.warn(`Skipping unknown device type: ${device.deviceType}`);
         return;
       }
       const deviceKey = this.getDeviceKey(device);
-      console.log(`Initializing topics for device: ${deviceKey}`);
+      logger.info(`Initializing topics for device: ${deviceKey}`);
       let deviceId = device.deviceId;
       let deviceIdNew = calculateNewVersionTopicId(deviceId);
 
@@ -67,7 +68,7 @@ export class DeviceManager {
       // Initialize response timeout tracker
       this.deviceResponseTimeouts[deviceKey] = [];
 
-      console.log(`Topics for ${deviceKey}:`, this.deviceTopics[deviceKey]);
+      logger.info(`Topics for ${deviceKey}:`, this.deviceTopics[deviceKey]);
     });
   }
 

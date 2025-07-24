@@ -1,3 +1,4 @@
+import logger from './logger';
 import { ControlHandler } from './controlHandler';
 import { DeviceManager, DeviceStateData } from './deviceManager';
 import {
@@ -255,23 +256,22 @@ describe('ControlHandler', () => {
     });
 
     test('should handle sync-time control topic with PRESS', () => {
-      // Mock Date.now to return a consistent date for testing
-      const mockDate = new Date(2023, 0, 1, 12, 30, 45);
-      jest.spyOn(global, 'Date').mockImplementation(() => mockDate);
+      // Freeze time so that the generated payload is deterministic
+      const mockDate = new Date(Date.UTC(2023, 0, 1, 12, 30, 45));
+      jest.useFakeTimers().setSystemTime(mockDate);
 
       // Call the method with a sync time message
       handleControlTopic(testDeviceV2, 'sync-time', 'PRESS');
 
       // Check that the publish callback was called with the correct payload
+      const expectedWy = -mockDate.getTimezoneOffset();
       expect(publishCallback).toHaveBeenCalledWith(
         testDeviceV2,
-        expect.stringContaining('cd=8,wy=480,yy=123,mm=0,rr=1,hh=12,mn=30,ss=45'),
+        expect.stringContaining(`cd=8,wy=${expectedWy},yy=123,mm=0,rr=1,hh=12,mn=30,ss=45`),
       );
-
-      // Restore Date
-      jest.restoreAllMocks();
+      // Restore timers
+      jest.useRealTimers();
     });
-
     test('should handle sync-time control topic with JSON', () => {
       // Call the method with a sync time JSON message
       const timeData = {
@@ -338,14 +338,14 @@ describe('ControlHandler', () => {
     });
 
     test('should handle invalid time period number', () => {
-      // Spy on console.warn
-      const consoleWarnSpy = jest.spyOn(console, 'warn');
+      // Spy on logger.warn
+      const loggerWarnSpy = jest.spyOn(logger, 'warn');
 
       // Call the method with an invalid time period number
       handleControlTopic(testDeviceV2, 'time-period/6/enabled', 'true');
 
-      // Check that console.warn was called
-      expect(consoleWarnSpy).toHaveBeenCalled();
+      // Check that logger.warn was called
+      expect(loggerWarnSpy).toHaveBeenCalled();
 
       // Check that the publish callback was not called
       expect(publishCallback).not.toHaveBeenCalled();

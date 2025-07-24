@@ -1,5 +1,5 @@
 name: "hm2mqtt"
-version: "1.4.3"
+version: "develop"
 slug: "hm2mqtt"
 description: "Connect Hame energy storage devices to Home Assistant via MQTT"
 url: "https://github.com/tomquist/hm2mqtt"

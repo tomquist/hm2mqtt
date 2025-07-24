@@ -1,6 +1,7 @@
 import { DeviceTopics } from './deviceManager';
 import { HaDiscoveryConfig } from './homeAssistantDiscovery';
 import { MqttClient } from 'mqtt';
+import logger from './logger';
 import {
   AdditionalDeviceInfo,
   getDeviceDefinition,
@@ -9,7 +10,6 @@ import {
   TypeAtPath,
 } from './deviceDefinition';
 import { Device } from './types';
-
 export interface HaAdvertisement<T, KP extends KeyPath<T> | []> {
   keyPath: KP;
   advertise: HaStatefulAdvertiseBuilder<KP extends KeyPath<T> ? TypeAtPath<T, KeyPath<T>> : void>;
@@ -100,13 +100,13 @@ export function publishDiscoveryConfigs(
 
   configs.forEach(({ topic, config }) => {
     let message = JSON.stringify(config);
-    console.log(message);
+    logger.info(message);
     client.publish(topic, message, { qos: 1, retain: true }, err => {
       if (err) {
-        console.error(`Error publishing discovery config to ${topic}:`, err);
+        logger.error(`Error publishing discovery config to ${topic}:`, err);
         return;
       }
-      console.log(`Published discovery config to ${topic}`);
+      logger.info(`Published discovery config to ${topic}`);
     });
   });
 }

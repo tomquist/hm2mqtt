@@ -16,6 +16,8 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 - Marstek Jupiter C
 - Marstek Jupiter E
 - Marstek Jupiter Plus
+- Marstek CT002 Smart Meter
+- Marstek MI800 Micro Inverter
 
 ## Prerequisites
 
@@ -29,6 +31,7 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
    
      **Warning:** Enabling MQTT on the device will disable the cloud connection. You will not be able to use the PowerZero or Marstek app to monitor or control your device anymore. You can re-enable the cloud connection by installing [Hame Relay](https://github.com/tomquist/hame-relay#mode-1-storage-configured-with-local-broker-inverse_forwarding-false) in Mode 1.
   2. The **Marstek Venus**, **Marstek Jupiter** and **Jupiter Plus** don't officially support MQTT. However, you can install the [Hame Relay](https://github.com/tomquist/hame-relay) in [Mode 2](https://github.com/tomquist/hame-relay#mode-2-storage-configured-with-hame-broker-inverse_forwarding-true) to forward the Cloud MQTT data to your local MQTT broker.
+  3. The **Marstek MI800 Micro Inverter** requires the same setup as Venus/Jupiter devices. Use [Hame Relay](https://github.com/tomquist/hame-relay) in [Mode 2](https://github.com/tomquist/hame-relay#mode-2-storage-configured-with-hame-broker-inverse_forwarding-true) to forward the Cloud MQTT data to your local MQTT broker.
   
 ## Installation
 
@@ -313,6 +316,8 @@ The device type can be one of the following:
 - **HMN-X**: (e.g. HMN-1) Marstek Jupiter E
 - **HMM-X**: (e.g. HMM-1) Marstek Jupiter C
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus
+- **HME-X**: (e.g. HME-3) Marstek CT002 Smart Meter
+- **HMI-X**: (e.g. HMI-1) Marstek MI800 Micro Inverter
 
 ## Development
 
