@@ -826,7 +826,6 @@ export function registerCalibrationDataMessage(message: BuildMessageFn) {
       sensorComponent<number>({
         id: 'calibration_charge',
         name: 'Calibration Charge',
-        device_class: 'energy',
         unit_of_measurement: 'mAh',
       }),
     );
@@ -840,7 +839,6 @@ export function registerCalibrationDataMessage(message: BuildMessageFn) {
       sensorComponent<number>({
         id: 'calibration_discharge',
         name: 'Calibration Discharge',
-        device_class: 'energy',
         unit_of_measurement: 'mAh',
       }),
     );
