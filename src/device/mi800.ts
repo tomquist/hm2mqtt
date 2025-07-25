@@ -1,8 +1,4 @@
-import {
-  BuildMessageFn,
-  globalPollInterval,
-  registerDeviceDefinition,
-} from '../deviceDefinition';
+import { BuildMessageFn, globalPollInterval, registerDeviceDefinition } from '../deviceDefinition';
 import { CommandParams, MI800DeviceData } from '../types';
 import {
   sensorComponent,
@@ -392,9 +388,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       handler: ({ message, publishCallback, updateDeviceState }) => {
         const enable = message.toLowerCase() === 'true' || message === '1' || message === 'on';
         updateDeviceState(() => ({ gridConnectionBan: enable }));
-        publishCallback(
-          processCommand(CommandType.GRID_CONNECTION_BAN, { p1: enable ? 1 : 0 }),
-        );
+        publishCallback(processCommand(CommandType.GRID_CONNECTION_BAN, { p1: enable ? 1 : 0 }));
       },
     });
   });
