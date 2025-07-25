@@ -462,6 +462,11 @@ export interface MI800DeviceData extends BaseDeviceData {
   dailyEnergyGenerated?: number; // ele_d
   weeklyEnergyGenerated?: number; // ele_w
   monthlyEnergyGenerated?: number; // ele_m
+  totalEnergyGenerated?: number; // ele_s
+  maximumOutputPower?: number; // pl
+  fc4Version?: string; // fc4_v
+  mode?: number; // mpt_m
+  gridConnectionBan?: boolean; // gc
 
   // PV Input 1
   pv1Voltage?: number; // pv1_v
