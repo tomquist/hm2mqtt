@@ -54,7 +54,7 @@ export const timePeriodSettingHandler = (
           break;
         case 'start-time':
           // Validate time format (HH:MM)
-          if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
+          if (!/^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
             logger.error('Invalid start time format (should be HH:MM):', message);
             return;
           }
@@ -62,7 +62,7 @@ export const timePeriodSettingHandler = (
           break;
         case 'end-time':
           // Validate time format (HH:MM)
-          if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
+          if (!/^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
             logger.error('Invalid end time format (should be HH:MM):', message);
             return;
           }
@@ -280,7 +280,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           id: `time_period_${i + 1}_start_time`,
           name: `Time Period ${i + 1} Start Time`,
           command: `time-period/${i + 1}/start-time`,
-          pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
+          pattern: '^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$',
         }),
       );
       field({
@@ -294,7 +294,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           id: `time_period_${i + 1}_end_time`,
           name: `Time Period ${i + 1} End Time`,
           command: `time-period/${i + 1}/end-time`,
-          pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
+          pattern: '^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$',
         }),
       );
       field({
