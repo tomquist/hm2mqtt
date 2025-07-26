@@ -198,12 +198,14 @@ export class MqttClient {
 
     if (topics) {
       let additionalDeviceInfo = this.getAdditionalDeviceInfo(device);
+      const deviceState = this.deviceManager.getDeviceState(device);
       publishDiscoveryConfigs(
         this.client,
         device,
         topics,
         additionalDeviceInfo,
         this.config.topicPrefix,
+        deviceState,
       );
     }
   }

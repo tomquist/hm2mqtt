@@ -12,7 +12,10 @@ import {
 import { Device } from './types';
 export interface HaAdvertisement<T, KP extends KeyPath<T> | []> {
   keyPath: KP;
-  advertise: HaStatefulAdvertiseBuilder<KP extends KeyPath<T> ? TypeAtPath<T, KeyPath<T>> : void>;
+  advertise: HaStatefulAdvertiseBuilder<
+    KP extends KeyPath<T> ? TypeAtPath<T, KeyPath<T>> : void
+  >;
+  enabled?: (state: T) => boolean;
 }
 
 export function generateDiscoveryConfigs(
@@ -20,7 +23,8 @@ export function generateDiscoveryConfigs(
   topics: DeviceTopics,
   additionalDeviceInfo: AdditionalDeviceInfo,
   topicPrefix: string,
-): Array<{ topic: string; config: HaDiscoveryConfig }> {
+  deviceState: any = {},
+): Array<{ topic: string; config: HaDiscoveryConfig | null }> {
   const deviceDefinition = getDeviceDefinition(device.deviceType);
   const configs: Array<{ topic: string; config: any }> = [];
 
@@ -64,18 +68,22 @@ export function generateDiscoveryConfigs(
       if (field.advertise == null) {
         continue;
       }
-      const {
-        type: platform,
-        id: _objectId,
-        ...config
-      } = field.advertise({
+      const advertisement = field.advertise({
         commandTopic: topics.controlSubscriptionTopic,
         stateTopic: `${topics.publishTopic}/${messageDefinition.publishPath}`,
         keyPath: field.keyPath,
       });
+      const { type: platform, id: _objectId, ...config } = advertisement;
       const objectId = _objectId.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const topic = `homeassistant/${platform}/${nodeId}/${objectId}/config`;
+
+      if (field.enabled && !field.enabled(deviceState)) {
+        configs.push({ topic, config: null });
+        continue;
+      }
+
       configs.push({
-        topic: `homeassistant/${platform}/${nodeId}/${objectId}/config`,
+        topic,
         config: {
           ...config,
           ...availabilityConfig,
@@ -95,11 +103,18 @@ export function publishDiscoveryConfigs(
   deviceTopics: DeviceTopics,
   additionalDeviceInfo: AdditionalDeviceInfo,
   topicPrefix: string,
+  deviceState: any = {},
 ): void {
-  const configs = generateDiscoveryConfigs(device, deviceTopics, additionalDeviceInfo, topicPrefix);
+  const configs = generateDiscoveryConfigs(
+    device,
+    deviceTopics,
+    additionalDeviceInfo,
+    topicPrefix,
+    deviceState,
+  );
 
   configs.forEach(({ topic, config }) => {
-    let message = JSON.stringify(config);
+    let message = config == null ? '' : JSON.stringify(config);
     logger.info(message);
     client.publish(topic, message, { qos: 1, retain: true }, err => {
       if (err) {

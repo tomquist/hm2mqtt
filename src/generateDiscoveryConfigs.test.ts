@@ -42,17 +42,19 @@ describe('Home Assistant Discovery', () => {
     const firstConfig = configs[0];
     expect(firstConfig).toHaveProperty('topic');
     expect(firstConfig).toHaveProperty('config');
-    expect(firstConfig.config).toHaveProperty('name');
-    expect(firstConfig.config).toHaveProperty('unique_id');
-    expect(firstConfig.config).toHaveProperty('state_topic');
-    expect(firstConfig.config).toHaveProperty('device');
+    expect(firstConfig.config!).toHaveProperty('name');
+    expect(firstConfig.config!).toHaveProperty('unique_id');
+    expect(firstConfig.config!).toHaveProperty('state_topic');
+    expect(firstConfig.config!).toHaveProperty('device');
 
     // Check device info
-    expect(firstConfig.config.device).toHaveProperty('ids');
-    expect(firstConfig.config.device.ids[0]).toBe(`hame_energy_${deviceId}`);
-    expect(firstConfig.config.device.name).toBe(`HAME Energy ${deviceType} ${deviceId}`);
-    expect(firstConfig.config.device.model_id).toBe(deviceType);
-    expect(firstConfig.config.device.manufacturer).toBe('HAME Energy');
+    expect(firstConfig.config!.device).toHaveProperty('ids');
+    expect(firstConfig.config!.device.ids[0]).toBe(`hame_energy_${deviceId}`);
+    expect(firstConfig.config!.device.name).toBe(
+      `HAME Energy ${deviceType} ${deviceId}`,
+    );
+    expect(firstConfig.config!.device.model_id).toBe(deviceType);
+    expect(firstConfig.config!.device.manufacturer).toBe('HAME Energy');
 
     // Check that all topics are unique
     const topics = configs.map(c => c.topic);
@@ -63,22 +65,28 @@ describe('Home Assistant Discovery', () => {
     // Check specific entity types
     const batteryPercentageSensor = configs.find(c => c.topic.includes('battery_percentage'));
     expect(batteryPercentageSensor).toBeDefined();
-    expect(batteryPercentageSensor?.config.device_class).toBe('battery');
-    expect(batteryPercentageSensor?.config.unit_of_measurement).toBe('%');
+    expect(batteryPercentageSensor?.config!.device_class).toBe('battery');
+    expect(batteryPercentageSensor?.config!.unit_of_measurement).toBe('%');
 
     // Check availability configuration
-    expect(batteryPercentageSensor?.config.availability?.[1].topic).toBe(availabilityTopic);
+    expect(batteryPercentageSensor?.config!.availability?.[1].topic).toBe(
+      availabilityTopic,
+    );
 
     const chargingModeSelect = configs.find(c => c.topic.includes('charging_mode'));
     expect(chargingModeSelect).toBeDefined();
-    expect(chargingModeSelect?.config.options).toContain('Simultaneous Charging/Discharging');
-    expect(chargingModeSelect?.config.options).toContain('Fully Charge Then Discharge');
+    expect(chargingModeSelect?.config!.options).toContain(
+      'Simultaneous Charging/Discharging',
+    );
+    expect(chargingModeSelect?.config!.options).toContain(
+      'Fully Charge Then Discharge',
+    );
 
     // Check time period entities
     const timePeriod1Enabled = configs.find(c => c.topic.includes('time_period_1_enabled'));
     expect(timePeriod1Enabled).toBeDefined();
-    expect(timePeriod1Enabled?.config.payload_on).toBe('true');
-    expect(timePeriod1Enabled?.config.payload_off).toBe('false');
+    expect(timePeriod1Enabled?.config!.payload_on).toBe('true');
+    expect(timePeriod1Enabled?.config!.payload_off).toBe('false');
 
     // Check that we have all 5 time periods
     for (let i = 1; i <= 5; i++) {
@@ -96,13 +104,13 @@ describe('Home Assistant Discovery', () => {
     // Check flash commands switch
     const flashCommandsSwitch = configs.find(c => c.topic.includes('use_flash_commands'));
     expect(flashCommandsSwitch).toBeDefined();
-    expect(flashCommandsSwitch?.config.payload_on).toBe('true');
-    expect(flashCommandsSwitch?.config.payload_off).toBe('false');
+    expect(flashCommandsSwitch?.config!.payload_on).toBe('true');
+    expect(flashCommandsSwitch?.config!.payload_off).toBe('false');
 
     // Check factory reset button
     const factoryResetButton = configs.find(c => c.topic.includes('factory_reset'));
     expect(factoryResetButton).toBeDefined();
-    expect(factoryResetButton?.config.payload_press).toBe('PRESS');
+    expect(factoryResetButton?.config!.payload_press).toBe('PRESS');
   });
 
   test('should mock publishDiscoveryConfigs', () => {
@@ -138,7 +146,7 @@ describe('Home Assistant Discovery', () => {
     const { publishDiscoveryConfigs } = require('./generateDiscoveryConfigs');
 
     // Call the function with the mock client
-    publishDiscoveryConfigs(mockClient, device, deviceTopics, {}, DEFAULT_TOPIC_PREFIX);
+    publishDiscoveryConfigs(mockClient, device, deviceTopics, {}, DEFAULT_TOPIC_PREFIX, {});
 
     // Check that publish was called
     expect(mockClient.publish).toHaveBeenCalled();
@@ -151,6 +159,6 @@ describe('Home Assistant Discovery', () => {
     };
 
     // Call with error client
-    publishDiscoveryConfigs(mockClientWithError, device, deviceTopics, {}, DEFAULT_TOPIC_PREFIX);
+    publishDiscoveryConfigs(mockClientWithError, device, deviceTopics, {}, DEFAULT_TOPIC_PREFIX, {});
   });
 });
