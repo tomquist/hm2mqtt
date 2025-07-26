@@ -247,7 +247,7 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('firmwareVersion', 120);
 
     expect(result).toHaveProperty('maximumOutputPower', 800);
-    expect(result).toHaveProperty('mode', 1);
+    expect(result).toHaveProperty('mode', 'b2500Boost');
     expect(result).toHaveProperty('fc4Version', '202406141323');
     expect(result).toHaveProperty('gridConnectionBan', false);
   });

@@ -1,5 +1,5 @@
 import { BuildMessageFn, globalPollInterval, registerDeviceDefinition } from '../deviceDefinition';
-import { CommandParams, MI800DeviceData } from '../types';
+import { CommandParams, MI800DeviceData, isValidMI800Mode } from '../types';
 import {
   sensorComponent,
   binarySensorComponent,
@@ -335,18 +335,33 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'mpt_m', path: ['mode'], transform: v => parseInt(v, 10) });
+    field({
+      key: 'mpt_m',
+      path: ['mode'],
+      transform: v => {
+        switch (v) {
+          case '0':
+            return 'default';
+          case '1':
+            return 'b2500Boost';
+          case '2':
+            return 'reverseCurrentProtection';
+          default:
+            return 'default';
+        }
+      },
+    });
     advertise(
       ['mode'],
-      selectComponent<number>({
+      selectComponent<NonNullable<MI800DeviceData['mode']>>({
         id: 'mode',
         name: 'Mode',
         icon: 'mdi:cog',
         command: 'mode',
         valueMappings: {
-          0: 'Default',
-          1: 'B2500 Boost',
-          2: 'Reverse Current Protection',
+          default: 'Default',
+          b2500Boost: 'B2500 Boost',
+          reverseCurrentProtection: 'Reverse Current Protection',
         },
       }),
     );
@@ -375,12 +390,27 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
     command('mode', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
-        const mode = parseInt(message, 10);
-        if (![0, 1, 2].includes(mode)) {
+        if (!isValidMI800Mode(message)) {
           return;
         }
-        updateDeviceState(() => ({ mode }));
-        publishCallback(processCommand(CommandType.SET_MODE, { p1: mode }));
+
+        let modeValue: number;
+        switch (message) {
+          case 'default':
+            modeValue = 0;
+            break;
+          case 'b2500Boost':
+            modeValue = 1;
+            break;
+          case 'reverseCurrentProtection':
+            modeValue = 2;
+            break;
+          default:
+            modeValue = 0;
+        }
+
+        updateDeviceState(() => ({ mode: message }));
+        publishCallback(processCommand(CommandType.SET_MODE, { p1: modeValue }));
       },
     });
 

@@ -457,6 +457,12 @@ export interface JupiterDeviceData extends BaseDeviceData {
 /**
  * MI800 micro inverter data interface
  */
+const validMI800Modes = ['default', 'b2500Boost', 'reverseCurrentProtection'] as const;
+export type MI800Mode = (typeof validMI800Modes)[number];
+export function isValidMI800Mode(mode: string): mode is MI800Mode {
+  return validMI800Modes.includes(mode as MI800Mode);
+}
+
 export interface MI800DeviceData extends BaseDeviceData {
   // Energy statistics
   dailyEnergyGenerated?: number; // ele_d
@@ -465,7 +471,7 @@ export interface MI800DeviceData extends BaseDeviceData {
   totalEnergyGenerated?: number; // ele_s
   maximumOutputPower?: number; // pl
   fc4Version?: string; // fc4_v
-  mode?: number; // mpt_m
+  mode?: MI800Mode; // mpt_m
   gridConnectionBan?: boolean; // gc
 
   // PV Input 1
