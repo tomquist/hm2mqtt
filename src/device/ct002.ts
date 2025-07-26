@@ -118,7 +118,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       ['fc4Version'],
       sensorComponent<string>({
         id: 'fc4_version',
-        name: 'FC4 Version',
+        name: 'FC41D Firmware',
       }),
     );
 

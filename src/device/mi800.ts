@@ -1,12 +1,28 @@
 import { BuildMessageFn, globalPollInterval, registerDeviceDefinition } from '../deviceDefinition';
-import { MI800DeviceData } from '../types';
-import { sensorComponent, binarySensorComponent } from '../homeAssistantDiscovery';
+import { CommandParams, MI800DeviceData, isValidMI800Mode } from '../types';
+import {
+  sensorComponent,
+  binarySensorComponent,
+  numberComponent,
+  selectComponent,
+  switchComponent,
+} from '../homeAssistantDiscovery';
 
 /**
  * Command types supported by the MI800 device
  */
 enum CommandType {
   READ_DEVICE_INFO = 1, // -> ele_d=53,ele_w=3984,ele_m=3984,pv1_v=335,pv1_i=3,pv1_p=39,pv1_s=1,pv2_v=341,pv2_i=11,pv2_p=38,pv2_s=1,pe1_v=17,fb1_v=832,fb2_v=773,grd_f=5001,grd_v=2543,grd_s=1,grd_o=72,chp_t=36,rel_s=1,err_t=0,err_c=0,err_d=0,ver_s=106,mpt_m=1,ble_s=2
+  SET_MAX_OUTPUT_POWER = 8,
+  SET_MODE = 11,
+  GRID_CONNECTION_BAN = 22,
+}
+
+function processCommand(command: CommandType, params: CommandParams = {}): string {
+  const entries = Object.entries(params);
+  return `cd=${command}${entries.length > 0 ? ',' : ''}${entries
+    .map(([key, value]) => `${key}=${value}`)
+    .join(',')}`;
 }
 
 /**
@@ -40,7 +56,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     controlsDeviceAvailability: true,
   };
 
-  message<MI800DeviceData>(options, ({ field, advertise }) => {
+  message<MI800DeviceData>(options, ({ field, advertise, command }) => {
     // Timestamp
     advertise(
       ['timestamp'],
@@ -83,6 +99,18 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       sensorComponent<number>({
         id: 'monthly_energy_generated',
         name: 'Monthly Energy Generated',
+        device_class: 'energy',
+        unit_of_measurement: 'kWh',
+        state_class: 'total_increasing',
+      }),
+    );
+
+    field({ key: 'ele_s', path: ['totalEnergyGenerated'], transform: v => parseFloat(v) / 100 });
+    advertise(
+      ['totalEnergyGenerated'],
+      sensorComponent<number>({
+        id: 'total_energy_generated',
+        name: 'Total Energy Generated',
         device_class: 'energy',
         unit_of_measurement: 'kWh',
         state_class: 'total_increasing',
@@ -230,6 +258,20 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
+    field({ key: 'pl', path: ['maximumOutputPower'] });
+    advertise(
+      ['maximumOutputPower'],
+      numberComponent({
+        id: 'maximum_output_power',
+        name: 'Maximum Output Power',
+        unit_of_measurement: 'W',
+        command: 'max-output-power',
+        min: 0,
+        max: 800,
+        step: 1,
+      }),
+    );
+
     // Device status
     field({ key: 'chp_t', path: ['chipTemperature'] });
     advertise(
@@ -282,6 +324,103 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:chip',
       }),
     );
+
+    field({ key: 'fc4_v', path: ['fc4Version'], transform: v => v });
+    advertise(
+      ['fc4Version'],
+      sensorComponent<string>({
+        id: 'fc4_version',
+        name: 'FC41D Firmware',
+        icon: 'mdi:chip',
+      }),
+    );
+
+    field({
+      key: 'mpt_m',
+      path: ['mode'],
+      transform: v => {
+        switch (v) {
+          case '0':
+            return 'default';
+          case '1':
+            return 'b2500Boost';
+          case '2':
+            return 'reverseCurrentProtection';
+          default:
+            return 'default';
+        }
+      },
+    });
+    advertise(
+      ['mode'],
+      selectComponent<NonNullable<MI800DeviceData['mode']>>({
+        id: 'mode',
+        name: 'Mode',
+        icon: 'mdi:cog',
+        command: 'mode',
+        valueMappings: {
+          default: 'Default',
+          b2500Boost: 'B2500 Boost',
+          reverseCurrentProtection: 'Reverse Current Protection',
+        },
+      }),
+    );
+
+    field({ key: 'gc', path: ['gridConnectionBan'], transform: v => v === '1' });
+    advertise(
+      ['gridConnectionBan'],
+      switchComponent({
+        id: 'grid_connection_ban',
+        name: 'Grid Connection Ban',
+        icon: 'mdi:transmission-tower-off',
+        command: 'grid-connection-ban',
+      }),
+    );
+
+    command('max-output-power', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const power = parseInt(message, 10);
+        if (isNaN(power)) {
+          return;
+        }
+        updateDeviceState(() => ({ maximumOutputPower: power }));
+        publishCallback(processCommand(CommandType.SET_MAX_OUTPUT_POWER, { p1: power }));
+      },
+    });
+
+    command('mode', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        if (!isValidMI800Mode(message)) {
+          return;
+        }
+
+        let modeValue: number;
+        switch (message) {
+          case 'default':
+            modeValue = 0;
+            break;
+          case 'b2500Boost':
+            modeValue = 1;
+            break;
+          case 'reverseCurrentProtection':
+            modeValue = 2;
+            break;
+          default:
+            modeValue = 0;
+        }
+
+        updateDeviceState(() => ({ mode: message }));
+        publishCallback(processCommand(CommandType.SET_MODE, { p1: modeValue }));
+      },
+    });
+
+    command('grid-connection-ban', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const enable = message.toLowerCase() === 'true' || message === '1' || message === 'on';
+        updateDeviceState(() => ({ gridConnectionBan: enable }));
+        publishCallback(processCommand(CommandType.GRID_CONNECTION_BAN, { p1: enable ? 1 : 0 }));
+      },
+    });
   });
 }
 

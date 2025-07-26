@@ -195,7 +195,7 @@ describe('MQTT Message Parser', () => {
   test('should parse MI800 micro inverter message correctly', () => {
     // Sample message from the provided MI800 inverter format
     const message =
-      'ele_d=53,ele_w=3984,ele_m=3984,pv1_v=335,pv1_i=3,pv1_p=39,pv1_s=1,pv2_v=341,pv2_i=11,pv2_p=38,pv2_s=1,pe1_v=17,fb1_v=832,fb2_v=773,grd_f=5001,grd_v=2543,grd_s=1,grd_o=72,chp_t=36,rel_s=1,err_t=0,err_c=0,err_d=0,ver_s=106,mpt_m=1,ble_s=2';
+      'ele_d=11,ele_s=1433,ele_m=1433,pv1_v=334,pv1_i=0,pv1_p=16,pv1_s=1,pv2_v=335,pv2_i=0,pv2_p=15,pv2_s=1,pe1_v=17,fb1_v=847,fb2_v=826,grd_f=4999,grd_v=2455,grd_s=1,grd_o=29,chp_t=33,rel_s=1,err_t=0,err_c=0,err_d=0,ver_s=120,mpt_m=1,ble_s=1,mpt1=1,mpt2=1,wif_r=69,fc4_v=202406141323,gc=0,pl=800,ct_r=0,ct_f=0,ct_c=0';
     const deviceType = 'HMI-1';
     const deviceId = '24197287XXXX';
 
@@ -211,40 +211,45 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('values');
 
     // Check raw values are preserved
-    expect(result.values).toHaveProperty('ele_d', '53');
-    expect(result.values).toHaveProperty('pv1_v', '335');
-    expect(result.values).toHaveProperty('grd_f', '5001');
-    expect(result.values).toHaveProperty('chp_t', '36');
+    expect(result.values).toHaveProperty('ele_d', '11');
+    expect(result.values).toHaveProperty('pv1_v', '334');
+    expect(result.values).toHaveProperty('grd_f', '4999');
+    expect(result.values).toHaveProperty('chp_t', '33');
 
     // Check energy statistics (with /100 scale factor)
-    expect(result).toHaveProperty('dailyEnergyGenerated', 0.53);
-    expect(result).toHaveProperty('weeklyEnergyGenerated', 39.84);
-    expect(result).toHaveProperty('monthlyEnergyGenerated', 39.84);
+    expect(result).toHaveProperty('dailyEnergyGenerated', 0.11);
+    expect(result).toHaveProperty('totalEnergyGenerated', 14.33);
+    expect(result).toHaveProperty('monthlyEnergyGenerated', 14.33);
 
     // Check PV Input 1 (voltage/current with /10 scale factor)
-    expect(result).toHaveProperty('pv1Voltage', 33.5);
-    expect(result).toHaveProperty('pv1Current', 0.3);
-    expect(result).toHaveProperty('pv1Power', 39);
+    expect(result).toHaveProperty('pv1Voltage', 33.4);
+    expect(result).toHaveProperty('pv1Current', 0);
+    expect(result).toHaveProperty('pv1Power', 16);
     expect(result).toHaveProperty('pv1Status', true);
 
     // Check PV Input 2
-    expect(result).toHaveProperty('pv2Voltage', 34.1);
-    expect(result).toHaveProperty('pv2Current', 1.1);
-    expect(result).toHaveProperty('pv2Power', 38);
+    expect(result).toHaveProperty('pv2Voltage', 33.5);
+    expect(result).toHaveProperty('pv2Current', 0);
+    expect(result).toHaveProperty('pv2Power', 15);
     expect(result).toHaveProperty('pv2Status', true);
 
     // Check grid information
-    expect(result).toHaveProperty('gridFrequency', 50.01);
-    expect(result).toHaveProperty('gridVoltage', 254.3);
+    expect(result).toHaveProperty('gridFrequency', 49.99);
+    expect(result).toHaveProperty('gridVoltage', 245.5);
     expect(result).toHaveProperty('gridStatus', true);
-    expect(result).toHaveProperty('gridOutputPower', 72);
+    expect(result).toHaveProperty('gridOutputPower', 29);
 
     // Check device status
-    expect(result).toHaveProperty('chipTemperature', 36);
+    expect(result).toHaveProperty('chipTemperature', 33);
     expect(result).toHaveProperty('errorType', 0);
     expect(result).toHaveProperty('errorCount', 0);
     expect(result).toHaveProperty('errorDetails', 0);
-    expect(result).toHaveProperty('firmwareVersion', 106);
+    expect(result).toHaveProperty('firmwareVersion', 120);
+
+    expect(result).toHaveProperty('maximumOutputPower', 800);
+    expect(result).toHaveProperty('mode', 'b2500Boost');
+    expect(result).toHaveProperty('fc4Version', '202406141323');
+    expect(result).toHaveProperty('gridConnectionBan', false);
   });
 
   test('should handle MI800 message with different PV status values', () => {
