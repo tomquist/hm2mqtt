@@ -12,9 +12,7 @@ import {
 import { Device } from './types';
 export interface HaAdvertisement<T, KP extends KeyPath<T> | []> {
   keyPath: KP;
-  advertise: HaStatefulAdvertiseBuilder<
-    KP extends KeyPath<T> ? TypeAtPath<T, KeyPath<T>> : void
-  >;
+  advertise: HaStatefulAdvertiseBuilder<KP extends KeyPath<T> ? TypeAtPath<T, KeyPath<T>> : void>;
   enabled?: (state: T) => boolean;
 }
 

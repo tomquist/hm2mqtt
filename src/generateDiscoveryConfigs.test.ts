@@ -50,9 +50,7 @@ describe('Home Assistant Discovery', () => {
     // Check device info
     expect(firstConfig.config!.device).toHaveProperty('ids');
     expect(firstConfig.config!.device.ids[0]).toBe(`hame_energy_${deviceId}`);
-    expect(firstConfig.config!.device.name).toBe(
-      `HAME Energy ${deviceType} ${deviceId}`,
-    );
+    expect(firstConfig.config!.device.name).toBe(`HAME Energy ${deviceType} ${deviceId}`);
     expect(firstConfig.config!.device.model_id).toBe(deviceType);
     expect(firstConfig.config!.device.manufacturer).toBe('HAME Energy');
 
@@ -69,18 +67,12 @@ describe('Home Assistant Discovery', () => {
     expect(batteryPercentageSensor?.config!.unit_of_measurement).toBe('%');
 
     // Check availability configuration
-    expect(batteryPercentageSensor?.config!.availability?.[1].topic).toBe(
-      availabilityTopic,
-    );
+    expect(batteryPercentageSensor?.config!.availability?.[1].topic).toBe(availabilityTopic);
 
     const chargingModeSelect = configs.find(c => c.topic.includes('charging_mode'));
     expect(chargingModeSelect).toBeDefined();
-    expect(chargingModeSelect?.config!.options).toContain(
-      'Simultaneous Charging/Discharging',
-    );
-    expect(chargingModeSelect?.config!.options).toContain(
-      'Fully Charge Then Discharge',
-    );
+    expect(chargingModeSelect?.config!.options).toContain('Simultaneous Charging/Discharging');
+    expect(chargingModeSelect?.config!.options).toContain('Fully Charge Then Discharge');
 
     // Check time period entities
     const timePeriod1Enabled = configs.find(c => c.topic.includes('time_period_1_enabled'));
@@ -159,6 +151,13 @@ describe('Home Assistant Discovery', () => {
     };
 
     // Call with error client
-    publishDiscoveryConfigs(mockClientWithError, device, deviceTopics, {}, DEFAULT_TOPIC_PREFIX, {});
+    publishDiscoveryConfigs(
+      mockClientWithError,
+      device,
+      deviceTopics,
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      {},
+    );
   });
 });
