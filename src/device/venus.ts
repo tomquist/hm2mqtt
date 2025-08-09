@@ -137,9 +137,7 @@ registerDeviceDefinition(
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
-    if (process.env.POLL_CELL_DATA === 'true') {
-      registerBMSInfoMessage(message);
-    }
+    registerBMSInfoMessage(message);
   },
 );
 
@@ -1162,6 +1160,7 @@ function registerBMSInfoMessage(message: BuildMessageFn) {
       getAdditionalDeviceInfo: () => ({}),
       pollInterval: 60000,
       controlsDeviceAvailability: false,
+      enabled: process.env.POLL_CELL_DATA === 'true',
     },
     ({ field, advertise }) => {
       for (let i = 1; i <= 16; i++) {

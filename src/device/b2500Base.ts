@@ -685,6 +685,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
     publishPath: 'cells',
     pollInterval: 60000,
     controlsDeviceAvailability: false,
+    enabled: process.env.POLL_CELL_DATA === 'true',
   } as const;
   message<B2500CellData>(options, ({ field, advertise }) => {
     advertise(
@@ -805,6 +806,7 @@ export function registerCalibrationDataMessage(message: BuildMessageFn) {
     publishPath: 'calibration',
     pollInterval: 60000,
     controlsDeviceAvailability: false,
+    enabled: process.env.POLL_CALIBRATION_DATA === 'true',
   } as const;
   message<B2500CalibrationData>(options, ({ field, advertise }) => {
     advertise(

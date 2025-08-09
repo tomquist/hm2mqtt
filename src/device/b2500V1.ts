@@ -24,15 +24,9 @@ registerDeviceDefinition(
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
-    if (process.env.POLL_EXTRA_BATTERY_DATA === 'true') {
-      registerExtraBatteryData(message);
-    }
-    if (process.env.POLL_CELL_DATA === 'true') {
-      registerCellDataMessage(message);
-    }
-    if (process.env.POLL_CALIBRATION_DATA === 'true') {
-      registerCalibrationDataMessage(message);
-    }
+    registerExtraBatteryData(message);
+    registerCellDataMessage(message);
+    registerCalibrationDataMessage(message);
   },
 );
 
@@ -216,6 +210,7 @@ function registerExtraBatteryData(message: BuildMessageFn) {
     getAdditionalDeviceInfo: () => ({}),
     pollInterval: globalPollInterval,
     controlsDeviceAvailability: false,
+    enabled: process.env.POLL_EXTRA_BATTERY_DATA === 'true',
   } as const;
   message<B2500V1CD16Data>(options, ({ field, advertise }) => {
     advertise(
