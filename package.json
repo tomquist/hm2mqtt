@@ -14,7 +14,8 @@
     "format:check": "prettier --check \"src/**/*.ts\"",
     "lint": "prettier --check \"src/**/*.ts\"",
     "lint:fix": "prettier --write \"src/**/*.ts\"",
-    "bump-version": "ts-node bump-version.ts"
+    "bump-version": "ts-node bump-version.ts",
+    "release": "./release.sh"
   },
   "dependencies": {
     "aedes": "^0.51.3",
