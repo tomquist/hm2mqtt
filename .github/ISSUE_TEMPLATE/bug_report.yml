@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting an issue. Please provide the device details below.
+        Thanks for reporting an issue. Please provide the device details, installation method, configurations and logs below.
   - type: input
     id: device_model
     attributes:
@@ -21,6 +21,16 @@ body:
       label: Firmware Version
     validations:
       required: true
+  - type: dropdown
+    id: installation_method
+    attributes:
+      label: Installation Method
+      options:
+        - Home Assistant
+        - Docker
+        - Other
+    validations:
+      required: true
   - type: textarea
     id: issue_description
     attributes:
@@ -28,3 +38,35 @@ body:
       description: Provide a clear and concise description of the problem.
     validations:
       required: true
+  - type: textarea
+    id: hm2mqtt_config
+    attributes:
+      label: hm2mqtt Configuration
+      description: Provide your hm2mqtt configuration if applicable.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: hm2mqtt_logs
+    attributes:
+      label: hm2mqtt Logs
+      description: Attach relevant hm2mqtt logs.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: hame_relay_config
+    attributes:
+      label: Hame Relay Configuration
+      description: Provide your Hame Relay configuration.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: hame_relay_logs
+    attributes:
+      label: Hame Relay Logs
+      description: Attach relevant Hame Relay logs.
+      render: text
+    validations:
+      required: false
