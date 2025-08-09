@@ -71,7 +71,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       handler: ({ message, publishCallback, deviceState }) => {
         const validModes = ['pv2PassThrough', 'chargeThenDischarge'];
         if (!validModes.includes(message)) {
-          logger.error('Invalid charging mode value:', message);
+          logger.warn('Invalid charging mode value:', message);
           return;
         }
 
@@ -113,7 +113,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       handler: ({ message, publishCallback, deviceState }) => {
         const threshold = parseInt(message, 10);
         if (isNaN(threshold) || threshold < 0 || threshold > 800) {
-          logger.error('Invalid battery threshold value:', message);
+          logger.warn('Invalid battery threshold value:', message);
           return;
         }
 

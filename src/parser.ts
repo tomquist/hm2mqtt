@@ -53,7 +53,7 @@ export function parseMessage(
 
     return result;
   } catch (error) {
-    logger.error('Error parsing message:', error);
+    // Let callers log context-specific errors to avoid duplication
     throw new Error(
       `Failed to parse message: ${error instanceof Error ? error.message : String(error)}`,
     );

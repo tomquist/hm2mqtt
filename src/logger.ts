@@ -1,7 +1,13 @@
 import pino from 'pino';
 
+const resolvedLevel = process.env.LOG_LEVEL
+  ? process.env.LOG_LEVEL
+  : process.env.NODE_ENV === 'test'
+    ? 'silent'
+    : 'info';
+
 const logger = pino({
-  level: process.env.LOG_LEVEL || 'info',
+  level: resolvedLevel,
   transport: {
     targets: [
       {

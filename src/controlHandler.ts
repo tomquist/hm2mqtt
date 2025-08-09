@@ -60,7 +60,7 @@ export class ControlHandler {
    * @param message - The message payload
    */
   handleControlTopic(device: Device, topic: string, message: string): void {
-    logger.info(`Processing control topic for ${device.deviceId}: ${topic}, message: ${message}`);
+    logger.debug(`Processing control topic for ${device.deviceId}: ${topic}, message: ${message}`);
     try {
       const topics = this.deviceManager.getDeviceTopics(device);
       if (!topics) {

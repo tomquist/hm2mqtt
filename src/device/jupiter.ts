@@ -459,7 +459,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     command('working-mode', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
         if (!isValidJupiterWorkingMode(message)) {
-          logger.error('Invalid working mode value:', message);
+          logger.warn('Invalid working mode value:', message);
           return;
         }
 
@@ -553,7 +553,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         handler: ({ updateDeviceState, message, publishCallback }) => {
           // Validate time format (HH:MM)
           if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
-            logger.error('Invalid start time format (should be HH:MM):', message);
+            logger.warn('Invalid start time format (should be HH:MM):', message);
             return;
           }
 
@@ -561,7 +561,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              logger.error(`Time period ${periodIndex} not found in device state`);
+              logger.warn(`Time period ${periodIndex} not found in device state`);
               return;
             }
 
@@ -607,7 +607,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         handler: ({ updateDeviceState, message, publishCallback }) => {
           // Validate time format (HH:MM)
           if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
-            logger.error('Invalid end time format (should be HH:MM):', message);
+            logger.warn('Invalid end time format (should be HH:MM):', message);
             return;
           }
 
@@ -615,7 +615,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              logger.error(`Time period ${periodIndex} not found in device state`);
+              logger.warn(`Time period ${periodIndex} not found in device state`);
               return;
             }
 
@@ -663,7 +663,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              logger.error(`Time period ${periodIndex} not found in device state`);
+              logger.warn(`Time period ${periodIndex} not found in device state`);
               return;
             }
 
@@ -713,13 +713,13 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         handler: ({ updateDeviceState, message, publishCallback }) => {
           const power = parseInt(message, 10);
           if (isNaN(power) || power < 0 || power > 800) {
-            logger.error('Invalid power value (should be 0-800):', message);
+            logger.warn('Invalid power value (should be 0-800):', message);
             return;
           }
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              logger.error(`Time period ${periodIndex} not found in device state`);
+              logger.warn(`Time period ${periodIndex} not found in device state`);
               return;
             }
 
@@ -774,7 +774,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              logger.error(`Time period ${periodIndex} not found in device state`);
+              logger.warn(`Time period ${periodIndex} not found in device state`);
               return;
             }
 

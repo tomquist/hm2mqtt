@@ -113,13 +113,17 @@ export function publishDiscoveryConfigs(
 
   configs.forEach(({ topic, config }) => {
     let message = config == null ? '' : JSON.stringify(config);
-    logger.info(message);
+    logger.trace(message);
     client.publish(topic, message, { qos: 1, retain: true }, err => {
       if (err) {
         logger.error(`Error publishing discovery config to ${topic}:`, err);
         return;
       }
-      logger.info(`Published discovery config to ${topic}`);
+      if (config == null) {
+        logger.debug(`Discovery config for ${topic} is disabled`);
+      } else {
+        logger.debug(`Published discovery config to ${topic}`);
+      }
     });
   });
 }

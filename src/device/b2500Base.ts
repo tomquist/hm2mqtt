@@ -579,7 +579,7 @@ export function registerBaseMessage({
     handler: ({ message, publishCallback, deviceState }) => {
       const depth = parseInt(message, 10);
       if (isNaN(depth) || depth < 0 || depth > 100) {
-        logger.error('Invalid discharge depth value:', message);
+        logger.warn('Invalid discharge depth value:', message);
         return;
       }
 

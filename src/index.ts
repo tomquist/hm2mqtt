@@ -11,19 +11,9 @@ import logger from './logger';
 import { DataHandler } from './dataHandler';
 import { MqttProxy, MqttProxyConfig } from './mqttProxy';
 
-// Debug mode
-const DEBUG = process.env.DEBUG === 'true';
-
 // MQTT Proxy configuration
 const MQTT_PROXY_ENABLED = process.env.MQTT_PROXY_ENABLED === 'true';
 const MQTT_PROXY_PORT = parseInt(process.env.MQTT_PROXY_PORT || '1890', 10);
-
-// Debug logger
-function debug(...args: any[]) {
-  if (DEBUG) {
-    logger.debug('[DEBUG]', ...args);
-  }
-}
 
 /**
  * Parse device configurations from environment variables
@@ -34,7 +24,7 @@ function parseDeviceConfigurations(): Device[] {
   const devices: Device[] = [];
 
   // Log all device-related environment variables
-  logger.info('Device environment variables:');
+  logger.debug('Device environment variables:');
   const deviceEnvVars = Object.keys(process.env)
     .filter(key => key.startsWith('DEVICE_'))
     .sort();
@@ -43,7 +33,7 @@ function parseDeviceConfigurations(): Device[] {
     logger.warn('No DEVICE_ environment variables found!');
   } else {
     deviceEnvVars.forEach(key => {
-      logger.info(`${key}=${process.env[key]}`);
+      logger.debug(`${key}=${process.env[key]}`);
     });
   }
 
@@ -56,7 +46,7 @@ function parseDeviceConfigurations(): Device[] {
         const deviceId = parts[1];
 
         if (deviceType && deviceId) {
-          logger.info(`Adding device: ${deviceType}:${deviceId} from ${key}=${value}`);
+          logger.info(`Registering device: ${deviceType}:${deviceId} from ${key}=${value}`);
           devices.push({
             deviceType,
             deviceId,
@@ -72,21 +62,21 @@ function parseDeviceConfigurations(): Device[] {
 
   if (devices.length === 0) {
     logger.error('No devices found in environment variables');
-    logger.error('This could be due to:');
-    logger.error('1. Missing device configuration in the addon config');
-    logger.error('2. Environment variables not being properly set');
+    logger.warn('This could be due to:');
+    logger.warn('1. Missing device configuration in the addon config');
+    logger.warn('2. Environment variables not being properly set');
 
-    logger.error('\nEnvironment variables:');
+    logger.info('\nEnvironment variables:');
     Object.keys(process.env)
       .filter(key => !key.toLowerCase().includes('password'))
       .sort()
       .forEach(key => {
-        logger.error(`${key}=${process.env[key]}`);
+        logger.info(`${key}=${process.env[key]}`);
       });
 
-    logger.error('\nPlease check your addon configuration and ensure you have added devices.');
-    logger.error('Example configuration:');
-    logger.error(
+    logger.info('\nPlease check your addon configuration and ensure you have added devices.');
+    logger.info('Example configuration:');
+    logger.info(
       JSON.stringify(
         {
           devices: [
@@ -134,25 +124,24 @@ async function main() {
   try {
     logger.info('Starting hm2mqtt application...');
     logger.info(`Environment: ${process.env.NODE_ENV || 'production'}`);
-    logger.info(`Debug mode: ${DEBUG ? 'enabled' : 'disabled'}`);
     logger.info(
       `MQTT Proxy: ${MQTT_PROXY_ENABLED ? `enabled on port ${MQTT_PROXY_PORT}` : 'disabled'}`,
     );
 
     // Log all environment variables in debug mode
-    if (DEBUG) {
-      logger.info('Environment variables:');
+    if (logger.levelVal <= logger.levels.values.debug) {
+      logger.trace('Environment variables:');
       Object.keys(process.env)
         .filter(key => !key.toLowerCase().includes('password'))
         .sort()
         .forEach(key => {
-          logger.info(`${key}=${process.env[key]}`);
+          logger.trace(`${key}=${process.env[key]}`);
         });
 
       // Print full configuration
-      logger.info('Full configuration:');
+      logger.debug('Full configuration:');
       const config = createMqttConfig(parseDeviceConfigurations());
-      logger.info(
+      logger.debug(
         JSON.stringify(
           config,
           (key, value) => {
@@ -166,7 +155,7 @@ async function main() {
     }
 
     // Parse device configurations
-    logger.info('Parsing device configurations...');
+    logger.debug('Parsing device configurations...');
     const devices = parseDeviceConfigurations();
     logger.info(`Found ${devices.length} device(s)`);
     devices.forEach(device => {
@@ -174,11 +163,11 @@ async function main() {
     });
 
     // Create MQTT configuration
-    logger.info('Creating MQTT configuration...');
+    logger.debug('Creating MQTT configuration...');
     const config = createMqttConfig(devices);
-    logger.info(`MQTT Broker: ${config.brokerUrl}`);
-    logger.info(`MQTT Client ID: ${config.clientId}`);
-    debug(
+    logger.debug(`MQTT Broker: ${config.brokerUrl}`);
+    logger.debug(`MQTT Client ID: ${config.clientId}`);
+    logger.debug(
       'Full MQTT config:',
       JSON.stringify(config, (key, value) => (key === 'password' ? '***' : value), 2),
     );
@@ -188,14 +177,15 @@ async function main() {
       publishPath: string,
       deviceState: DeviceStateData,
     ) => {
-      logger.info('Device state updated');
       const topics = deviceManager.getDeviceTopics(device);
       if (!topics) {
         logger.warn(`No topics found for device ${device.deviceId}`);
         return;
       }
+      const topic = `${topics.publishTopic}/${publishPath}`;
+      logger.debug(`Device state ${topic} updated: ${JSON.stringify(deviceState)}`);
       mqttClient
-        .publish(`${topics.publishTopic}/${publishPath}`, JSON.stringify(deviceState), { qos: 1 })
+        .publish(topic, JSON.stringify(deviceState), { qos: 1 })
         .catch(err => logger.error(`Error publishing message for ${device.deviceId}:`, err));
     };
 
@@ -208,8 +198,7 @@ async function main() {
     // Create message handler function
     const messageHandler = (topic: string, message: Buffer) => {
       try {
-        logger.info(`Received message on topic: ${topic}`);
-        debug(`Message content: ${message.toString()}`);
+        logger.debug(`Received message on topic ${topic}: ${message.toString()}`);
 
         // Find which device this topic belongs to
         const deviceInfo = deviceManager.findDeviceForTopic(topic);
@@ -219,10 +208,12 @@ async function main() {
           return;
         }
         const topics = deviceManager.getDeviceTopics(deviceInfo.device);
-        debug(`Device topics:`, topics);
+        logger.debug(`Device topics:`, topics);
 
         const { device, topicType } = deviceInfo;
-        debug(`Device info: ${device.deviceType}:${device.deviceId}, topic type: ${topicType}`);
+        logger.debug(
+          `Device info: ${device.deviceType}:${device.deviceId}, topic type: ${topicType}`,
+        );
 
         // Handle based on topic type
         switch (topicType) {
@@ -253,7 +244,7 @@ async function main() {
       const topics = deviceManager.getDeviceTopics(device);
 
       if (!topics) {
-        logger.error(`No topics found for device ${device.deviceId}`);
+        logger.warn(`No topics found for device ${device.deviceId}`);
         return;
       }
 
@@ -265,7 +256,7 @@ async function main() {
           // Request updated device data after sending a command
           // Wait a short delay to allow the device to process the command
           setTimeout(() => {
-            logger.info(`Requesting updated device data for ${device.deviceId} after command`);
+            logger.debug(`Requesting updated device data for ${device.deviceId} after command`);
             mqttClient.requestDeviceData(device);
           }, 500);
         })
@@ -280,8 +271,7 @@ async function main() {
     // Initialize MQTT Proxy if enabled
     let mqttProxy: MqttProxy | null = null;
     if (MQTT_PROXY_ENABLED) {
-      logger.info('MQTT Proxy is enabled');
-      logger.info(`MQTT Proxy will start on port ${MQTT_PROXY_PORT}`);
+      logger.debug(`MQTT Proxy is enabled on port ${MQTT_PROXY_PORT}`);
 
       const proxyConfig: MqttProxyConfig = {
         port: MQTT_PROXY_PORT,
@@ -297,7 +287,6 @@ async function main() {
       try {
         await mqttProxy.start();
         logger.info(`MQTT Proxy started successfully on port ${MQTT_PROXY_PORT}`);
-        logger.info('B2500 devices can now connect to this proxy to avoid client ID conflicts');
       } catch (error) {
         logger.error('Failed to start MQTT Proxy:', error);
         logger.warn('Continuing without proxy functionality...');
@@ -330,7 +319,7 @@ async function main() {
       };
     }
 
-    logger.info('Application initialized successfully');
+    logger.debug('Application initialized successfully');
   } catch (error) {
     logger.error('Failed to initialize application:', error);
     process.exit(1);

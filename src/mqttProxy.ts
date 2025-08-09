@@ -68,7 +68,7 @@ export class MqttProxy {
           }
 
           packet.clientId = uniqueId;
-          logger.info(
+          logger.warn(
             `MQTT Proxy: Modified client ID from '${originalClientId}' to '${uniqueId}' (conflict resolution)`,
           );
         }
@@ -120,7 +120,7 @@ export class MqttProxy {
     });
 
     client.on('reconnect', () => {
-      logger.info('MQTT Proxy attempting to reconnect to main broker...');
+      logger.debug('MQTT Proxy attempting to reconnect to main broker...');
     });
 
     return client;
@@ -140,7 +140,7 @@ export class MqttProxy {
           if (err) {
             logger.error(`Error subscribing to ${topics.deviceControlTopicOld}:`, err);
           } else {
-            logger.info(`MQTT Proxy subscribed to ${topics.deviceControlTopicOld}`);
+            logger.debug(`MQTT Proxy subscribed to ${topics.deviceControlTopicOld}`);
           }
         });
 
@@ -148,7 +148,7 @@ export class MqttProxy {
           if (err) {
             logger.error(`Error subscribing to ${topics.deviceControlTopicNew}:`, err);
           } else {
-            logger.info(`MQTT Proxy subscribed to ${topics.deviceControlTopicNew}`);
+            logger.debug(`MQTT Proxy subscribed to ${topics.deviceControlTopicNew}`);
           }
         });
       }
@@ -159,7 +159,7 @@ export class MqttProxy {
    * Handle messages received from the main broker
    */
   private handleMainBrokerMessage(topic: string, message: Buffer): void {
-    logger.info(`MQTT Proxy received message from main broker on topic: ${topic}`);
+    logger.debug(`MQTT Proxy received message from main broker on topic: ${topic}`);
 
     // Forward the message to all connected proxy clients
     this.aedesServer.publish(
@@ -175,7 +175,7 @@ export class MqttProxy {
         if (err) {
           logger.error(`Error forwarding message to proxy clients:`, err);
         } else {
-          logger.info(`Forwarded message to proxy clients on topic: ${topic}`);
+          logger.debug(`Forwarded message to proxy clients on topic: ${topic}`);
         }
       },
     );
@@ -199,7 +199,7 @@ export class MqttProxy {
 
     this.aedesServer.on('publish', (packet, client) => {
       if (client) {
-        logger.info(
+        logger.debug(
           `MQTT Proxy received message from client ${client.id} on topic: ${packet.topic}`,
         );
 
@@ -215,7 +215,7 @@ export class MqttProxy {
             if (err) {
               logger.error(`Error forwarding message to main broker:`, err);
             } else {
-              logger.info(`Forwarded message to main broker on topic: ${packet.topic}`);
+              logger.debug(`Forwarded message to main broker on topic: ${packet.topic}`);
             }
           },
         );
@@ -223,11 +223,14 @@ export class MqttProxy {
     });
 
     this.aedesServer.on('subscribe', (subscriptions, client) => {
-      logger.info(`Client ${client.id} subscribed to:`, subscriptions.map(s => s.topic).join(', '));
+      logger.debug(
+        `Client ${client.id} subscribed to:`,
+        subscriptions.map(s => s.topic).join(', '),
+      );
     });
 
     this.aedesServer.on('unsubscribe', (unsubscriptions, client) => {
-      logger.info(`Client ${client.id} unsubscribed from:`, unsubscriptions.join(', '));
+      logger.debug(`Client ${client.id} unsubscribed from:`, unsubscriptions.join(', '));
     });
   }
 
