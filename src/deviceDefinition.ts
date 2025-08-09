@@ -79,6 +79,7 @@ export interface MessageDefinition<T extends BaseDeviceData> {
   publishPath: string;
   pollInterval: number;
   controlsDeviceAvailability: boolean;
+  enabled?: boolean;
 }
 
 export type BaseDeviceData = {
@@ -128,6 +129,7 @@ export type BuildMessageFn = <T extends BaseDeviceData>(
     getAdditionalDeviceInfo: (state: T) => AdditionalDeviceInfo;
     pollInterval: number;
     controlsDeviceAvailability: boolean;
+    enabled?: boolean;
   },
   args: BuildMessageDefinitionFn<T>,
 ) => void;
@@ -162,10 +164,13 @@ export function registerDeviceDefinition(
     };
     const advertisements: HaAdvertisement<any, KeyPath<any> | []>[] = [];
     const advertise: AdvertiseComponentFn<any> = (keyPath, advertise, options = {}) => {
+      // If the message is disabled, override enabled to always return false
+      const enabled = messageOptions.enabled === false ? () => false : options.enabled;
+
       advertisements.push({
         keyPath,
         advertise,
-        enabled: options.enabled,
+        enabled,
       });
     };
 
@@ -175,6 +180,7 @@ export function registerDeviceDefinition(
       advertisements,
       commands,
       ...messageOptions,
+      enabled: messageOptions.enabled !== false,
     } satisfies MessageDefinition<any>;
     messages.push(messageDefinition);
   };

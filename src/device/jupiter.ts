@@ -91,9 +91,7 @@ registerDeviceDefinition(
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
-    if (process.env.POLL_CELL_DATA === 'true') {
-      registerJupiterBMSInfoMessage(message);
-    }
+    registerJupiterBMSInfoMessage(message);
   },
 );
 
@@ -817,6 +815,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
       getAdditionalDeviceInfo: () => ({}),
       pollInterval: 60000,
       controlsDeviceAvailability: false,
+      enabled: process.env.POLL_CELL_DATA === 'true',
     },
     ({ field, advertise }) => {
       // Cell voltages (vol0-vol15)
