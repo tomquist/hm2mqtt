@@ -9,6 +9,7 @@ import {
   registerCalibrationDataMessage,
   registerCellDataMessage,
 } from './b2500Base';
+import logger from '../logger';
 import {
   numberComponent,
   selectComponent,
@@ -23,15 +24,9 @@ registerDeviceDefinition(
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
-    if (process.env.POLL_EXTRA_BATTERY_DATA === 'true') {
-      registerExtraBatteryData(message);
-    }
-    if (process.env.POLL_CELL_DATA === 'true') {
-      registerCellDataMessage(message);
-    }
-    if (process.env.POLL_CALIBRATION_DATA === 'true') {
-      registerCalibrationDataMessage(message);
-    }
+    registerExtraBatteryData(message);
+    registerCellDataMessage(message);
+    registerCalibrationDataMessage(message);
   },
 );
 
@@ -76,7 +71,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       handler: ({ message, publishCallback, deviceState }) => {
         const validModes = ['pv2PassThrough', 'chargeThenDischarge'];
         if (!validModes.includes(message)) {
-          console.error('Invalid charging mode value:', message);
+          logger.warn('Invalid charging mode value:', message);
           return;
         }
 
@@ -118,7 +113,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       handler: ({ message, publishCallback, deviceState }) => {
         const threshold = parseInt(message, 10);
         if (isNaN(threshold) || threshold < 0 || threshold > 800) {
-          console.error('Invalid battery threshold value:', message);
+          logger.warn('Invalid battery threshold value:', message);
           return;
         }
 
@@ -167,7 +162,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             modeValue = (output1Enabled ? 1 : 0) | (newState ? 2 : 0);
           }
 
-          console.log(
+          logger.info(
             `Setting output ${outputNumber} to ${newState ? 'ON' : 'OFF'}, new discharge mode: ${modeValue}`,
           );
 
@@ -215,6 +210,7 @@ function registerExtraBatteryData(message: BuildMessageFn) {
     getAdditionalDeviceInfo: () => ({}),
     pollInterval: globalPollInterval,
     controlsDeviceAvailability: false,
+    enabled: process.env.POLL_EXTRA_BATTERY_DATA === 'true',
   } as const;
   message<B2500V1CD16Data>(options, ({ field, advertise }) => {
     advertise(

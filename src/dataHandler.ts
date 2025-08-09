@@ -2,6 +2,7 @@ import { Device } from './types';
 import { DeviceManager } from './deviceManager';
 import { parseMessage } from './parser';
 
+import logger from './logger';
 /**
  * Data Handler class
  */
@@ -21,7 +22,8 @@ export class DataHandler {
    * @param message - The raw message
    */
   handleDeviceData(device: Device, message: string): void {
-    console.log(`Processing device data for ${device.deviceId}`);
+    logger.debug(`Received new device data for device ${device.deviceType}:${device.deviceId}`);
+    logger.trace(`Raw message: ${message}`);
 
     try {
       const parsedData = parseMessage(message, device.deviceType, device.deviceId);
@@ -29,7 +31,7 @@ export class DataHandler {
         this.deviceManager.updateDeviceState(device, path, () => data);
       }
     } catch (error) {
-      console.error(`Error handling device data for ${device.deviceId}:`, error);
+      logger.error(`Error handling device data for ${device.deviceId}:`, error);
     }
   }
 }

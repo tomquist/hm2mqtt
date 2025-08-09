@@ -3,6 +3,7 @@ import { DeviceManager } from './deviceManager';
 import { getDeviceDefinition, HaStatefulAdvertiseBuilder, KeyPath } from './deviceDefinition';
 import { HaComponentConfig } from './homeAssistantDiscovery';
 
+import logger from './logger';
 type RecursiveReadonly<T> = {
   readonly [P in keyof T]: RecursiveReadonly<T[P]>;
 };
@@ -59,11 +60,11 @@ export class ControlHandler {
    * @param message - The message payload
    */
   handleControlTopic(device: Device, topic: string, message: string): void {
-    console.log(`Processing control topic for ${device.deviceId}: ${topic}, message: ${message}`);
+    logger.debug(`Processing control topic for ${device.deviceId}: ${topic}, message: ${message}`);
     try {
       const topics = this.deviceManager.getDeviceTopics(device);
       if (!topics) {
-        console.error(`No topics found for device ${device.deviceId}`);
+        logger.error(`No topics found for device ${device.deviceId}`);
         return;
       }
 
@@ -91,9 +92,9 @@ export class ControlHandler {
         }
       }
 
-      console.warn('Unknown control topic:', topic);
+      logger.warn('Unknown control topic:', topic);
     } catch (error) {
-      console.error('Error handling control topic:', error);
+      logger.error('Error handling control topic:', error);
     }
   }
 }

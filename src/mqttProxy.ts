@@ -2,6 +2,7 @@ import * as mqtt from 'mqtt';
 import Aedes from 'aedes';
 import * as net from 'net';
 import { DeviceManager } from './deviceManager';
+import logger from './logger';
 
 export interface MqttProxyConfig {
   /** Port for the proxy MQTT server */
@@ -59,7 +60,7 @@ export class MqttProxy {
           } while (this.usedClientIds.has(uniqueId) && attempts < maxAttempts);
 
           if (attempts >= maxAttempts) {
-            console.error(
+            logger.error(
               `MQTT Proxy: Failed to generate unique client ID after ${maxAttempts} attempts for '${originalClientId}'`,
             );
             callback(new Error('Unable to generate unique client ID'), false);
@@ -67,7 +68,7 @@ export class MqttProxy {
           }
 
           packet.clientId = uniqueId;
-          console.log(
+          logger.warn(
             `MQTT Proxy: Modified client ID from '${originalClientId}' to '${uniqueId}' (conflict resolution)`,
           );
         }
@@ -95,14 +96,14 @@ export class MqttProxy {
       connectTimeout: 30000,
     };
 
-    console.log(
+    logger.info(
       `MQTT Proxy connecting to main broker at ${this.config.mainBrokerUrl} with client ID ${this.config.proxyClientId}`,
     );
 
     const client = mqtt.connect(this.config.mainBrokerUrl, options);
 
     client.on('connect', () => {
-      console.log('MQTT Proxy connected to main broker');
+      logger.info('MQTT Proxy connected to main broker');
       this.subscribeToControlTopics();
     });
 
@@ -111,15 +112,15 @@ export class MqttProxy {
     });
 
     client.on('error', (error: Error) => {
-      console.error('MQTT Proxy main broker connection error:', error);
+      logger.error('MQTT Proxy main broker connection error:', error);
     });
 
     client.on('close', () => {
-      console.log('MQTT Proxy disconnected from main broker');
+      logger.info('MQTT Proxy disconnected from main broker');
     });
 
     client.on('reconnect', () => {
-      console.log('MQTT Proxy attempting to reconnect to main broker...');
+      logger.debug('MQTT Proxy attempting to reconnect to main broker...');
     });
 
     return client;
@@ -137,17 +138,17 @@ export class MqttProxy {
         // Subscribe to control topics to forward to proxy clients
         this.mainBrokerClient.subscribe(topics.deviceControlTopicOld, err => {
           if (err) {
-            console.error(`Error subscribing to ${topics.deviceControlTopicOld}:`, err);
+            logger.error(`Error subscribing to ${topics.deviceControlTopicOld}:`, err);
           } else {
-            console.log(`MQTT Proxy subscribed to ${topics.deviceControlTopicOld}`);
+            logger.debug(`MQTT Proxy subscribed to ${topics.deviceControlTopicOld}`);
           }
         });
 
         this.mainBrokerClient.subscribe(topics.deviceControlTopicNew, err => {
           if (err) {
-            console.error(`Error subscribing to ${topics.deviceControlTopicNew}:`, err);
+            logger.error(`Error subscribing to ${topics.deviceControlTopicNew}:`, err);
           } else {
-            console.log(`MQTT Proxy subscribed to ${topics.deviceControlTopicNew}`);
+            logger.debug(`MQTT Proxy subscribed to ${topics.deviceControlTopicNew}`);
           }
         });
       }
@@ -158,7 +159,7 @@ export class MqttProxy {
    * Handle messages received from the main broker
    */
   private handleMainBrokerMessage(topic: string, message: Buffer): void {
-    console.log(`MQTT Proxy received message from main broker on topic: ${topic}`);
+    logger.debug(`MQTT Proxy received message from main broker on topic: ${topic}`);
 
     // Forward the message to all connected proxy clients
     this.aedesServer.publish(
@@ -172,9 +173,9 @@ export class MqttProxy {
       },
       err => {
         if (err) {
-          console.error(`Error forwarding message to proxy clients:`, err);
+          logger.error(`Error forwarding message to proxy clients:`, err);
         } else {
-          console.log(`Forwarded message to proxy clients on topic: ${topic}`);
+          logger.debug(`Forwarded message to proxy clients on topic: ${topic}`);
         }
       },
     );
@@ -185,12 +186,12 @@ export class MqttProxy {
    */
   private setupAedesEventHandlers(): void {
     this.aedesServer.on('client', client => {
-      console.log(`Client ${client.id} connected to MQTT proxy`);
+      logger.info(`Client ${client.id} connected to MQTT proxy`);
       this.connectedClients.add(client.id);
     });
 
     this.aedesServer.on('clientDisconnect', client => {
-      console.log(`Client ${client.id} disconnected from MQTT proxy`);
+      logger.info(`Client ${client.id} disconnected from MQTT proxy`);
       this.connectedClients.delete(client.id);
       // Remove the client ID from our tracking set when client disconnects
       this.usedClientIds.delete(client.id);
@@ -198,7 +199,7 @@ export class MqttProxy {
 
     this.aedesServer.on('publish', (packet, client) => {
       if (client) {
-        console.log(
+        logger.debug(
           `MQTT Proxy received message from client ${client.id} on topic: ${packet.topic}`,
         );
 
@@ -212,9 +213,9 @@ export class MqttProxy {
           },
           err => {
             if (err) {
-              console.error(`Error forwarding message to main broker:`, err);
+              logger.error(`Error forwarding message to main broker:`, err);
             } else {
-              console.log(`Forwarded message to main broker on topic: ${packet.topic}`);
+              logger.debug(`Forwarded message to main broker on topic: ${packet.topic}`);
             }
           },
         );
@@ -222,11 +223,14 @@ export class MqttProxy {
     });
 
     this.aedesServer.on('subscribe', (subscriptions, client) => {
-      console.log(`Client ${client.id} subscribed to:`, subscriptions.map(s => s.topic).join(', '));
+      logger.debug(
+        `Client ${client.id} subscribed to:`,
+        subscriptions.map(s => s.topic).join(', '),
+      );
     });
 
     this.aedesServer.on('unsubscribe', (unsubscriptions, client) => {
-      console.log(`Client ${client.id} unsubscribed from:`, unsubscriptions.join(', '));
+      logger.debug(`Client ${client.id} unsubscribed from:`, unsubscriptions.join(', '));
     });
   }
 
@@ -235,20 +239,20 @@ export class MqttProxy {
    */
   async start(): Promise<void> {
     if (this.isRunning) {
-      console.warn('MQTT Proxy is already running');
+      logger.warn('MQTT Proxy is already running');
       return;
     }
 
     return new Promise((resolve, reject) => {
       this.tcpServer.listen(this.config.port, (err?: Error) => {
         if (err) {
-          console.error(`Failed to start MQTT Proxy on port ${this.config.port}:`, err);
+          logger.error(`Failed to start MQTT Proxy on port ${this.config.port}:`, err);
           reject(err);
           return;
         }
 
         this.isRunning = true;
-        console.log(`MQTT Proxy server started on port ${this.config.port}`);
+        logger.info(`MQTT Proxy server started on port ${this.config.port}`);
         resolve();
       });
     });
@@ -259,7 +263,7 @@ export class MqttProxy {
    */
   async stop(): Promise<void> {
     if (!this.isRunning) {
-      console.warn('MQTT Proxy is not running');
+      logger.warn('MQTT Proxy is not running');
       return;
     }
 
@@ -272,7 +276,7 @@ export class MqttProxy {
         // Close the TCP server
         this.tcpServer.close(() => {
           this.isRunning = false;
-          console.log('MQTT Proxy stopped');
+          logger.info('MQTT Proxy stopped');
           resolve();
         });
       });

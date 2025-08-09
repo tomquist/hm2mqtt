@@ -79,6 +79,7 @@ export interface MessageDefinition<T extends BaseDeviceData> {
   publishPath: string;
   pollInterval: number;
   controlsDeviceAvailability: boolean;
+  enabled?: boolean;
 }
 
 export type BaseDeviceData = {
@@ -101,6 +102,7 @@ export type RegisterCommandDefinitionFn<T extends BaseDeviceData> = (
 export type AdvertiseComponentFn<T extends BaseDeviceData> = <KP extends KeyPath<T> | []>(
   keyPath: KP,
   component: HaStatefulAdvertiseBuilder<KP extends KeyPath<T> ? TypeAtPath<T, KP> : void>,
+  options?: { enabled?: (state: T) => boolean },
 ) => void;
 
 export type BuildMessageDefinitionArgs<T extends BaseDeviceData> = {
@@ -127,6 +129,7 @@ export type BuildMessageFn = <T extends BaseDeviceData>(
     getAdditionalDeviceInfo: (state: T) => AdditionalDeviceInfo;
     pollInterval: number;
     controlsDeviceAvailability: boolean;
+    enabled?: boolean;
   },
   args: BuildMessageDefinitionFn<T>,
 ) => void;
@@ -160,10 +163,14 @@ export function registerDeviceDefinition(
       commands.push({ ...command, command: name } as ControlHandlerDefinition<any>);
     };
     const advertisements: HaAdvertisement<any, KeyPath<any> | []>[] = [];
-    const advertise: AdvertiseComponentFn<any> = (keyPath, advertise) => {
+    const advertise: AdvertiseComponentFn<any> = (keyPath, advertise, options = {}) => {
+      // If the message is disabled, override enabled to always return false
+      const enabled = messageOptions.enabled === false ? () => false : options.enabled;
+
       advertisements.push({
         keyPath,
         advertise,
+        enabled,
       });
     };
 
@@ -173,6 +180,7 @@ export function registerDeviceDefinition(
       advertisements,
       commands,
       ...messageOptions,
+      enabled: messageOptions.enabled !== false,
     } satisfies MessageDefinition<any>;
     messages.push(messageDefinition);
   };

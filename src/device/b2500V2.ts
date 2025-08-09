@@ -5,6 +5,7 @@ import {
   B2500V2SmartMeterStatus,
   CommandParams,
 } from '../types';
+import logger from '../logger';
 import {
   CommandType,
   extractAdditionalDeviceInfo,
@@ -41,7 +42,7 @@ export const timePeriodSettingHandler = (
     // Update the device state
     updateDeviceState(state => {
       if (state.timePeriods == null || state.timePeriods.length < periodNumber) {
-        console.error(`No time period ${periodNumber} found for ${device.deviceId}`);
+        logger.error(`No time period ${periodNumber} found for ${device.deviceId}`);
         return;
       }
       const newTimePeriodSettings = [...state.timePeriods.map(p => ({ ...p }))];
@@ -53,16 +54,16 @@ export const timePeriodSettingHandler = (
           break;
         case 'start-time':
           // Validate time format (HH:MM)
-          if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
-            console.error('Invalid start time format (should be HH:MM):', message);
+          if (!/^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
+            logger.warn('Invalid start time format (should be HH:MM):', message);
             return;
           }
           newTimePeriodSettings[periodIndex].startTime = message;
           break;
         case 'end-time':
           // Validate time format (HH:MM)
-          if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
-            console.error('Invalid end time format (should be HH:MM):', message);
+          if (!/^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
+            logger.warn('Invalid end time format (should be HH:MM):', message);
             return;
           }
           newTimePeriodSettings[periodIndex].endTime = message;
@@ -70,17 +71,17 @@ export const timePeriodSettingHandler = (
         case 'output-value':
           const outputValue = parseInt(message, 10);
           if (isNaN(outputValue) || outputValue < 0 || outputValue > 800) {
-            console.error('Invalid output value (should be 0-800):', message);
+            logger.warn('Invalid output value (should be 0-800):', message);
             return;
           }
           newTimePeriodSettings[periodIndex].outputValue = outputValue;
           break;
         default:
-          console.error('Unknown time period setting:', setting);
+          logger.warn('Unknown time period setting:', setting);
           return;
       }
 
-      console.log(`Current period ${periodNumber} settings:`, newTimePeriodSettings[periodIndex]);
+      logger.info(`Current period ${periodNumber} settings:`, newTimePeriodSettings[periodIndex]);
 
       // Build time period parameters for all periods
       const params = buildTimePeriodParams(newTimePeriodSettings);
@@ -135,15 +136,9 @@ registerDeviceDefinition(
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
-    if (process.env.POLL_EXTRA_BATTERY_DATA === 'true') {
-      registerExtraBatteryData(message);
-    }
-    if (process.env.POLL_CELL_DATA === 'true') {
-      registerCellDataMessage(message);
-    }
-    if (process.env.POLL_CALIBRATION_DATA === 'true') {
-      registerCalibrationDataMessage(message);
-    }
+    registerExtraBatteryData(message);
+    registerCellDataMessage(message);
+    registerCalibrationDataMessage(message);
   },
 );
 
@@ -202,7 +197,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       handler: ({ message, publishCallback, deviceState }) => {
         const validModes = ['chargeDischargeSimultaneously', 'chargeThenDischarge'];
         if (!validModes.includes(message)) {
-          console.error('Invalid charging mode value:', message);
+          logger.warn('Invalid charging mode value:', message);
           return;
         }
 
@@ -279,7 +274,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           id: `time_period_${i + 1}_start_time`,
           name: `Time Period ${i + 1} Start Time`,
           command: `time-period/${i + 1}/start-time`,
-          pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
+          pattern: '^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$',
         }),
       );
       field({
@@ -293,7 +288,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           id: `time_period_${i + 1}_end_time`,
           name: `Time Period ${i + 1} End Time`,
           command: `time-period/${i + 1}/end-time`,
-          pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
+          pattern: '^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$',
         }),
       );
       field({
@@ -464,7 +459,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         }
         const channel = parseInt(channelValue, 10);
         if (isNaN(channel) || channel < 0 || (channel > 4 && channel !== 255)) {
-          console.error('Invalid connected phase value:', message);
+          logger.warn('Invalid connected phase value:', message);
           return;
         }
 
@@ -620,7 +615,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       handler: ({ message, publishCallback, deviceState }) => {
         const timezone = parseInt(message, 10);
         if (isNaN(timezone)) {
-          console.error('Invalid time zone value:', message);
+          logger.warn('Invalid time zone value:', message);
           return;
         }
 
@@ -636,13 +631,13 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           if (message === 'PRESS' || message === 'press' || message === 'true' || message === '1') {
             const now = new Date();
             const timeData = {
-              wy: 480, // Default timezone offset
-              yy: now.getFullYear() - 1900,
-              mm: now.getMonth(),
-              rr: now.getDate(),
-              hh: now.getHours(),
-              mn: now.getMinutes(),
-              ss: now.getSeconds(),
+              wy: -now.getTimezoneOffset(),
+              yy: now.getUTCFullYear() - 1900,
+              mm: now.getUTCMonth(),
+              rr: now.getUTCDate(),
+              hh: now.getUTCHours(),
+              mn: now.getUTCMinutes(),
+              ss: now.getUTCSeconds(),
             };
             publishCallback(
               processCommand(CommandType.SYNC_TIME, timeData, deviceState.useFlashCommands),
@@ -661,7 +656,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             !timeData.mn ||
             !timeData.ss
           ) {
-            console.error('Missing time parameters:', message);
+            logger.error('Missing time parameters:', message);
             return;
           }
 
@@ -669,7 +664,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             processCommand(CommandType.SYNC_TIME, timeData, deviceState.useFlashCommands),
           );
         } catch (error) {
-          console.error('Invalid time sync data:', message);
+          logger.warn('Invalid time sync data:', message);
         }
       },
     });
@@ -737,6 +732,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
     pollInterval: 60000,
     controlsDeviceAvailability: false,
     getAdditionalDeviceInfo: () => ({}),
+    enabled: process.env.POLL_EXTRA_BATTERY_DATA === 'true',
   } as const;
   message<B2500V2CD16Data>(options, ({ field, advertise }) => {
     advertise(

@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2025-08-09
+
+- Fix time synchronization to use local timezone offset (#102)
+- Venus: Allow setting maximum charging power as low as 0W (#117)
+- Add support for CT002 smart meter device type HME (#116)
+- Add support for MI800 micro inverter device type HMI with sensors and control commands (#118, #123)
+- Add 24-hour format for timings and fix "mAh" unit availability for energy class (#121)
+- Switch logging system to pino for better performance and structured logging (#90)
+- Sensors can now be conditionally disabled using a state-based function (#124, #148)
+- Fix tests and improve test infrastructure (#105)
+
+
 ## [1.4.3] - 2025-06-22
 
 - Jupiter: Add MPPT sensors for PV voltage, current, and power (#82)

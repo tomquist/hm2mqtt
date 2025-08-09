@@ -8,6 +8,7 @@ import {
   VenusTimePeriod,
   WeekdaySet,
 } from '../types';
+import logger from '../logger';
 import {
   buttonComponent,
   numberComponent,
@@ -136,9 +137,7 @@ registerDeviceDefinition(
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
-    if (process.env.POLL_CELL_DATA === 'true') {
-      registerBMSInfoMessage(message);
-    }
+    registerBMSInfoMessage(message);
   },
 );
 
@@ -729,7 +728,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     command('version-set', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
         if (!isValidVenusVersionSet(message)) {
-          console.error('Invalid version value:', message);
+          logger.warn('Invalid version value:', message);
           return;
         }
 
@@ -839,7 +838,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              console.error(`Time period ${periodIndex} not found in device state`);
+              logger.warn(`Time period ${periodIndex} not found in device state`);
               return;
             }
 
@@ -870,7 +869,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         handler: ({ updateDeviceState, message, publishCallback }) => {
           // Validate time format (HH:MM)
           if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
-            console.error('Invalid start time format (should be HH:MM):', message);
+            logger.warn('Invalid start time format (should be HH:MM):', message);
             return;
           }
 
@@ -878,7 +877,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              console.error(`Time period ${periodIndex} not found in device state`);
+              logger.warn(`Time period ${periodIndex} not found in device state`);
               return;
             }
 
@@ -909,7 +908,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         handler: ({ updateDeviceState, message, publishCallback }) => {
           // Validate time format (HH:MM)
           if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
-            console.error('Invalid end time format (should be HH:MM):', message);
+            logger.warn('Invalid end time format (should be HH:MM):', message);
             return;
           }
 
@@ -917,7 +916,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              console.error(`Time period ${periodIndex} not found in device state`);
+              logger.warn(`Time period ${periodIndex} not found in device state`);
               return;
             }
 
@@ -948,13 +947,13 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         handler: ({ updateDeviceState, message, publishCallback }) => {
           const power = parseInt(message, 10);
           if (isNaN(power)) {
-            console.error('Invalid power value:', message);
+            logger.warn('Invalid power value:', message);
             return;
           }
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              console.error(`Time period ${periodIndex} not found in device state`);
+              logger.error(`Time period ${periodIndex} not found in device state`);
               return;
             }
 
@@ -984,7 +983,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       command(`time-period/${i}/weekday`, {
         handler: ({ updateDeviceState, message, publishCallback }) => {
           if (!/^[0-6]*$/.test(message)) {
-            console.error(
+            logger.warn(
               'Invalid weekday value (should be a string only consisting of numbers 0-6):',
               message,
             );
@@ -994,7 +993,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              console.error(`Time period ${periodIndex} not found in device state`);
+              logger.warn(`Time period ${periodIndex} not found in device state`);
               return;
             }
 
@@ -1028,7 +1027,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         try {
           const params = JSON.parse(message);
           if (!params.id || !params.in || !params.on) {
-            console.error('Missing transaction mode parameters:', message);
+            logger.error('Missing transaction mode parameters:', message);
             return;
           }
 
@@ -1041,7 +1040,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             }),
           );
         } catch (error) {
-          console.error('Invalid transaction mode data:', message, error);
+          logger.warn('Invalid transaction mode data:', message, error);
         }
       },
     });
@@ -1049,7 +1048,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     command('working-mode', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
         if (!isValidVenusWorkingMode(message)) {
-          console.error('Invalid working mode value:', message);
+          logger.warn('Invalid working mode value:', message);
           return;
         }
 
@@ -1098,7 +1097,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       handler: ({ message, publishCallback, updateDeviceState }) => {
         const power = parseInt(message, 10);
         if (isNaN(power) || power < 0 || power > 2500) {
-          console.error('Invalid maximum discharge power value:', message);
+          logger.warn('Invalid maximum discharge power value:', message);
           return;
         }
 
@@ -1122,7 +1121,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:flash',
         unit_of_measurement: 'W',
         command: 'max-charging-power',
-        min: 300,
+        min: 0,
         max: 2500,
         step: 1,
       }),
@@ -1131,8 +1130,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     command('max-charging-power', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
         const power = parseInt(message, 10);
-        if (isNaN(power) || power < 300 || power > 2500) {
-          console.error('Invalid maximum charging power value:', message);
+        if (isNaN(power) || power < 0 || power > 2500) {
+          logger.warn('Invalid maximum charging power value:', message);
           return;
         }
 
@@ -1161,6 +1160,7 @@ function registerBMSInfoMessage(message: BuildMessageFn) {
       getAdditionalDeviceInfo: () => ({}),
       pollInterval: 60000,
       controlsDeviceAvailability: false,
+      enabled: process.env.POLL_CELL_DATA === 'true',
     },
     ({ field, advertise }) => {
       for (let i = 1; i <= 16; i++) {

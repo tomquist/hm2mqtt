@@ -9,6 +9,7 @@ import {
   WeekdaySet,
   JupiterTimePeriod,
 } from '../types';
+import logger from '../logger';
 import {
   sensorComponent,
   switchComponent,
@@ -90,9 +91,7 @@ registerDeviceDefinition(
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
-    if (process.env.POLL_CELL_DATA === 'true') {
-      registerJupiterBMSInfoMessage(message);
-    }
+    registerJupiterBMSInfoMessage(message);
   },
 );
 
@@ -460,7 +459,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     command('working-mode', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
         if (!isValidJupiterWorkingMode(message)) {
-          console.error('Invalid working mode value:', message);
+          logger.warn('Invalid working mode value:', message);
           return;
         }
 
@@ -554,7 +553,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         handler: ({ updateDeviceState, message, publishCallback }) => {
           // Validate time format (HH:MM)
           if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
-            console.error('Invalid start time format (should be HH:MM):', message);
+            logger.warn('Invalid start time format (should be HH:MM):', message);
             return;
           }
 
@@ -562,7 +561,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              console.error(`Time period ${periodIndex} not found in device state`);
+              logger.warn(`Time period ${periodIndex} not found in device state`);
               return;
             }
 
@@ -608,7 +607,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         handler: ({ updateDeviceState, message, publishCallback }) => {
           // Validate time format (HH:MM)
           if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
-            console.error('Invalid end time format (should be HH:MM):', message);
+            logger.warn('Invalid end time format (should be HH:MM):', message);
             return;
           }
 
@@ -616,7 +615,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              console.error(`Time period ${periodIndex} not found in device state`);
+              logger.warn(`Time period ${periodIndex} not found in device state`);
               return;
             }
 
@@ -664,7 +663,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              console.error(`Time period ${periodIndex} not found in device state`);
+              logger.warn(`Time period ${periodIndex} not found in device state`);
               return;
             }
 
@@ -714,13 +713,13 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         handler: ({ updateDeviceState, message, publishCallback }) => {
           const power = parseInt(message, 10);
           if (isNaN(power) || power < 0 || power > 800) {
-            console.error('Invalid power value (should be 0-800):', message);
+            logger.warn('Invalid power value (should be 0-800):', message);
             return;
           }
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              console.error(`Time period ${periodIndex} not found in device state`);
+              logger.warn(`Time period ${periodIndex} not found in device state`);
               return;
             }
 
@@ -765,7 +764,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       command(`time-period/${i}/weekday`, {
         handler: ({ updateDeviceState, message, publishCallback }) => {
           if (!/^[0-6]*$/.test(message)) {
-            console.error(
+            logger.error(
               'Invalid weekday value (should be a string only consisting of numbers 0-6):',
               message,
             );
@@ -775,7 +774,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
           updateDeviceState(state => {
             if (!state.timePeriods || !state.timePeriods[periodIndex]) {
-              console.error(`Time period ${periodIndex} not found in device state`);
+              logger.warn(`Time period ${periodIndex} not found in device state`);
               return;
             }
 
@@ -816,6 +815,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
       getAdditionalDeviceInfo: () => ({}),
       pollInterval: 60000,
       controlsDeviceAvailability: false,
+      enabled: process.env.POLL_CELL_DATA === 'true',
     },
     ({ field, advertise }) => {
       // Cell voltages (vol0-vol15)

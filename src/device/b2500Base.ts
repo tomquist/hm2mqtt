@@ -3,6 +3,7 @@ import {
   BuildMessageDefinitionArgs,
   BuildMessageFn,
 } from '../deviceDefinition';
+import logger from '../logger';
 import { B2500BaseDeviceData, B2500CalibrationData, B2500CellData, CommandParams } from '../types';
 import {
   binarySensorComponent,
@@ -578,7 +579,7 @@ export function registerBaseMessage({
     handler: ({ message, publishCallback, deviceState }) => {
       const depth = parseInt(message, 10);
       if (isNaN(depth) || depth < 0 || depth > 100) {
-        console.error('Invalid discharge depth value:', message);
+        logger.warn('Invalid discharge depth value:', message);
         return;
       }
 
@@ -654,7 +655,7 @@ export function registerBaseMessage({
     handler: ({ device, updateDeviceState, message }) => {
       const useFlash = message.toLowerCase() === 'true' || message === '1';
       const { useFlashCommands } = updateDeviceState(() => ({ useFlashCommands: useFlash }));
-      console.log(
+      logger.info(
         `Flash commands ${useFlashCommands ? 'enabled' : 'disabled'} for ${device.deviceId}`,
       );
     },
@@ -684,6 +685,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
     publishPath: 'cells',
     pollInterval: 60000,
     controlsDeviceAvailability: false,
+    enabled: process.env.POLL_CELL_DATA === 'true',
   } as const;
   message<B2500CellData>(options, ({ field, advertise }) => {
     advertise(
@@ -804,6 +806,7 @@ export function registerCalibrationDataMessage(message: BuildMessageFn) {
     publishPath: 'calibration',
     pollInterval: 60000,
     controlsDeviceAvailability: false,
+    enabled: process.env.POLL_CALIBRATION_DATA === 'true',
   } as const;
   message<B2500CalibrationData>(options, ({ field, advertise }) => {
     advertise(
@@ -826,7 +829,6 @@ export function registerCalibrationDataMessage(message: BuildMessageFn) {
       sensorComponent<number>({
         id: 'calibration_charge',
         name: 'Calibration Charge',
-        device_class: 'energy',
         unit_of_measurement: 'mAh',
       }),
     );
@@ -840,7 +842,6 @@ export function registerCalibrationDataMessage(message: BuildMessageFn) {
       sensorComponent<number>({
         id: 'calibration_discharge',
         name: 'Calibration Discharge',
-        device_class: 'energy',
         unit_of_measurement: 'mAh',
       }),
     );
