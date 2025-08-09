@@ -101,6 +101,7 @@ export type RegisterCommandDefinitionFn<T extends BaseDeviceData> = (
 export type AdvertiseComponentFn<T extends BaseDeviceData> = <KP extends KeyPath<T> | []>(
   keyPath: KP,
   component: HaStatefulAdvertiseBuilder<KP extends KeyPath<T> ? TypeAtPath<T, KP> : void>,
+  options?: { enabled?: (state: T) => boolean },
 ) => void;
 
 export type BuildMessageDefinitionArgs<T extends BaseDeviceData> = {
@@ -160,10 +161,11 @@ export function registerDeviceDefinition(
       commands.push({ ...command, command: name } as ControlHandlerDefinition<any>);
     };
     const advertisements: HaAdvertisement<any, KeyPath<any> | []>[] = [];
-    const advertise: AdvertiseComponentFn<any> = (keyPath, advertise) => {
+    const advertise: AdvertiseComponentFn<any> = (keyPath, advertise, options = {}) => {
       advertisements.push({
         keyPath,
         advertise,
+        enabled: options.enabled,
       });
     };
 

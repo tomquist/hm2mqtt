@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Venus: Allow setting maximum charging power as low as 0W (#117)
 - Add support for CT002 smart meter device type HME (#116)
 - Add support for MI800 micro inverter device type HMI (#118)
+- Sensors can now be conditionally disabled using a state-based function (#120)
 
 
 ## [1.4.3] - 2025-06-22
