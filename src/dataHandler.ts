@@ -22,7 +22,8 @@ export class DataHandler {
    * @param message - The raw message
    */
   handleDeviceData(device: Device, message: string): void {
-    logger.info(`Processing device data for ${device.deviceId}`);
+    logger.debug(`Received new device data for device ${device.deviceType}:${device.deviceId}`);
+    logger.trace(`Raw message: ${message}`);
 
     try {
       const parsedData = parseMessage(message, device.deviceType, device.deviceId);

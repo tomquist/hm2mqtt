@@ -55,7 +55,7 @@ export const timePeriodSettingHandler = (
         case 'start-time':
           // Validate time format (HH:MM)
           if (!/^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
-            logger.error('Invalid start time format (should be HH:MM):', message);
+            logger.warn('Invalid start time format (should be HH:MM):', message);
             return;
           }
           newTimePeriodSettings[periodIndex].startTime = message;
@@ -63,7 +63,7 @@ export const timePeriodSettingHandler = (
         case 'end-time':
           // Validate time format (HH:MM)
           if (!/^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
-            logger.error('Invalid end time format (should be HH:MM):', message);
+            logger.warn('Invalid end time format (should be HH:MM):', message);
             return;
           }
           newTimePeriodSettings[periodIndex].endTime = message;
@@ -71,13 +71,13 @@ export const timePeriodSettingHandler = (
         case 'output-value':
           const outputValue = parseInt(message, 10);
           if (isNaN(outputValue) || outputValue < 0 || outputValue > 800) {
-            logger.error('Invalid output value (should be 0-800):', message);
+            logger.warn('Invalid output value (should be 0-800):', message);
             return;
           }
           newTimePeriodSettings[periodIndex].outputValue = outputValue;
           break;
         default:
-          logger.error('Unknown time period setting:', setting);
+          logger.warn('Unknown time period setting:', setting);
           return;
       }
 
@@ -197,7 +197,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       handler: ({ message, publishCallback, deviceState }) => {
         const validModes = ['chargeDischargeSimultaneously', 'chargeThenDischarge'];
         if (!validModes.includes(message)) {
-          logger.error('Invalid charging mode value:', message);
+          logger.warn('Invalid charging mode value:', message);
           return;
         }
 
@@ -459,7 +459,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         }
         const channel = parseInt(channelValue, 10);
         if (isNaN(channel) || channel < 0 || (channel > 4 && channel !== 255)) {
-          logger.error('Invalid connected phase value:', message);
+          logger.warn('Invalid connected phase value:', message);
           return;
         }
 
@@ -615,7 +615,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       handler: ({ message, publishCallback, deviceState }) => {
         const timezone = parseInt(message, 10);
         if (isNaN(timezone)) {
-          logger.error('Invalid time zone value:', message);
+          logger.warn('Invalid time zone value:', message);
           return;
         }
 
@@ -664,7 +664,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             processCommand(CommandType.SYNC_TIME, timeData, deviceState.useFlashCommands),
           );
         } catch (error) {
-          logger.error('Invalid time sync data:', message);
+          logger.warn('Invalid time sync data:', message);
         }
       },
     });

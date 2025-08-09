@@ -46,14 +46,14 @@ export class MqttClient {
     logger.info(
       `Connecting to MQTT broker at ${this.config.brokerUrl} with client ID ${this.config.clientId}`,
     );
-    logger.info(`MQTT username: ${this.config.username ? this.config.username : 'not provided'}`);
-    logger.info(`MQTT password: ${this.config.password ? '******' : 'not provided'}`);
+    logger.debug(`MQTT username: ${this.config.username ? this.config.username : 'not provided'}`);
+    logger.debug(`MQTT password: ${this.config.password ? '******' : 'not provided'}`);
 
     const client = mqtt.connect(this.config.brokerUrl, options);
 
     client.on('connect', this.handleConnect.bind(this));
-    client.on('reconnect', () => logger.info('Attempting to reconnect to MQTT broker...'));
-    client.on('offline', () => logger.info('MQTT client is offline'));
+    client.on('reconnect', () => logger.debug('Attempting to reconnect to MQTT broker...'));
+    client.on('offline', () => logger.warn('MQTT client is offline'));
     client.on('message', this.messageHandler);
     client.on('error', this.handleError.bind(this));
     client.on('close', this.handleClose.bind(this));
@@ -78,7 +78,7 @@ export class MqttClient {
       const topics = this.deviceManager.getDeviceTopics(device);
 
       if (!topics) {
-        logger.error(`No topics found for device ${device.deviceId}`);
+        logger.warn(`No topics found for device ${device.deviceId}`);
         return;
       }
       this.subscribe(topics.deviceTopicOld);
@@ -118,7 +118,7 @@ export class MqttClient {
         logger.error(`Subscription error for ${topic}:`, err);
         return;
       }
-      logger.info(`Subscribed to topic: ${topic}`);
+      logger.debug(`Subscribed to topic: ${topic}`);
     });
   }
 
@@ -148,9 +148,7 @@ export class MqttClient {
           reject(err);
           return;
         }
-        logger.info(
-          `Published to ${topic}: ${message.length > 100 ? message.substring(0, 100) + '...' : message}`,
-        );
+        logger.debug(`Published to ${topic}: ${message}`);
         resolve();
       });
     });
@@ -161,7 +159,7 @@ export class MqttClient {
    */
   private setupPeriodicPolling(): void {
     const pollingInterval = this.deviceManager.getPollingInterval();
-    logger.info(`Setting up periodic polling every ${pollingInterval / 1000} seconds`);
+    logger.debug(`Setting up periodic polling every ${pollingInterval / 1000} seconds`);
 
     // Initial poll - request data immediately for all devices
     this.deviceManager.getDevices().forEach(device => {
@@ -179,6 +177,8 @@ export class MqttClient {
         this.requestDeviceData(device);
       });
     }, pollingInterval);
+    // Prevent tests/process from being kept alive by the interval
+    this.pollingInterval.unref?.();
 
     // Clear any existing discovery interval
     if (this.discoveryInterval) {
@@ -191,6 +191,8 @@ export class MqttClient {
         this.publishDiscoveryConfigs(device);
       });
     }, 3600000); // Every hour
+    // Prevent tests/process from being kept alive by the interval
+    this.discoveryInterval.unref?.();
   }
 
   private publishDiscoveryConfigs(device: Device) {
@@ -222,12 +224,12 @@ export class MqttClient {
     const deviseDefinition = getDeviceDefinition(device.deviceType);
 
     if (!deviseDefinition) {
-      logger.error(`No definition found for device type ${device.deviceType}`);
+      logger.warn(`No definition found for device type ${device.deviceType}`);
       return;
     }
 
     if (!topics) {
-      logger.error(`No topics found for device ${device.deviceId}`);
+      logger.warn(`No topics found for device ${device.deviceId}`);
       return;
     }
 
@@ -267,11 +269,18 @@ export class MqttClient {
         // Clear the timeout
         this.deviceManager.clearResponseTimeout(device);
       }, this.deviceManager.getResponseTimeout());
+      // Prevent tests/process from being kept alive by the timeout
+      timeout.unref?.();
       this.deviceManager.setResponseTimeout(device, timeout);
     }
 
     // Send requests for all messages that need to be refreshed, but only if no outstanding timeout
     for (const [idx, message] of deviseDefinition.messages.entries()) {
+      // Skip polling for disabled messages
+      if (!message.enabled) {
+        continue;
+      }
+
       let lastRequestTimeKey = `${device.deviceId}:${idx}`;
       const lastRequestTime = this.lastRequestTime.get(lastRequestTimeKey);
       if (lastRequestTime == null || now > lastRequestTime + message.pollInterval) {

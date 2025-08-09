@@ -68,7 +68,7 @@ export class DeviceManager {
       // Initialize response timeout tracker
       this.deviceResponseTimeouts[deviceKey] = [];
 
-      logger.info(`Topics for ${deviceKey}:`, this.deviceTopics[deviceKey]);
+      logger.debug(`Topics for ${deviceKey}:`, this.deviceTopics[deviceKey]);
     });
   }
 
