@@ -1,12 +1,13 @@
 ---
 name: Question
-description: Ask a question about hm2mqtt
+description: Ask a question about hm2mqtt. For general questions please use our discussions forum.
 labels: question
 body:
   - type: markdown
     attributes:
       value: |
-        If you have a question about using hm2mqtt, please ask below.
+        For general questions, please use [GitHub Discussions](https://github.com/tomquist/hm2mqtt/discussions) instead of opening an issue.
+        If you're having trouble setting up the integration, include your hm2mqtt and Hame Relay configurations and logs below.
   - type: textarea
     id: question
     attributes:
@@ -26,5 +27,37 @@ body:
     id: firmware_version
     attributes:
       label: Firmware Version (optional)
+    validations:
+      required: false
+  - type: textarea
+    id: hm2mqtt_config
+    attributes:
+      label: hm2mqtt Configuration
+      description: Provide your hm2mqtt configuration if applicable.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: hm2mqtt_logs
+    attributes:
+      label: hm2mqtt Logs
+      description: Attach relevant hm2mqtt logs.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: hame_relay_config
+    attributes:
+      label: Hame Relay Configuration
+      description: Provide your Hame Relay configuration.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: hame_relay_logs
+    attributes:
+      label: Hame Relay Logs
+      description: Attach relevant Hame Relay logs.
+      render: text
     validations:
       required: false
