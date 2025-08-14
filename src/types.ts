@@ -380,6 +380,8 @@ export interface VenusDeviceData extends BaseDeviceData {
   bmsVersion?: number;
   communicationModuleVersion?: string;
   wifiName?: string;
+  localApiEnabled?: boolean;
+  localApiPort?: number;
 }
 
 export interface VenusBMSInfo extends BaseDeviceData {

@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Next]
+
+- Venus: Add local API enable and port controls for firmware 153 and above (#??)
+
+
 ## [1.5.0] - 2025-08-09
 
 - Fix time synchronization to use local timezone offset (#102)
