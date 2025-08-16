@@ -23,6 +23,9 @@ configuration:
   mqttProxyEnabled:
     name: Enable MQTT Proxy
     description: "Enable MQTT proxy server to resolve B2500 client ID conflicts (default: false)"
+  log_level:
+    name: Log Level
+    description: "Verbosity of application logs (default: info)"
   devices:
     name: Devices
     description: "List of energy storage devices to connect to. For each device, specify: deviceType (e.g. HMA-1 for B2500 v2, HMB-1 for B2500 v1, HMG-50 for Venus), deviceId (12-character MAC address from app, not WiFi MAC)"

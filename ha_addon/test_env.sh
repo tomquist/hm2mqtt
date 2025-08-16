@@ -76,6 +76,7 @@ run_test "Basic configuration (firmware < 226)" \
     }' \
     "MQTT_BROKER_URL=mqtt://test:1883
 MQTT_TOPIC_PREFIX=hm2mqtt
+LOG_LEVEL=info
 DEVICE_0=HMA-1:001a2b3c4d5e"
 
 # Test 2: Configuration with firmware >= 226
@@ -91,6 +92,7 @@ run_test "Configuration with firmware >= 226" \
     }' \
     "MQTT_BROKER_URL=mqtt://test:1883
 MQTT_TOPIC_PREFIX=hm2mqtt
+LOG_LEVEL=info
 DEVICE_0=HMA-1:1234567890abcdef1234567890abcdef"
 
 # Test 3: Multiple devices with different firmware versions
@@ -110,6 +112,7 @@ run_test "Multiple devices with different firmware versions" \
     }' \
     "MQTT_BROKER_URL=mqtt://test:1883
 MQTT_TOPIC_PREFIX=hm2mqtt
+LOG_LEVEL=info
 DEVICE_0=HMA-1:001a2b3c4d5e
 DEVICE_1=HMA-1:1234567890abcdef1234567890abcdef"
 
@@ -123,6 +126,7 @@ run_test "Additional configuration options" \
         "enableCalibrationData": true,
         "enableExtraBatteryData": true,
         "topicPrefix": "custom",
+        "log_level": "debug",
         "devices": [
             {
                 "deviceType": "HMA-1",
@@ -137,6 +141,24 @@ MQTT_RESPONSE_TIMEOUT=15
 POLL_CELL_DATA=true
 POLL_EXTRA_BATTERY_DATA=true
 POLL_CALIBRATION_DATA=true
+LOG_LEVEL=debug
 DEVICE_0=HMA-1:001a2b3c4d5e"
 
-echo -e "\n${GREEN}All tests passed!${NC}" 
+# Test 5: Warning log level maps to Pino warn
+run_test "Warning log level mapping" \
+    '{
+        "mqtt_uri": "mqtt://test:1883",
+        "log_level": "warning",
+        "devices": [
+            {
+                "deviceType": "HMA-1",
+                "deviceId": "001a2b3c4d5e"
+            }
+        ]
+    }' \
+    "MQTT_BROKER_URL=mqtt://test:1883
+MQTT_TOPIC_PREFIX=hm2mqtt
+LOG_LEVEL=warn
+DEVICE_0=HMA-1:001a2b3c4d5e"
+
+echo -e "\n${GREEN}All tests passed!${NC}"
