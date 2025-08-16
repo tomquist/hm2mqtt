@@ -26,6 +26,7 @@ options:
   allowedConsecutiveTimeouts: 3
   topicPrefix: hm2mqtt
   mqttProxyEnabled: false
+  log_level: info
   devices:
     - deviceType: "HMA-1"
       deviceId: "device-mac-address"
@@ -40,6 +41,7 @@ schema:
   topicPrefix: str?
   debug: bool?
   mqttProxyEnabled: bool?
+  log_level: list(trace|debug|info|notice|warning|error|fatal)?
   devices:
     - deviceType: str
       deviceId: str

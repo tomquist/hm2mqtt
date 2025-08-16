@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Next]
 
 - Venus: Add local API enable and port controls for firmware 153 and above (#??)
+- Home Assistant add-on: make application log level configurable via `log_level` option (#161)
 
 
 ## [1.5.0] - 2025-08-09
