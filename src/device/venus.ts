@@ -134,7 +134,7 @@ function isVenusRuntimeInfoMessage(values: Record<string, string>): boolean {
 
 registerDeviceDefinition(
   {
-    deviceTypes: ['HMG'],
+    deviceTypes: ['HMG', 'VNSE3'],
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
