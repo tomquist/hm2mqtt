@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Next]
 
+- Venus: Add support for Venus E 3.0 device type (VNSE3-0) (#182)
 - Venus: Add local API enable and port controls for firmware 153 and above (#??)
 - Home Assistant add-on: make application log level configurable via `log_level` option (#161)
 
