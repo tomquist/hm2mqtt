@@ -38,6 +38,7 @@ enum CommandType {
   SET_METER_TYPE = 18,
   GET_CT_POWER = 19,
   UPGRADE_FC4_MODULE = 20,
+  SET_LOCAL_API = 30,
 }
 
 /**
@@ -133,7 +134,7 @@ function isVenusRuntimeInfoMessage(values: Record<string, string>): boolean {
 
 registerDeviceDefinition(
   {
-    deviceTypes: ['HMG'],
+    deviceTypes: ['HMG', 'VNSE3'],
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
@@ -608,6 +609,83 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:wifi',
       }),
     );
+
+    field({
+      key: 'api',
+      path: ['localApiEnabled'],
+      transform: v => v === '1',
+    });
+    advertise(
+      ['localApiEnabled'],
+      switchComponent({
+        id: 'local_api_enabled',
+        name: 'Local API Enabled',
+        icon: 'mdi:lan',
+        command: 'local-api-enabled',
+      }),
+      { enabled: state => (state.deviceVersion ?? 0) >= 153 },
+    );
+
+    field({
+      key: 'port',
+      path: ['localApiPort'],
+      transform: v => parseInt(v, 10),
+    });
+    advertise(
+      ['localApiPort'],
+      numberComponent({
+        id: 'local_api_port',
+        name: 'Local API Port',
+        icon: 'mdi:numeric',
+        command: 'local-api-port',
+        min: 0,
+        max: 65535,
+        step: 1,
+      }),
+      { enabled: state => (state.deviceVersion ?? 0) >= 153 },
+    );
+
+    command('local-api-enabled', {
+      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
+        if ((deviceState.deviceVersion ?? 0) < 153) {
+          logger.warn(
+            'Local API control not supported for firmware version',
+            deviceState.deviceVersion,
+          );
+          return;
+        }
+        const enabled = message.toLowerCase() === 'true' || message === '1' || message === 'ON';
+        updateDeviceState(() => ({ localApiEnabled: enabled }));
+        const params: CommandParams = { api: enabled ? 1 : 0 };
+        if (deviceState.localApiPort != null) {
+          params.port = deviceState.localApiPort;
+        }
+        publishCallback(processCommand(CommandType.SET_LOCAL_API, params));
+      },
+    });
+
+    command('local-api-port', {
+      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
+        if ((deviceState.deviceVersion ?? 0) < 153) {
+          logger.warn(
+            'Local API control not supported for firmware version',
+            deviceState.deviceVersion,
+          );
+          return;
+        }
+        const port = parseInt(message, 10);
+        if (isNaN(port) || port < 0 || port > 65535) {
+          logger.warn('Invalid local API port value:', message);
+          return;
+        }
+        updateDeviceState(() => ({ localApiPort: port }));
+        const params: CommandParams = { port };
+        if (deviceState.localApiEnabled != null) {
+          params.api = deviceState.localApiEnabled ? 1 : 0;
+        }
+        publishCallback(processCommand(CommandType.SET_LOCAL_API, params));
+      },
+    });
 
     // Time periods
     for (let i = 0; i < 10; i++) {

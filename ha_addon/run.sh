@@ -13,7 +13,7 @@ start_application() {
 output_env_for_testing() {
     bashio::log.info "Running in test mode, outputting environment variables"
     # Output all environment variables that start with MQTT_ or DEVICE_
-    env | grep -E "^(MQTT_|DEVICE_|POLL_|DEBUG=)" | sort
+    env | grep -E "^(MQTT_|DEVICE_|POLL_|DEBUG=|LOG_LEVEL=)" | sort
 }
 
 # Function to manually parse options.json
@@ -68,9 +68,22 @@ get_mqtt_uri() {
     fi
 }
 
-# Enable debug logging by default for now to help diagnose issues
-bashio::log.level "debug"
-bashio::log.debug "Debug logging enabled by default"
+# Configure logging level
+LOG_LEVEL_CONFIG=$(bashio::config 'log_level' 'info')
+bashio::log.level "$LOG_LEVEL_CONFIG"
+
+# Map Home Assistant log levels to Pino levels
+case "$LOG_LEVEL_CONFIG" in
+    trace) NODE_LOG_LEVEL="trace" ;;
+    debug) NODE_LOG_LEVEL="debug" ;;
+    info|notice) NODE_LOG_LEVEL="info" ;;
+    warning) NODE_LOG_LEVEL="warn" ;;
+    error) NODE_LOG_LEVEL="error" ;;
+    fatal) NODE_LOG_LEVEL="fatal" ;;
+    *) NODE_LOG_LEVEL="info" ;;
+esac
+
+export LOG_LEVEL="${NODE_LOG_LEVEL}"
 
 # Try to check if debug is enabled in config, but don't fail if it errors
 if bashio::config.true 'debug' 2>/dev/null; then

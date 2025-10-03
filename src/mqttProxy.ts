@@ -68,8 +68,8 @@ export class MqttProxy {
           }
 
           packet.clientId = uniqueId;
-          logger.warn(
-            `MQTT Proxy: Modified client ID from '${originalClientId}' to '${uniqueId}' (conflict resolution)`,
+          logger.info(
+            `MQTT Proxy: Modified client ID from '${originalClientId}' to '${uniqueId}' (conflict resolution). Use distinct usernames for each storage to avoid conflicts`,
           );
         }
 
