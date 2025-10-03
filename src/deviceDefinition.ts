@@ -102,7 +102,7 @@ export type RegisterCommandDefinitionFn<T extends BaseDeviceData> = (
 export type AdvertiseComponentFn<T extends BaseDeviceData> = <KP extends KeyPath<T> | []>(
   keyPath: KP,
   component: HaStatefulAdvertiseBuilder<KP extends KeyPath<T> ? TypeAtPath<T, KP> : void>,
-  options?: { enabled?: (state: T) => boolean },
+  options?: { enabled?: (state: T) => boolean | undefined },
 ) => void;
 
 export type BuildMessageDefinitionArgs<T extends BaseDeviceData> = {

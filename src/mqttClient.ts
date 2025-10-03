@@ -11,6 +11,7 @@ export class MqttClient {
   private discoveryInterval: NodeJS.Timeout | null = null;
   private timeoutCounters: Map<string, number> = new Map();
   private allowedConsecutiveTimeouts: number;
+  private devicePathsWithData: Set<string> = new Set();
 
   constructor(
     private config: MqttConfig,
@@ -209,6 +210,27 @@ export class MqttClient {
         this.config.topicPrefix,
         deviceState,
       );
+    }
+  }
+
+  /**
+   * Called when device data is received to potentially re-publish discovery configs
+   * on first data receipt (to update enabled states that depend on device data)
+   *
+   * @param device - The device that received data
+   * @param publishPath - The message path that received data (e.g., 'data', 'bms')
+   */
+  onDeviceDataReceived(device: Device, publishPath: string): void {
+    const devicePathKey = `${device.deviceType}:${device.deviceId}:${publishPath}`;
+
+    // If this is the first time we're receiving data for this device+path,
+    // re-publish discovery configs now that we have device state
+    if (!this.devicePathsWithData.has(devicePathKey)) {
+      logger.debug(
+        `First data received for ${device.deviceType}:${device.deviceId} on path ${publishPath}, re-publishing discovery configs`,
+      );
+      this.devicePathsWithData.add(devicePathKey);
+      this.publishDiscoveryConfigs(device);
     }
   }
 

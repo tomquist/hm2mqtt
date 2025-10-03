@@ -623,7 +623,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:lan',
         command: 'local-api-enabled',
       }),
-      { enabled: state => (state.deviceVersion ?? 0) >= 153 },
+      { enabled: state => (state.deviceVersion == null ? undefined : state.deviceVersion >= 153) },
     );
 
     field({
@@ -642,7 +642,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         max: 65535,
         step: 1,
       }),
-      { enabled: state => (state.deviceVersion ?? 0) >= 153 },
+      { enabled: state => (state.deviceVersion == null ? undefined : state.deviceVersion >= 153) },
     );
 
     command('local-api-enabled', {
