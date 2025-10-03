@@ -164,9 +164,12 @@ print_info "Pushing main branch and tag"
 git push origin main
 git push origin "${VERSION}"
 
-# Switch back to develop
+# Switch back to develop and sync with main
 print_info "Switching back to develop branch"
 git checkout develop
+
+print_info "Syncing develop with main to include release changes"
+git merge main --no-ff -m "Sync develop with main after release v${VERSION}"
 
 # Add new [Next] section to CHANGELOG if it doesn't exist
 if ! grep -q "\[Next\]" CHANGELOG.md; then
@@ -181,8 +184,10 @@ if ! grep -q "\[Next\]" CHANGELOG.md; then
     
     git add CHANGELOG.md
     git commit -m "Add new [Next] section to CHANGELOG.md"
-    git push origin develop
 fi
+
+print_info "Pushing updated develop branch"
+git push origin develop
 
 print_success "Release v${VERSION} completed successfully!"
 print_info ""
