@@ -224,7 +224,9 @@ async function main() {
             }
 
             deviceManager.clearResponseTimeout(device);
-            dataHandler.handleDeviceData(device, message.toString());
+            const updatedPaths = dataHandler.handleDeviceData(device, message.toString());
+            // Re-publish discovery configs for each message path that received data for the first time
+            updatedPaths.forEach(path => mqttClient.onDeviceDataReceived(device, path));
             break;
 
           case 'control':

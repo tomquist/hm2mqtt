@@ -13,7 +13,7 @@ import { Device } from './types';
 export interface HaAdvertisement<T, KP extends KeyPath<T> | []> {
   keyPath: KP;
   advertise: HaStatefulAdvertiseBuilder<KP extends KeyPath<T> ? TypeAtPath<T, KeyPath<T>> : void>;
-  enabled?: (state: T) => boolean;
+  enabled?: (state: T) => boolean | undefined;
 }
 
 export function generateDiscoveryConfigs(
@@ -75,11 +75,20 @@ export function generateDiscoveryConfigs(
       const objectId = _objectId.replace(/[^a-zA-Z0-9_-]/g, '_');
       const topic = `homeassistant/${platform}/${nodeId}/${objectId}/config`;
 
-      if (field.enabled && !field.enabled(deviceState)) {
-        configs.push({ topic, config: null });
-        continue;
+      if (field.enabled) {
+        const enabledResult = field.enabled(deviceState);
+        if (enabledResult === undefined) {
+          // Defer decision - don't publish anything yet
+          continue;
+        }
+        if (enabledResult === false) {
+          // Explicitly disabled
+          configs.push({ topic, config: null });
+          continue;
+        }
       }
 
+      // Component is enabled (or has no enabled check)
       configs.push({
         topic,
         config: {
