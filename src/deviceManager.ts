@@ -43,12 +43,16 @@ export class DeviceManager {
       deviceState: DeviceStateData,
     ) => void,
   ) {
+    let validDeviceCount = 0;
+
     this.config.devices.forEach(device => {
       const deviceDefinition = getDeviceDefinition(device.deviceType);
       if (!deviceDefinition) {
         logger.warn(`Skipping unknown device type: ${device.deviceType}`);
         return;
       }
+      validDeviceCount++;
+
       const deviceKey = this.getDeviceKey(device);
       logger.info(`Initializing topics for device: ${deviceKey}`);
       let deviceId = device.deviceId;
@@ -70,6 +74,12 @@ export class DeviceManager {
 
       logger.debug(`Topics for ${deviceKey}:`, this.deviceTopics[deviceKey]);
     });
+
+    if (validDeviceCount === 0) {
+      throw new Error(
+        'No valid devices configured. All configured devices have unknown device types.',
+      );
+    }
   }
 
   private getDeviceKey(device: Device): DeviceKey {
@@ -258,6 +268,12 @@ export class DeviceManager {
           ?.filter(n => n != null) ?? []
       );
     });
+
+    // Check if there are any valid polling intervals
+    if (allPollingIntervals.length === 0) {
+      throw new Error('No valid devices configured');
+    }
+
     function gcd2(a: number, b: number): number {
       if (b === 0) {
         return a;

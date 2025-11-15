@@ -1,7 +1,7 @@
 # Changelog
 ## [Next]
 
-
+- Fix loop when all configured devices have invalid/unknown device types.
 
 ## [1.5.2] - 2025-10-03
 
