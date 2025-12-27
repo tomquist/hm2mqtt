@@ -78,7 +78,7 @@ hame_energy/{type}/device/{uid or mac}/ctrl
 ```
 
 The parameters that need to be filled in the command include your device type, device ID or MAC.
-Venus currently has the following types: HMG-x (e.g. HMG-1) and VNSE3-x (e.g. VNSE3-0).
+Venus currently has the following types: HMG-x (e.g. HMG-1), VNSE3-x (e.g. VNSE3-0), VNSA-x (e.g. VNSA-1), and VNSD-x (e.g. VNSD-1).
 
 ## 3 Read device information
 
