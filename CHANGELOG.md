@@ -1,7 +1,7 @@
 # Changelog
 ## [Next]
 
-- Venus: Add support for Venus device types VNSA and VNSD
+- Venus: Add support for Venus A (VNSA) and Venus D (VNSD) device types
 - Fix loop when all configured devices have invalid/unknown device types.
 
 ## [1.5.2] - 2025-10-03
