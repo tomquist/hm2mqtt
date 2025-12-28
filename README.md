@@ -314,6 +314,8 @@ The device type can be one of the following:
 - **HMK-X**: (e.g. HMK-1, HMK-2, ...) Greensolar storage v3
 - **HMG-X**: (e.g. HMG-50) Marstek Venus
 - **VNSE3-X**: (e.g. VNSE3-0) Venus E 3.0
+- **VNSA-X**: (e.g. VNSA-1) Venus A
+- **VNSD-X**: (e.g. VNSD-1) Venus D
 - **HMN-X**: (e.g. HMN-1) Marstek Jupiter E
 - **HMM-X**: (e.g. HMM-1) Marstek Jupiter C
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus
