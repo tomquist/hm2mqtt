@@ -310,7 +310,7 @@ services:
 
 The device type can be one of the following:
 - **HMB-X**: (e.g. HMB-1, HMB-2, ...) B2500 storage v1
-- **HMA-X**: (e.g. HMA-1, HMA-2, ...) B2500 storage v2  
+- **HMA-X**: (e.g. HMA-1, HMA-2, ...) B2500 storage v2
 - **HMK-X**: (e.g. HMK-1, HMK-2, ...) Greensolar storage v3
 - **HMG-X**: (e.g. HMG-50) Marstek Venus
 - **VNSE3-X**: (e.g. VNSE3-0) Venus E 3.0
@@ -321,6 +321,41 @@ The device type can be one of the following:
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus
 - **HME-X**: (e.g. HME-3) Marstek CT002 Smart Meter
 - **HMI-X**: (e.g. HMI-1) Marstek MI800 Micro Inverter
+
+## Using the Development Version
+
+The `next` tag provides access to the version currently in development. It's built from the develop branch and contains the latest features and fixes before they're officially released. Use this if you want to test new features early or need a specific fix that hasn't been released yet.
+
+**Warning:** The development version may be unstable and contain bugs. Only use it if you need bleeding-edge features or fixes.
+
+### Docker
+
+Replace `latest` with `next` in your image tag:
+
+```bash
+docker run -d \
+  --name hm2mqtt \
+  --restart unless-stopped \
+  -e MQTT_BROKER_URL=mqtt://your-broker:1883 \
+  -e DEVICE_0=HMA-1:your-device-mac \
+  ghcr.io/tomquist/hm2mqtt:next
+```
+
+Or in `docker-compose.yml`:
+```yaml
+services:
+  hm2mqtt:
+    image: ghcr.io/tomquist/hm2mqtt:next
+```
+
+### Home Assistant
+
+Add the development branch repository to your Home Assistant add-on store:
+```text
+https://github.com/tomquist/hm2mqtt#develop
+```
+
+Then install the "hm2mqtt" add-on from this repository to get the development version.
 
 ## Development
 
