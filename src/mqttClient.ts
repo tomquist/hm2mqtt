@@ -159,7 +159,15 @@ export class MqttClient {
    * Set up periodic polling
    */
   private setupPeriodicPolling(): void {
-    const pollingInterval = this.deviceManager.getPollingInterval();
+    let pollingInterval: number;
+    try {
+      pollingInterval = this.deviceManager.getPollingInterval();
+    } catch (error) {
+      logger.error('Failed to get polling interval:', error);
+      logger.error('This usually means no valid devices are configured');
+      return;
+    }
+
     logger.debug(`Setting up periodic polling every ${pollingInterval / 1000} seconds`);
 
     // Initial poll - request data immediately for all devices

@@ -323,7 +323,15 @@ async function main() {
 
     logger.debug('Application initialized successfully');
   } catch (error) {
-    logger.error('Failed to initialize application:', error);
+    logger.error('Failed to initialize application');
+    if (error instanceof Error) {
+      logger.error(`Error: ${error.message}`);
+      if (logger.levelVal <= logger.levels.values.debug) {
+        logger.debug('Stack trace:', error.stack);
+      }
+    } else {
+      logger.error('Error:', error);
+    }
     process.exit(1);
   }
 }
