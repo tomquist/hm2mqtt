@@ -705,6 +705,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Surplus Feed-in',
         icon: 'mdi:transfer',
         command: 'surplus-feed-in',
+        defaultValue: 'false',
       }),
       { enabled: isSurplusFeedInSupported },
     );
