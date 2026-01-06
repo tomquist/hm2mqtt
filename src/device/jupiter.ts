@@ -18,6 +18,7 @@ import {
   textComponent,
   numberComponent,
 } from '../homeAssistantDiscovery';
+import { transformTemperature } from './helpers';
 
 /**
  * Command types supported by the Jupiter device (subset of Venus)
@@ -836,7 +837,11 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
       // Cell temperatures (b_temp0-b_temp3)
       for (let i = 0; i < 4; i++) {
         const key = `b_temp${i}`;
-        field({ key, path: ['cells', 'temperatures', i] });
+        field({
+          key,
+          path: ['cells', 'temperatures', i],
+          transform: transformTemperature,
+        });
         advertise(
           ['cells', 'temperatures', i],
           sensorComponent<number>({
@@ -884,6 +889,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             deviceClass: 'temperature',
             unitOfMeasurement: '°C',
             stateClass: 'measurement',
+            // This value seems to never go below 250 (25.0°C)
             transform: (v: string) => parseInt(v) / 10,
           },
         ],
@@ -904,6 +910,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             deviceClass: 'temperature',
             unitOfMeasurement: '°C',
             stateClass: 'measurement',
+            transform: transformTemperature,
           },
         ],
         [
@@ -913,6 +920,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             deviceClass: 'temperature',
             unitOfMeasurement: '°C',
             stateClass: 'measurement',
+            transform: transformTemperature,
           },
         ],
       ] as const;
@@ -943,13 +951,18 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             deviceClass: 'temperature',
             unitOfMeasurement: '°C',
             stateClass: 'measurement',
+            transform: transformTemperature,
           },
         ],
         ['m_err', { id: 'error' }],
         ['m_war', { id: 'warning' }],
       ] as const;
       for (const [key, info] of mpptFields) {
-        field({ key, path: ['mppt', info.id] });
+        field({
+          key,
+          path: ['mppt', info.id],
+          transform: 'transform' in info ? info.transform : undefined,
+        });
         advertise(
           ['mppt', info.id],
           sensorComponent<number>({
