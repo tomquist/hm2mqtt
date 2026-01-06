@@ -1,5 +1,5 @@
 import { parseMessage } from './parser';
-import { B2500V2DeviceData, MI800DeviceData } from './types';
+import { B2500V2DeviceData, JupiterBMSInfo, MI800DeviceData } from './types';
 
 describe('MQTT Message Parser', () => {
   test('should parse comma-separated key-value pairs correctly', () => {
@@ -304,5 +304,27 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('gridFrequency', 49.8);
     expect(result).toHaveProperty('pv1Voltage', 30.0);
     expect(result).toHaveProperty('pv2Current', 0.6);
+  });
+
+  test('should convert negative Jupiter BMS temperatures correctly', () => {
+    const message =
+      'inv:g_state=1,w_state1=1,w_state2=1,i_err=0,i_war=0,g_vol=2340,g_cur=0,g_pf=0,g_fre=4997,b_vol=544,g_power=0,i_temp=255,mppt:m_state=244,m_err=0,m_temp=5,m_war=0,pv1=377|3|146,pv2=389|6|258,pv3=387|6|236,pv4=376|3|141,b_vol=545,b_cur=14,base_v=222,pe_v=165,bms:c_vol=600,c_cur=75,d_cur=100,soc=44,soh=0,b_cap=2560,b_vol=5420,b_cur=14,b_temp=253,b_err=0,b_war=0,b_err2=0,b_war2=0,c_flag=192,s_flag=0,b_num=1,vol0=3343,vol1=3397,vol2=3320,vol3=0,vol4=0,vol5=0,vol6=0,vol7=0,vol8=0,vol9=0,vol10=0,vol11=0,vol12=0,vol13=0,vol14=0,vol15=0,b_temp0=255,b_temp1=254,b_temp2=253,b_temp3=252,env_t=128,mos_t=127';
+    const deviceType = 'JPLS-1';
+    const deviceId = 'jupiter123';
+
+    const parsed = parseMessage(message, deviceType, deviceId);
+    expect(parsed).toHaveProperty('bms');
+    const result = parsed['bms'] as JupiterBMSInfo;
+
+    expect(result).toHaveProperty('cells');
+    expect(result['cells']).toHaveProperty('temperatures');
+    expect(result['cells']?.['temperatures']).toEqual([-1, -2, -3, -4]);
+
+    expect(result).toHaveProperty('bms');
+    expect(result['bms']).toHaveProperty('envTemp', -128);
+    expect(result['bms']).toHaveProperty('mosfetTemp', 127);
+
+    expect(result).toHaveProperty('mppt');
+    expect(result['mppt']).toHaveProperty('temperature', 5);
   });
 });
