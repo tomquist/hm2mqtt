@@ -24,14 +24,15 @@ import { transformTemperature } from './helpers';
  * Command types supported by the Jupiter device (subset of Venus)
  */
 enum CommandType {
-  READ_DEVICE_INFO = 1, // -> ele_d=349,ele_m=2193,ele_y=0,pv1_p=94,pv1_s=1,pv2_p=77,pv2_s=1,pv3_p=41,pv3_s=1,pv4_p=60,pv4_s=1,grd_o=250,grd_t=1,gct_s=1,cel_s=0,cel_p=424,cel_c=83,err_t=0,wor_m=1,tim_0=12|0|23|59|127|800|1,tim_1=0|0|12|0|127|150|1,tim_2=0|0|0|0|255|0|0,tim_3=0|0|0|0|255|0|0,tim_4=0|0|0|0|255|0|0,cts_m=0,grd_d=285,grd_m=2018,dev_n=134,dev_i=106,dev_m=206,dev_b=209,dev_t=110,wif_s=75,ala_c=0,ful_d=1,ssid=xxxx,stop_s=10,htt_p=0,ct_t=4,phase_t=1,dchrg=1,seq_s=3
+  READ_DEVICE_INFO = 1, // -> ele_d=349,ele_m=2193,ele_y=0,pv1_p=94,pv1_s=1,pv2_p=77,pv2_s=1,pv3_p=41,pv3_s=1,pv4_p=60,pv4_s=1,grd_o=250,grd_t=1,gct_s=1,cel_s=0,cel_p=424,cel_c=83,err_t=0,wor_m=1,tim_0=12|0|23|59|127|800|1,tim_1=0|0|12|0|127|150|1,tim_2=0|0|0|0|255|0|0,tim_3=0|0|0|0|255|0|0,tim_4=0|0|0|0|255|0|0,cts_m=0,grd_d=285,grd_m=2018,dev_n=134,dev_i=106,dev_m=206,dev_b=209,dev_t=110,wif_s=75,ala_c=0,ful_d=1,ssid=xxxx,stop_s=10,htt_p=0,ct_t=4,phase_t=1,dchrg=1,seq_s=3,ctrl_r=0,shelly_p=1010,c_ratio=100,b_lck=0,dod=88,total_b=1,online_b=1
   GET_FC41D_INFO = 10, // -> wifi_v=202409090159
   FACTORY_RESET = 5,
   SET_DEVICE_TIME = 4,
   SET_TIME_PERIOD = 3,
   SET_WORKING_MODE = 2,
   SURPLUS_FEED_IN = 13,
-  GET_BMS_INFO = 14, // -> inv:g_state=1,w_state1=1,w_state2=1,i_err=0,i_war=0,g_vol=2399,g_cur=0,g_pf=0,g_fre=5000,b_vol=526,g_power=119,i_temp=31,mppt:m_state=244,m_err=0,m_temp=30,m_war=0,pv1=350|37|1304,pv2=349|39|1372,pv3=378|18|712,pv4=365|32|1180,b_vol=525,b_cur=85,base_v=221,pe_v=165,bms:c_vol=571,c_cur=500,d_cur=500,soc=33,soh=100,b_cap=5120,b_vol=5252,b_cur=63,b_temp=250,b_err=0,b_war=0,b_err2=0,b_war2=0,c_flag=192,s_flag=0,b_num=1,vol0=3280,vol1=3281,vol2=3283,vol3=3283,vol4=3283,vol5=3283,vol6=3280,vol7=3284,vol8=3283,vol9=3284,vol10=3282,vol11=3286,vol12=3277,vol13=3286,vol14=3283,vol15=3284,b_temp0=14,b_temp1=15,b_temp2=15,b_temp3=16,env_t=27,mos_t=20
+  GET_BMS_INFO = 14, // -> inv:g_state=1,w_state1=1,w_state2=1,i_err=0,i_war=0,g_vol=2399,g_cur=0,g_pf=0,g_fre=5000,b_vol=526,g_power=119,i_temp=31,mppt:m_state=244,m_err=0,m_temp=30,m_war=0,pv1=350|37|1304,pv2=349|39|1372,pv3=378|18|712,pv4=365|32|1180,b_vol=525,b_cur=85,base_v=221,pe_v=165,fail_t=0,bms:c_vol=571,c_cur=500,d_cur=500,soc=33,soh=100,b_cap=5120,b_vol=5252,b_cur=63,b_temp=250,b_err=0,b_war=0,b_err2=0,b_war2=0,c_flag=192,s_flag=0,b_num=1,vol0=3280,vol1=3281,vol2=3283,vol3=3283,vol4=3283,vol5=3283,vol6=3280,vol7=3284,vol8=3283,vol9=3284,vol10=3282,vol11=3286,vol12=3277,vol13=3286,vol14=3283,vol15=3284,b_temp0=14,b_temp1=15,b_temp2=15,b_temp3=16,env_t=27,mos_t=20,lck=0
+  DEPTH_OF_DISCHARGE = 56,
 }
 
 function processCommand(command: CommandType, params: CommandParams = {}): string {
@@ -102,9 +103,21 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     isMessage: isJupiterRuntimeInfoMessage,
     publishPath: 'data',
     defaultState: {},
-    getAdditionalDeviceInfo: (state: JupiterDeviceData) => ({
-      firmwareVersion: state.deviceVersion?.toString(),
-    }),
+    getAdditionalDeviceInfo: (state: JupiterDeviceData) =>
+      // While Marstek app only displays EMS version in the settings, during a
+      // firmware upgrade it displays the version like this:
+      // <EMS version>.<BMS version>.<MPPT version>.<INV version>
+      // First try to compose it the same way...
+      state.deviceVersion && state.bmsVersion && state.mpptVersion && state.inverterVersion
+        ? {
+            firmwareVersion: `${state.deviceVersion}.${state.bmsVersion}.${state.mpptVersion}.${state.inverterVersion}`,
+          }
+        : // ...then fallback to EMS version when other fields are not available
+          state.deviceVersion
+          ? {
+              firmwareVersion: state.deviceVersion.toString(),
+            }
+          : {},
     pollInterval: globalPollInterval,
     controlsDeviceAvailability: true,
   };
@@ -392,7 +405,31 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       ['deviceVersion'],
       sensorComponent<number>({
         id: 'device_version',
-        name: 'Device Version',
+        name: 'EMS Version',
+      }),
+    );
+    field({ key: 'dev_b', path: ['bmsVersion'] });
+    advertise(
+      ['bmsVersion'],
+      sensorComponent<number>({
+        id: 'bms_version',
+        name: 'BMS Version',
+      }),
+    );
+    field({ key: 'dev_m', path: ['mpptVersion'] });
+    advertise(
+      ['mpptVersion'],
+      sensorComponent<number>({
+        id: 'mppt_version',
+        name: 'MPPT Version',
+      }),
+    );
+    field({ key: 'dev_i', path: ['inverterVersion'] });
+    advertise(
+      ['inverterVersion'],
+      sensorComponent<number>({
+        id: 'inverter_version',
+        name: 'Inverter Version',
       }),
     );
     field({ key: 'ssid', path: ['wifiName'], transform: v => v });
@@ -418,9 +455,44 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     );
     command('surplus-feed-in', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
-        const enable = message.toLowerCase() === 'true' || message === '1' || message === 'on';
+        const enable =
+          message.toLowerCase() === 'true' ||
+          message === '1' ||
+          // `3` is reported when surplus is being fed-in
+          message === '3' ||
+          message === 'on';
         updateDeviceState(() => ({ surplusFeedInEnabled: enable }));
-        publishCallback(processCommand(CommandType.SURPLUS_FEED_IN, { ful_d: enable ? 1 : 0 }));
+        // Yes, it's `full_d` in the command params
+        publishCallback(processCommand(CommandType.SURPLUS_FEED_IN, { full_d: enable ? 1 : 0 }));
+      },
+    });
+
+    // Depth of Discharge (dod) (since firmware 140)
+    field({ key: 'dod', path: ['depthOfDischarge'] });
+    advertise(
+      ['depthOfDischarge'],
+      numberComponent({
+        id: 'depth_of_discharge',
+        name: 'Depth of Discharge',
+        unit_of_measurement: '%',
+        device_class: 'battery',
+        command: 'discharge-depth',
+        min: 30,
+        max: 88,
+        step: 1,
+      }),
+      { enabled: state => state.deviceVersion !== undefined && state.deviceVersion >= 140 },
+    );
+    command('discharge-depth', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const dod = parseInt(message, 10);
+        // Marstek app limits DoD to 30-88%
+        if (isNaN(dod) || dod < 30 || dod > 88) {
+          logger.warn('Invalid depth of discharge value (should be 30-88):', message);
+          return;
+        }
+        updateDeviceState(() => ({ depthOfDischarge: dod }));
+        publishCallback(processCommand(CommandType.DEPTH_OF_DISCHARGE, { dod }));
       },
     });
 
@@ -889,11 +961,31 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             deviceClass: 'temperature',
             unitOfMeasurement: '°C',
             stateClass: 'measurement',
-            // This value seems to never go below 250 (25.0°C)
+            // On 134.30.207.107 this value never went below 250 (25.0°C).
+            // On 140.34.213.110 it reports negative temperatures without the
+            // need for `uint8` to `int8` conversion. Division by 10 is still
+            // needed, though.
             transform: (v: string) => parseInt(v) / 10,
           },
         ],
-        ['c_vol', { id: 'chargeVoltage', deviceClass: 'voltage', unitOfMeasurement: 'mV' }],
+        // TODO: Maybe a more generic approach? E.g., split the field name by
+        // ':' when parsing and use the right part?
+        [
+          'bms:c_vol',
+          {
+            id: 'chargeVoltage',
+            deviceClass: 'voltage',
+            unitOfMeasurement: 'V',
+            // My unit always reports 600 which, when divided by 10, gives a
+            // close to adequate 60 V charging voltage.
+            transform: (v: string) => parseInt(v) / 10,
+          },
+        ],
+        // My unit always reports 75 for `c_cur` and 300 for `d_cur`. 75 mA is
+        // too low, 75 A is too high. Dividing by 10 gives 7.5 A which looks
+        // more reasonable. However, 30 A for `d_cur` seems way too high. These
+        // values definitely need scaling, but I'm not sure what the correct
+        // factors are.
         ['c_cur', { id: 'chargeCurrent', deviceClass: 'current', unitOfMeasurement: 'mA' }],
         ['d_cur', { id: 'dischargeCurrent', deviceClass: 'current', unitOfMeasurement: 'mA' }],
         ['b_err', { id: 'error' }],
@@ -1000,6 +1092,101 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             }),
           );
         }
+      }
+      // Inverter fields
+      const inverterFields = [
+        [
+          'i_temp',
+          {
+            id: 'temperature',
+            deviceClass: 'temperature',
+            unitOfMeasurement: '°C',
+            stateClass: 'measurement',
+            transform: (value: string) => parseInt(value) / 10,
+          },
+        ],
+        ['i_err', { id: 'error' }],
+        ['i_war', { id: 'warning' }],
+        [
+          'g_vol',
+          {
+            id: 'gridVoltage',
+            name: 'Grid Voltage',
+            deviceClass: 'voltage',
+            unitOfMeasurement: 'V',
+            stateClass: 'measurement',
+            transform: (value: string) => parseInt(value) / 10,
+          },
+        ],
+        [
+          'g_cur',
+          {
+            id: 'gridCurrent',
+            name: 'Grid Current',
+            deviceClass: 'current',
+            unitOfMeasurement: 'A',
+            stateClass: 'measurement',
+            // TODO: Just a guess, needs verification. My unit always reports 0.
+            transform: (value: string) => parseInt(value) / 10,
+          },
+        ],
+        [
+          'g_power',
+          {
+            id: 'gridPower',
+            name: 'Grid Power',
+            deviceClass: 'power',
+            unitOfMeasurement: 'W',
+            stateClass: 'measurement',
+          },
+        ],
+        [
+          'g_pf',
+          {
+            id: 'gridPowerFactor',
+            name: 'Grid Power Factor',
+            deviceClass: 'power_factor',
+            // TODO: Power factor is usually either [0..1] or [0..100]. Home
+            // Assistant accepts both and relies on the unit of measurement to
+            // determine the range. My unit always reports 0, so can't verify.
+            // [0..100] is a good assumption because Marstek seems to always
+            // return integers that have to be divided to get fractional values.
+            unitOfMeasurement: '%',
+            stateClass: 'measurement',
+          },
+        ],
+        [
+          'g_fre',
+          {
+            id: 'gridFrequency',
+            name: 'Grid Frequency',
+            deviceClass: 'frequency',
+            unitOfMeasurement: 'Hz',
+            stateClass: 'measurement',
+            transform: (value: string) => parseInt(value) / 100,
+          },
+        ],
+      ] as const;
+      for (const [key, info] of inverterFields) {
+        field({
+          key,
+          path: ['inverter', info.id],
+          transform: 'transform' in info ? info.transform : undefined,
+        });
+        advertise(
+          ['inverter', info.id],
+          sensorComponent<number>({
+            id: `inverter_${info.id}`,
+            name:
+              'name' in info
+                ? info.name
+                : `Inverter ${info.id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`,
+            unit_of_measurement: 'unitOfMeasurement' in info ? info.unitOfMeasurement : undefined,
+            device_class: 'deviceClass' in info ? info.deviceClass : undefined,
+            state_class: 'stateClass' in info ? info.stateClass : undefined,
+            enabled_by_default: false,
+          }),
+        );
       }
     },
   );

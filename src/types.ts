@@ -451,8 +451,12 @@ export interface JupiterDeviceData extends BaseDeviceData {
   rechargeMode?: number; // dchrg
   wifiName?: string; // ssid
   deviceVersion?: number; // dev_n
+  bmsVersion?: number; // dev_b
+  mpptVersion?: number; // dev_m
+  inverterVersion?: number; // dev_i
   timePeriods?: JupiterTimePeriod[];
   surplusFeedInEnabled?: boolean; // ful_d
+  depthOfDischarge?: number; // dod
   alarmCode?: number; // ala_c
 }
 
@@ -538,6 +542,16 @@ export interface JupiterBMSInfo extends BaseDeviceData {
     error?: number; // m_err
     warning?: number; // m_war
     pv?: JupiterMPPTPVInfo[]; // pv1-pv4
+  };
+  inverter?: {
+    temperature?: number;
+    error?: number;
+    warning?: number;
+    gridVoltage?: number;
+    gridCurrent?: number;
+    gridPower?: number;
+    gridPowerFactor?: number;
+    gridFrequency?: number;
   };
 }
 
