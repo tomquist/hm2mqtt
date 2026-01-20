@@ -103,4 +103,24 @@ describe('DeviceManager', () => {
     // getPollingInterval should work since there's at least one valid device
     expect(() => dm.getPollingInterval()).not.toThrow();
   });
+
+  it('should not encrypt new topics for non-HMA/HMF/HMK/HMJ devices', () => {
+    const nonEncryptedConfig: MqttConfig = {
+      brokerUrl: 'mqtt://localhost',
+      clientId: 'test-client',
+      topicPrefix: DEFAULT_TOPIC_PREFIX,
+      devices: [
+        {
+          deviceType: 'HMB-1',
+          deviceId: 'test123',
+        },
+      ],
+    };
+
+    const dm = new DeviceManager(nonEncryptedConfig, mockOnUpdateState);
+    const device = nonEncryptedConfig.devices[0];
+    const topics = dm.getDeviceTopics(device);
+    expect(topics?.deviceTopicNew).toBe('marstek_energy/HMB-1/device/test123/ctrl');
+    expect(topics?.deviceControlTopicNew).toBe('marstek_energy/HMB-1/App/test123/ctrl');
+  });
 });

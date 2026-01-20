@@ -2,6 +2,7 @@
 ## [Next]
 
 - Fix Home Assistant warning when surplus feed-in is unavailable on older HM firmware versions
+- Only encrypt Marstek topic device IDs for HMA, HMF, HMK, and HMJ devices (#231)
 - Jupiter: Add Depth of Discharge control (needs firmware 140+). It is a reverse of the battery charge, so setting it to 75% means that the battery will only feed-in power when charged above 25%.
 - Jupiter: Add BMS, MPPT, and inverter version sensors. Change friendly name of _Device Version_ sensor to _EMS Version_, as reported by the Marstek app during firmware upgrade.
 - Jupiter: The firmware reported to Home Assistant is now composed of four values: `<EMS version>.<BMS version>.<MPPT version>.<INV version>`.
