@@ -585,13 +585,26 @@ export function transformToJinja2(
 
     case 'chain': {
       let expr = valueExpr;
+      let blockStatements = '';
+      let tempCounter = 0;
+
       for (const t of transform.transforms) {
-        // For chains, we need to extract the inner expression from each template
         const innerTemplate = transformToJinja2(t, expr);
-        // Remove outer {{ }} and use as inner expression for next transform
-        expr = innerTemplate.replace(/^\{\{\s*/, '').replace(/\s*\}\}$/, '');
+
+        if (innerTemplate.startsWith('{%')) {
+          // Block template - need to capture result in a temp variable
+          const tempVar = `__chain${tempCounter++}`;
+          // Wrap the block template to capture its output in a temp variable
+          // The block template outputs a value, so we need to capture it
+          blockStatements += `{% set ${tempVar} %}${innerTemplate}{% endset %}`;
+          expr = tempVar;
+        } else {
+          // Expression template - strip outer {{ }} and use as inner expression
+          expr = innerTemplate.replace(/^\{\{\s*/, '').replace(/\s*\}\}$/, '');
+        }
       }
-      return `{{ ${expr} }}`;
+
+      return blockStatements ? `${blockStatements}{{ ${expr} }}` : `{{ ${expr} }}`;
     }
 
     case 'timePeriodField':
@@ -601,8 +614,8 @@ export function transformToJinja2(
       return generateMPPTPVFieldJinja2(valueExpr, transform.field);
 
     case 'bitMaskToWeekday':
-      // This is complex to implement in pure Jinja2, provide a simplified version
-      return `{% set bm = ${valueExpr} | int(0) %}{% set days = '' %}{% for i in range(7) %}{% if bm | bitwise_and(2**i) %}{{ days ~ i }}{% set days = days ~ i %}{% endif %}{% endfor %}{{ days }}`;
+      // Convert bitmask to weekday set string - only mutate inside loop, output once at end
+      return `{% set bm = ${valueExpr} | int(0) %}{% set days = '' %}{% for i in range(7) %}{% if bm | bitwise_and(2**i) %}{% set days = days ~ i %}{% endif %}{% endfor %}{{ days }}`;
   }
 }
 
@@ -619,33 +632,36 @@ export function multiKeyTransformToJinja2(
   keys: string[],
   valuePrefix: string = 'value_json',
 ): string {
-  const values = keys.map(k => `${valuePrefix}.${k} | float(0)`);
+  // Use float(none) so invalid values become None instead of 0
+  const values = keys.map(k => `${valuePrefix}.${k} | float(none)`);
+  const rawListExpr = `[${values.join(', ')}]`;
+  // Filter out None values
+  const filteredListExpr = `${rawListExpr} | reject('equalto', none) | list`;
 
   switch (transform.type) {
     case 'sum':
-      return `{{ ${values.join(' + ')} }}`;
+      // For sum, we can use default 0 since adding 0 doesn't affect the result
+      return `{{ [${keys.map(k => `${valuePrefix}.${k} | float(0)`).join(', ')}] | sum }}`;
 
     case 'min': {
-      const expr = `[${values.join(', ')}] | min`;
-      return transform.scale ? `{{ (${expr}) / ${transform.scale} }}` : `{{ ${expr} }}`;
+      const scaleExpr = transform.scale ? ` / ${transform.scale}` : '';
+      return `{% set vals = ${filteredListExpr} %}{% if vals | length > 0 %}{{ (vals | min)${scaleExpr} }}{% else %}0{% endif %}`;
     }
 
     case 'max': {
-      const expr = `[${values.join(', ')}] | max`;
-      return transform.scale ? `{{ (${expr}) / ${transform.scale} }}` : `{{ ${expr} }}`;
+      const scaleExpr = transform.scale ? ` / ${transform.scale}` : '';
+      return `{% set vals = ${filteredListExpr} %}{% if vals | length > 0 %}{{ (vals | max)${scaleExpr} }}{% else %}0{% endif %}`;
     }
 
     case 'diff': {
-      const listExpr = `[${values.join(', ')}]`;
-      const expr = `${listExpr} | max - ${listExpr} | min`;
-      return transform.scale ? `{{ (${expr}) / ${transform.scale} }}` : `{{ ${expr} }}`;
+      const scaleExpr = transform.scale ? ` / ${transform.scale}` : '';
+      return `{% set vals = ${filteredListExpr} %}{% if vals | length > 0 %}{{ ((vals | max) - (vals | min))${scaleExpr} }}{% else %}0{% endif %}`;
     }
 
     case 'average': {
-      const listExpr = `[${values.join(', ')}]`;
-      let expr = `${listExpr} | sum / ${keys.length}`;
-      if (transform.round) expr = `(${expr}) | round`;
-      return transform.scale ? `{{ (${expr}) / ${transform.scale} }}` : `{{ ${expr} }}`;
+      const scaleExpr = transform.scale ? ` / ${transform.scale}` : '';
+      const roundExpr = transform.round ? ' | round' : '';
+      return `{% set vals = ${filteredListExpr} %}{% if vals | length > 0 %}{{ ((vals | sum) / (vals | length)${roundExpr})${scaleExpr} }}{% else %}0{% endif %}`;
     }
   }
 }

@@ -340,7 +340,7 @@ describe('transforms', () => {
 
       it('should generate correct Jinja2 template', () => {
         expect(multiKeyTransformToJinja2(sum(), ['w1', 'w2'], 'value_json')).toBe(
-          '{{ value_json.w1 | float(0) + value_json.w2 | float(0) }}',
+          '{{ [value_json.w1 | float(0), value_json.w2 | float(0)] | sum }}',
         );
       });
     });
