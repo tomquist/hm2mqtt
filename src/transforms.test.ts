@@ -385,7 +385,9 @@ describe('transforms', () => {
       });
 
       it('should round when specified', () => {
-        expect(executeMultiKeyTransform(average(undefined, true), { a: '10', b: '20', c: '25' })).toBe(18);
+        expect(
+          executeMultiKeyTransform(average(undefined, true), { a: '10', b: '20', c: '25' }),
+        ).toBe(18);
       });
     });
   });

@@ -209,7 +209,10 @@ export const number = (): NumberTransform => ({ type: 'number' });
 export const divide = (divisor: number): DivideTransform => ({ type: 'divide', divisor });
 
 /** Create a multiply transform */
-export const multiply = (multiplier: number): MultiplyTransform => ({ type: 'multiply', multiplier });
+export const multiply = (multiplier: number): MultiplyTransform => ({
+  type: 'multiply',
+  multiplier,
+});
 
 /** Create a boolean transform */
 export const boolean = (): BooleanTransform => ({ type: 'boolean' });
@@ -481,10 +484,7 @@ function executeTimePeriodField(
   }
 }
 
-function executeMPPTPVField(
-  value: string,
-  field: MPPTPVFieldTransform['field'],
-): number {
+function executeMPPTPVField(value: string, field: MPPTPVFieldTransform['field']): number {
   const parts = value.split('|');
   if (parts.length < 3) return 0;
 
@@ -630,9 +630,7 @@ export function multiKeyTransformToJinja2(
     case 'diff': {
       const listExpr = `[${values.join(', ')}]`;
       const expr = `${listExpr} | max - ${listExpr} | min`;
-      return transform.scale
-        ? `{{ (${expr}) / ${transform.scale} }}`
-        : `{{ ${expr} }}`;
+      return transform.scale ? `{{ (${expr}) / ${transform.scale} }}` : `{{ ${expr} }}`;
     }
 
     case 'average': {
