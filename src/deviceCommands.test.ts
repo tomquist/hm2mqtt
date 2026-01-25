@@ -176,6 +176,7 @@ const commandTestCases: CommandTestCase[] = [
   {
     description: 'B2500 use-flash-commands enable',
     deviceType: 'HMA-1',
+    useFlashCommands: false, // Start with false to test real state transition
     command: 'use-flash-commands',
     input: 'true',
     expectedOutput: null,
@@ -184,6 +185,7 @@ const commandTestCases: CommandTestCase[] = [
   {
     description: 'B2500 use-flash-commands disable',
     deviceType: 'HMA-1',
+    useFlashCommands: true, // Start with true to test real state transition
     command: 'use-flash-commands',
     input: 'false',
     expectedOutput: null,
