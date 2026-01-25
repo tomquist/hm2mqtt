@@ -539,9 +539,7 @@ const commandTestCases: CommandTestCase[] = [
     description: 'B2500V2 time-period/1/enabled true',
     deviceType: 'HMA-1',
     initialState: {
-      timePeriods: [
-        { enabled: false, startTime: '08:00', endTime: '20:00', outputValue: 500 },
-      ],
+      timePeriods: [{ enabled: false, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
     },
     command: 'time-period/1/enabled',
     input: 'true',
@@ -551,9 +549,7 @@ const commandTestCases: CommandTestCase[] = [
     description: 'B2500V2 time-period/1/enabled false',
     deviceType: 'HMA-1',
     initialState: {
-      timePeriods: [
-        { enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 },
-      ],
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
     },
     command: 'time-period/1/enabled',
     input: 'false',
@@ -563,9 +559,7 @@ const commandTestCases: CommandTestCase[] = [
     description: 'B2500V2 time-period/1/start-time valid',
     deviceType: 'HMA-1',
     initialState: {
-      timePeriods: [
-        { enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 },
-      ],
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
     },
     command: 'time-period/1/start-time',
     input: '06:30',
@@ -575,9 +569,7 @@ const commandTestCases: CommandTestCase[] = [
     description: 'B2500V2 time-period/1/start-time invalid format (letters)',
     deviceType: 'HMA-1',
     initialState: {
-      timePeriods: [
-        { enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 },
-      ],
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
     },
     command: 'time-period/1/start-time',
     input: 'abc',
@@ -587,9 +579,7 @@ const commandTestCases: CommandTestCase[] = [
     description: 'B2500V2 time-period/1/start-time invalid format (bad minutes)',
     deviceType: 'HMA-1',
     initialState: {
-      timePeriods: [
-        { enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 },
-      ],
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
     },
     command: 'time-period/1/start-time',
     input: '12:99', // invalid minutes
@@ -599,9 +589,7 @@ const commandTestCases: CommandTestCase[] = [
     description: 'B2500V2 time-period/1/end-time valid',
     deviceType: 'HMA-1',
     initialState: {
-      timePeriods: [
-        { enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 },
-      ],
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
     },
     command: 'time-period/1/end-time',
     input: '22:45',
@@ -611,9 +599,7 @@ const commandTestCases: CommandTestCase[] = [
     description: 'B2500V2 time-period/1/output-value valid',
     deviceType: 'HMA-1',
     initialState: {
-      timePeriods: [
-        { enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 },
-      ],
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
     },
     command: 'time-period/1/output-value',
     input: '750',
@@ -623,9 +609,7 @@ const commandTestCases: CommandTestCase[] = [
     description: 'B2500V2 time-period/1/output-value above max (invalid)',
     deviceType: 'HMA-1',
     initialState: {
-      timePeriods: [
-        { enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 },
-      ],
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
     },
     command: 'time-period/1/output-value',
     input: '801',
@@ -635,9 +619,7 @@ const commandTestCases: CommandTestCase[] = [
     description: 'B2500V2 time-period/6/enabled (invalid period number)',
     deviceType: 'HMA-1',
     initialState: {
-      timePeriods: [
-        { enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 },
-      ],
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
     },
     command: 'time-period/6/enabled',
     input: 'true',
@@ -1147,7 +1129,11 @@ describe('Device Commands', () => {
   let controlHandler: ControlHandler;
   let deviceState: DeviceStateData;
 
-  function setupTest(deviceType: string, initialState?: Partial<DeviceStateData>, useFlashCommands = true) {
+  function setupTest(
+    deviceType: string,
+    initialState?: Partial<DeviceStateData>,
+    useFlashCommands = true,
+  ) {
     const device: Device = {
       deviceType,
       deviceId: `test-${deviceType.toLowerCase()}`,
@@ -1190,7 +1176,15 @@ describe('Device Commands', () => {
   // Generate tests from test cases
   describe.each(commandTestCases)(
     '$deviceType $command: $description',
-    ({ deviceType, initialState, command, input, expectedOutput, expectedStateChanges, useFlashCommands }) => {
+    ({
+      deviceType,
+      initialState,
+      command,
+      input,
+      expectedOutput,
+      expectedStateChanges,
+      useFlashCommands,
+    }) => {
       test(`input: "${input}" -> output: ${expectedOutput === null ? 'null' : `"${expectedOutput}"`}`, () => {
         const device = setupTest(deviceType, initialState, useFlashCommands ?? true);
 
