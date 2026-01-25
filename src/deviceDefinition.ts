@@ -1,6 +1,7 @@
 import { HaComponentConfig } from './homeAssistantDiscovery';
 import { ControlHandlerDefinition } from './controlHandler';
 import { HaAdvertisement } from './generateDiscoveryConfigs';
+import { Transform, MultiKeyTransform } from './transforms';
 
 export const globalPollInterval = parseInt(process.env.MQTT_POLLING_INTERVAL || '60', 10) * 1000;
 
@@ -44,8 +45,20 @@ export type HaStatefulAdvertiseBuilder<
 type TransformParams<K extends string | readonly string[]> = K extends string
   ? [K: string]
   : [{ [P in K[number]]: string }];
+
 /**
- * Interface for field definition
+ * Transform specification for a field.
+ * Can be either:
+ * - A declarative Transform object (preferred for introspection/serialization)
+ * - A function (legacy, for backward compatibility)
+ */
+export type TransformSpec<K extends string | readonly string[], R> = K extends string
+  ? Exclude<Transform, MultiKeyTransform> | ((value: string) => R)
+  : MultiKeyTransform | ((values: { [P in K[number]]: string }) => R);
+
+/**
+ * Interface for field definition.
+ * Supports both declarative transforms and function-based transforms.
  */
 export type FieldDefinition<
   T extends BaseDeviceData,
@@ -54,11 +67,11 @@ export type FieldDefinition<
 > = {
   key: K;
   path: KP;
-  transform?: (...value: TransformParams<K>) => TypeAtPath<T, KP>;
+  transform?: TransformSpec<K, TypeAtPath<T, KP>>;
 } & (TypeAtPath<T, KP> extends number | undefined
   ? {}
   : {
-      transform: (value: string) => TypeAtPath<T, KP>;
+      transform: TransformSpec<K, TypeAtPath<T, KP>>;
     });
 
 /**
