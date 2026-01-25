@@ -18,7 +18,7 @@ import {
   textComponent,
   numberComponent,
 } from '../homeAssistantDiscovery';
-import { transformTemperature } from './helpers';
+import { divide, map, negate, identity, equalsBoolean, number, temperature } from '../transforms';
 
 /**
  * Command types supported by the Jupiter device (subset of Venus)
@@ -132,7 +132,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'ele_d', path: ['dailyChargingCapacity'], transform: v => parseFloat(v) / 100 });
+    field({ key: 'ele_d', path: ['dailyChargingCapacity'], transform: divide(100) });
     advertise(
       ['dailyChargingCapacity'],
       sensorComponent<number>({
@@ -143,7 +143,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'total_increasing',
       }),
     );
-    field({ key: 'ele_m', path: ['monthlyChargingCapacity'], transform: v => parseFloat(v) / 100 });
+    field({ key: 'ele_m', path: ['monthlyChargingCapacity'], transform: divide(100) });
     advertise(
       ['monthlyChargingCapacity'],
       sensorComponent<number>({
@@ -154,7 +154,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'total_increasing',
       }),
     );
-    field({ key: 'ele_y', path: ['yearlyChargingCapacity'], transform: v => parseFloat(v) / 100 });
+    field({ key: 'ele_y', path: ['yearlyChargingCapacity'], transform: divide(100) });
     advertise(
       ['yearlyChargingCapacity'],
       sensorComponent<number>({
@@ -165,7 +165,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'total_increasing',
       }),
     );
-    field({ key: 'pv1_p', path: ['pv1Power'] });
+    field({ key: 'pv1_p', path: ['pv1Power'], transform: number() });
     advertise(
       ['pv1Power'],
       sensorComponent<number>({
@@ -176,7 +176,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'measurement',
       }),
     );
-    field({ key: 'pv2_p', path: ['pv2Power'] });
+    field({ key: 'pv2_p', path: ['pv2Power'], transform: number() });
     advertise(
       ['pv2Power'],
       sensorComponent<number>({
@@ -187,7 +187,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'measurement',
       }),
     );
-    field({ key: 'pv3_p', path: ['pv3Power'] });
+    field({ key: 'pv3_p', path: ['pv3Power'], transform: number() });
     advertise(
       ['pv3Power'],
       sensorComponent<number>({
@@ -198,7 +198,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'measurement',
       }),
     );
-    field({ key: 'pv4_p', path: ['pv4Power'] });
+    field({ key: 'pv4_p', path: ['pv4Power'], transform: number() });
     advertise(
       ['pv4Power'],
       sensorComponent<number>({
@@ -209,7 +209,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'measurement',
       }),
     );
-    field({ key: 'grd_d', path: ['dailyDischargeCapacity'], transform: v => parseFloat(v) / 100 });
+    field({ key: 'grd_d', path: ['dailyDischargeCapacity'], transform: divide(100) });
     advertise(
       ['dailyDischargeCapacity'],
       sensorComponent<number>({
@@ -223,7 +223,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'grd_m',
       path: ['monthlyDischargeCapacity'],
-      transform: v => parseFloat(v) / 100,
+      transform: divide(100),
     });
     advertise(
       ['monthlyDischargeCapacity'],
@@ -235,7 +235,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'total_increasing',
       }),
     );
-    field({ key: 'grd_o', path: ['combinedPower'] });
+    field({ key: 'grd_o', path: ['combinedPower'], transform: number() });
     advertise(
       ['combinedPower'],
       sensorComponent<number>({
@@ -246,7 +246,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'measurement',
       }),
     );
-    field({ key: 'grd_t', path: ['workingStatus'] });
+    field({ key: 'grd_t', path: ['workingStatus'], transform: number() });
     advertise(
       ['workingStatus'],
       sensorComponent<number>({
@@ -254,7 +254,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Working Status',
       }),
     );
-    field({ key: 'gct_s', path: ['ctStatus'] });
+    field({ key: 'gct_s', path: ['ctStatus'], transform: number() });
     advertise(
       ['ctStatus'],
       sensorComponent<number>({
@@ -265,18 +265,14 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'cel_s',
       path: ['batteryWorkingStatus'],
-      transform: v => {
-        switch (v) {
-          case '0':
-            return 'keep';
-          case '1':
-            return 'charging';
-          case '2':
-            return 'discharging';
-          default:
-            return 'unknown';
-        }
-      },
+      transform: map(
+        {
+          '0': 'keep',
+          '1': 'charging',
+          '2': 'discharging',
+        },
+        'unknown',
+      ),
     });
     advertise(
       ['batteryWorkingStatus'],
@@ -292,7 +288,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         },
       }),
     );
-    field({ key: 'cel_p', path: ['batteryEnergy'], transform: v => parseFloat(v) / 100 });
+    field({ key: 'cel_p', path: ['batteryEnergy'], transform: divide(100) });
     advertise(
       ['batteryEnergy'],
       sensorComponent<number>({
@@ -303,7 +299,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'measurement',
       }),
     );
-    field({ key: 'cel_c', path: ['batterySoc'] });
+    field({ key: 'cel_c', path: ['batterySoc'], transform: number() });
     advertise(
       ['batterySoc'],
       sensorComponent<number>({
@@ -314,7 +310,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'measurement',
       }),
     );
-    field({ key: 'err_t', path: ['errorCode'] });
+    field({ key: 'err_t', path: ['errorCode'], transform: number() });
     advertise(
       ['errorCode'],
       sensorComponent<number>({
@@ -325,16 +321,13 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'wor_m',
       path: ['workingMode'],
-      transform: v => {
-        switch (v) {
-          case '1':
-            return 'automatic';
-          case '2':
-            return 'manual';
-          default:
-            return 'automatic';
-        }
-      },
+      transform: map(
+        {
+          '1': 'automatic',
+          '2': 'manual',
+        },
+        'automatic',
+      ),
     });
     advertise(
       ['workingMode'],
@@ -349,7 +342,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         },
       }),
     );
-    field({ key: 'cts_m', path: ['autoSwitchWorkingMode'] });
+    field({ key: 'cts_m', path: ['autoSwitchWorkingMode'], transform: number() });
     advertise(
       ['autoSwitchWorkingMode'],
       sensorComponent<number>({
@@ -357,7 +350,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Auto Switch Working Mode',
       }),
     );
-    field({ key: 'htt_p', path: ['httpServerType'] });
+    field({ key: 'htt_p', path: ['httpServerType'], transform: number() });
     advertise(
       ['httpServerType'],
       sensorComponent<number>({
@@ -365,7 +358,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'HTTP Server Type',
       }),
     );
-    field({ key: 'wif_s', path: ['wifiSignalStrength'], transform: v => -parseInt(v) });
+    field({ key: 'wif_s', path: ['wifiSignalStrength'], transform: negate() });
     advertise(
       ['wifiSignalStrength'],
       sensorComponent<number>({
@@ -376,7 +369,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'measurement',
       }),
     );
-    field({ key: 'ct_t', path: ['ctType'] });
+    field({ key: 'ct_t', path: ['ctType'], transform: number() });
     advertise(
       ['ctType'],
       sensorComponent<number>({
@@ -384,7 +377,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'CT Type',
       }),
     );
-    field({ key: 'phase_t', path: ['phaseType'] });
+    field({ key: 'phase_t', path: ['phaseType'], transform: number() });
     advertise(
       ['phaseType'],
       sensorComponent<number>({
@@ -392,7 +385,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Phase Type',
       }),
     );
-    field({ key: 'dchrg', path: ['rechargeMode'] });
+    field({ key: 'dchrg', path: ['rechargeMode'], transform: number() });
     advertise(
       ['rechargeMode'],
       sensorComponent<number>({
@@ -400,7 +393,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Recharge Mode',
       }),
     );
-    field({ key: 'dev_n', path: ['deviceVersion'] });
+    field({ key: 'dev_n', path: ['deviceVersion'], transform: number() });
     advertise(
       ['deviceVersion'],
       sensorComponent<number>({
@@ -408,7 +401,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'EMS Version',
       }),
     );
-    field({ key: 'dev_b', path: ['bmsVersion'] });
+    field({ key: 'dev_b', path: ['bmsVersion'], transform: number() });
     advertise(
       ['bmsVersion'],
       sensorComponent<number>({
@@ -416,7 +409,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'BMS Version',
       }),
     );
-    field({ key: 'dev_m', path: ['mpptVersion'] });
+    field({ key: 'dev_m', path: ['mpptVersion'], transform: number() });
     advertise(
       ['mpptVersion'],
       sensorComponent<number>({
@@ -424,7 +417,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'MPPT Version',
       }),
     );
-    field({ key: 'dev_i', path: ['inverterVersion'] });
+    field({ key: 'dev_i', path: ['inverterVersion'], transform: number() });
     advertise(
       ['inverterVersion'],
       sensorComponent<number>({
@@ -432,7 +425,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Inverter Version',
       }),
     );
-    field({ key: 'ssid', path: ['wifiName'], transform: v => v });
+    field({ key: 'ssid', path: ['wifiName'], transform: identity() });
     advertise(
       ['wifiName'],
       sensorComponent<string>({
@@ -443,7 +436,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     );
 
     // Surplus Feed-in (ful_d)
-    field({ key: 'ful_d', path: ['surplusFeedInEnabled'], transform: v => v === '1' });
+    field({ key: 'ful_d', path: ['surplusFeedInEnabled'], transform: equalsBoolean('1') });
     advertise(
       ['surplusFeedInEnabled'],
       switchComponent({
@@ -468,7 +461,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     });
 
     // Depth of Discharge (dod) (since firmware 140)
-    field({ key: 'dod', path: ['depthOfDischarge'] });
+    field({ key: 'dod', path: ['depthOfDischarge'], transform: number() });
     advertise(
       ['depthOfDischarge'],
       numberComponent({
@@ -497,7 +490,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     });
 
     // Alarm Code (ala_c)
-    field({ key: 'ala_c', path: ['alarmCode'] });
+    field({ key: 'ala_c', path: ['alarmCode'], transform: number() });
     advertise(
       ['alarmCode'],
       sensorComponent<number>({
@@ -912,7 +905,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
         field({
           key,
           path: ['cells', 'temperatures', i],
-          transform: transformTemperature,
+          transform: temperature(),
         });
         advertise(
           ['cells', 'temperatures', i],
@@ -941,7 +934,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             deviceClass: 'voltage',
             unitOfMeasurement: 'V',
             stateClass: 'measurement',
-            transform: (v: string) => parseInt(v) / 100,
+            transform: divide(100),
           },
         ],
         [
@@ -951,7 +944,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             deviceClass: 'current',
             unitOfMeasurement: 'A',
             stateClass: 'measurement',
-            transform: (v: string) => parseInt(v) / 10,
+            transform: divide(10),
           },
         ],
         [
@@ -965,7 +958,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             // On 140.34.213.110 it reports negative temperatures without the
             // need for `uint8` to `int8` conversion. Division by 10 is still
             // needed, though.
-            transform: (v: string) => parseInt(v) / 10,
+            transform: divide(10),
           },
         ],
         // TODO: Maybe a more generic approach? E.g., split the field name by
@@ -978,7 +971,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             unitOfMeasurement: 'V',
             // My unit always reports 600 which, when divided by 10, gives a
             // close to adequate 60 V charging voltage.
-            transform: (v: string) => parseInt(v) / 10,
+            transform: divide(10),
           },
         ],
         // My unit always reports 75 for `c_cur` and 300 for `d_cur`. 75 mA is
@@ -1002,7 +995,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             deviceClass: 'temperature',
             unitOfMeasurement: '°C',
             stateClass: 'measurement',
-            transform: transformTemperature,
+            transform: temperature(),
           },
         ],
         [
@@ -1012,7 +1005,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             deviceClass: 'temperature',
             unitOfMeasurement: '°C',
             stateClass: 'measurement',
-            transform: transformTemperature,
+            transform: temperature(),
           },
         ],
       ] as const;
@@ -1043,7 +1036,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             deviceClass: 'temperature',
             unitOfMeasurement: '°C',
             stateClass: 'measurement',
-            transform: transformTemperature,
+            transform: temperature(),
           },
         ],
         ['m_err', { id: 'error' }],
@@ -1102,7 +1095,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             deviceClass: 'temperature',
             unitOfMeasurement: '°C',
             stateClass: 'measurement',
-            transform: (value: string) => parseInt(value) / 10,
+            transform: divide(10),
           },
         ],
         ['i_err', { id: 'error' }],
@@ -1115,7 +1108,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             deviceClass: 'voltage',
             unitOfMeasurement: 'V',
             stateClass: 'measurement',
-            transform: (value: string) => parseInt(value) / 10,
+            transform: divide(10),
           },
         ],
         [
@@ -1127,7 +1120,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             unitOfMeasurement: 'A',
             stateClass: 'measurement',
             // TODO: Just a guess, needs verification. My unit always reports 0.
-            transform: (value: string) => parseInt(value) / 10,
+            transform: divide(10),
           },
         ],
         [
@@ -1163,7 +1156,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             deviceClass: 'frequency',
             unitOfMeasurement: 'Hz',
             stateClass: 'measurement',
-            transform: (value: string) => parseInt(value) / 100,
+            transform: divide(100),
           },
         ],
       ] as const;

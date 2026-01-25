@@ -8,6 +8,20 @@ import {
 } from './deviceDefinition';
 import { transformNumber } from './device/helpers';
 import logger from './logger';
+import {
+  Transform,
+  MultiKeyTransform,
+  isMultiKeyTransform,
+  executeTransform,
+  executeMultiKeyTransform,
+} from './transforms';
+
+/**
+ * Check if a transform spec is a declarative Transform object
+ */
+function isDeclarativeTransform(transform: unknown): transform is Transform {
+  return typeof transform === 'object' && transform !== null && 'type' in transform;
+}
 
 /**
  * Parse the incoming MQTT message and transform it into the required format
@@ -68,16 +82,44 @@ function applyMessageDefinition<T extends BaseDeviceData>(
   for (const field of fields) {
     let key = field.key;
     if (typeof key === 'string') {
-      let transform = field.transform ?? transformNumber;
+      // Single-key field
       let value = values[key];
       if (value != null) {
-        const transformedValue = transform(value);
+        let transformedValue: unknown;
+        const transform = field.transform;
+
+        if (transform == null) {
+          // Default to number transform
+          transformedValue = transformNumber(value);
+        } else if (isDeclarativeTransform(transform)) {
+          // Declarative transform object
+          transformedValue = executeTransform(
+            transform as Exclude<Transform, MultiKeyTransform>,
+            value,
+          );
+        } else {
+          // Function-based transform (legacy)
+          transformedValue = (transform as (value: string) => unknown)(value);
+        }
+
         setValueAtPath(parsedData, field.path, transformedValue);
       }
     } else if (field.transform != null) {
+      // Multi-key field
       let entries = key.map(key => [key, values[key]] as const);
       if (entries.every(([, value]) => value !== undefined)) {
-        const transformedValue = field.transform(Object.fromEntries(entries));
+        const transform = field.transform;
+        const valuesObj = Object.fromEntries(entries) as Record<string, string>;
+        let transformedValue: unknown;
+
+        if (isDeclarativeTransform(transform)) {
+          // Declarative multi-key transform
+          transformedValue = executeMultiKeyTransform(transform as MultiKeyTransform, valuesObj);
+        } else {
+          // Function-based transform (legacy)
+          transformedValue = (transform as (values: Record<string, string>) => unknown)(valuesObj);
+        }
+
         setValueAtPath(parsedData, field.path, transformedValue);
       } else {
         logger.warn(`Some values are missing for field ${field.path.join('.')}`);

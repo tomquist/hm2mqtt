@@ -1,6 +1,7 @@
 import { BuildMessageFn, globalPollInterval, registerDeviceDefinition } from '../deviceDefinition';
 import { CT002DeviceData } from '../types';
 import { sensorComponent } from '../homeAssistantDiscovery';
+import { number, identity } from '../transforms';
 
 const requiredRuntimeInfoKeys = ['pwr_a', 'pwr_b', 'pwr_c', 'pwr_t'];
 
@@ -44,7 +45,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'pwr_a', path: ['phase1Power'] });
+    // Power measurements - use declarative number() transform (explicit, same as default)
+    field({ key: 'pwr_a', path: ['phase1Power'], transform: number() });
     advertise(
       ['phase1Power'],
       sensorComponent<number>({
@@ -56,7 +58,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'pwr_b', path: ['phase2Power'] });
+    field({ key: 'pwr_b', path: ['phase2Power'], transform: number() });
     advertise(
       ['phase2Power'],
       sensorComponent<number>({
@@ -68,7 +70,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'pwr_c', path: ['phase3Power'] });
+    field({ key: 'pwr_c', path: ['phase3Power'], transform: number() });
     advertise(
       ['phase3Power'],
       sensorComponent<number>({
@@ -80,7 +82,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'pwr_t', path: ['totalPower'] });
+    field({ key: 'pwr_t', path: ['totalPower'], transform: number() });
     advertise(
       ['totalPower'],
       sensorComponent<number>({
@@ -92,7 +94,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'ble_s', path: ['bluetoothSignal'] });
+    field({ key: 'ble_s', path: ['bluetoothSignal'], transform: number() });
     advertise(
       ['bluetoothSignal'],
       sensorComponent<number>({
@@ -101,7 +103,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'wif_r', path: ['wifiRssi'] });
+    field({ key: 'wif_r', path: ['wifiRssi'], transform: number() });
     advertise(
       ['wifiRssi'],
       sensorComponent<number>({
@@ -113,7 +115,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'fc4_v', path: ['fc4Version'], transform: v => v });
+    // String field - use identity() declarative transform instead of inline function
+    field({ key: 'fc4_v', path: ['fc4Version'], transform: identity() });
     advertise(
       ['fc4Version'],
       sensorComponent<string>({
@@ -122,7 +125,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'ver_v', path: ['firmwareVersion'] });
+    field({ key: 'ver_v', path: ['firmwareVersion'], transform: number() });
     advertise(
       ['firmwareVersion'],
       sensorComponent<number>({
@@ -131,7 +134,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'wif_s', path: ['wifiStatus'] });
+    field({ key: 'wif_s', path: ['wifiStatus'], transform: number() });
     advertise(
       ['wifiStatus'],
       sensorComponent<number>({

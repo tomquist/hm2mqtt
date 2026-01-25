@@ -7,6 +7,7 @@ import {
   selectComponent,
   switchComponent,
 } from '../homeAssistantDiscovery';
+import { number, divide, identity, equalsBoolean, map } from '../transforms';
 
 /**
  * Command types supported by the MI800 device
@@ -68,8 +69,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    // Energy statistics
-    field({ key: 'ele_d', path: ['dailyEnergyGenerated'], transform: v => parseFloat(v) / 100 });
+    // Energy statistics - divide by 100 to convert to kWh
+    field({ key: 'ele_d', path: ['dailyEnergyGenerated'], transform: divide(100) });
     advertise(
       ['dailyEnergyGenerated'],
       sensorComponent<number>({
@@ -81,7 +82,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'ele_w', path: ['weeklyEnergyGenerated'], transform: v => parseFloat(v) / 100 });
+    field({ key: 'ele_w', path: ['weeklyEnergyGenerated'], transform: divide(100) });
     advertise(
       ['weeklyEnergyGenerated'],
       sensorComponent<number>({
@@ -93,7 +94,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'ele_m', path: ['monthlyEnergyGenerated'], transform: v => parseFloat(v) / 100 });
+    field({ key: 'ele_m', path: ['monthlyEnergyGenerated'], transform: divide(100) });
     advertise(
       ['monthlyEnergyGenerated'],
       sensorComponent<number>({
@@ -105,7 +106,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'ele_s', path: ['totalEnergyGenerated'], transform: v => parseFloat(v) / 100 });
+    field({ key: 'ele_s', path: ['totalEnergyGenerated'], transform: divide(100) });
     advertise(
       ['totalEnergyGenerated'],
       sensorComponent<number>({
@@ -117,8 +118,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    // PV Input 1
-    field({ key: 'pv1_v', path: ['pv1Voltage'], transform: v => parseFloat(v) / 10 });
+    // PV Input 1 - divide by 10 for voltage/current
+    field({ key: 'pv1_v', path: ['pv1Voltage'], transform: divide(10) });
     advertise(
       ['pv1Voltage'],
       sensorComponent<number>({
@@ -130,7 +131,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'pv1_i', path: ['pv1Current'], transform: v => parseFloat(v) / 10 });
+    field({ key: 'pv1_i', path: ['pv1Current'], transform: divide(10) });
     advertise(
       ['pv1Current'],
       sensorComponent<number>({
@@ -142,7 +143,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'pv1_p', path: ['pv1Power'] });
+    field({ key: 'pv1_p', path: ['pv1Power'], transform: number() });
     advertise(
       ['pv1Power'],
       sensorComponent<number>({
@@ -154,7 +155,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'pv1_s', path: ['pv1Status'], transform: v => parseInt(v) === 1 });
+    field({ key: 'pv1_s', path: ['pv1Status'], transform: equalsBoolean('1') });
     advertise(
       ['pv1Status'],
       binarySensorComponent({
@@ -164,8 +165,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    // PV Input 2
-    field({ key: 'pv2_v', path: ['pv2Voltage'], transform: v => parseFloat(v) / 10 });
+    // PV Input 2 - divide by 10 for voltage/current
+    field({ key: 'pv2_v', path: ['pv2Voltage'], transform: divide(10) });
     advertise(
       ['pv2Voltage'],
       sensorComponent<number>({
@@ -177,7 +178,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'pv2_i', path: ['pv2Current'], transform: v => parseFloat(v) / 10 });
+    field({ key: 'pv2_i', path: ['pv2Current'], transform: divide(10) });
     advertise(
       ['pv2Current'],
       sensorComponent<number>({
@@ -189,7 +190,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'pv2_p', path: ['pv2Power'] });
+    field({ key: 'pv2_p', path: ['pv2Power'], transform: number() });
     advertise(
       ['pv2Power'],
       sensorComponent<number>({
@@ -201,7 +202,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'pv2_s', path: ['pv2Status'], transform: v => parseInt(v) === 1 });
+    field({ key: 'pv2_s', path: ['pv2Status'], transform: equalsBoolean('1') });
     advertise(
       ['pv2Status'],
       binarySensorComponent({
@@ -212,7 +213,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     );
 
     // Grid information
-    field({ key: 'grd_f', path: ['gridFrequency'], transform: v => parseFloat(v) / 100 });
+    field({ key: 'grd_f', path: ['gridFrequency'], transform: divide(100) });
     advertise(
       ['gridFrequency'],
       sensorComponent<number>({
@@ -224,7 +225,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'grd_v', path: ['gridVoltage'], transform: v => parseFloat(v) / 10 });
+    field({ key: 'grd_v', path: ['gridVoltage'], transform: divide(10) });
     advertise(
       ['gridVoltage'],
       sensorComponent<number>({
@@ -236,7 +237,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'grd_s', path: ['gridStatus'], transform: v => parseInt(v) === 1 });
+    field({ key: 'grd_s', path: ['gridStatus'], transform: equalsBoolean('1') });
     advertise(
       ['gridStatus'],
       binarySensorComponent({
@@ -246,7 +247,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'grd_o', path: ['gridOutputPower'] });
+    field({ key: 'grd_o', path: ['gridOutputPower'], transform: number() });
     advertise(
       ['gridOutputPower'],
       sensorComponent<number>({
@@ -258,7 +259,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'pl', path: ['maximumOutputPower'] });
+    field({ key: 'pl', path: ['maximumOutputPower'], transform: number() });
     advertise(
       ['maximumOutputPower'],
       numberComponent({
@@ -273,7 +274,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     );
 
     // Device status
-    field({ key: 'chp_t', path: ['chipTemperature'] });
+    field({ key: 'chp_t', path: ['chipTemperature'], transform: number() });
     advertise(
       ['chipTemperature'],
       sensorComponent<number>({
@@ -285,7 +286,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'err_t', path: ['errorType'] });
+    field({ key: 'err_t', path: ['errorType'], transform: number() });
     advertise(
       ['errorType'],
       sensorComponent<number>({
@@ -295,7 +296,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'err_c', path: ['errorCount'] });
+    field({ key: 'err_c', path: ['errorCount'], transform: number() });
     advertise(
       ['errorCount'],
       sensorComponent<number>({
@@ -305,7 +306,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'err_d', path: ['errorDetails'] });
+    field({ key: 'err_d', path: ['errorDetails'], transform: number() });
     advertise(
       ['errorDetails'],
       sensorComponent<number>({
@@ -315,7 +316,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'ver_s', path: ['firmwareVersion'] });
+    field({ key: 'ver_s', path: ['firmwareVersion'], transform: number() });
     advertise(
       ['firmwareVersion'],
       sensorComponent<number>({
@@ -325,7 +326,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'fc4_v', path: ['fc4Version'], transform: v => v });
+    field({ key: 'fc4_v', path: ['fc4Version'], transform: identity() });
     advertise(
       ['fc4Version'],
       sensorComponent<string>({
@@ -335,21 +336,18 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
+    // Mode - use map transform for string mappings
     field({
       key: 'mpt_m',
       path: ['mode'],
-      transform: v => {
-        switch (v) {
-          case '0':
-            return 'default';
-          case '1':
-            return 'b2500Boost';
-          case '2':
-            return 'reverseCurrentProtection';
-          default:
-            return 'default';
-        }
-      },
+      transform: map(
+        {
+          '0': 'default',
+          '1': 'b2500Boost',
+          '2': 'reverseCurrentProtection',
+        },
+        'default',
+      ),
     });
     advertise(
       ['mode'],
@@ -366,7 +364,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'gc', path: ['gridConnectionBan'], transform: v => v === '1' });
+    field({ key: 'gc', path: ['gridConnectionBan'], transform: equalsBoolean('1') });
     advertise(
       ['gridConnectionBan'],
       switchComponent({

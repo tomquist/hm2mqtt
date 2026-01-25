@@ -12,7 +12,19 @@ import {
   sensorComponent,
   switchComponent,
 } from '../homeAssistantDiscovery';
-import { transformBitBoolean, transformBoolean, transformNumber } from './helpers';
+import {
+  number,
+  boolean,
+  bitBoolean,
+  identity,
+  map,
+  sum,
+  min,
+  max,
+  diff,
+  average,
+  divide,
+} from '../transforms';
 
 export function extractAdditionalDeviceInfo(state: B2500BaseDeviceData): AdditionalDeviceInfo {
   let firmwareVersion: string | undefined;
@@ -61,6 +73,7 @@ export function registerBaseMessage({
   field({
     key: 'pe',
     path: ['batteryPercentage'],
+    transform: number(),
   });
   advertise(
     ['batteryPercentage'],
@@ -74,6 +87,7 @@ export function registerBaseMessage({
   field({
     key: 'kn',
     path: ['batteryCapacity'],
+    transform: number(),
   });
   advertise(
     ['batteryCapacity'],
@@ -87,6 +101,7 @@ export function registerBaseMessage({
   field({
     key: 'do',
     path: ['dischargeDepth'],
+    transform: number(),
   });
   advertise(
     ['dischargeDepth'],
@@ -106,7 +121,7 @@ export function registerBaseMessage({
   field({
     key: 'p1',
     path: ['solarInputStatus', 'input1Charging'],
-    transform: transformBitBoolean(0),
+    transform: bitBoolean(0),
   });
   advertise(
     ['solarInputStatus', 'input1Charging'],
@@ -119,7 +134,7 @@ export function registerBaseMessage({
   field({
     key: 'p1',
     path: ['solarInputStatus', 'input1PassThrough'],
-    transform: transformBitBoolean(1),
+    transform: bitBoolean(1),
   });
   advertise(
     ['solarInputStatus', 'input1PassThrough'],
@@ -132,7 +147,7 @@ export function registerBaseMessage({
   field({
     key: 'p2',
     path: ['solarInputStatus', 'input2Charging'],
-    transform: transformBitBoolean(0),
+    transform: bitBoolean(0),
   });
   advertise(
     ['solarInputStatus', 'input2Charging'],
@@ -145,7 +160,7 @@ export function registerBaseMessage({
   field({
     key: 'p2',
     path: ['solarInputStatus', 'input2PassThrough'],
-    transform: transformBitBoolean(1),
+    transform: bitBoolean(1),
   });
   advertise(
     ['solarInputStatus', 'input2PassThrough'],
@@ -158,6 +173,7 @@ export function registerBaseMessage({
   field({
     key: 'w1',
     path: ['solarPower', 'input1'],
+    transform: number(),
   });
   advertise(
     ['solarPower', 'input1'],
@@ -172,6 +188,7 @@ export function registerBaseMessage({
   field({
     key: 'w2',
     path: ['solarPower', 'input2'],
+    transform: number(),
   });
   advertise(
     ['solarPower', 'input2'],
@@ -186,9 +203,7 @@ export function registerBaseMessage({
   field({
     key: ['w1', 'w2'],
     path: ['solarPower', 'total'],
-    transform({ w1, w2 }) {
-      return transformNumber(w1) + transformNumber(w2);
-    },
+    transform: sum(),
   });
   advertise(
     ['solarPower', 'total'],
@@ -202,18 +217,18 @@ export function registerBaseMessage({
   );
 
   // Device information
-  field({ key: 'vv', path: ['deviceInfo', 'deviceVersion'] as const });
-  field({ key: 'sv', path: ['deviceInfo', 'deviceSubversion'] });
-  field({ key: 'fc', path: ['deviceInfo', 'fc42dVersion'], transform: v => v });
-  field({ key: 'id', path: ['deviceInfo', 'deviceIdNumber'] });
-  field({ key: 'uv', path: ['deviceInfo', 'bootloaderVersion'] });
+  field({ key: 'vv', path: ['deviceInfo', 'deviceVersion'] as const, transform: number() });
+  field({ key: 'sv', path: ['deviceInfo', 'deviceSubversion'], transform: number() });
+  field({ key: 'fc', path: ['deviceInfo', 'fc42dVersion'], transform: identity() });
+  field({ key: 'id', path: ['deviceInfo', 'deviceIdNumber'], transform: number() });
+  field({ key: 'uv', path: ['deviceInfo', 'bootloaderVersion'], transform: number() });
 
   // Output state information
   for (const outputNumber of [1, 2] as const) {
     field({
       key: `o${outputNumber}`,
       path: ['outputState', `output${outputNumber}` as const],
-      transform: transformBoolean,
+      transform: boolean(),
     });
     advertise(
       ['outputState', `output${outputNumber}` as const],
@@ -226,6 +241,7 @@ export function registerBaseMessage({
     field({
       key: `g${outputNumber}`,
       path: ['outputPower', `output${outputNumber}` as const],
+      transform: number(),
     });
     advertise(
       ['outputPower', `output${outputNumber}` as const],
@@ -242,9 +258,7 @@ export function registerBaseMessage({
   field({
     key: ['g1', 'g2'],
     path: ['outputPower', 'total'],
-    transform({ g1, g2 }) {
-      return transformNumber(g1) + transformNumber(g2);
-    },
+    transform: sum(),
   });
   advertise(
     ['outputPower', 'total'],
@@ -261,6 +275,7 @@ export function registerBaseMessage({
   field({
     key: 'tl',
     path: ['temperature', 'min'],
+    transform: number(),
   });
   advertise(
     ['temperature', 'min'],
@@ -274,6 +289,7 @@ export function registerBaseMessage({
   field({
     key: 'th',
     path: ['temperature', 'max'],
+    transform: number(),
   });
   advertise(
     ['temperature', 'max'],
@@ -287,7 +303,7 @@ export function registerBaseMessage({
   field({
     key: 'tc',
     path: ['temperature', 'chargingAlarm'],
-    transform: transformBoolean,
+    transform: boolean(),
   });
   advertise(
     ['temperature', 'chargingAlarm'],
@@ -300,7 +316,7 @@ export function registerBaseMessage({
   field({
     key: 'tf',
     path: ['temperature', 'dischargeAlarm'],
-    transform: transformBoolean,
+    transform: boolean(),
   });
   advertise(
     ['temperature', 'dischargeAlarm'],
@@ -315,7 +331,7 @@ export function registerBaseMessage({
   field({
     key: 'b1',
     path: ['batteryPacks', 'pack1Connected'],
-    transform: transformBoolean,
+    transform: boolean(),
   });
   advertise(
     ['batteryPacks', 'pack1Connected'],
@@ -327,7 +343,7 @@ export function registerBaseMessage({
   field({
     key: 'b2',
     path: ['batteryPacks', 'pack2Connected'],
-    transform: transformBoolean,
+    transform: boolean(),
   });
   advertise(
     ['batteryPacks', 'pack2Connected'],
@@ -341,17 +357,7 @@ export function registerBaseMessage({
   field({
     key: 'cj',
     path: ['scene'],
-    transform: v => {
-      // Transform numeric scene value to descriptive string
-      switch (v) {
-        case '0':
-          return 'day';
-        case '1':
-          return 'night';
-        case '2':
-          return 'dusk';
-      }
-    },
+    transform: map({ '0': 'day', '1': 'night', '2': 'dusk' }),
   });
   advertise(
     ['scene'],
@@ -370,7 +376,7 @@ export function registerBaseMessage({
   field({
     key: 'l0',
     path: ['batteryStatus', 'host', 'discharging'],
-    transform: transformBitBoolean(0),
+    transform: bitBoolean(0),
   });
   advertise(
     ['batteryStatus', 'host', 'discharging'],
@@ -383,7 +389,7 @@ export function registerBaseMessage({
   field({
     key: 'l0',
     path: ['batteryStatus', 'host', 'charging'],
-    transform: transformBitBoolean(1),
+    transform: bitBoolean(1),
   });
   advertise(
     ['batteryStatus', 'host', 'charging'],
@@ -396,7 +402,7 @@ export function registerBaseMessage({
   field({
     key: 'l0',
     path: ['batteryStatus', 'host', 'depthOfDischarge'],
-    transform: transformBitBoolean(2),
+    transform: bitBoolean(2),
   });
   advertise(
     ['batteryStatus', 'host', 'depthOfDischarge'],
@@ -409,7 +415,7 @@ export function registerBaseMessage({
   field({
     key: 'l0',
     path: ['batteryStatus', 'host', 'undervoltage'],
-    transform: transformBitBoolean(3),
+    transform: bitBoolean(3),
   });
   advertise(
     ['batteryStatus', 'host', 'undervoltage'],
@@ -422,7 +428,7 @@ export function registerBaseMessage({
   field({
     key: 'l1',
     path: ['batteryStatus', 'extra2', 'discharging'],
-    transform: transformBitBoolean(0),
+    transform: bitBoolean(0),
   });
   advertise(
     ['batteryStatus', 'extra2', 'discharging'],
@@ -436,7 +442,7 @@ export function registerBaseMessage({
   field({
     key: 'l1',
     path: ['batteryStatus', 'extra2', 'charging'],
-    transform: transformBitBoolean(1),
+    transform: bitBoolean(1),
   });
   advertise(
     ['batteryStatus', 'extra2', 'charging'],
@@ -450,7 +456,7 @@ export function registerBaseMessage({
   field({
     key: 'l1',
     path: ['batteryStatus', 'extra2', 'depthOfDischarge'],
-    transform: transformBitBoolean(2),
+    transform: bitBoolean(2),
   });
   advertise(
     ['batteryStatus', 'extra2', 'depthOfDischarge'],
@@ -464,7 +470,7 @@ export function registerBaseMessage({
   field({
     key: 'l1',
     path: ['batteryStatus', 'extra2', 'undervoltage'],
-    transform: transformBitBoolean(3),
+    transform: bitBoolean(3),
   });
   advertise(
     ['batteryStatus', 'extra2', 'undervoltage'],
@@ -478,7 +484,7 @@ export function registerBaseMessage({
   field({
     key: 'l1',
     path: ['batteryStatus', 'extra1', 'discharging'],
-    transform: transformBitBoolean(4),
+    transform: bitBoolean(4),
   });
   advertise(
     ['batteryStatus', 'extra1', 'discharging'],
@@ -492,7 +498,7 @@ export function registerBaseMessage({
   field({
     key: 'l1',
     path: ['batteryStatus', 'extra1', 'charging'],
-    transform: transformBitBoolean(5),
+    transform: bitBoolean(5),
   });
   advertise(
     ['batteryStatus', 'extra1', 'charging'],
@@ -506,7 +512,7 @@ export function registerBaseMessage({
   field({
     key: 'l1',
     path: ['batteryStatus', 'extra1', 'depthOfDischarge'],
-    transform: transformBitBoolean(6),
+    transform: bitBoolean(6),
   });
   advertise(
     ['batteryStatus', 'extra1', 'depthOfDischarge'],
@@ -520,7 +526,7 @@ export function registerBaseMessage({
   field({
     key: 'l1',
     path: ['batteryStatus', 'extra1', 'undervoltage'],
-    transform: transformBitBoolean(7),
+    transform: bitBoolean(7),
   });
   advertise(
     ['batteryStatus', 'extra1', 'undervoltage'],
@@ -536,6 +542,7 @@ export function registerBaseMessage({
   field({
     key: 'a0',
     path: ['batteryCapacities', 'host'],
+    transform: number(),
   });
   advertise(
     ['batteryCapacities', 'host'],
@@ -549,6 +556,7 @@ export function registerBaseMessage({
   field({
     key: 'a1',
     path: ['batteryCapacities', 'extra1'],
+    transform: number(),
   });
   advertise(
     ['batteryCapacities', 'extra1'],
@@ -563,6 +571,7 @@ export function registerBaseMessage({
   field({
     key: 'a2',
     path: ['batteryCapacities', 'extra2'],
+    transform: number(),
   });
   advertise(
     ['batteryCapacities', 'extra2'],
@@ -707,7 +716,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
       field({
         key: allKeys,
         path: ['cellVoltage', battery, 'min'],
-        transform: voltages => Math.min(...Object.values(voltages).map(v => parseFloat(v))) / 1000,
+        transform: min(1000),
       });
       advertise(
         ['cellVoltage', battery, 'min'],
@@ -722,7 +731,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
       field({
         key: allKeys,
         path: ['cellVoltage', battery, 'max'],
-        transform: voltages => Math.max(...Object.values(voltages).map(v => parseFloat(v))) / 1000,
+        transform: max(1000),
       });
       advertise(
         ['cellVoltage', battery, 'max'],
@@ -737,10 +746,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
       field({
         key: allKeys,
         path: ['cellVoltage', battery, 'diff'],
-        transform: voltages => {
-          const values = Object.values(voltages).map(v => parseFloat(v));
-          return (Math.max(...values) - Math.min(...values)) / 1000;
-        },
+        transform: diff(1000),
       });
       advertise(
         ['cellVoltage', battery, 'diff'],
@@ -755,10 +761,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
       field({
         key: allKeys,
         path: ['cellVoltage', battery, 'avg'],
-        transform: voltages => {
-          const values = Object.values(voltages).map(v => parseFloat(v));
-          return Math.round(values.reduce((sum, v) => sum + v, 0) / values.length) / 1000;
-        },
+        transform: average(1000, true),
       });
       advertise(
         ['cellVoltage', battery, 'avg'],
@@ -775,7 +778,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
         field({
           key: `${key}${i.toString(16)}`,
           path: ['cellVoltage', battery, 'cells', i],
-          transform: v => parseFloat(v) / 1000,
+          transform: divide(1000),
         });
         advertise(
           ['cellVoltage', battery, 'cells', i],
@@ -822,7 +825,7 @@ export function registerCalibrationDataMessage(message: BuildMessageFn) {
     field({
       key: 'cf',
       path: ['charge'],
-      transform: v => parseFloat(v) / 1000,
+      transform: divide(1000),
     });
     advertise(
       ['charge'],
@@ -835,7 +838,7 @@ export function registerCalibrationDataMessage(message: BuildMessageFn) {
     field({
       key: 'df',
       path: ['discharge'],
-      transform: v => parseFloat(v) / 1000,
+      transform: divide(1000),
     });
     advertise(
       ['discharge'],
