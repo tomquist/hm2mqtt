@@ -453,6 +453,14 @@ export function executeMultiKeyTransform(
 }
 
 // Helper functions for complex parsing
+
+/** Safely parse an integer, returning 0 if NaN */
+function safeParseInt(value: string | undefined): number {
+  if (value === undefined) return 0;
+  const num = parseInt(value, 10);
+  return Number.isNaN(num) ? 0 : num;
+}
+
 function executeTimePeriodField(
   value: string,
   field: TimePeriodFieldTransform['field'],
@@ -473,19 +481,25 @@ function executeTimePeriodField(
   }
 
   switch (field) {
-    case 'startTime':
-      return `${parseInt(parts[0], 10)}:${parseInt(parts[1], 10).toString().padStart(2, '0')}`;
-    case 'endTime':
-      return `${parseInt(parts[2], 10)}:${parseInt(parts[3], 10).toString().padStart(2, '0')}`;
+    case 'startTime': {
+      const hours = safeParseInt(parts[0]);
+      const minutes = safeParseInt(parts[1]);
+      return `${hours}:${minutes.toString().padStart(2, '0')}`;
+    }
+    case 'endTime': {
+      const hours = safeParseInt(parts[2]);
+      const minutes = safeParseInt(parts[3]);
+      return `${hours}:${minutes.toString().padStart(2, '0')}`;
+    }
     case 'weekday': {
-      const bitmask = parseInt(parts[4], 10);
+      const bitmask = safeParseInt(parts[4]);
       return '0123456'
         .split('')
         .filter((_, index) => bitmask & (1 << index))
         .join('');
     }
     case 'power':
-      return parseInt(parts[5], 10);
+      return safeParseInt(parts[5]);
     case 'enabled':
       return parts[6] === '1';
   }
@@ -497,11 +511,11 @@ function executeMPPTPVField(value: string, field: MPPTPVFieldTransform['field'])
 
   switch (field) {
     case 'voltage':
-      return parseInt(parts[0], 10) / 10;
+      return safeParseInt(parts[0]) / 10;
     case 'current':
-      return parseInt(parts[1], 10) / 10;
+      return safeParseInt(parts[1]) / 10;
     case 'power':
-      return parseInt(parts[2], 10) / 10;
+      return safeParseInt(parts[2]) / 10;
   }
 }
 
