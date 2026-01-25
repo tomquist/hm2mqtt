@@ -1,4 +1,7 @@
 # Changelog
+## [Next]
+
+
 ## [1.6.0] - 2026-01-25
 
 - Fix Home Assistant warning when surplus feed-in is unavailable on older HM firmware versions
