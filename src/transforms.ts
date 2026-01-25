@@ -365,8 +365,10 @@ export function executeTransform(
       return isNaN(num) ? 0 : -num;
     }
 
-    case 'parseInt':
-      return parseInt(value, 10);
+    case 'parseInt': {
+      const num = parseInt(value, 10);
+      return isNaN(num) ? 0 : num;
+    }
 
     case 'identity':
       return value;
@@ -420,17 +422,22 @@ export function executeMultiKeyTransform(
       return numericValues.reduce((acc, v) => acc + (isNaN(v) ? 0 : v), 0);
 
     case 'min': {
-      const result = Math.min(...numericValues.filter(v => !isNaN(v)));
+      const validValues = numericValues.filter(v => !isNaN(v));
+      if (validValues.length === 0) return 0;
+      const result = Math.min(...validValues);
       return transform.scale ? result / transform.scale : result;
     }
 
     case 'max': {
-      const result = Math.max(...numericValues.filter(v => !isNaN(v)));
+      const validValues = numericValues.filter(v => !isNaN(v));
+      if (validValues.length === 0) return 0;
+      const result = Math.max(...validValues);
       return transform.scale ? result / transform.scale : result;
     }
 
     case 'diff': {
       const validValues = numericValues.filter(v => !isNaN(v));
+      if (validValues.length === 0) return 0;
       const result = Math.max(...validValues) - Math.min(...validValues);
       return transform.scale ? result / transform.scale : result;
     }
@@ -553,13 +560,14 @@ export function transformToJinja2(
       return `{{ ${valueExpr} }}`;
 
     case 'map': {
-      const conditions = Object.entries(transform.mappings)
-        .filter(([, v]) => v !== undefined)
-        .map(([k, v]) => {
+      const entries = Object.entries(transform.mappings).filter(([, v]) => v !== undefined);
+      const conditions = entries
+        .map(([k, v], index) => {
           const valueStr = typeof v === 'string' ? `'${v}'` : v;
-          return `{% if ${valueExpr} == '${k}' %}${valueStr}`;
+          const keyword = index === 0 ? 'if' : 'elif';
+          return `{% ${keyword} ${valueExpr} == '${k}' %}${valueStr}`;
         })
-        .join('{% el');
+        .join('');
       const defaultStr =
         transform.defaultValue !== undefined
           ? typeof transform.defaultValue === 'string'
@@ -655,8 +663,8 @@ function generateTimePeriodFieldJinja2(
     case 'endTime':
       return `{% set p = ${partsExpr} %}{% if p | length >= 7 %}{{ p[2] | int }}:{{ '%02d' | format(p[3] | int) }}{% else %}00:00{% endif %}`;
     case 'weekday':
-      // Simplified - just return the bitmask value for now
-      return `{% set p = ${partsExpr} %}{% if p | length >= 7 %}{{ p[4] }}{% else %}0123456{% endif %}`;
+      // Convert bitmask to weekday set string (e.g., bitmask 127 -> "0123456")
+      return `{% set p = ${partsExpr} %}{% if p | length >= 7 %}{% set bm = p[4] | int(0) %}{% set days = '' %}{% for i in range(7) %}{% if bm | bitwise_and(2**i) %}{% set days = days ~ i %}{% endif %}{% endfor %}{{ days }}{% else %}0123456{% endif %}`;
     case 'power':
       return `{% set p = ${partsExpr} %}{% if p | length >= 7 %}{{ p[5] | int }}{% else %}0{% endif %}`;
     case 'enabled':
