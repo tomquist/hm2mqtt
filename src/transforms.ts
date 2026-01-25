@@ -577,17 +577,14 @@ export function transformToJinja2(
       const entries = Object.entries(transform.mappings).filter(([, v]) => v !== undefined);
       const conditions = entries
         .map(([k, v], index) => {
-          const valueStr = typeof v === 'string' ? `'${v}'` : v;
+          // Output raw value without quotes - strings should not be quoted in Jinja2 output
+          const valueStr = v;
           const keyword = index === 0 ? 'if' : 'elif';
           return `{% ${keyword} ${valueExpr} == '${k}' %}${valueStr}`;
         })
         .join('');
-      const defaultStr =
-        transform.defaultValue !== undefined
-          ? typeof transform.defaultValue === 'string'
-            ? `'${transform.defaultValue}'`
-            : transform.defaultValue
-          : 'none';
+      // Default value also without quotes to match runtime output
+      const defaultStr = transform.defaultValue !== undefined ? transform.defaultValue : 'none';
       return `${conditions}{% else %}${defaultStr}{% endif %}`;
     }
 
