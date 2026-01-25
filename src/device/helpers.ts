@@ -17,3 +17,26 @@ export const transformNumber = (value: string) => {
   const number = parseFloat(value);
   return isNaN(number) ? 0 : number;
 };
+
+/**
+ * Converts the value exposed through MQTT to a temperature. It looks like the
+ * device sends a signed temperature as an unsigned 8-bit integer (`uint8`).
+ * This function converts that value back.
+ *
+ * @param value - The temperature coming from MQTT
+ * @returns The temperature in degrees Celsius
+ */
+export const transformTemperature = (value: string) => {
+  const number = transformNumber(value);
+
+  // Out of `uint8` bounds - return as is
+  if (number < 0 || number > 255) {
+    return number;
+  }
+
+  // Convert uint8 to int8
+  if (number > 127) {
+    return number - 256;
+  }
+  return number;
+};

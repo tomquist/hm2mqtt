@@ -152,6 +152,18 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     pollInterval: globalPollInterval,
     controlsDeviceAvailability: true,
   } as const;
+  const isSurplusFeedInSupported = (
+    state: Pick<B2500V2DeviceData, 'deviceType'> & { deviceInfo?: B2500V2DeviceData['deviceInfo'] },
+  ) => {
+    const requiredVersion = state.deviceType === 'HMJ' ? 108 : 226;
+    const deviceVersion = state.deviceInfo?.deviceVersion;
+    if (deviceVersion == null) {
+      return undefined;
+    }
+
+    return deviceVersion >= requiredVersion;
+  };
+
   message<B2500V2DeviceData>(options, ({ field, command, advertise }) => {
     registerBaseMessage({ command, advertise, field });
 
@@ -693,11 +705,20 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Surplus Feed-in',
         icon: 'mdi:transfer',
         command: 'surplus-feed-in',
+        defaultValue: 'false',
       }),
+      { enabled: isSurplusFeedInSupported },
     );
     // Surplus Feed-in command
     command('surplus-feed-in', {
       handler: ({ message, publishCallback, deviceState }) => {
+        const surplusFeedInSupported = isSurplusFeedInSupported(deviceState);
+        if (surplusFeedInSupported === false) {
+          logger.warn(
+            `Surplus feed-in is not supported on ${deviceState.deviceType} version ${deviceState.deviceInfo?.deviceVersion}`,
+          );
+          return;
+        }
         // Accepts 'true'/'1'/'ON' to enable, 'false'/'0'/'OFF' to disable
         const enable = message.toLowerCase() === 'true' || message === '1' || message === 'on';
         const value = enable ? 0 : 1;

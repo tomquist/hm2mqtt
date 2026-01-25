@@ -1,5 +1,5 @@
 import { parseMessage } from './parser';
-import { B2500V2DeviceData, MI800DeviceData } from './types';
+import { B2500V2DeviceData, JupiterBMSInfo, JupiterDeviceData, MI800DeviceData } from './types';
 
 describe('MQTT Message Parser', () => {
   test('should parse comma-separated key-value pairs correctly', () => {
@@ -304,5 +304,209 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('gridFrequency', 49.8);
     expect(result).toHaveProperty('pv1Voltage', 30.0);
     expect(result).toHaveProperty('pv2Current', 0.6);
+  });
+
+  test('should parse Jupiter message correctly', () => {
+    const message =
+      'ele_d=349,ele_m=2193,ele_y=0,pv1_p=94,pv1_s=1,pv2_p=77,pv2_s=1,pv3_p=41,pv3_s=1,pv4_p=60,pv4_s=1,grd_o=250,grd_t=1,gct_s=1,cel_s=0,cel_p=424,cel_c=83,err_t=0,wor_m=1,tim_0=12|0|23|59|127|800|1,tim_1=0|0|12|0|127|150|1,tim_2=0|0|0|0|255|0|0,tim_3=0|0|0|0|255|0|0,tim_4=0|0|0|0|255|0|0,cts_m=0,grd_d=285,grd_m=2018,dev_n=134,dev_i=106,dev_m=206,dev_b=209,dev_t=110,wif_s=75,ala_c=0,ful_d=1,ssid=xxxx,stop_s=10,htt_p=0,ct_t=4,phase_t=1,dchrg=1,seq_s=3,ctrl_r=0,shelly_p=1010,c_ratio=100,b_lck=0,dod=88,total_b=1,online_b=1';
+    const deviceType = 'JPLS-1';
+    const deviceId = 'jupiter123';
+
+    const parsed = parseMessage(message, deviceType, deviceId);
+    expect(parsed).toHaveProperty('data');
+
+    const result = parsed['data'] as JupiterDeviceData;
+    expect(result).toHaveProperty('deviceType', deviceType);
+    expect(result).toHaveProperty('deviceId', deviceId);
+    expect(result).toHaveProperty('timestamp');
+
+    // Energy statistics
+    expect(result).toHaveProperty('dailyChargingCapacity', 3.49);
+    expect(result).toHaveProperty('monthlyChargingCapacity', 21.93);
+    expect(result).toHaveProperty('yearlyChargingCapacity', 0);
+    expect(result).toHaveProperty('dailyDischargeCapacity', 2.85);
+    expect(result).toHaveProperty('monthlyDischargeCapacity', 20.18);
+
+    // PV power
+    expect(result).toHaveProperty('pv1Power', 94);
+    expect(result).toHaveProperty('pv2Power', 77);
+    expect(result).toHaveProperty('pv3Power', 41);
+    expect(result).toHaveProperty('pv4Power', 60);
+
+    // Grid and power
+    expect(result).toHaveProperty('combinedPower', 250);
+    expect(result).toHaveProperty('workingStatus', 1);
+    expect(result).toHaveProperty('ctStatus', 1);
+
+    // Battery
+    expect(result).toHaveProperty('batteryWorkingStatus', 'keep');
+    expect(result).toHaveProperty('batteryEnergy', 4.24);
+    expect(result).toHaveProperty('batterySoc', 83);
+
+    // Error and working mode
+    expect(result).toHaveProperty('errorCode', 0);
+    expect(result).toHaveProperty('workingMode', 'automatic');
+    expect(result).toHaveProperty('autoSwitchWorkingMode', 0);
+
+    // Device information
+    expect(result).toHaveProperty('httpServerType', 0);
+    expect(result).toHaveProperty('wifiSignalStrength', -75);
+    expect(result).toHaveProperty('ctType', 4);
+    expect(result).toHaveProperty('phaseType', 1);
+    expect(result).toHaveProperty('rechargeMode', 1);
+    expect(result).toHaveProperty('deviceVersion', 134);
+    expect(result).toHaveProperty('bmsVersion', 209);
+    expect(result).toHaveProperty('mpptVersion', 206);
+    expect(result).toHaveProperty('inverterVersion', 106);
+    expect(result).toHaveProperty('wifiName', 'xxxx');
+
+    // Additional features
+    expect(result).toHaveProperty('surplusFeedInEnabled', true);
+    expect(result).toHaveProperty('alarmCode', 0);
+    expect(result).toHaveProperty('depthOfDischarge', 88);
+
+    // Time periods
+    expect(result).toHaveProperty('timePeriods');
+    expect(Array.isArray(result.timePeriods)).toBe(true);
+    expect(result.timePeriods).toHaveLength(5);
+
+    // Time period 0
+    expect(result.timePeriods?.[0]).toHaveProperty('startTime', '12:00');
+    expect(result.timePeriods?.[0]).toHaveProperty('endTime', '23:59');
+    expect(result.timePeriods?.[0]).toHaveProperty('weekday', '0123456');
+    expect(result.timePeriods?.[0]).toHaveProperty('power', 800);
+    expect(result.timePeriods?.[0]).toHaveProperty('enabled', true);
+
+    // Time period 1
+    expect(result.timePeriods?.[1]).toHaveProperty('startTime', '0:00');
+    expect(result.timePeriods?.[1]).toHaveProperty('endTime', '12:00');
+    expect(result.timePeriods?.[1]).toHaveProperty('weekday', '0123456');
+    expect(result.timePeriods?.[1]).toHaveProperty('power', 150);
+    expect(result.timePeriods?.[1]).toHaveProperty('enabled', true);
+
+    // Time periods 2-4 should be disabled
+    expect(result.timePeriods?.[2]).toHaveProperty('enabled', false);
+    expect(result.timePeriods?.[3]).toHaveProperty('enabled', false);
+    expect(result.timePeriods?.[4]).toHaveProperty('enabled', false);
+  });
+
+  test('should parse Jupiter BMS message correctly', () => {
+    const message =
+      'inv:g_state=1,w_state1=1,w_state2=1,i_err=0,i_war=0,g_vol=2399,g_cur=0,g_pf=0,g_fre=5002,b_vol=526,g_power=119,i_temp=143,mppt:m_state=244,m_err=0,m_temp=30,m_war=0,pv1=350|37|1304,pv2=349|39|1372,pv3=378|18|712,pv4=365|32|1180,b_vol=525,b_cur=85,base_v=221,pe_v=165,fail_t=0,bms:c_vol=571,c_cur=500,d_cur=500,soc=33,soh=100,b_cap=5120,b_vol=5252,b_cur=63,b_temp=213,b_err=0,b_war=0,b_err2=0,b_war2=0,c_flag=192,s_flag=0,b_num=1,vol0=3280,vol1=3281,vol2=3283,vol3=3283,vol4=3283,vol5=3283,vol6=3280,vol7=3284,vol8=3283,vol9=3284,vol10=3282,vol11=3286,vol12=3277,vol13=3286,vol14=3283,vol15=3284,b_temp0=14,b_temp1=15,b_temp2=15,b_temp3=16,env_t=27,mos_t=20,lck=0';
+    const deviceType = 'JPLS-1';
+    const deviceId = 'jupiter123';
+
+    const parsed = parseMessage(message, deviceType, deviceId);
+    expect(parsed).toHaveProperty('bms');
+
+    const result = parsed['bms'] as JupiterBMSInfo;
+
+    // Check the structure
+    expect(result).toHaveProperty('deviceType', deviceType);
+    expect(result).toHaveProperty('deviceId', deviceId);
+    expect(result).toHaveProperty('timestamp');
+    expect(result).toHaveProperty('values');
+
+    // Cell voltages (vol0-vol15)
+    expect(result).toHaveProperty('cells');
+    expect(result.cells).toHaveProperty('voltages');
+    expect(Array.isArray(result.cells?.voltages)).toBe(true);
+    expect(result.cells?.voltages).toHaveLength(16);
+    expect(result.cells?.voltages).toEqual([
+      3280, 3281, 3283, 3283, 3283, 3283, 3280, 3284, 3283, 3284, 3282, 3286, 3277, 3286, 3283,
+      3284,
+    ]);
+
+    // Cell temperatures (b_temp0-b_temp3)
+    expect(result.cells).toHaveProperty('temperatures');
+    expect(Array.isArray(result.cells?.temperatures)).toBe(true);
+    expect(result.cells?.temperatures).toHaveLength(4);
+    expect(result.cells?.temperatures).toEqual([14, 15, 15, 16]);
+
+    // BMS fields
+    expect(result).toHaveProperty('bms');
+    expect(result.bms).toHaveProperty('soc', 33);
+    expect(result.bms).toHaveProperty('soh', 100);
+    expect(result.bms).toHaveProperty('capacity', 5120);
+    expect(result.bms).toHaveProperty('voltage', 52.52);
+    expect(result.bms).toHaveProperty('current', 6.3);
+    expect(result.bms).toHaveProperty('temperature', 21.3);
+    expect(result.bms).toHaveProperty('chargeVoltage', 57.1);
+    // These values need additional info to confirm the correct scaling
+    // expect(result.bms).toHaveProperty('chargeCurrent', 500);
+    // expect(result.bms).toHaveProperty('dischargeCurrent', 500);
+    expect(result.bms).toHaveProperty('error', 0);
+    expect(result.bms).toHaveProperty('warning', 0);
+    expect(result.bms).toHaveProperty('error2', 0);
+    expect(result.bms).toHaveProperty('warning2', 0);
+    expect(result.bms).toHaveProperty('cellFlag', 192);
+    expect(result.bms).toHaveProperty('statusFlag', 0);
+    expect(result.bms).toHaveProperty('bmsNumber', 1);
+    expect(result.bms).toHaveProperty('mosfetTemp', 20);
+    expect(result.bms).toHaveProperty('envTemp', 27);
+
+    // MPPT fields
+    expect(result).toHaveProperty('mppt');
+    expect(result.mppt).toHaveProperty('temperature', 30);
+    expect(result.mppt).toHaveProperty('error', 0);
+    expect(result.mppt).toHaveProperty('warning', 0);
+
+    // MPPT PV fields
+    expect(result.mppt).toHaveProperty('pv');
+    expect(Array.isArray(result.mppt?.pv)).toBe(true);
+    expect(result.mppt?.pv).toHaveLength(4);
+
+    expect(result.mppt?.pv?.[0]).toHaveProperty('voltage', 35);
+    expect(result.mppt?.pv?.[0]).toHaveProperty('current', 3.7);
+    expect(result.mppt?.pv?.[0]).toHaveProperty('power', 130.4);
+
+    expect(result.mppt?.pv?.[1]).toHaveProperty('voltage', 34.9);
+    expect(result.mppt?.pv?.[1]).toHaveProperty('current', 3.9);
+    expect(result.mppt?.pv?.[1]).toHaveProperty('power', 137.2);
+
+    expect(result.mppt?.pv?.[2]).toHaveProperty('voltage', 37.8);
+    expect(result.mppt?.pv?.[2]).toHaveProperty('current', 1.8);
+    expect(result.mppt?.pv?.[2]).toHaveProperty('power', 71.2);
+
+    expect(result.mppt?.pv?.[3]).toHaveProperty('voltage', 36.5);
+    expect(result.mppt?.pv?.[3]).toHaveProperty('current', 3.2);
+    expect(result.mppt?.pv?.[3]).toHaveProperty('power', 118);
+
+    // Inverter fields
+    expect(result).toHaveProperty('inverter');
+    expect(result.inverter).toHaveProperty('temperature', 14.3);
+    expect(result.inverter).toHaveProperty('error', 0);
+    expect(result.inverter).toHaveProperty('warning', 0);
+    expect(result.inverter).toHaveProperty('gridVoltage', 239.9);
+    expect(result.inverter).toHaveProperty('gridCurrent', 0);
+    expect(result.inverter).toHaveProperty('gridPower', 119);
+    expect(result.inverter).toHaveProperty('gridPowerFactor', 0);
+    expect(result.inverter).toHaveProperty('gridFrequency', 50.02);
+  });
+
+  test('should convert negative Jupiter BMS temperatures correctly', () => {
+    const message =
+      'inv:g_state=1,w_state1=1,w_state2=1,i_err=0,i_war=0,g_vol=2340,g_cur=0,g_pf=0,g_fre=4997,b_vol=544,g_power=0,i_temp=-31,mppt:m_state=244,m_err=0,m_temp=5,m_war=0,pv1=377|3|146,pv2=389|6|258,pv3=387|6|236,pv4=376|3|141,b_vol=545,b_cur=14,base_v=222,pe_v=165,bms:c_vol=600,c_cur=75,d_cur=100,soc=44,soh=0,b_cap=2560,b_vol=5420,b_cur=14,b_temp=-25,b_err=0,b_war=0,b_err2=0,b_war2=0,c_flag=192,s_flag=0,b_num=1,vol0=3343,vol1=3397,vol2=3320,vol3=0,vol4=0,vol5=0,vol6=0,vol7=0,vol8=0,vol9=0,vol10=0,vol11=0,vol12=0,vol13=0,vol14=0,vol15=0,b_temp0=255,b_temp1=254,b_temp2=253,b_temp3=252,env_t=128,mos_t=127';
+    const deviceType = 'JPLS-1';
+    const deviceId = 'jupiter123';
+
+    const parsed = parseMessage(message, deviceType, deviceId);
+    expect(parsed).toHaveProperty('bms');
+    const result = parsed['bms'] as JupiterBMSInfo;
+
+    expect(result).toHaveProperty('cells');
+    expect(result['cells']).toHaveProperty('temperatures');
+    expect(result['cells']?.['temperatures']).toEqual([-1, -2, -3, -4]);
+
+    expect(result).toHaveProperty('bms');
+    expect(result['bms']).toHaveProperty('temperature', -2.5);
+    expect(result['bms']).toHaveProperty('envTemp', -128);
+    expect(result['bms']).toHaveProperty('mosfetTemp', 127);
+
+    expect(result).toHaveProperty('mppt');
+    expect(result['mppt']).toHaveProperty('temperature', 5);
+
+    expect(result).toHaveProperty('inverter');
+    expect(result.inverter).toHaveProperty('temperature', -3.1);
   });
 });

@@ -34,6 +34,7 @@ export class DeviceManager {
   private deviceTopics: Record<DeviceKey, DeviceTopics> = {};
   private deviceStates: Record<DeviceKey, Record<string, DeviceStateData> | undefined> = {};
   private deviceResponseTimeouts: Record<DeviceKey, NodeJS.Timeout[]> = {};
+  private readonly encryptedDeviceTypes = new Set(['HMA', 'HMF', 'HMK', 'HMJ']);
 
   constructor(
     private config: MqttConfig,
@@ -56,7 +57,9 @@ export class DeviceManager {
       const deviceKey = this.getDeviceKey(device);
       logger.info(`Initializing topics for device: ${deviceKey}`);
       let deviceId = device.deviceId;
-      let deviceIdNew = calculateNewVersionTopicId(deviceId);
+      let deviceIdNew = this.shouldEncryptDeviceId(device.deviceType)
+        ? calculateNewVersionTopicId(deviceId)
+        : deviceId;
 
       const prefix = this.config.topicPrefix;
       this.deviceTopics[deviceKey] = {
@@ -84,6 +87,12 @@ export class DeviceManager {
 
   private getDeviceKey(device: Device): DeviceKey {
     return `${device.deviceType}:${device.deviceId}`;
+  }
+
+  private shouldEncryptDeviceId(deviceType: string): boolean {
+    const match = /^(.*)-[\d\w]+$/.exec(deviceType);
+    const baseType = match ? match[1] : deviceType;
+    return this.encryptedDeviceTypes.has(baseType);
   }
 
   /**

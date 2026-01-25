@@ -1,6 +1,6 @@
 {
   "name": "hm2mqtt",
-  "version": "1.5.3",
+  "version": "1.6.0",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
