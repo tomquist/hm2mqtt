@@ -44,10 +44,7 @@ function findMatchingField<T extends BaseDeviceData>(
 
   for (const field of fields) {
     // Compare paths - they should match exactly
-    if (
-      field.path.length === keyPath.length &&
-      field.path.every((p, i) => p === keyPath[i])
-    ) {
+    if (field.path.length === keyPath.length && field.path.every((p, i) => p === keyPath[i])) {
       // Check if transform is a declarative Transform object
       const transform = field.transform;
       if (transform && typeof transform === 'object' && 'type' in transform) {

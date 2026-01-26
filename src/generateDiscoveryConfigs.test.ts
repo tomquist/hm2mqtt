@@ -195,9 +195,7 @@ describe('Home Assistant Discovery', () => {
       );
 
       // Find a sensor config
-      const batteryPercentageSensor = configs.find(c =>
-        c.topic.includes('battery_percentage'),
-      );
+      const batteryPercentageSensor = configs.find(c => c.topic.includes('battery_percentage'));
       expect(batteryPercentageSensor).toBeDefined();
       expect(batteryPercentageSensor?.config?.state_topic).toBe(deviceTopicOld);
     });
@@ -212,9 +210,7 @@ describe('Home Assistant Discovery', () => {
         { useJinjaTemplates: true },
       );
 
-      const batteryPercentageSensor = configs.find(c =>
-        c.topic.includes('battery_percentage'),
-      );
+      const batteryPercentageSensor = configs.find(c => c.topic.includes('battery_percentage'));
       expect(batteryPercentageSensor).toBeDefined();
 
       const valueTemplate = batteryPercentageSensor?.config?.value_template;
@@ -236,9 +232,7 @@ describe('Home Assistant Discovery', () => {
         { useJinjaTemplates: true },
       );
 
-      const batteryPercentageSensor = configs.find(c =>
-        c.topic.includes('battery_percentage'),
-      );
+      const batteryPercentageSensor = configs.find(c => c.topic.includes('battery_percentage'));
       const valueTemplate = batteryPercentageSensor?.config?.value_template;
       // number() transform converts to float with default 0
       expect(valueTemplate).toContain('float(0)');
@@ -254,9 +248,7 @@ describe('Home Assistant Discovery', () => {
         { useJinjaTemplates: true },
       );
 
-      const input1ChargingSensor = configs.find(c =>
-        c.topic.includes('input1_charging'),
-      );
+      const input1ChargingSensor = configs.find(c => c.topic.includes('input1_charging'));
       expect(input1ChargingSensor).toBeDefined();
 
       const valueTemplate = input1ChargingSensor?.config?.value_template;
@@ -275,9 +267,7 @@ describe('Home Assistant Discovery', () => {
         { useJinjaTemplates: true },
       );
 
-      const totalInputPowerSensor = configs.find(c =>
-        c.topic.includes('solar_total_power'),
-      );
+      const totalInputPowerSensor = configs.find(c => c.topic.includes('solar_total_power'));
       expect(totalInputPowerSensor).toBeDefined();
 
       const valueTemplate = totalInputPowerSensor?.config?.value_template;
@@ -320,9 +310,7 @@ describe('Home Assistant Discovery', () => {
       const batteryPercentageSensor = configsStandard.find(c =>
         c.topic.includes('battery_percentage'),
       );
-      expect(batteryPercentageSensor?.config?.state_topic).toBe(
-        `${publishTopic}/data`,
-      );
+      expect(batteryPercentageSensor?.config?.state_topic).toBe(`${publishTopic}/data`);
 
       const valueTemplate = batteryPercentageSensor?.config?.value_template;
       // Standard mode uses value_json path
