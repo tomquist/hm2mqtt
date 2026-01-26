@@ -1,5 +1,13 @@
-import { AdvertiseBuilderArgs, HaStatefulAdvertiseBuilder } from './deviceDefinition';
+import { AdvertiseBuilderArgs, HaStatefulAdvertiseBuilder, FieldInfo } from './deviceDefinition';
 import { HaNonStatefulComponentAdvertiseBuilder } from './controlHandler';
+import {
+  Transform,
+  MultiKeyTransform,
+  isMultiKeyTransform,
+  transformToJinja2,
+  multiKeyTransformToJinja2,
+  number as numberTransform,
+} from './transforms';
 
 export interface HaBaseComponent {
   name: string;
@@ -124,12 +132,80 @@ function getJinjaPath(keyPath: ReadonlyArray<string | number>) {
   return `value_json${keyPath.map(key => (typeof key === 'string' ? `.${key}` : `[${key}]`)).join('')}`;
 }
 
+/**
+ * Generate a Jinja2 preamble that parses a raw MQTT message (comma-separated key=value pairs)
+ * into a dictionary. The result is stored in `d` (short for data).
+ *
+ * Example input: "pe=95,kn=5120,do=20"
+ * After preamble: d = {'pe': '95', 'kn': '5120', 'do': '20'}
+ */
+function getJinjaParsingPreamble(): string {
+  // Use namespace to allow reassignment inside loop
+  // Split by comma, then by = (with limit 1 to handle values containing =)
+  return `{% set ns = namespace(d={}) %}{% for pair in value.split(',') %}{% set kv = pair.split('=', 1) %}{% if kv | length == 2 %}{% set ns.d = dict(ns.d, **{kv[0]: kv[1]}) %}{% endif %}{% endfor %}`;
+}
+
+/**
+ * Generate a Jinja2 value template that parses raw MQTT messages.
+ * First decomposes the message into key-value pairs, then extracts the
+ * relevant value(s) and applies the transform.
+ */
+function jinjaValueTemplate(fieldInfo: FieldInfo): string {
+  const preamble = getJinjaParsingPreamble();
+  const { key, transform } = fieldInfo;
+
+  if (Array.isArray(key)) {
+    // Multi-key transform
+    if (transform && isMultiKeyTransform(transform)) {
+      // Use the multi-key transform Jinja generator
+      // The multiKeyTransformToJinja2 expects valuePrefix like 'value_json'
+      // but we have 'ns.d', so we need to adapt it
+      const transformTemplate = multiKeyTransformToJinja2(transform, key as string[], 'ns.d');
+      return `${preamble}${transformTemplate}`;
+    }
+    // Multi-key without valid transform - just return first key's value
+    return `${preamble}{{ ns.d.${key[0]} | default('') }}`;
+  }
+
+  // Single key
+  const valueExpr = `ns.d.${key}`;
+
+  if (!transform) {
+    // Default to number transform if no transform specified
+    return `${preamble}${transformToJinja2(numberTransform(), valueExpr)}`;
+  }
+
+  if (isMultiKeyTransform(transform)) {
+    // Single key with multi-key transform is invalid, fall back to identity
+    return `${preamble}{{ ${valueExpr} | default('') }}`;
+  }
+
+  // Apply the single-value transform
+  return `${preamble}${transformToJinja2(transform, valueExpr)}`;
+}
+
 function valueTemplate(
   args: AdvertiseBuilderArgs & {
     valueMappings?: Record<string | number, string>;
     defaultValue?: string;
   },
 ) {
+  // If fieldInfo is present, generate Jinja template that parses raw messages
+  if (args.fieldInfo) {
+    const jinjaTemplate = jinjaValueTemplate(args.fieldInfo);
+
+    // If there are valueMappings (for display), we need to wrap the result
+    // to map the transform output to the display value
+    if (args.valueMappings) {
+      // Capture the transform result in a temp variable, then apply mapping
+      // The jinjaTemplate already outputs the value, so we capture it
+      return `{% set __raw %}${jinjaTemplate}{% endset %}${mappingValueTemplate({ value: '__raw | trim', valueMappings: args.valueMappings })}`;
+    }
+
+    return jinjaTemplate;
+  }
+
+  // Standard mode: read from parsed JSON
   let value = getJinjaPath(args.keyPath);
   if (args.valueMappings) {
     return mappingValueTemplate({ value, valueMappings: args.valueMappings });
@@ -277,21 +353,37 @@ export const selectComponent =
       defaultValue?: T;
     },
   ): HaStatefulAdvertiseBuilder<T, HaSelectComponent> =>
-  args => ({
-    ...baseStateSensor(definition)(args),
-    type: 'select',
-    value_template: mappingValueTemplate({
-      value: getJinjaPath(args.keyPath),
-      valueMappings: definition.valueMappings,
-    }),
-    command_template: mappingValueTemplate({
-      value: 'value',
-      valueMappings: reverseMappings(definition.valueMappings),
-    }),
-    command_topic: commandTopic({ ...args, ...definition }),
-    options: Object.values(definition.valueMappings),
-    defaultValue: definition.defaultValue,
-  });
+  args => {
+    let selectValueTemplate: string;
+
+    if (args.fieldInfo) {
+      // Jinja mode: parse raw message, then apply mapping
+      const jinjaTemplate = jinjaValueTemplate(args.fieldInfo);
+      selectValueTemplate = `{% set __raw %}${jinjaTemplate}{% endset %}${mappingValueTemplate({
+        value: '__raw | trim',
+        valueMappings: definition.valueMappings,
+      })}`;
+    } else {
+      // Standard mode: read from parsed JSON
+      selectValueTemplate = mappingValueTemplate({
+        value: getJinjaPath(args.keyPath),
+        valueMappings: definition.valueMappings,
+      });
+    }
+
+    return {
+      ...baseStateSensor(definition)(args),
+      type: 'select',
+      value_template: selectValueTemplate,
+      command_template: mappingValueTemplate({
+        value: 'value',
+        valueMappings: reverseMappings(definition.valueMappings),
+      }),
+      command_topic: commandTopic({ ...args, ...definition }),
+      options: Object.values(definition.valueMappings),
+      defaultValue: definition.defaultValue,
+    };
+  };
 export const buttonComponent =
   (
     definition: HaBaseComponentArgs & {

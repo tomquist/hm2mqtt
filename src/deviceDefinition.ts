@@ -5,6 +5,16 @@ import { Transform, MultiKeyTransform } from './transforms';
 
 export const globalPollInterval = parseInt(process.env.MQTT_POLLING_INTERVAL || '60', 10) * 1000;
 
+/**
+ * Field info for Jinja template generation.
+ * Contains the MQTT key(s) and transform needed to generate value templates
+ * that parse raw MQTT messages directly.
+ */
+export interface FieldInfo {
+  key: string | readonly string[];
+  transform?: Transform;
+}
+
 type FixArr<T> = T extends readonly any[] ? Omit<T, Exclude<keyof any[], number>> : T;
 
 /**
@@ -35,6 +45,11 @@ export type AdvertiseBuilderArgs = {
   commandTopic: string;
   stateTopic: string;
   keyPath: ReadonlyArray<string | number>;
+  /**
+   * When set, indicates that Jinja templates should be generated to parse
+   * raw MQTT messages directly. Contains the field's MQTT key(s) and transform.
+   */
+  fieldInfo?: FieldInfo;
 };
 
 type Flavored<T, FlavorT> = T & { __flavor?: FlavorT };

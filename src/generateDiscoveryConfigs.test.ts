@@ -1,4 +1,4 @@
-import { generateDiscoveryConfigs } from './generateDiscoveryConfigs';
+import { generateDiscoveryConfigs, DiscoveryOptions } from './generateDiscoveryConfigs';
 import { Device } from './types';
 import { DeviceTopics } from './deviceManager';
 import { AdditionalDeviceInfo } from './deviceDefinition';
@@ -159,5 +159,175 @@ describe('Home Assistant Discovery', () => {
       DEFAULT_TOPIC_PREFIX,
       {},
     );
+  });
+
+  describe('Jinja template mode', () => {
+    const deviceType = 'HMA-1';
+    const deviceId = 'test123';
+    const deviceTopicOld = 'hame_energy/HMA-1/device/test123/ctrl';
+    const deviceTopicNew = 'marstek_energy/HMA-1/device/test123/ctrl';
+    const publishTopic = 'hm2mqtt/HMA-1/device/test123';
+    const deviceControlTopicOld = 'hame_energy/HMA-1/App/test123/ctrl';
+    const deviceControlTopicNew = 'marstek_energy/HMA-1/App/test123/ctrl';
+    const controlSubscriptionTopic = 'hm2mqtt/HMA-1/control/test123';
+    const availabilityTopic = 'hm2mqtt/HMA-1/availability/test123';
+
+    const device: Device = { deviceType, deviceId };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld,
+      deviceTopicNew,
+      deviceControlTopicOld,
+      deviceControlTopicNew,
+      availabilityTopic,
+      controlSubscriptionTopic,
+      publishTopic,
+    };
+    const additionalDeviceInfo: AdditionalDeviceInfo = {};
+
+    test('should use deviceTopicOld as state_topic in Jinja mode', () => {
+      const configs = generateDiscoveryConfigs(
+        device,
+        deviceTopics,
+        additionalDeviceInfo,
+        DEFAULT_TOPIC_PREFIX,
+        {},
+        { useJinjaTemplates: true },
+      );
+
+      // Find a sensor config
+      const batteryPercentageSensor = configs.find(c =>
+        c.topic.includes('battery_percentage'),
+      );
+      expect(batteryPercentageSensor).toBeDefined();
+      expect(batteryPercentageSensor?.config?.state_topic).toBe(deviceTopicOld);
+    });
+
+    test('should generate Jinja parsing preamble in value_template', () => {
+      const configs = generateDiscoveryConfigs(
+        device,
+        deviceTopics,
+        additionalDeviceInfo,
+        DEFAULT_TOPIC_PREFIX,
+        {},
+        { useJinjaTemplates: true },
+      );
+
+      const batteryPercentageSensor = configs.find(c =>
+        c.topic.includes('battery_percentage'),
+      );
+      expect(batteryPercentageSensor).toBeDefined();
+
+      const valueTemplate = batteryPercentageSensor?.config?.value_template;
+      // Should contain the Jinja parsing preamble
+      expect(valueTemplate).toContain('{% set ns = namespace(d={}) %}');
+      expect(valueTemplate).toContain("value.split(',')");
+      expect(valueTemplate).toContain("pair.split('=', 1)");
+      // Should reference ns.d.pe (the battery percentage key)
+      expect(valueTemplate).toContain('ns.d.pe');
+    });
+
+    test('should apply number transform for numeric fields', () => {
+      const configs = generateDiscoveryConfigs(
+        device,
+        deviceTopics,
+        additionalDeviceInfo,
+        DEFAULT_TOPIC_PREFIX,
+        {},
+        { useJinjaTemplates: true },
+      );
+
+      const batteryPercentageSensor = configs.find(c =>
+        c.topic.includes('battery_percentage'),
+      );
+      const valueTemplate = batteryPercentageSensor?.config?.value_template;
+      // number() transform converts to float with default 0
+      expect(valueTemplate).toContain('float(0)');
+    });
+
+    test('should apply bitBoolean transform for boolean fields', () => {
+      const configs = generateDiscoveryConfigs(
+        device,
+        deviceTopics,
+        additionalDeviceInfo,
+        DEFAULT_TOPIC_PREFIX,
+        {},
+        { useJinjaTemplates: true },
+      );
+
+      const input1ChargingSensor = configs.find(c =>
+        c.topic.includes('input1_charging'),
+      );
+      expect(input1ChargingSensor).toBeDefined();
+
+      const valueTemplate = input1ChargingSensor?.config?.value_template;
+      // bitBoolean(0) transform checks bit 0
+      expect(valueTemplate).toContain('bitwise_and');
+      expect(valueTemplate).toContain('ns.d.p1');
+    });
+
+    test('should apply sum transform for multi-key fields', () => {
+      const configs = generateDiscoveryConfigs(
+        device,
+        deviceTopics,
+        additionalDeviceInfo,
+        DEFAULT_TOPIC_PREFIX,
+        {},
+        { useJinjaTemplates: true },
+      );
+
+      const totalInputPowerSensor = configs.find(c =>
+        c.topic.includes('solar_total_power'),
+      );
+      expect(totalInputPowerSensor).toBeDefined();
+
+      const valueTemplate = totalInputPowerSensor?.config?.value_template;
+      // sum() transform should sum w1 and w2
+      expect(valueTemplate).toContain('ns.d.w1');
+      expect(valueTemplate).toContain('ns.d.w2');
+      expect(valueTemplate).toContain('sum');
+    });
+
+    test('should apply map transform with value mappings', () => {
+      const configs = generateDiscoveryConfigs(
+        device,
+        deviceTopics,
+        additionalDeviceInfo,
+        DEFAULT_TOPIC_PREFIX,
+        {},
+        { useJinjaTemplates: true },
+      );
+
+      const sceneSensor = configs.find(c => c.topic.includes('/scene/'));
+      expect(sceneSensor).toBeDefined();
+
+      const valueTemplate = sceneSensor?.config?.value_template;
+      // map transform converts cj values to scene names
+      expect(valueTemplate).toContain('ns.d.cj');
+      // Should contain mapping logic
+      expect(valueTemplate).toContain('mapping');
+    });
+
+    test('should use parsed JSON topic in standard mode', () => {
+      const configsStandard = generateDiscoveryConfigs(
+        device,
+        deviceTopics,
+        additionalDeviceInfo,
+        DEFAULT_TOPIC_PREFIX,
+        {},
+        { useJinjaTemplates: false },
+      );
+
+      const batteryPercentageSensor = configsStandard.find(c =>
+        c.topic.includes('battery_percentage'),
+      );
+      expect(batteryPercentageSensor?.config?.state_topic).toBe(
+        `${publishTopic}/data`,
+      );
+
+      const valueTemplate = batteryPercentageSensor?.config?.value_template;
+      // Standard mode uses value_json path
+      expect(valueTemplate).toContain('value_json');
+      expect(valueTemplate).not.toContain('namespace');
+    });
   });
 });
