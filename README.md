@@ -306,6 +306,78 @@ services:
 
 > **📖 Background**: This issue was first reported in [GitHub Issue #41](https://github.com/tomquist/hm2mqtt/issues/41) where users experienced problems with multiple B2500 devices after firmware update 226.5.
 
+## Frequently Asked Questions (FAQ)
+
+This FAQ focuses on recurring issues. For one-off edge cases, please search the issue tracker.
+
+### 1) When do I need **hm2mqtt**, **hame-relay**, or both?
+
+**hm2mqtt** is the Home Assistant integration layer (parsing + JSON topics + MQTT Discovery + control topics).
+
+**hame-relay** bridges MQTT between the Hame cloud broker and your local broker. It does **not** create Home Assistant entities. For full Home Assistant discovery + controls, use **hm2mqtt** on top.
+
+**Important nuance for B2500/Saturn (HMA/HMJ/HMK/HMB …):** the storage typically speaks to **either** the cloud **or** a local MQTT broker. If you configure the B2500 for **local MQTT**, the app/cloud usually stops working. In that setup, **hame-relay is commonly used to forward local MQTT back to the cloud** so the app can keep working.
+
+**Troubleshooting (quick):**
+- Missing HA entities? You’re missing **hm2mqtt**.
+- Venus/Jupiter “offline” in hm2mqtt? You’re usually missing **hame-relay** (or it’s misconfigured / not forwarding cloud MQTT into your local broker).
+
+### 2) `No response received within timeout period` — what does it mean?
+
+This message is almost always a **symptom**, not the root cause. It usually means hm2mqtt did not observe the device’s data in the local broker (or it cannot match it to the configured device type / Bluetooth MAC).
+
+#### Troubleshooting: B2500
+1. **Verify the B2500 is actually configured for local MQTT**
+   - Use the configuration tool: <https://tomquist.github.io/hmjs/>
+   - Double-check host/port and the SSL toggle.
+2. If you have **multiple B2500s**, ensure you handled client-ID conflicts
+   - Either configure **unique MQTT usernames** per storage, or
+   - Enable the hm2mqtt **MQTT proxy** and configure the storages to connect to the proxy port (default: 1890).
+3. Confirm your hm2mqtt device config uses the **Bluetooth MAC** (see FAQ #3).
+
+#### Troubleshooting: non-B2500 (Venus/Jupiter/Jupiter Plus/MI800/CT…)
+1. Ensure **hame-relay is installed and running**.
+2. Ensure hame-relay is configured to forward **cloud MQTT → local broker** (this is the standard requirement for these devices).
+3. Use the **device type and Bluetooth MAC** from hame-relay (see FAQ #3).
+
+### 3) What exactly do I put into `deviceId` in hm2mqtt?
+
+In hm2mqtt, `deviceId` must be the **Bluetooth MAC** of the device (12 hex chars, lowercase, no `:`).
+
+**Where to find it:**
+- **B2500:** via <https://tomquist.github.io/hmjs/>
+- **All devices via hame-relay:** check the **hame-relay logs** (they include the mapping).
+
+**Troubleshooting (quick):**
+- If you pasted a long/cryptic cloud “device id” into hm2mqtt: replace it with the **Bluetooth MAC**.
+
+### 4) My Venus/Jupiter works in the Marstek app, but hm2mqtt shows it as offline
+
+These devices usually rely on cloud MQTT. hm2mqtt typically needs the MQTT data to be present in your local broker, which is commonly done by **hame-relay**.
+
+**Troubleshooting (quick):**
+1. Install/start **hame-relay**.
+2. Confirm your local broker receives the forwarded device telemetry.
+3. Configure hm2mqtt with the **device type + Bluetooth MAC** from hame-relay.
+
+### 5) Home Assistant add-on error: `No MQTT URI provided in config and MQTT service is not available.`
+
+This is usually a Home Assistant MQTT service binding/discovery issue.
+
+**Troubleshooting (quick):**
+1. Restart the **Mosquitto Broker** add-on.
+2. Restart the **hm2mqtt** add-on.
+3. If it still fails, explicitly set the broker URL in the add-on configuration (`mqtt_uri`).
+
+### 6) After a Home Assistant update, entities are `Unknown`/`Unavailable` even though MQTT traffic exists
+
+This is typically stale MQTT Discovery state in Home Assistant.
+
+**Troubleshooting (quick):**
+1. Stop hm2mqtt.
+2. Delete the MQTT-discovered device/entities in Home Assistant.
+3. Start hm2mqtt and wait for Discovery to republish.
+
 ## Device Types
 
 The device type can be one of the following:
