@@ -80,14 +80,18 @@ jobs:
 
   build:
     needs: [validate, test-addon]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
+          # Build natively on each architecture. GitHub now provides arm64 runners,
+          # so we can drop QEMU-based builds (which frequently hang) and also drop
+          # 32-bit ARM (arm/v7).
           - platform: linux/amd64
+            runner: ubuntu-latest
           - platform: linux/arm64
-          - platform: linux/arm/v7
+            runner: ubuntu-24.04-arm64
     permissions:
       contents: read
       packages: write
@@ -95,9 +99,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -225,14 +226,15 @@ jobs:
           docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
 
   build-addon:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: linux/amd64
+            runner: ubuntu-latest
           - platform: linux/arm64
-          - platform: linux/arm/v7
+            runner: ubuntu-24.04-arm64
     permissions:
       contents: read
       packages: write
@@ -240,9 +242,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
