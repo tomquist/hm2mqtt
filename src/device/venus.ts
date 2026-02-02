@@ -1181,6 +1181,11 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         max: 2500,
         step: 1,
       }),
+      {
+        // Some Venus firmware versions report sentinel values like -1 for mcp_w.
+        // Home Assistant rejects out-of-range states for MQTT number entities.
+        enabled: state => (state.maxChargingPower != null ? state.maxChargingPower >= 0 : undefined),
+      },
     );
 
     command('max-charging-power', {
