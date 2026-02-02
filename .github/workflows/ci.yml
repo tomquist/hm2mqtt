@@ -85,7 +85,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Build natively on each architecture. GitHub now provides arm64 runners.
           - platform: linux/amd64
             runner: ubuntu-latest
           - platform: linux/arm64
