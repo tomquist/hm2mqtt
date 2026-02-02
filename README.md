@@ -316,7 +316,9 @@ This FAQ focuses on recurring issues. For one-off edge cases, please search the 
 
 **hame-relay** bridges MQTT between the Hame cloud broker and your local broker. It does **not** create Home Assistant entities. For full Home Assistant discovery + controls, use **hm2mqtt** on top.
 
-**Important nuance for B2500/Saturn (HMA/HMJ/HMK/HMB …):** the storage typically speaks to **either** the cloud **or** a local MQTT broker. If you configure the B2500 for **local MQTT**, the app/cloud usually stops working. In that setup, **hame-relay is commonly used to forward local MQTT back to the cloud** so the app can keep working.
+**Important nuance for B2500/Saturn (HMA/HMJ/HMK/HMB …):** the storage typically speaks to **either** the cloud **or** a local MQTT broker. If you configure the B2500 for **local MQTT**, **remote/app cloud connectivity stops working** (e.g., remote control and cloud data). However, you can still control the storage **locally via Bluetooth** in the Marstek/PowerZero app (within BLE range), including performing firmware updates.
+
+In that setup, **hame-relay is commonly used to forward local MQTT back to the cloud** so the app can keep working remotely.
 
 **Troubleshooting (quick):**
 - Missing HA entities? You’re missing **hm2mqtt**.
