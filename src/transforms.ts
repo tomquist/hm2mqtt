@@ -40,6 +40,7 @@ export type Transform =
   | DiffTransform
   | AverageTransform
   | RoundTransform
+  | InRangeTransform
   | TimePeriodFieldTransform
   | MPPTPVFieldTransform
   | BitMaskToWeekdayTransform
@@ -260,6 +261,19 @@ export const map = (
 /** Create a round transform */
 export const round = (decimals?: number): RoundTransform => ({ type: 'round', decimals });
 
+/** Return the numeric value if it is within range, otherwise undefined */
+export interface InRangeTransform {
+  type: 'inRange';
+  min: number;
+  max: number;
+}
+
+export const inRange = (min: number, max: number): InRangeTransform => ({
+  type: 'inRange',
+  min,
+  max,
+});
+
 /** Create a chain transform */
 export const chain = (
   ...transforms: Exclude<Transform, ChainTransform | MultiKeyTransform>[]
@@ -382,6 +396,13 @@ export function executeTransform(
       if (transform.decimals === undefined) return Math.round(num);
       const factor = Math.pow(10, transform.decimals);
       return Math.round(num * factor) / factor;
+    }
+
+    case 'inRange': {
+      const num = parseFloat(value);
+      if (isNaN(num)) return undefined;
+      if (num < transform.min || num > transform.max) return undefined;
+      return num;
     }
 
     case 'chain': {
@@ -593,6 +614,10 @@ export function transformToJinja2(
         return `{{ (${valueExpr} | float(0)) | round }}`;
       }
       return `{{ (${valueExpr} | float(0)) | round(${transform.decimals}) }}`;
+
+    case 'inRange':
+      // If outside range, return undefined (rendered as "unknown" by HA)
+      return `{% set n = ${valueExpr} | float(none) %}{% if n is none or n < ${transform.min} or n > ${transform.max} %}{{ none }}{% else %}{{ n }}{% endif %}`;
 
     case 'chain': {
       let expr = valueExpr;

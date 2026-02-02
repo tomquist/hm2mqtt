@@ -18,7 +18,7 @@ import {
   textComponent,
   binarySensorComponent,
 } from '../homeAssistantDiscovery';
-import { executeTransform, multiply, divide, map, identity, number, equalsBoolean } from '../transforms';
+import { multiply, divide, map, identity, number, equalsBoolean, chain, inRange } from '../transforms';
 
 /**
  * Command types supported by the Venus device
@@ -1167,16 +1167,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'mcp_w',
       path: ['maxChargingPower'],
-      transform: v => {
-        const value = executeTransform(number(), v) as number;
-        // Some Venus firmware versions report sentinel/out-of-range values (e.g., -1).
-        // Home Assistant rejects out-of-range states for MQTT number entities.
-        // Returning undefined makes the value "unknown" instead of spamming HA logs.
-        if (value < 0 || value > 2500) {
-          return undefined;
-        }
-        return value;
-      },
+      transform: chain(number(), inRange(0, 2500)),
     });
     advertise(
       ['maxChargingPower'],
