@@ -85,9 +85,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Build natively on each architecture. GitHub now provides arm64 runners,
-          # so we can drop QEMU-based builds (which frequently hang) and also drop
-          # 32-bit ARM (arm/v7).
+          # Build natively on each architecture. GitHub now provides arm64 runners.
           - platform: linux/amd64
             runner: ubuntu-latest
           - platform: linux/arm64
