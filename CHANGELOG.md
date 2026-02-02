@@ -1,8 +1,6 @@
 # Changelog
 ## [Next]
 
-- Venus: Hide *Maximum Charging Power* entity when the device reports sentinel/out-of-range values (e.g., `mcp_w=-1`) to avoid Home Assistant log spam (#240)
-
 ### Breaking Changes
 
 - Drop 32-bit ARM (linux/arm/v7) image builds. Home Assistant no longer supports 32-bit ARM, and the CI now builds ARM images natively (arm64).
