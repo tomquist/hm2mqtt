@@ -1,6 +1,9 @@
 # Changelog
 ## [Next]
 
+### Breaking Changes
+
+- Drop 32-bit ARM (linux/arm/v7) image builds. Home Assistant no longer supports 32-bit ARM, and the CI now builds ARM images natively (arm64).
 
 ## [1.6.0] - 2026-01-25
 
