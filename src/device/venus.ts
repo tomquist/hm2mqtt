@@ -18,7 +18,16 @@ import {
   textComponent,
   binarySensorComponent,
 } from '../homeAssistantDiscovery';
-import { multiply, divide, map, identity, number, equalsBoolean, chain, inRange } from '../transforms';
+import {
+  multiply,
+  divide,
+  map,
+  identity,
+  number,
+  equalsBoolean,
+  chain,
+  inRange,
+} from '../transforms';
 
 /**
  * Command types supported by the Venus device
