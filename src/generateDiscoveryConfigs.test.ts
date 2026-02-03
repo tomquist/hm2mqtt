@@ -105,6 +105,50 @@ describe('Home Assistant Discovery', () => {
     expect(factoryResetButton?.config!.payload_press).toBe('PRESS');
   });
 
+  test('should publish surplus_feed_in for HMJ-* when firmware supports it (regression #235)', () => {
+    const deviceType = 'HMJ-2';
+    const deviceId = 'test123';
+
+    const device: Device = { deviceType, deviceId };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/HMJ-2/device/test123/ctrl',
+      deviceTopicNew: 'marstek_energy/HMJ-2/device/test123/ctrl',
+      publishTopic: 'hame_energy/HMJ-2/device/test123/data',
+      deviceControlTopicOld: 'hame_energy/HMJ-2/App/test123/ctrl',
+      deviceControlTopicNew: 'marstek_energy/HMJ-2/App/test123/ctrl',
+      controlSubscriptionTopic: 'hame_energy/HMJ-2/control/test123/control',
+      availabilityTopic: 'hame_energy/HMJ-2/availability/test123',
+    };
+
+    // HMJ models support surplus feed-in starting with version 108 (e.g. 116.6)
+    const supportedState = { deviceType, deviceInfo: { deviceVersion: 116 } };
+    const supportedConfigs = generateDiscoveryConfigs(
+      device,
+      deviceTopics,
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      supportedState,
+    );
+
+    const surplusSwitch = supportedConfigs.find(c => c.topic.includes('surplus_feed_in'));
+    expect(surplusSwitch).toBeDefined();
+    expect(surplusSwitch?.config).not.toBeNull();
+
+    // Below required version: should be explicitly disabled (null config)
+    const unsupportedState = { deviceType, deviceInfo: { deviceVersion: 107 } };
+    const unsupportedConfigs = generateDiscoveryConfigs(
+      device,
+      deviceTopics,
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      unsupportedState,
+    );
+
+    const surplusSwitchDisabled = unsupportedConfigs.find(c => c.topic.includes('surplus_feed_in'));
+    expect(surplusSwitchDisabled).toBeDefined();
+    expect(surplusSwitchDisabled?.config).toBeNull();
+  });
+
   test('should mock publishDiscoveryConfigs', () => {
     // Create a mock MQTT client
     const mockClient = {
