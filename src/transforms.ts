@@ -617,7 +617,8 @@ export function transformToJinja2(
 
     case 'inRange':
       // If outside range, return undefined (rendered as "unknown" by HA)
-      return `{% set n = ${valueExpr} | float(none) %}{% if n is none or n < ${transform.min} or n > ${transform.max} %}{{ none }}{% else %}{{ n }}{% endif %}`;
+      // Also treat IEEE NaN as out-of-range (Jinja2: NaN is the only value where n != n)
+      return `{% set n = ${valueExpr} | float(none) %}{% if n is none or n != n or n < ${transform.min} or n > ${transform.max} %}{{ none }}{% else %}{{ n }}{% endif %}`;
 
     case 'chain': {
       let expr = valueExpr;
