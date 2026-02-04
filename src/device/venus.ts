@@ -912,7 +912,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const period = timePeriods[periodIndex];
 
             params.bt = period.startTime;
-            params.et = period.endTime;
+            // HA cannot represent 24:00, so we publish 23:59 and map it back when sending commands.
+            params.et = period.endTime === '23:59' ? '24:00' : period.endTime;
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = enabled ? 1 : 0;
@@ -951,7 +952,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const period = timePeriods[periodIndex];
 
             params.bt = period.startTime;
-            params.et = period.endTime;
+            // HA cannot represent 24:00, so we publish 23:59 and map it back when sending commands.
+            params.et = period.endTime === '23:59' ? '24:00' : period.endTime;
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
@@ -990,7 +992,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const period = timePeriods[periodIndex];
 
             params.bt = period.startTime;
-            params.et = period.endTime;
+            // HA cannot represent 24:00, so we publish 23:59 and map it back when sending commands.
+            params.et = period.endTime === '23:59' ? '24:00' : period.endTime;
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
@@ -1027,7 +1030,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const period = timePeriods[periodIndex];
 
             params.bt = period.startTime;
-            params.et = period.endTime;
+            // HA cannot represent 24:00, so we publish 23:59 and map it back when sending commands.
+            params.et = period.endTime === '23:59' ? '24:00' : period.endTime;
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
@@ -1067,7 +1071,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const period = timePeriods[periodIndex];
 
             params.bt = period.startTime;
-            params.et = period.endTime;
+            // HA cannot represent 24:00, so we publish 23:59 and map it back when sending commands.
+            params.et = period.endTime === '23:59' ? '24:00' : period.endTime;
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;

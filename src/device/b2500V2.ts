@@ -133,7 +133,12 @@ function buildTimePeriodParams(
     // Use new settings if available, otherwise use stored settings
     const enabled = period.enabled;
     const startTime = formatTimeForB2500V2(period.startTime);
-    const endTime = formatTimeForB2500V2(period.endTime);
+
+    // Devices sometimes use 24:00 as end-of-day marker. HA cannot represent 24:00,
+    // so we publish 23:59 and map it back to 24:00 when sending commands.
+    const endTimeRaw = period.endTime === '23:59' ? '24:00' : period.endTime;
+    const endTime = formatTimeForB2500V2(endTimeRaw);
+
     const outputValue = period.outputValue;
 
     // Set parameters dynamically using the period index
