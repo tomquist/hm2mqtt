@@ -1200,9 +1200,14 @@ function parseTimePeriod(value: string): NonNullable<JupiterDeviceData['timePeri
 
   let weekdayBitMask = parseInt(parts[4], 10);
   const weekday = bitMaskToWeekdaySet(weekdayBitMask);
+  const startTime = `${parseInt(parts[0], 10)}:${parseInt(parts[1], 10).toString().padStart(2, '0')}`;
+  let endTime = `${parseInt(parts[2], 10)}:${parseInt(parts[3], 10).toString().padStart(2, '0')}`;
+  // Home Assistant time text entities do not accept "24:00".
+  // Some devices use it as end-of-day marker.
+  if (endTime === '24:00') endTime = '23:59';
   return {
-    startTime: `${parseInt(parts[0], 10)}:${parseInt(parts[1], 10).toString().padStart(2, '0')}`,
-    endTime: `${parseInt(parts[2], 10)}:${parseInt(parts[3], 10).toString().padStart(2, '0')}`,
+    startTime,
+    endTime,
     weekday: weekday,
     power: parseInt(parts[5], 10),
     enabled: parts[6] === '1',
