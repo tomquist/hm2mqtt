@@ -1,4 +1,4 @@
-name: Bug reports: ask for logs
+name: "Bug reports: ask for logs"
 
 on:
   issues:
