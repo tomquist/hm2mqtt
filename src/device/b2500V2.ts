@@ -302,7 +302,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       field({
         key: `f${i + 1}`,
         path: ['timePeriods', i, 'endTime'],
-        transform: timeString(),
+        transform: timeString({ clamp24hEnd: true }),
       });
       advertise(
         ['timePeriods', i, 'endTime'],

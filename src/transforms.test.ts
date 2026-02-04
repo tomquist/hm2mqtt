@@ -175,6 +175,12 @@ describe('transforms', () => {
       expect(executeTransform(timeString(), '23:59')).toBe('23:59');
     });
 
+    it('should clamp 24:00 to 23:59 when clamp24hEnd is enabled', () => {
+      expect(executeTransform(timeString({ clamp24hEnd: true }), '24:00')).toBe('23:59');
+      // Other values should still just be padded
+      expect(executeTransform(timeString({ clamp24hEnd: true }), '24:1')).toBe('24:01');
+    });
+
     it('should return 00:00 for invalid formats', () => {
       expect(executeTransform(timeString(), 'invalid')).toBe('00:00');
       expect(executeTransform(timeString(), '12')).toBe('00:00');
