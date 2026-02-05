@@ -5,6 +5,10 @@
 
 - Drop 32-bit ARM (linux/arm/v7) image builds. Home Assistant no longer supports 32-bit ARM, and the CI now builds ARM images natively (arm64).
 
+### Fixed
+
+- B2500: Fix time period 5 control topics not being processed and normalize time format in timer commands (fixes #244)
+
 ## [1.6.0] - 2026-01-25
 
 - Fix Home Assistant warning when surplus feed-in is unavailable on older HM firmware versions
