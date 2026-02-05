@@ -81,9 +81,14 @@ function parseTimePeriod(value: string): NonNullable<VenusDeviceData['timePeriod
 
   let weekdayBitMask = parseInt(parts[4], 10);
   const weekday = bitMaskToWeekdaySet(weekdayBitMask);
+  const startTime = `${parseInt(parts[0], 10)}:${parseInt(parts[1], 10).toString().padStart(2, '0')}`;
+  let endTime = `${parseInt(parts[2], 10)}:${parseInt(parts[3], 10).toString().padStart(2, '0')}`;
+  // Home Assistant time text entities do not accept "24:00".
+  // Some devices use it as end-of-day marker.
+  if (endTime === '24:00') endTime = '23:59';
   return {
-    startTime: `${parseInt(parts[0], 10)}:${parseInt(parts[1], 10).toString().padStart(2, '0')}`,
-    endTime: `${parseInt(parts[2], 10)}:${parseInt(parts[3], 10).toString().padStart(2, '0')}`,
+    startTime,
+    endTime,
     weekday: weekday,
     power: parseInt(parts[5], 10),
     enabled: parts[6] === '1',
@@ -907,7 +912,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const period = timePeriods[periodIndex];
 
             params.bt = period.startTime;
-            params.et = period.endTime;
+            // HA cannot represent 24:00, so we publish 23:59 and map it back when sending commands.
+            params.et = period.endTime === '23:59' ? '24:00' : period.endTime;
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = enabled ? 1 : 0;
@@ -946,7 +952,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const period = timePeriods[periodIndex];
 
             params.bt = period.startTime;
-            params.et = period.endTime;
+            // HA cannot represent 24:00, so we publish 23:59 and map it back when sending commands.
+            params.et = period.endTime === '23:59' ? '24:00' : period.endTime;
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
@@ -985,7 +992,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const period = timePeriods[periodIndex];
 
             params.bt = period.startTime;
-            params.et = period.endTime;
+            // HA cannot represent 24:00, so we publish 23:59 and map it back when sending commands.
+            params.et = period.endTime === '23:59' ? '24:00' : period.endTime;
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
@@ -1022,7 +1030,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const period = timePeriods[periodIndex];
 
             params.bt = period.startTime;
-            params.et = period.endTime;
+            // HA cannot represent 24:00, so we publish 23:59 and map it back when sending commands.
+            params.et = period.endTime === '23:59' ? '24:00' : period.endTime;
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
@@ -1062,7 +1071,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const period = timePeriods[periodIndex];
 
             params.bt = period.startTime;
-            params.et = period.endTime;
+            // HA cannot represent 24:00, so we publish 23:59 and map it back when sending commands.
+            params.et = period.endTime === '23:59' ? '24:00' : period.endTime;
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;

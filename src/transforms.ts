@@ -107,6 +107,12 @@ export interface TemperatureTransform {
 /** Format time string "H:M" to "HH:MM" */
 export interface TimeStringTransform {
   type: 'timeString';
+  /**
+   * Home Assistant time text entities do not accept "24:00".
+   * Some devices use "24:00" as end-of-day marker for end times.
+   * If enabled, clamp "24:00" to "23:59".
+   */
+  clamp24hEnd?: boolean;
 }
 
 /** Negate the numeric value */
@@ -236,7 +242,10 @@ export const notEqualsBoolean = (compareValue: string): NotEqualsBooleanTransfor
 export const temperature = (): TemperatureTransform => ({ type: 'temperature' });
 
 /** Create a time string transform */
-export const timeString = (): TimeStringTransform => ({ type: 'timeString' });
+export const timeString = (options?: { clamp24hEnd?: boolean }): TimeStringTransform => ({
+  type: 'timeString',
+  clamp24hEnd: options?.clamp24hEnd,
+});
 
 /** Create a negate transform */
 export const negate = (): NegateTransform => ({ type: 'negate' });
@@ -355,6 +364,11 @@ export function executeTransform(
     case 'timeString': {
       const parts = value.split(':');
       if (parts.length !== 2) return '00:00';
+
+      const hoursNum = parseInt(parts[0], 10);
+      const minutesNum = parseInt(parts[1], 10);
+      if (transform.clamp24hEnd && hoursNum === 24 && minutesNum === 0) return '23:59';
+
       const hours = parts[0].padStart(2, '0');
       const minutes = parts[1].padStart(2, '0');
       return `${hours}:${minutes}`;
@@ -561,8 +575,15 @@ export function transformToJinja2(
       // Jinja2 implementation of uint8 to int8 conversion
       return `{% set n = ${valueExpr} | float(0) %}{% if n < 0 or n > 255 %}{{ n }}{% elif n > 127 %}{{ n - 256 }}{% else %}{{ n }}{% endif %}`;
 
-    case 'timeString':
-      return `{% set parts = ${valueExpr}.split(':') %}{% if parts | length == 2 %}{{ '%02d' | format(parts[0] | int) }}:{{ '%02d' | format(parts[1] | int) }}{% else %}00:00{% endif %}`;
+    case 'timeString': {
+      const base = `{% set parts = ${valueExpr}.split(':') %}{% if parts | length == 2 %}{% set h = parts[0] | int %}{% set m = parts[1] | int %}`;
+      const formatted = `{{ '%02d' | format(h) }}:{{ '%02d' | format(m) }}`;
+      const tail = `{% else %}00:00{% endif %}`;
+      if (transform.clamp24hEnd) {
+        return `${base}{% if h == 24 and m == 0 %}23:59{% else %}${formatted}{% endif %}${tail}`;
+      }
+      return `${base}${formatted}${tail}`;
+    }
 
     case 'negate':
       return `{{ -(${valueExpr} | int(0)) }}`;

@@ -337,6 +337,26 @@ describe('ControlHandler', () => {
       expect(publishCallback).toHaveBeenCalledWith(testDeviceV2, expect.stringMatching(/cd=7/));
     });
 
+    test('should NOT transform time period end time 23:59 to 24:00 for B2500 devices (they do not support 24:00)', () => {
+      deviceManager.updateDeviceState(testDeviceV2, 'data', () => ({
+        timePeriods: [
+          {
+            enabled: false,
+            startTime: '00:00',
+            endTime: '23:59',
+            outputValue: 800,
+          },
+        ],
+      }));
+
+      handleControlTopic(testDeviceV2, 'time-period/1/enabled', 'true');
+
+      expect(publishCallback).toHaveBeenCalledWith(
+        testDeviceV2,
+        expect.stringContaining('e1=23:59'),
+      );
+    });
+
     test('should handle invalid time period number', () => {
       // Spy on logger.warn
       const loggerWarnSpy = jest.spyOn(logger, 'warn');
