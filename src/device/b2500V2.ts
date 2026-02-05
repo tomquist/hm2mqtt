@@ -171,7 +171,13 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
   const isSurplusFeedInSupported = (
     state: Pick<B2500V2DeviceData, 'deviceType'> & { deviceInfo?: B2500V2DeviceData['deviceInfo'] },
   ) => {
-    const requiredVersion = state.deviceType === 'HMJ' ? 108 : 226;
+    // deviceType comes from config/topic and can include a suffix like "HMJ-2".
+    // Normalize it to the base type for feature gating.
+    const baseType = state.deviceType?.split('-')[0];
+    if (baseType == null) {
+      return undefined;
+    }
+    const requiredVersion = baseType === 'HMJ' ? 108 : 226;
     const deviceVersion = state.deviceInfo?.deviceVersion;
     if (deviceVersion == null) {
       return undefined;

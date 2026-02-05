@@ -7,6 +7,7 @@
 
 ### Fixed
 
+- B2500: Fix `Surplus Feed-in` entity missing for `HMJ-*` devices (firmware 108+) (fixes #235, #242)
 - B2500: Fix time period 5 control topics not being processed and normalize time format in timer commands (fixes #244)
 
 ## [1.6.0] - 2026-01-25
