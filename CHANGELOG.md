@@ -7,7 +7,7 @@
 
 ### Fixed
 
-- Fix time period end time transformation between device end-of-day marker (24:00) and Home Assistant time entities (23:59) when sending commands (#243)
+- Venus/Jupiter: Fix time period end time transformation between device end-of-day marker (24:00) and Home Assistant time entities (23:59) when sending commands (#243)
 - B2500: Fix `Surplus Feed-in` entity missing for `HMJ-*` devices (firmware 108+) (fixes #235, #242)
 - B2500: Fix time period 5 control topics not being processed and normalize time format in timer commands (fixes #244)
 
