@@ -100,6 +100,22 @@ export const timePeriodSettingHandler = (
 /**
  * Build time period parameters for all periods
  */
+function formatTimeForB2500V2(time: string): string {
+  // Device seems to prefer H:M (no leading zeros).
+  // Examples:
+  // - "00:30" should be sent as "0:30"
+  // - "08:01" should be sent as "8:1"
+  const [hStr, mStr] = time.split(':');
+  if (hStr == null || mStr == null) return time;
+
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  if (Number.isNaN(h) || Number.isNaN(m)) return time;
+
+  // Minutes are also sent without zero-padding (e.g. 08:01 -> 8:1), matching device/app behavior.
+  return `${h}:${m}`;
+}
+
 function buildTimePeriodParams(
   timePeriods: NonNullable<B2500V2DeviceData['timePeriods']>,
 ): CommandParams {
@@ -116,8 +132,8 @@ function buildTimePeriodParams(
 
     // Use new settings if available, otherwise use stored settings
     const enabled = period.enabled;
-    const startTime = period.startTime;
-    const endTime = period.endTime;
+    const startTime = formatTimeForB2500V2(period.startTime);
+    const endTime = formatTimeForB2500V2(period.endTime);
     const outputValue = period.outputValue;
 
     // Set parameters dynamically using the period index
@@ -315,10 +331,10 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       );
 
       const timerPeriodCommands = [
-        timePeriodSettingHandler(i, 'enabled'),
-        timePeriodSettingHandler(i, 'start-time'),
-        timePeriodSettingHandler(i, 'end-time'),
-        timePeriodSettingHandler(i, 'output-value'),
+        timePeriodSettingHandler(i + 1, 'enabled'),
+        timePeriodSettingHandler(i + 1, 'start-time'),
+        timePeriodSettingHandler(i + 1, 'end-time'),
+        timePeriodSettingHandler(i + 1, 'output-value'),
       ];
       for (const { command: name, ...commandHandler } of timerPeriodCommands) {
         command(name, commandHandler);
