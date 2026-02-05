@@ -21,7 +21,7 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 
 ## Prerequisites
 
-- Before you start, you need a local MQTT broker. You can install one as a Home Assistant Addon: https://www.home-assistant.io/integrations/mqtt/#setting-up-a-broker
+- Before you start, you need a local MQTT broker. You can install one as a Home Assistant App in Home Assistant's Apps (formerly known as add-ons): https://www.home-assistant.io/integrations/mqtt/#setting-up-a-broker
 - After setting up an MQTT broker, configure your energy storage device to send MQTT data to your MQTT broker:
   1. For the **B2500**, you have two options:
   
@@ -35,16 +35,16 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
   
 ## Installation
 
-### As a Home Assistant Add-on (Recommended)
+### As a Home Assistant App (Recommended)
 
-The easiest way to use hm2mqtt is as a Home Assistant add-on:
+The easiest way to use hm2mqtt is as a Home Assistant App:
 
-1. Add this repository URL to your Home Assistant add-on store:
+1. Add this repository URL to your Home Assistant App store:
    
    [![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Ftomquist%2Fhm2mqtt)
-2. Install the "hm2mqtt" add-on
-3. Configure your devices in the add-on configuration
-4. Start the add-on
+2. Install the "hm2mqtt" App
+3. Configure your devices in the App configuration
+4. Start the App
 
 ### Using Docker
 
@@ -187,7 +187,7 @@ services:
 | `MQTT_PROXY_ENABLED` | Enable MQTT proxy server for B2500 client ID conflict resolution | `false` |
 | `MQTT_PROXY_PORT` | Port for the MQTT proxy server | `1890` |
 
-### Add-on Configuration
+### App Configuration
 
 ```yaml
 pollingInterval: 60  # Interval between device polls in seconds
@@ -269,7 +269,7 @@ DEVICE_1=HMA-1:device2mac
 DEVICE_2=HMB-1:device3mac
 ```
 
-#### Home Assistant Add-on Configuration
+#### Home Assistant App Configuration
 
 ```yaml
 mqttProxyEnabled: true
@@ -362,14 +362,14 @@ These devices usually rely on cloud MQTT. hm2mqtt typically needs the MQTT data 
 2. Confirm your local broker receives the forwarded device telemetry.
 3. Configure hm2mqtt with the **device type + Bluetooth MAC** from hame-relay.
 
-### 5) Home Assistant add-on error: `No MQTT URI provided in config and MQTT service is not available.`
+### 5) Home Assistant App error: `No MQTT URI provided in config and MQTT service is not available.`
 
 This is usually a Home Assistant MQTT service binding/discovery issue.
 
 **Troubleshooting (quick):**
-1. Restart the **Mosquitto Broker** add-on.
-2. Restart the **hm2mqtt** add-on.
-3. If it still fails, explicitly set the broker URL in the add-on configuration (`mqtt_uri`).
+1. Restart the **Mosquitto Broker** App.
+2. Restart the **hm2mqtt** App.
+3. If it still fails, explicitly set the broker URL in the App configuration (`mqtt_uri`).
 
 ### 6) After a Home Assistant update, entities are `Unknown`/`Unavailable` even though MQTT traffic exists
 
@@ -424,12 +424,12 @@ services:
 
 ### Home Assistant
 
-Add the development branch repository to your Home Assistant add-on store:
+Add the development branch repository to your Home Assistant App store:
 ```text
 https://github.com/tomquist/hm2mqtt#develop
 ```
 
-Then install the "hm2mqtt" add-on from this repository to get the development version.
+Then install the "hm2mqtt" App from this repository to get the development version.
 
 ## Development
 
