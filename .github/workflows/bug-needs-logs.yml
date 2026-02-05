@@ -71,25 +71,27 @@ jobs:
               return;
             }
 
-            const commentBody = `${marker}
-Thanks for the report — I can take a look, but I’ll need logs to debug this.
-
-Please add:
-
-1) **hm2mqtt logs (DEBUG)**
-   - Home Assistant → *Settings* → *Add-ons* → **hm2mqtt**
-   - In the add-on configuration, set:
-     - \`log_level: debug\`
-     - \`debug: true\`
-   - Restart the add-on
-   - Then paste the relevant log excerpt here (around the time the problem happens)
-
-2) **Hame Relay logs (DEBUG)**
-   - In the Hame Relay add-on, enable debug logging (log level **debug**) and restart
-   - Paste the relevant log excerpt here
-
-**Important:** please redact/replace any IDs (deviceId/MAC, tokens, MQTT credentials, etc.) before posting.
-`;
+            const commentBody = [
+              marker,
+              'Thanks for the report — I can take a look, but I’ll need logs to debug this.',
+              '',
+              'Please add:',
+              '',
+              '1) **hm2mqtt logs (DEBUG)**',
+              '   - Home Assistant → *Settings* → *Add-ons* → **hm2mqtt**',
+              '   - In the add-on configuration, set:',
+              '     - `log_level: debug`',
+              '     - `debug: true`',
+              '   - Restart the add-on',
+              '   - Then paste the relevant log excerpt here (around the time the problem happens)',
+              '',
+              '2) **Hame Relay logs (DEBUG)**',
+              '   - In the Hame Relay add-on, enable debug logging (log level **debug**) and restart',
+              '   - Paste the relevant log excerpt here',
+              '',
+              '**Important:** please redact/replace any IDs (deviceId/MAC, tokens, MQTT credentials, etc.) before posting.',
+              '',
+            ].join('\n');
 
             await github.rest.issues.createComment({
               owner,
