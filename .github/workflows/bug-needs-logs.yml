@@ -63,10 +63,11 @@ jobs:
             const hasHm2mqttLogs = sectionHasNonEmptyCodeBlock('hm2mqtt Logs');
             const hasRelayLogs = sectionHasNonEmptyCodeBlock('Hame Relay Logs');
 
-            // If either section exists but is empty, or both are missing, ask for logs.
-            const shouldAsk = !(hasHm2mqttLogs && hasRelayLogs);
+            // Only ask for logs when hm2mqtt logs are missing.
+            // (Even if other logs are missing, we don't want to spam if hm2mqtt logs are already provided.)
+            const shouldAsk = !hasHm2mqttLogs;
             if (!shouldAsk) {
-              core.info('Both hm2mqtt Logs and Hame Relay Logs look non-empty; exiting.');
+              core.info('hm2mqtt Logs look non-empty; exiting.');
               return;
             }
 
