@@ -337,6 +337,24 @@ describe('ControlHandler', () => {
       expect(publishCallback).toHaveBeenCalledWith(testDeviceV2, expect.stringMatching(/cd=7/));
     });
 
+    test('should transform time period end time 23:59 back to 24:00 in the command payload', () => {
+      deviceManager.updateDeviceState(testDeviceV2, 'data', () => ({
+        timePeriods: [
+          {
+            enabled: false,
+            startTime: '00:00',
+            endTime: '23:59',
+            outputValue: 800,
+          },
+        ],
+      }));
+
+      handleControlTopic(testDeviceV2, 'time-period/1/enabled', 'true');
+
+      // HA cannot represent 24:00, so we publish 23:59 and map it back when sending commands.
+      expect(publishCallback).toHaveBeenCalledWith(testDeviceV2, expect.stringContaining('e1=24:0'));
+    });
+
     test('should handle invalid time period number', () => {
       // Spy on logger.warn
       const loggerWarnSpy = jest.spyOn(logger, 'warn');
