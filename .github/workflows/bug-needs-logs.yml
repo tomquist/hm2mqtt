@@ -1,0 +1,103 @@
+name: "Bug reports: ask for logs"
+
+on:
+  issues:
+    types: [opened, labeled]
+
+permissions:
+  issues: write
+
+jobs:
+  ask-for-logs:
+    # Only run when the issue has the "bug" label
+    if: contains(github.event.issue.labels.*.name, 'bug')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check issue body and comment if logs are missing
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issue_number = issue.number;
+
+            const marker = '<!-- hm2mqtt-needs-logs-bot -->';
+
+            // Avoid duplicate comments
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+
+            const alreadyCommented = comments.some(c => (c.body || '').includes(marker));
+            if (alreadyCommented) {
+              core.info('Already commented before; exiting.');
+              return;
+            }
+
+            const body = issue.body || '';
+
+            // Detect non-empty logs sections.
+            // We consider logs present only if the corresponding section contains a code block with some non-whitespace content.
+            function sectionHasNonEmptyCodeBlock(sectionTitle) {
+              const re = new RegExp(
+                `###\\s+${sectionTitle}\\s*[\\r\\n]+([\\s\\S]*?)(?:\\n###\\s+|$)`,
+                'i',
+              );
+              const m = body.match(re);
+              if (!m) return false;
+              const section = m[1];
+
+              // Find first fenced code block in the section
+              const code = section.match(/```[a-zA-Z0-9_-]*\n([\s\S]*?)```/);
+              if (!code) return false;
+
+              const content = (code[1] || '').trim();
+              return content.length > 0;
+            }
+
+            const hasHm2mqttLogs = sectionHasNonEmptyCodeBlock('hm2mqtt Logs');
+            const hasRelayLogs = sectionHasNonEmptyCodeBlock('Hame Relay Logs');
+
+            // Only ask for logs when hm2mqtt logs are missing.
+            // (Even if other logs are missing, we don't want to spam if hm2mqtt logs are already provided.)
+            const shouldAsk = !hasHm2mqttLogs;
+            if (!shouldAsk) {
+              core.info('hm2mqtt Logs look non-empty; exiting.');
+              return;
+            }
+
+            const commentBody = [
+              marker,
+              'Thanks for the report — I can take a look, but I’ll need logs to debug this.',
+              '',
+              'Please add:',
+              '',
+              '1) **hm2mqtt logs (DEBUG)**',
+              '   - Home Assistant → *Settings* → *Add-ons* → **hm2mqtt**',
+              '   - In the add-on configuration, set:',
+              '     - `log_level: debug`',
+              '     - `debug: true`',
+              '   - Restart the add-on',
+              '   - Then paste the relevant log excerpt here (around the time the problem happens)',
+              '',
+              '2) **Hame Relay logs (DEBUG)**',
+              '   - In the Hame Relay add-on, enable debug logging (log level **debug**) and restart',
+              '   - Paste the relevant log excerpt here',
+              '',
+              '**Important:** please redact/replace any IDs (deviceId/MAC, tokens, MQTT credentials, etc.) before posting.',
+              '',
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number,
+              body: commentBody,
+            });
+
+            core.info('Posted needs-logs comment.');
