@@ -7,6 +7,7 @@
 
 ### Fixed
 
+- Venus: Treat out-of-range/sentinel `mcp_w` values (e.g. -1) as unknown for the *Maximum Charging Power* entity to avoid Home Assistant log spam (#240)
 - B2500: Fix `Surplus Feed-in` entity missing for `HMJ-*` devices (firmware 108+) (fixes #235, #242)
 - B2500: Fix time period 5 control topics not being processed and normalize time format in timer commands (fixes #244)
 

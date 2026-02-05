@@ -18,7 +18,16 @@ import {
   textComponent,
   binarySensorComponent,
 } from '../homeAssistantDiscovery';
-import { multiply, divide, map, identity, number, equalsBoolean } from '../transforms';
+import {
+  multiply,
+  divide,
+  map,
+  identity,
+  number,
+  equalsBoolean,
+  chain,
+  inRange,
+} from '../transforms';
 
 /**
  * Command types supported by the Venus device
@@ -1167,7 +1176,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'mcp_w',
       path: ['maxChargingPower'],
-      transform: number(),
+      transform: chain(number(), inRange(0, 2500)),
     });
     advertise(
       ['maxChargingPower'],
