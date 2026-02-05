@@ -101,8 +101,10 @@ export const timePeriodSettingHandler = (
  * Build time period parameters for all periods
  */
 function formatTimeForB2500V2(time: string): string {
-  // Device seems to prefer H:MM (no leading zero for hours).
-  // Example: "00:30" should be sent as "0:30".
+  // Device seems to prefer H:M (no leading zeros).
+  // Examples:
+  // - "00:30" should be sent as "0:30"
+  // - "08:01" should be sent as "8:1"
   const [hStr, mStr] = time.split(':');
   if (hStr == null || mStr == null) return time;
 
