@@ -548,6 +548,16 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: 'cd=7,md=0,a1=1,b1=8:0,e1=20:0,v1=500',
   },
   {
+    description: 'B2500V2 time-period/1/end-time should send minutes without zero padding',
+    deviceType: 'HMA-1',
+    initialState: {
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/end-time',
+    input: '08:01',
+    expectedOutput: 'cd=7,md=0,a1=1,b1=8:0,e1=8:1,v1=500',
+  },
+  {
     description: 'B2500V2 time-period/1/enabled false',
     deviceType: 'HMA-1',
     initialState: {
