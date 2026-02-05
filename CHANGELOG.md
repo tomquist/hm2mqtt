@@ -1,14 +1,13 @@
 # Changelog
 ## [Next]
 
-- Venus: Treat out-of-range/sentinel `mcp_w` values (e.g. -1) as unknown for the *Maximum Charging Power* entity to avoid Home Assistant log spam (#240)
-
 ### Breaking Changes
 
 - Drop 32-bit ARM (linux/arm/v7) image builds. Home Assistant no longer supports 32-bit ARM, and the CI now builds ARM images natively (arm64).
 
 ### Fixed
 
+- Venus: Treat out-of-range/sentinel `mcp_w` values (e.g. -1) as unknown for the *Maximum Charging Power* entity to avoid Home Assistant log spam (#240)
 - B2500: Fix `Surplus Feed-in` entity missing for `HMJ-*` devices (firmware 108+) (fixes #235, #242)
 - B2500: Fix time period 5 control topics not being processed and normalize time format in timer commands (fixes #244)
 
