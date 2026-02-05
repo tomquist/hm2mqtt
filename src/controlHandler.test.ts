@@ -337,7 +337,7 @@ describe('ControlHandler', () => {
       expect(publishCallback).toHaveBeenCalledWith(testDeviceV2, expect.stringMatching(/cd=7/));
     });
 
-    test('should transform time period end time 23:59 back to 24:00 in the command payload', () => {
+    test('should NOT transform time period end time 23:59 to 24:00 for B2500 devices (they do not support 24:00)', () => {
       deviceManager.updateDeviceState(testDeviceV2, 'data', () => ({
         timePeriods: [
           {
@@ -351,10 +351,9 @@ describe('ControlHandler', () => {
 
       handleControlTopic(testDeviceV2, 'time-period/1/enabled', 'true');
 
-      // HA cannot represent 24:00, so we publish 23:59 and map it back when sending commands.
       expect(publishCallback).toHaveBeenCalledWith(
         testDeviceV2,
-        expect.stringContaining('e1=24:0'),
+        expect.stringContaining('e1=23:59'),
       );
     });
 
