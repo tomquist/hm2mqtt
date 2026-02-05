@@ -239,7 +239,7 @@ describe('MQTT Client', () => {
     const publishCall = mockClient.publish.mock.calls[0];
     expect(publishCall[0]).toContain('hame_energy/HMA-1/App/testdevice/ctrl');
     expect(publishCall[1]).toContain(
-      'cd=20,md=0,a1=1,b1=0:00,e1=23:59,v1=300,a2=0,b2=0:00,e2=23:59,v2=300,a3=0,b3=0:00,e3=23:59,v3=300,a4=0,b4=0:00,e4=23:59,v4=300,a5=0,b5=0:00,e5=23:59,v5=300',
+      'cd=20,md=0,a1=1,b1=0:0,e1=23:59,v1=300,a2=0,b2=0:0,e2=23:59,v2=300,a3=0,b3=0:0,e3=23:59,v3=300,a4=0,b4=0:0,e4=23:59,v4=300,a5=0,b5=0:0,e5=23:59,v5=300',
     );
   });
 

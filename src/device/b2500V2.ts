@@ -110,7 +110,8 @@ function formatTimeForB2500V2(time: string): string {
   const m = parseInt(mStr, 10);
   if (Number.isNaN(h) || Number.isNaN(m)) return time;
 
-  return `${h}:${String(m).padStart(2, '0')}`;
+  // Minutes are also sent without zero-padding (e.g. 08:01 -> 8:1), matching device/app behavior.
+  return `${h}:${m}`;
 }
 
 function buildTimePeriodParams(

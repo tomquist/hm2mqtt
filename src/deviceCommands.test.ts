@@ -545,7 +545,7 @@ const commandTestCases: CommandTestCase[] = [
     },
     command: 'time-period/1/enabled',
     input: 'true',
-    expectedOutput: 'cd=7,md=0,a1=1,b1=8:00,e1=20:00,v1=500',
+    expectedOutput: 'cd=7,md=0,a1=1,b1=8:0,e1=20:0,v1=500',
   },
   {
     description: 'B2500V2 time-period/1/enabled false',
@@ -555,7 +555,7 @@ const commandTestCases: CommandTestCase[] = [
     },
     command: 'time-period/1/enabled',
     input: 'false',
-    expectedOutput: 'cd=7,md=0,a1=0,b1=8:00,e1=20:00,v1=500',
+    expectedOutput: 'cd=7,md=0,a1=0,b1=8:0,e1=20:0,v1=500',
   },
   {
     description: 'B2500V2 time-period/1/start-time valid',
@@ -565,7 +565,7 @@ const commandTestCases: CommandTestCase[] = [
     },
     command: 'time-period/1/start-time',
     input: '06:30',
-    expectedOutput: 'cd=7,md=0,a1=1,b1=6:30,e1=20:00,v1=500',
+    expectedOutput: 'cd=7,md=0,a1=1,b1=6:30,e1=20:0,v1=500',
   },
   {
     description: 'B2500V2 time-period/1/start-time invalid format (letters)',
@@ -595,7 +595,7 @@ const commandTestCases: CommandTestCase[] = [
     },
     command: 'time-period/1/end-time',
     input: '22:45',
-    expectedOutput: 'cd=7,md=0,a1=1,b1=8:00,e1=22:45,v1=500',
+    expectedOutput: 'cd=7,md=0,a1=1,b1=8:0,e1=22:45,v1=500',
   },
   {
     description: 'B2500V2 time-period/1/output-value valid',
@@ -605,7 +605,7 @@ const commandTestCases: CommandTestCase[] = [
     },
     command: 'time-period/1/output-value',
     input: '750',
-    expectedOutput: 'cd=7,md=0,a1=1,b1=8:00,e1=20:00,v1=750',
+    expectedOutput: 'cd=7,md=0,a1=1,b1=8:0,e1=20:0,v1=750',
   },
   {
     description: 'B2500V2 time-period/1/output-value above max (invalid)',
