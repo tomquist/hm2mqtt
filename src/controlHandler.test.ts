@@ -352,7 +352,10 @@ describe('ControlHandler', () => {
       handleControlTopic(testDeviceV2, 'time-period/1/enabled', 'true');
 
       // HA cannot represent 24:00, so we publish 23:59 and map it back when sending commands.
-      expect(publishCallback).toHaveBeenCalledWith(testDeviceV2, expect.stringContaining('e1=24:0'));
+      expect(publishCallback).toHaveBeenCalledWith(
+        testDeviceV2,
+        expect.stringContaining('e1=24:0'),
+      );
     });
 
     test('should handle invalid time period number', () => {
