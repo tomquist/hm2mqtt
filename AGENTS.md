@@ -45,13 +45,13 @@ When adding/changing configuration options (env vars or add-on options), update 
 6. Translations (`ha_addon/translations/en.yaml`, `ha_addon/translations/de.yaml`)
 7. `CHANGELOG.md` under `[Next]`
 
-## Lessons Learned (from recent misses)
+## Configuration Change Quality Gate
 
-Do **not** forget these when introducing new config options:
+For every new or changed config option, treat the following as mandatory completion criteria:
 
-- Add-on translations (`en.yaml` + `de.yaml`)
-- Changelog entry under `[Next]`
-- All TypeScript test fixtures that construct `MqttConfig`
+- Add-on translations (`ha_addon/translations/en.yaml` and `ha_addon/translations/de.yaml`)
+- Changelog entry under `[Next]` in `CHANGELOG.md`
+- Updates to all TypeScript test fixtures that construct `MqttConfig`
 
 ## Coding & Change Style
 
