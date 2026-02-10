@@ -5,6 +5,10 @@
 
 - Drop 32-bit ARM (linux/arm/v7) image builds. Home Assistant no longer supports 32-bit ARM, and the CI now builds ARM images natively (arm64).
 
+### Added
+
+- Add configurable Home Assistant MQTT discovery topic prefix via `AUTODISCOVERY_TOPIC_PREFIX` (add-on option: `autodiscoveryTopicPrefix`, default: `homeassistant`) (#248)
+
 ### Fixed
 
 - Venus: Treat out-of-range/sentinel `mcp_w` values (e.g. -1) as unknown for the *Maximum Charging Power* entity to avoid Home Assistant log spam (#240)
