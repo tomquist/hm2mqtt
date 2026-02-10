@@ -228,6 +228,11 @@ export interface MqttConfig {
    * specific topics (default: 'hm2mqtt')
    */
   topicPrefix: string;
+  /**
+   * Base MQTT topic prefix used for Home Assistant auto discovery
+   * (default: 'homeassistant')
+   */
+  autodiscoveryTopicPrefix: string;
   useFlashCommands?: boolean;
   responseTimeout?: number; // Timeout for device responses in milliseconds
   /**

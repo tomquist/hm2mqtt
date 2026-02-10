@@ -229,6 +229,7 @@ export class MqttClient {
         topics,
         additionalDeviceInfo,
         this.config.topicPrefix,
+        this.config.autodiscoveryTopicPrefix,
         deviceState,
       );
       this.lastDiscoveryInfoSignatureByDevice.set(

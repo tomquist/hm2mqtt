@@ -25,6 +25,7 @@ options:
   enableExtraBatteryData: false
   allowedConsecutiveTimeouts: 3
   topicPrefix: hm2mqtt
+  autodiscoveryTopicPrefix: homeassistant
   mqttProxyEnabled: false
   log_level: info
   devices:
@@ -39,6 +40,7 @@ schema:
   enableExtraBatteryData: bool
   allowedConsecutiveTimeouts: int?
   topicPrefix: str?
+  autodiscoveryTopicPrefix: str?
   debug: bool?
   mqttProxyEnabled: bool?
   log_level: list(trace|debug|info|notice|warning|error|fatal)?
