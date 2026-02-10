@@ -36,6 +36,7 @@ describe('ControlHandler', () => {
       brokerUrl: 'mqtt://test.mosquitto.org',
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
+      autodiscoveryTopicPrefix: 'homeassistant',
       devices: [testDeviceV1, testDeviceV2],
       responseTimeout: 15000,
     };
