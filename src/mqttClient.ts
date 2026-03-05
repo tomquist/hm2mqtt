@@ -12,6 +12,7 @@ export class MqttClient {
   private timeoutCounters: Map<string, number> = new Map();
   private allowedConsecutiveTimeouts: number;
   private devicePathsWithData: Set<string> = new Set();
+  private lastDiscoveryInfoSignatureByDevice: Map<string, string> = new Map();
 
   constructor(
     private config: MqttConfig,
@@ -93,6 +94,10 @@ export class MqttClient {
     this.setupPeriodicPolling();
   }
 
+  private getDeviceKey(device: Device): string {
+    return `${device.deviceType}:${device.deviceId}`;
+  }
+
   private getAdditionalDeviceInfo(device: Device) {
     const deviceDefinitions = getDeviceDefinition(device.deviceType);
     const deviceState = this.deviceManager.getDeviceState(device);
@@ -106,6 +111,10 @@ export class MqttClient {
       }
     }
     return additionalDeviceInfo;
+  }
+
+  private getDiscoveryInfoSignature(device: Device): string {
+    return JSON.stringify(this.getAdditionalDeviceInfo(device));
   }
 
   /**
@@ -218,6 +227,10 @@ export class MqttClient {
         this.config.topicPrefix,
         deviceState,
       );
+      this.lastDiscoveryInfoSignatureByDevice.set(
+        this.getDeviceKey(device),
+        JSON.stringify(additionalDeviceInfo),
+      );
     }
   }
 
@@ -230,6 +243,9 @@ export class MqttClient {
    */
   onDeviceDataReceived(device: Device, publishPath: string): void {
     const devicePathKey = `${device.deviceType}:${device.deviceId}:${publishPath}`;
+    const deviceKey = this.getDeviceKey(device);
+    const previousSignature = this.lastDiscoveryInfoSignatureByDevice.get(deviceKey);
+    const currentSignature = this.getDiscoveryInfoSignature(device);
 
     // If this is the first time we're receiving data for this device+path,
     // re-publish discovery configs now that we have device state
@@ -238,6 +254,16 @@ export class MqttClient {
         `First data received for ${device.deviceType}:${device.deviceId} on path ${publishPath}, re-publishing discovery configs`,
       );
       this.devicePathsWithData.add(devicePathKey);
+      this.publishDiscoveryConfigs(device);
+      return;
+    }
+
+    // Re-publish discovery when additional device info changed (e.g. firmware version
+    // becomes known after an initial timeout), so gated entities get (re-)announced.
+    if (previousSignature !== currentSignature) {
+      logger.debug(
+        `Discovery-relevant info changed for ${device.deviceType}:${device.deviceId}, re-publishing discovery configs`,
+      );
       this.publishDiscoveryConfigs(device);
     }
   }
