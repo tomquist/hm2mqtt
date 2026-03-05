@@ -113,8 +113,12 @@ export class MqttClient {
     return additionalDeviceInfo;
   }
 
+  private getDiscoveryInfoSignatureFromInfo(additionalDeviceInfo: AdditionalDeviceInfo): string {
+    return JSON.stringify(additionalDeviceInfo);
+  }
+
   private getDiscoveryInfoSignature(device: Device): string {
-    return JSON.stringify(this.getAdditionalDeviceInfo(device));
+    return this.getDiscoveryInfoSignatureFromInfo(this.getAdditionalDeviceInfo(device));
   }
 
   /**
@@ -229,7 +233,7 @@ export class MqttClient {
       );
       this.lastDiscoveryInfoSignatureByDevice.set(
         this.getDeviceKey(device),
-        JSON.stringify(additionalDeviceInfo),
+        this.getDiscoveryInfoSignatureFromInfo(additionalDeviceInfo),
       );
     }
   }

@@ -69,5 +69,16 @@ describe('MqttClient discovery re-publish', () => {
 
     // We expect discovery to be re-published again so newly enabled entities appear
     expect(publishDiscoveryConfigs).toHaveBeenCalledTimes(2);
+
+    // Verify the second publish carries firmware info
+    expect(publishDiscoveryConfigs).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      device,
+      topics,
+      expect.objectContaining({ firmwareVersion: '116.6' }),
+      'homeassistant',
+      expect.objectContaining({ fw: '116.6' }),
+    );
   });
 });
