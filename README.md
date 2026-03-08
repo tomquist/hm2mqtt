@@ -40,7 +40,7 @@ flowchart LR
     B --> C[hm2mqtt]
     C --> D[Home Assistant]
     A -. cloud disabled by local MQTT .-> E[Marstek Cloud/App]
-    F[hame-relay Mode 1 (optional)] -. restores app/cloud access .-> E
+    F[hame relay Mode 1 optional] -. restores app and cloud access .-> E
 ```
 
 > **⚠️ Cloud/app impact (read first):** Enabling local MQTT on the B2500 disables direct cloud connectivity for that device. You can restore app/cloud functionality by running hame-relay in Mode 1 (local broker setup). For more background, see [FAQ: When do I need hm2mqtt, hame-relay, or both?](#1-when-do-i-need-hm2mqtt-hame-relay-or-both).
