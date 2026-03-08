@@ -68,19 +68,18 @@ Use this for devices that stay on cloud MQTT (Venus/Jupiter/Jupiter Plus/MI800/C
 1. **Install and configure hame-relay**
    - Follow the hame-relay README: https://github.com/tomquist/hame-relay
    - Enter your account credentials in hame-relay config.
+   - Use a separate Marstek account (recommended):
+     - Share your devices to that account.
+     - Use that account in hame-relay.
+     - This avoids logging your primary app account out of the mobile app session.
+   - For B2500 in this variant, configure hame-relay inverse forwarding for the B2500 **cloud device ID** (the 24-character device ID from hame-relay startup/device output, not the Bluetooth MAC). Use `inverse_forwarding_device_ids` in hame-relay config. See hame-relay docs: https://github.com/tomquist/hame-relay#optional-settings
 
-- For B2500 in this variant, configure hame-relay inverse forwarding for the B2500 **cloud device ID** (the 24-character device ID from hame-relay startup/device output, not the Bluetooth MAC). Use `inverse_forwarding_device_ids` in hame-relay config. See hame-relay docs: https://github.com/tomquist/hame-relay#optional-settings
-
-2. **Use a separate Marstek account (recommended)**
-   - Share your devices to that account.
-   - Use that account in hame-relay.
-   - This avoids logging your primary app account out of the mobile app session.
-3. **Start hame-relay and check startup output**
+2. **Start hame-relay and check startup output**
    - hame-relay loads your account device list on startup.
    - From the startup logs/output, note:
      - `deviceType`
      - Bluetooth MAC address (used as hm2mqtt `deviceId`)
-4. **Configure hm2mqtt**
+3. **Configure hm2mqtt**
    - Use `deviceType` + Bluetooth MAC from hame-relay output.
    - **Home Assistant App:** add entries under `devices`:
      ```yaml
@@ -89,7 +88,7 @@ Use this for devices that stay on cloud MQTT (Venus/Jupiter/Jupiter Plus/MI800/C
          deviceId: "001a2b3c4d5e"
      ```
    - **Docker / .env:** add `DEVICE_n={deviceType}:{bluetoothMac}`.
-5. **Start hm2mqtt**
+4. **Start hm2mqtt**
    - Home Assistant should discover the devices once data is available on your local broker.
 
 ## Installation
