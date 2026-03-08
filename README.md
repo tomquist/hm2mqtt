@@ -32,7 +32,7 @@ Choose one of the following variants.
 
 Use this when your B2500 should send data directly to your local MQTT broker.
 
-> **⚠️ Important for multiple B2500 devices:** If you use multiple B2500 units (especially firmware 226.5/108.7), configure them to use the hm2mqtt MQTT proxy port (default `1890`) instead of your main broker port. See [MQTT Proxy for B2500 Client ID Conflicts](#mqtt-proxy-for-b2500-client-id-conflicts).
+> **⚠️ Important for multiple B2500 devices:** Recommended/default approach: configure all B2500 units (especially firmware 226.5/108.7) to use the hm2mqtt MQTT proxy port (default `1890`) instead of your main broker port. Valid alternative: assign unique MQTT usernames/client IDs per B2500. See [MQTT Proxy for B2500 Client ID Conflicts](#mqtt-proxy-for-b2500-client-id-conflicts) for both approaches.
 
 1. **Enable and configure MQTT on the B2500**
    - Option 1: Contact support and ask them to enable MQTT in the app.
@@ -46,12 +46,17 @@ Use this when your B2500 should send data directly to your local MQTT broker.
 4. **Configure hm2mqtt**
    - Add your MQTT broker settings.
    - Add the device in format `{deviceType}:{bluetoothMac}` (for example `HMA-1:001a2b3c4d5e`).
-5. **Start hm2mqtt**
+5. **Understand cloud/app impact (important)**
+   - Enabling local MQTT on the B2500 disables direct cloud connectivity for that device.
+   - You can restore app/cloud functionality by running hame-relay in Mode 1 (local broker setup).
+6. **Start hm2mqtt**
    - After startup, Home Assistant should discover the new device via MQTT Discovery.
 
 ### Variant B: Other Marstek devices (and B2500 without local MQTT)
 
 Use this for devices that stay on cloud MQTT (Venus/Jupiter/Jupiter Plus/MI800/CT002), or for B2500 when you do not switch it to local MQTT.
+
+For B2500 in this variant, configure hame-relay with inverse forwarding for the specific device ID (see hame-relay docs, `inverse_forwarding_device_ids`).
 
 1. **Install and configure hame-relay**
    - Follow the hame-relay README: https://github.com/tomquist/hame-relay
@@ -367,7 +372,7 @@ This message is almost always a **symptom**, not the root cause. It usually mean
 
 #### Troubleshooting: B2500
 1. **Verify the B2500 is actually configured for local MQTT**
-   - Use the configuration tool: <https://tomquist.github.io/hmjs/>
+   - Use the configuration tool: <https://tomquist.github.io/hame-relay/b2500.html>
    - Double-check host/port and the SSL toggle.
 2. If you have **multiple B2500s**, ensure you handled client-ID conflicts
    - Either configure **unique MQTT usernames** per storage, or
@@ -384,7 +389,7 @@ This message is almost always a **symptom**, not the root cause. It usually mean
 In hm2mqtt, `deviceId` must be the **Bluetooth MAC** of the device (12 hex chars, lowercase, no `:`).
 
 **Where to find it:**
-- **B2500:** via <https://tomquist.github.io/hmjs/>
+- **B2500:** via <https://tomquist.github.io/hame-relay/b2500.html>
 - **All devices via hame-relay:** check the **hame-relay logs** (they include the mapping).
 
 **Troubleshooting (quick):**
