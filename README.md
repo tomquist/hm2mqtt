@@ -61,7 +61,7 @@ Use this when your B2500 should send data directly to your local MQTT broker.
 
 Use this for devices that stay on cloud MQTT (Venus/Jupiter/Jupiter Plus/MI800/CT002), or for B2500 when you do not switch it to local MQTT.
 
-For B2500 in this variant, configure hame-relay with inverse forwarding for the specific device ID (see hame-relay docs, `inverse_forwarding_device_ids`).
+For B2500 in this variant, configure hame-relay inverse forwarding for the B2500 **cloud device ID** (the 24-character device ID from hame-relay startup/device output, not the Bluetooth MAC). Use `inverse_forwarding_device_ids` in hame-relay config. See hame-relay docs: https://github.com/tomquist/hame-relay#optional-settings
 
 1. **Install and configure hame-relay**
    - Follow the hame-relay README: https://github.com/tomquist/hame-relay
