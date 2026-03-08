@@ -65,11 +65,12 @@ Use this for devices that stay on cloud MQTT (Venus/Jupiter/Jupiter Plus/MI800/C
 
 **When to use:** Choose this if your device remains cloud-configured, or if you want to keep the standard cloud setup and bridge data into your local broker via hame-relay.
 
-For B2500 in this variant, configure hame-relay inverse forwarding for the B2500 **cloud device ID** (the 24-character device ID from hame-relay startup/device output, not the Bluetooth MAC). Use `inverse_forwarding_device_ids` in hame-relay config. See hame-relay docs: https://github.com/tomquist/hame-relay#optional-settings
-
 1. **Install and configure hame-relay**
    - Follow the hame-relay README: https://github.com/tomquist/hame-relay
    - Enter your account credentials in hame-relay config.
+
+For B2500 in this variant, configure hame-relay inverse forwarding for the B2500 **cloud device ID** (the 24-character device ID from hame-relay startup/device output, not the Bluetooth MAC). Use `inverse_forwarding_device_ids` in hame-relay config. See hame-relay docs: https://github.com/tomquist/hame-relay#optional-settings
+
 2. **Use a separate Marstek account (recommended)**
    - Share your devices to that account.
    - Use that account in hame-relay.
