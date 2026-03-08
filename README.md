@@ -32,7 +32,7 @@ Choose one of the following variants.
 
 Use this when your B2500 should send data directly to your local MQTT broker.
 
-> **⚠️ Important for multiple B2500 devices:** Recommended/default approach: configure all B2500 units (especially firmware 226.5/108.7) to use the hm2mqtt MQTT proxy port (default `1890`) instead of your main broker port. Valid alternative: assign unique MQTT usernames/client IDs per B2500. See [MQTT Proxy for B2500 Client ID Conflicts](#mqtt-proxy-for-b2500-client-id-conflicts) for both approaches.
+> **⚠️ Important for multiple B2500 devices:** For firmware `226.5` / `108.7`, use the hm2mqtt MQTT proxy port (default `1890`) to avoid client-ID conflicts. For newer firmware versions, the recommended approach is to configure different MQTT usernames per B2500. See [MQTT Proxy for B2500 Client ID Conflicts](#mqtt-proxy-for-b2500-client-id-conflicts) for details.
 
 1. **Enable and configure MQTT on the B2500**
    - Option 1: Contact support and ask them to enable MQTT in the app.
