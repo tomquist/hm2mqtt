@@ -25,7 +25,6 @@ options:
   enableExtraBatteryData: false
   allowedConsecutiveTimeouts: 3
   topicPrefix: hm2mqtt
-  autodiscoveryTopicPrefix: homeassistant
   mqttProxyEnabled: false
   log_level: info
   devices:
