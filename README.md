@@ -50,7 +50,7 @@ flowchart TB
 
 > **⚠️ Cloud/app impact (read first):** Enabling local MQTT on the B2500 disables direct cloud connectivity for that device. You can restore app/cloud functionality by running hame-relay in Mode 1 (local broker setup). For more background, see [FAQ: When do I need hm2mqtt, hame-relay, or both?](#1-when-do-i-need-hm2mqtt-hame-relay-or-both).
 >
-> **⚠️ Important for multiple B2500 devices:** For firmware `226.5` / `108.7`, use the hm2mqtt MQTT proxy port (default `1890`) to avoid client-ID conflicts. For newer firmware versions, the recommended approach is to configure different MQTT usernames per B2500. See [MQTT Proxy for B2500 Client ID Conflicts](#mqtt-proxy-for-b2500-client-id-conflicts) for details.
+> **⚠️ Important for multiple B2500 devices:** For firmware `226.5` / `108.7`, you **must** use the hm2mqtt MQTT proxy port (default `1890`) to avoid client-ID conflicts. For newer firmware versions, the recommended approach is to configure different MQTT usernames per B2500. See [MQTT Proxy for B2500 Firmware 226.5/108.7 Client ID Conflict](#mqtt-proxy-for-b2500-firmware-22651087-client-id-conflict) for details.
 
 1. **Enable and configure MQTT on the B2500**
    - Option 1: Contact support and ask them to enable MQTT in the app.
@@ -292,11 +292,11 @@ The device id is the MAC address of the device in lowercase, without colons.
 - Use the MAC address shown in the Marstek/PowerZero app's device list or in the Bluetooth configuration tool
 - **Important:** Do not use the WiFi interface MAC address - it must be the one shown in the app or Bluetooth tool
 
-### MQTT Proxy for B2500 Client ID Conflicts
+### MQTT Proxy for B2500 Firmware 226.5/108.7 Client ID Conflict
 
 **🔧 Recommended for Multiple B2500 Devices**
 
-If you have multiple B2500 devices (especially with firmware 226.5/108.7 or later), you **must** use the MQTT proxy to avoid client ID conflicts. The proxy resolves the firmware bug where all B2500 devices try to connect with the same client ID (`mst_`).
+If you run multiple B2500 devices on firmware 226.5/108.7, you **must** use the MQTT proxy to avoid client ID conflicts. In that firmware version, all B2500 devices try to connect with the same client ID (`mst_`). For newer firmware versions, use different MQTT usernames per battery (proxy remains optional).
 
 #### How It Works
 
