@@ -36,11 +36,11 @@ Use this **only** for B2500 devices when your B2500 should send data directly to
 
 ```mermaid
 flowchart LR
-    B2500[B2500 device] <--> Broker[Local MQTT broker]
-    HM2MQTT[hm2mqtt] <--> Broker
-    HA[Home Assistant] <--> Broker
-    Relay[hame relay Mode 1 optional] <--> Broker
-    Relay <--> Cloud[Marstek Cloud]
+    B2500[B2500 device] <-->|MQTT telemetry + commands| Broker[Local MQTT broker]
+    HM2MQTT[hm2mqtt] <-->|subscribe/publish| Broker
+    HA[Home Assistant] <-->|MQTT integration| Broker
+    Relay[hame relay Mode 1 optional] <-->|bridge local topics| Broker
+    Relay <-->|bridge to cloud| Cloud[Marstek Cloud]
 ```
 
 > **⚠️ Cloud/app impact (read first):** Enabling local MQTT on the B2500 disables direct cloud connectivity for that device. You can restore app/cloud functionality by running hame-relay in Mode 1 (local broker setup). For more background, see [FAQ: When do I need hm2mqtt, hame-relay, or both?](#1-when-do-i-need-hm2mqtt-hame-relay-or-both).
@@ -76,11 +76,11 @@ Use this for devices that stay on cloud MQTT (Venus/Jupiter/Jupiter Plus/MI800/C
 
 ```mermaid
 flowchart LR
-    Device[Marstek device in cloud mode] <--> CloudMQTT[Marstek Cloud MQTT]
-    Relay[hame relay] <--> CloudMQTT
-    Relay <--> Broker[Local MQTT broker]
-    HM2MQTT[hm2mqtt] <--> Broker
-    HA[Home Assistant] <--> Broker
+    Device[Marstek device in cloud mode] <-->|device MQTT| CloudMQTT[Marstek Cloud MQTT]
+    Relay[hame relay] <-->|cloud-side bridge| CloudMQTT
+    Relay <-->|local-side bridge| Broker[Local MQTT broker]
+    HM2MQTT[hm2mqtt] <-->|subscribe/publish| Broker
+    HA[Home Assistant] <-->|MQTT integration| Broker
 ```
 
 1. **Install and configure hame-relay**
