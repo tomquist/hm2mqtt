@@ -32,6 +32,8 @@ Choose one of the following variants.
 
 Use this when your B2500 should send data directly to your local MQTT broker.
 
+> **⚠️ Cloud/app impact (read first):** Enabling local MQTT on the B2500 disables direct cloud connectivity for that device. You can restore app/cloud functionality by running hame-relay in Mode 1 (local broker setup).
+>
 > **⚠️ Important for multiple B2500 devices:** For firmware `226.5` / `108.7`, use the hm2mqtt MQTT proxy port (default `1890`) to avoid client-ID conflicts. For newer firmware versions, the recommended approach is to configure different MQTT usernames per B2500. See [MQTT Proxy for B2500 Client ID Conflicts](#mqtt-proxy-for-b2500-client-id-conflicts) for details.
 
 1. **Enable and configure MQTT on the B2500**
@@ -46,10 +48,7 @@ Use this when your B2500 should send data directly to your local MQTT broker.
 4. **Configure hm2mqtt**
    - Add your MQTT broker settings.
    - Add the device in format `{deviceType}:{bluetoothMac}` (for example `HMA-1:001a2b3c4d5e`).
-5. **Understand cloud/app impact (important)**
-   - Enabling local MQTT on the B2500 disables direct cloud connectivity for that device.
-   - You can restore app/cloud functionality by running hame-relay in Mode 1 (local broker setup).
-6. **Start hm2mqtt**
+5. **Start hm2mqtt**
    - After startup, Home Assistant should discover the new device via MQTT Discovery.
 
 ### Variant B: Other Marstek devices (and B2500 without local MQTT)
