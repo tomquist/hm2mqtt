@@ -34,7 +34,7 @@ Use this **only** for B2500 devices when your B2500 should send data directly to
 
 **When to use:** Choose this if you want direct local MQTT communication from B2500 to your broker (for local-first integrations), and you accept that direct cloud connectivity is disabled unless you add hame-relay Mode 1.
 
-> **⚠️ Cloud/app impact (read first):** Enabling local MQTT on the B2500 disables direct cloud connectivity for that device. You can restore app/cloud functionality by running hame-relay in Mode 1 (local broker setup).
+> **⚠️ Cloud/app impact (read first):** Enabling local MQTT on the B2500 disables direct cloud connectivity for that device. You can restore app/cloud functionality by running hame-relay in Mode 1 (local broker setup). For more background, see [FAQ: When do I need hm2mqtt, hame-relay, or both?](#1-when-do-i-need-hm2mqtt-hame-relay-or-both).
 >
 > **⚠️ Important for multiple B2500 devices:** For firmware `226.5` / `108.7`, use the hm2mqtt MQTT proxy port (default `1890`) to avoid client-ID conflicts. For newer firmware versions, the recommended approach is to configure different MQTT usernames per B2500. See [MQTT Proxy for B2500 Client ID Conflicts](#mqtt-proxy-for-b2500-client-id-conflicts) for details.
 
