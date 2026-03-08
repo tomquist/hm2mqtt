@@ -50,7 +50,7 @@ flowchart TB
 
 > **⚠️ Cloud/app impact (read first):** Enabling local MQTT on the B2500 disables direct cloud connectivity for that device. You can restore app/cloud functionality by running hame-relay in Mode 1 (local broker setup). For more background, see [FAQ: When do I need hm2mqtt, hame-relay, or both?](#1-when-do-i-need-hm2mqtt-hame-relay-or-both).
 >
-> **⚠️ Important for multiple B2500 devices:** For firmware `226.5` / `108.7`, you **must** use the hm2mqtt MQTT proxy port (default `1890`) to avoid client-ID conflicts. For newer firmware versions, the recommended approach is to configure different MQTT usernames per B2500. See [MQTT Proxy for B2500 Firmware 226.5/108.7 Client ID Conflict](#mqtt-proxy-for-b2500-firmware-22651087-client-id-conflict) for details.
+> **⚠️ Important if you want to use multiple B2500 simultaneously:** For firmware `226.5` / `108.7`, you **must** use the hm2mqtt MQTT proxy port (default `1890`) to avoid client-ID conflicts. For newer firmware versions, the recommended approach is to configure different MQTT usernames per B2500. See [MQTT Proxy for B2500 Firmware 226.5/108.7 Client ID Conflict](#mqtt-proxy-for-b2500-firmware-22651087-client-id-conflict) for details.
 
 1. **Enable and configure MQTT on the B2500**
    - Option 1: Contact support and ask them to enable MQTT in the app.
