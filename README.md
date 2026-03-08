@@ -26,7 +26,7 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 
 ## Step-by-step setup
 
-Choose one of the following variants.
+Choose one of the following variants. Install hm2mqtt using your preferred method from the [Installation](#installation) section, then apply the matching setup flow below.
 
 ### Variant A: B2500 configured for local MQTT
 
