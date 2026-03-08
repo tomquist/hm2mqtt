@@ -22,7 +22,7 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 ## Prerequisites
 
 - A local MQTT broker (for example the Home Assistant Mosquitto broker): https://www.home-assistant.io/integrations/mqtt/#setting-up-a-broker
-- Access to your device details (device type + Bluetooth MAC address)
+- Access to your device details (device type + Bluetooth MAC address) — how to find these is explained in the setup steps below.
 
 ## Step-by-step setup
 
