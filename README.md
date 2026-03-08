@@ -35,11 +35,13 @@ Use this **only** for B2500 devices when your B2500 should send data directly to
 **When to use:** Choose this if you want direct local MQTT communication from B2500 to your broker (for local-first integrations), and you accept that direct cloud connectivity is disabled unless you add hame-relay Mode 1.
 
 ```mermaid
-flowchart LR
+flowchart TB
     B2500[B2500 device] <-->|MQTT telemetry + commands| Broker[Local MQTT broker]
+
     Broker -->|device telemetry / responses| HM2MQTT[hm2mqtt]
     HM2MQTT -->|parsed state + HA discovery + command topics| Broker
     HA[Home Assistant] <-->|MQTT integration| Broker
+
     Broker -->|local telemetry from device| Relay[hame relay Mode 1 optional]
     Relay -->|commands forwarded from cloud/app| Broker
     Cloud[Marstek Cloud] -->|app/cloud commands + control| Relay
@@ -78,12 +80,15 @@ Use this for devices that stay on cloud MQTT (Venus/Jupiter/Jupiter Plus/MI800/C
 **When to use:** Choose this if your device remains cloud-configured, or if you want to keep the standard cloud setup and bridge data into your local broker via hame-relay.
 
 ```mermaid
-flowchart LR
+flowchart TB
     Device[Marstek device in cloud mode] <-->|device MQTT| CloudMQTT[Marstek Cloud MQTT]
+
     CloudMQTT -->|cloud telemetry + command state| Relay[hame relay]
     Relay -->|mirrored local status/telemetry| CloudMQTT
+
     Broker[Local MQTT broker] -->|local commands + local state topics| Relay
     Relay -->|commands forwarded from cloud/app| Broker
+
     Broker -->|device telemetry / responses| HM2MQTT[hm2mqtt]
     HM2MQTT -->|parsed state + HA discovery + command topics| Broker
     HA[Home Assistant] <-->|MQTT integration| Broker
