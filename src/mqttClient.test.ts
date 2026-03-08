@@ -56,6 +56,7 @@ describe('MqttClient discovery re-publish', () => {
       brokerUrl: 'mqtt://localhost:1883',
       clientId: 'test-client',
       topicPrefix: 'homeassistant',
+      autodiscoveryTopicPrefix: 'homeassistant',
     };
 
     const mqttClient = new MqttClient(config, deviceManager, jest.fn());
@@ -77,6 +78,7 @@ describe('MqttClient discovery re-publish', () => {
       device,
       topics,
       expect.objectContaining({ firmwareVersion: '116.6' }),
+      'homeassistant',
       'homeassistant',
       expect.objectContaining({ fw: '116.6' }),
     );

@@ -21,6 +21,7 @@ export function generateDiscoveryConfigs(
   topics: DeviceTopics,
   additionalDeviceInfo: AdditionalDeviceInfo,
   topicPrefix: string,
+  autodiscoveryTopicPrefix: string,
   deviceState: any = {},
 ): Array<{ topic: string; config: HaDiscoveryConfig | null }> {
   const deviceDefinition = getDeviceDefinition(device.deviceType);
@@ -73,7 +74,7 @@ export function generateDiscoveryConfigs(
       });
       const { type: platform, id: _objectId, ...config } = advertisement;
       const objectId = _objectId.replace(/[^a-zA-Z0-9_-]/g, '_');
-      const topic = `homeassistant/${platform}/${nodeId}/${objectId}/config`;
+      const topic = `${autodiscoveryTopicPrefix}/${platform}/${nodeId}/${objectId}/config`;
 
       if (field.enabled) {
         const enabledResult = field.enabled(deviceState);
@@ -110,6 +111,7 @@ export function publishDiscoveryConfigs(
   deviceTopics: DeviceTopics,
   additionalDeviceInfo: AdditionalDeviceInfo,
   topicPrefix: string,
+  autodiscoveryTopicPrefix: string,
   deviceState: any = {},
 ): void {
   const configs = generateDiscoveryConfigs(
@@ -117,6 +119,7 @@ export function publishDiscoveryConfigs(
     deviceTopics,
     additionalDeviceInfo,
     topicPrefix,
+    autodiscoveryTopicPrefix,
     deviceState,
   );
 

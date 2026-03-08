@@ -8,6 +8,7 @@ describe('DeviceManager', () => {
     brokerUrl: 'mqtt://localhost',
     clientId: 'test-client',
     topicPrefix: DEFAULT_TOPIC_PREFIX,
+    autodiscoveryTopicPrefix: 'homeassistant',
     devices: [
       {
         deviceType: 'HMA-1',
@@ -59,6 +60,7 @@ describe('DeviceManager', () => {
       brokerUrl: 'mqtt://localhost',
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
+      autodiscoveryTopicPrefix: 'homeassistant',
       devices: [
         {
           deviceType: 'INVALID-TYPE',
@@ -78,6 +80,7 @@ describe('DeviceManager', () => {
       brokerUrl: 'mqtt://localhost',
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
+      autodiscoveryTopicPrefix: 'homeassistant',
       devices: [
         {
           deviceType: 'INVALID-TYPE',
@@ -109,6 +112,7 @@ describe('DeviceManager', () => {
       brokerUrl: 'mqtt://localhost',
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
+      autodiscoveryTopicPrefix: 'homeassistant',
       devices: [
         {
           deviceType: 'HMB-1',

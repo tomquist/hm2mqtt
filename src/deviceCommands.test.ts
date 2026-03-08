@@ -1155,6 +1155,7 @@ describe('Device Commands', () => {
       brokerUrl: 'mqtt://test.mosquitto.org',
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
+      autodiscoveryTopicPrefix: 'homeassistant',
       devices: [device],
       responseTimeout: 15000,
     };

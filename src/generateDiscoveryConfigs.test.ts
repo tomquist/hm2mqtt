@@ -33,6 +33,7 @@ describe('Home Assistant Discovery', () => {
       deviceTopics,
       additionalDeviceInfo,
       DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
     );
 
     // Check that we have configs
@@ -127,6 +128,7 @@ describe('Home Assistant Discovery', () => {
       deviceTopics,
       {},
       DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
       supportedState,
     );
 
@@ -141,12 +143,37 @@ describe('Home Assistant Discovery', () => {
       deviceTopics,
       {},
       DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
       unsupportedState,
     );
 
     const surplusSwitchDisabled = unsupportedConfigs.find(c => c.topic.includes('surplus_feed_in'));
     expect(surplusSwitchDisabled).toBeDefined();
     expect(surplusSwitchDisabled?.config).toBeNull();
+  });
+
+  test('should support custom autodiscovery topic prefix', () => {
+    const device: Device = { deviceType: 'HMA-1', deviceId: 'test123' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/HMA-1/device/test123/ctrl',
+      deviceTopicNew: 'marstek_energy/HMA-1/device/test123/ctrl',
+      deviceControlTopicOld: 'hame_energy/HMA-1/App/test123/ctrl',
+      deviceControlTopicNew: 'marstek_energy/HMA-1/App/test123/ctrl',
+      availabilityTopic: 'hame_energy/HMA-1/availability/test123',
+      controlSubscriptionTopic: 'hame_energy/HMA-1/control/test123/control',
+      publishTopic: 'hame_energy/HMA-1/device/test123/data',
+    };
+
+    const configs = generateDiscoveryConfigs(
+      device,
+      deviceTopics,
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      'domoticz',
+    );
+
+    expect(configs.length).toBeGreaterThan(0);
+    expect(configs[0].topic.startsWith('domoticz/')).toBe(true);
   });
 
   test('should mock publishDiscoveryConfigs', () => {
@@ -182,7 +209,15 @@ describe('Home Assistant Discovery', () => {
     const { publishDiscoveryConfigs } = require('./generateDiscoveryConfigs');
 
     // Call the function with the mock client
-    publishDiscoveryConfigs(mockClient, device, deviceTopics, {}, DEFAULT_TOPIC_PREFIX, {});
+    publishDiscoveryConfigs(
+      mockClient,
+      device,
+      deviceTopics,
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
+      {},
+    );
 
     // Check that publish was called
     expect(mockClient.publish).toHaveBeenCalled();
@@ -201,6 +236,7 @@ describe('Home Assistant Discovery', () => {
       deviceTopics,
       {},
       DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
       {},
     );
   });

@@ -20,6 +20,9 @@ configuration:
   topicPrefix:
     name: MQTT-Topic-Präfix
     description: "Basis-MQTT-Präfix für veröffentlichte Daten (Standard: hm2mqtt)"
+  autodiscoveryTopicPrefix:
+    name: MQTT-Auto-Discovery-Topic-Präfix
+    description: "Basis-MQTT-Präfix für Home-Assistant-Auto-Discovery-Topics (Standard: homeassistant)"
   mqttProxyEnabled:
     name: MQTT Proxy aktivieren
     description: "MQTT Proxy-Server aktivieren um B2500 Client-ID-Konflikte zu lösen (Standard: false)"
