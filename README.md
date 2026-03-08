@@ -37,7 +37,8 @@ Use this **only** for B2500 devices when your B2500 should send data directly to
 ```mermaid
 flowchart LR
     B2500[B2500 device] <-->|MQTT telemetry + commands| Broker[Local MQTT broker]
-    HM2MQTT[hm2mqtt] <-->|subscribe/publish| Broker
+    Broker -->|device telemetry / responses| HM2MQTT[hm2mqtt]
+    HM2MQTT -->|parsed state + HA discovery + command topics| Broker
     HA[Home Assistant] <-->|MQTT integration| Broker
     Relay[hame relay Mode 1 optional] <-->|bridge local topics| Broker
     Relay <-->|bridge to cloud| Cloud[Marstek Cloud]
@@ -79,7 +80,8 @@ flowchart LR
     Device[Marstek device in cloud mode] <-->|device MQTT| CloudMQTT[Marstek Cloud MQTT]
     Relay[hame relay] <-->|cloud-side bridge| CloudMQTT
     Relay <-->|local-side bridge| Broker[Local MQTT broker]
-    HM2MQTT[hm2mqtt] <-->|subscribe/publish| Broker
+    Broker -->|device telemetry / responses| HM2MQTT[hm2mqtt]
+    HM2MQTT -->|parsed state + HA discovery + command topics| Broker
     HA[Home Assistant] <-->|MQTT integration| Broker
 ```
 
