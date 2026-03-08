@@ -36,7 +36,7 @@ Use this when your B2500 should send data directly to your local MQTT broker.
 
 1. **Enable and configure MQTT on the B2500**
    - Option 1: Contact support and ask them to enable MQTT in the app.
-   - Option 2: Use the Bluetooth configuration tool in Chrome: https://tomquist.github.io/hame-relay/b2500.html
+   - Option 2: Use the Bluetooth configuration tool in Chrome: https://tomquist.github.io/hmjs/
 2. **Point the B2500 to your local broker**
    - Configure host/port (or proxy port `1890` if needed for multiple devices).
 3. **Note the correct device ID**
@@ -372,7 +372,7 @@ This message is almost always a **symptom**, not the root cause. It usually mean
 
 #### Troubleshooting: B2500
 1. **Verify the B2500 is actually configured for local MQTT**
-   - Use the configuration tool: <https://tomquist.github.io/hame-relay/b2500.html>
+   - Use the configuration tool: <https://tomquist.github.io/hmjs/>
    - Double-check host/port and the SSL toggle.
 2. If you have **multiple B2500s**, ensure you handled client-ID conflicts
    - Either configure **unique MQTT usernames** per storage, or
@@ -389,7 +389,7 @@ This message is almost always a **symptom**, not the root cause. It usually mean
 In hm2mqtt, `deviceId` must be the **Bluetooth MAC** of the device (12 hex chars, lowercase, no `:`).
 
 **Where to find it:**
-- **B2500:** via <https://tomquist.github.io/hame-relay/b2500.html>
+- **B2500:** via <https://tomquist.github.io/hmjs/>
 - **All devices via hame-relay:** check the **hame-relay logs** (they include the mapping).
 
 **Troubleshooting (quick):**
