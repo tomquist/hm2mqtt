@@ -30,7 +30,7 @@ Choose one of the following variants.
 
 ### Variant A: B2500 configured for local MQTT
 
-Use this when your B2500 should send data directly to your local MQTT broker.
+Use this **only** for B2500 devices when your B2500 should send data directly to your local MQTT broker. If you have any other Marstek device type, follow **Variant B** instead.
 
 > **⚠️ Cloud/app impact (read first):** Enabling local MQTT on the B2500 disables direct cloud connectivity for that device. You can restore app/cloud functionality by running hame-relay in Mode 1 (local broker setup).
 >
