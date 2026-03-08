@@ -36,11 +36,11 @@ Use this **only** for B2500 devices when your B2500 should send data directly to
 
 ```mermaid
 flowchart LR
-    A[B2500] -->|MQTT| B[Local MQTT Broker]
+    A[B2500] -->|MQTT telemetry/commands| B[Local MQTT Broker]
     B --> C[hm2mqtt]
     C --> D[Home Assistant]
-    A -. cloud disabled by local MQTT .-> E[Marstek Cloud/App]
-    F[hame relay Mode 1 optional] -. restores app and cloud access .-> E
+    F[hame relay Mode 1 optional] --> B
+    F -. restore cloud/app access .-> E[Marstek Cloud/App]
 ```
 
 > **⚠️ Cloud/app impact (read first):** Enabling local MQTT on the B2500 disables direct cloud connectivity for that device. You can restore app/cloud functionality by running hame-relay in Mode 1 (local broker setup). For more background, see [FAQ: When do I need hm2mqtt, hame-relay, or both?](#1-when-do-i-need-hm2mqtt-hame-relay-or-both).
@@ -79,7 +79,7 @@ flowchart LR
     A[Marstek Device
 (Venus/Jupiter/etc.
 or B2500 in cloud mode)] --> B[Marstek Cloud MQTT]
-    B --> C[hame-relay]
+    B <--> C[hame relay]
     C --> D[Local MQTT Broker]
     D --> E[hm2mqtt]
     E --> F[Home Assistant]
