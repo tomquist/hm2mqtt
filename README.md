@@ -101,7 +101,7 @@ flowchart TB
      - Share your devices to that account.
      - Use that account in hame-relay.
      - This avoids logging your primary app account out of the mobile app session.
-   - For B2500 in this variant, configure hame-relay inverse forwarding for the B2500 **cloud device ID** (the 24-character device ID from hame-relay startup/device output, not the Bluetooth MAC). Use `inverse_forwarding_device_ids` in hame-relay config. See hame-relay docs: https://github.com/tomquist/hame-relay#optional-settings
+   - For B2500 in this variant, configure hame-relay inverse forwarding with the 24-character **cloud device ID** in `inverse_forwarding_device_ids` (from hame-relay startup/device output). In hm2mqtt, continue using the **Bluetooth MAC** as `deviceId` (see step 3 above). See hame-relay docs: https://github.com/tomquist/hame-relay#optional-settings
 
 2. **Start hame-relay and check startup output**
    - hame-relay loads your account device list on startup.
