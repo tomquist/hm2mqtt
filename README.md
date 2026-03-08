@@ -47,7 +47,13 @@ Use this when your B2500 should send data directly to your local MQTT broker.
    - Do **not** use the Wi-Fi MAC.
 4. **Configure hm2mqtt**
    - Add your MQTT broker settings.
-   - Add the device in format `{deviceType}:{bluetoothMac}` (for example `HMA-1:001a2b3c4d5e`).
+   - **Home Assistant App:** add a device entry under `devices`:
+     ```yaml
+     devices:
+       - deviceType: "HMA-1"
+         deviceId: "001a2b3c4d5e"
+     ```
+   - **Docker / .env:** add `DEVICE_n` in format `{deviceType}:{bluetoothMac}` (for example `DEVICE_0=HMA-1:001a2b3c4d5e`).
 5. **Start hm2mqtt**
    - After startup, Home Assistant should discover the new device via MQTT Discovery.
 
@@ -70,7 +76,14 @@ For B2500 in this variant, configure hame-relay with inverse forwarding for the 
      - `deviceType`
      - Bluetooth MAC address (used as hm2mqtt `deviceId`)
 4. **Configure hm2mqtt**
-   - Add device entries using `{deviceType}:{bluetoothMac}` from hame-relay output.
+   - Use `deviceType` + Bluetooth MAC from hame-relay output.
+   - **Home Assistant App:** add entries under `devices`:
+     ```yaml
+     devices:
+       - deviceType: "HMG-50"
+         deviceId: "001a2b3c4d5e"
+     ```
+   - **Docker / .env:** add `DEVICE_n={deviceType}:{bluetoothMac}`.
 5. **Start hm2mqtt**
    - Home Assistant should discover the devices once data is available on your local broker.
 
