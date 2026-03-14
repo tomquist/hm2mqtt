@@ -22,12 +22,14 @@ RUN npm ci --only=production
 # Final stage
 ARG BUILD_FROM
 FROM ${BUILD_FROM:-ghcr.io/hassio-addons/base:14.2.2}
+ARG BUILD_COMMIT=unknown
 
 # Install Node.js
 RUN apk add --no-cache nodejs
 
 # Set work directory
 WORKDIR /app
+ENV BUILD_COMMIT=${BUILD_COMMIT}
 
 # Copy package file (for reference only)
 COPY package.json ./

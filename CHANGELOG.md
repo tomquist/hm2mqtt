@@ -7,6 +7,7 @@
 
 ### Added
 
+- Log the build commit hash at application startup to make it easier to verify which exact source revision a running container/add-on was built from
 - Add configurable Home Assistant MQTT discovery topic prefix via `AUTODISCOVERY_TOPIC_PREFIX` (add-on option: `autodiscoveryTopicPrefix`, default: `homeassistant`) (#248)
 
 ### Fixed
