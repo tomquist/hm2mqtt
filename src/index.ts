@@ -125,6 +125,7 @@ function createMqttConfig(devices: Device[]): MqttConfig {
 async function main() {
   try {
     logger.info('Starting hm2mqtt application...');
+    logger.info(`Build commit: ${process.env.BUILD_COMMIT || 'unknown'}`);
     logger.info(`Environment: ${process.env.NODE_ENV || 'production'}`);
     logger.info(
       `MQTT Proxy: ${MQTT_PROXY_ENABLED ? `enabled on port ${MQTT_PROXY_PORT}` : 'disabled'}`,

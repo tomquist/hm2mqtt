@@ -276,7 +276,9 @@ jobs:
           file: ha_addon/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.ADDON_IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
-          build-args: BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
+          build-args: |
+            BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
+            BUILD_COMMIT=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           labels: ${{ steps.meta.outputs.labels }}
