@@ -519,7 +519,6 @@ export interface JupiterMPPTPVInfo {
 
 export interface JupiterBMSInfo extends BaseDeviceData {
   cells?: {
-    voltages?: number[]; // vol0-vol15
     temperatures?: number[]; // b_temp0-b_temp3
   };
   bms?: {
@@ -530,8 +529,8 @@ export interface JupiterBMSInfo extends BaseDeviceData {
     current?: number; // b_cur
     temperature?: number; // b_temp
     chargeVoltage?: number; // c_vol
-    chargeCurrent?: number; // c_cur
-    dischargeCurrent?: number; // d_cur
+    chargeCurrentLimit?: number; // c_cur
+    dischargeCurrentLimit?: number; // d_cur
     error?: number; // b_err
     warning?: number; // b_war
     error2?: number; // b_err2
@@ -542,6 +541,14 @@ export interface JupiterBMSInfo extends BaseDeviceData {
     mosfetTemp?: number; // mos_t
     envTemp?: number; // env_t
   };
+  batteries?: {
+    cellVoltages?: {
+      minVoltage?: number; // vol_[x*i+2]
+      minVoltageCell?: number; // vol_[x*i], high byte
+      maxVoltage?: number; // vol_[x*i+1]
+      maxVoltageCell?: number; // vol_[x*i], low byte
+    };
+  }[];
   mppt?: {
     temperature?: number; // m_temp
     error?: number; // m_err

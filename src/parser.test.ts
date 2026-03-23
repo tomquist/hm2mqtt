@@ -392,7 +392,7 @@ describe('MQTT Message Parser', () => {
 
   test('should parse Jupiter BMS message correctly', () => {
     const message =
-      'inv:g_state=1,w_state1=1,w_state2=1,i_err=0,i_war=0,g_vol=2399,g_cur=0,g_pf=0,g_fre=5002,b_vol=526,g_power=119,i_temp=143,mppt:m_state=244,m_err=0,m_temp=30,m_war=0,pv1=350|37|1304,pv2=349|39|1372,pv3=378|18|712,pv4=365|32|1180,b_vol=525,b_cur=85,base_v=221,pe_v=165,fail_t=0,bms:c_vol=571,c_cur=500,d_cur=500,soc=33,soh=100,b_cap=5120,b_vol=5252,b_cur=63,b_temp=213,b_err=0,b_war=0,b_err2=0,b_war2=0,c_flag=192,s_flag=0,b_num=1,vol0=3280,vol1=3281,vol2=3283,vol3=3283,vol4=3283,vol5=3283,vol6=3280,vol7=3284,vol8=3283,vol9=3284,vol10=3282,vol11=3286,vol12=3277,vol13=3286,vol14=3283,vol15=3284,b_temp0=14,b_temp1=15,b_temp2=15,b_temp3=16,env_t=27,mos_t=20,lck=0';
+      'inv:g_state=1,w_state1=1,w_state2=1,i_err=0,i_war=0,g_vol=2399,g_cur=0,g_pf=0,g_fre=5002,b_vol=526,g_power=119,i_temp=42,mppt:m_state=244,m_err=0,m_temp=30,m_war=0,pv1=350|37|1304,pv2=349|39|1372,pv3=378|18|712,pv4=365|32|1180,b_vol=525,b_cur=85,base_v=221,pe_v=165,fail_t=0,bms:c_vol=571,c_cur=500,d_cur=500,soc=33,soh=100,b_cap=5120,b_vol=5252,b_cur=63,b_temp=213,b_err=0,b_war=0,b_err2=0,b_war2=0,c_flag=192,s_flag=0,b_num=1,vol0=3280,vol1=3281,vol2=3283,vol3=3283,vol4=3283,vol5=3283,vol6=3280,vol7=3284,vol8=3283,vol9=3284,vol10=3282,vol11=3286,vol12=3277,vol13=3286,vol14=3283,vol15=3284,b_temp0=14,b_temp1=15,b_temp2=15,b_temp3=16,env_t=27,mos_t=20,lck=0';
     const deviceType = 'JPLS-1';
     const deviceId = 'jupiter123';
 
@@ -409,13 +409,51 @@ describe('MQTT Message Parser', () => {
 
     // Cell voltages (vol0-vol15)
     expect(result).toHaveProperty('cells');
-    expect(result.cells).toHaveProperty('voltages');
-    expect(Array.isArray(result.cells?.voltages)).toBe(true);
-    expect(result.cells?.voltages).toHaveLength(16);
-    expect(result.cells?.voltages).toEqual([
-      3280, 3281, 3283, 3283, 3283, 3283, 3280, 3284, 3283, 3284, 3282, 3286, 3277, 3286, 3283,
-      3284,
-    ]);
+
+    // Battery cell voltages: 4 batteries, each using 4 volX values
+    // Battery 0 (internal): vol0, vol1, vol2, vol3
+    // Battery 1 (external 1): vol4, vol5, vol6, vol7
+    // Battery 2 (external 2): vol8, vol9, vol10, vol11
+    // Battery 3 (external 3): vol12, vol13, vol14, vol15
+    expect(result).toHaveProperty('batteries');
+    expect(Array.isArray(result.batteries)).toBe(true);
+    expect(result.batteries).toHaveLength(4);
+
+    // Battery 0 (internal): vol0=3280 (0x0CD0), vol1=3281, vol2=3283, vol3=3283
+    expect(result.batteries?.[0]).toHaveProperty('cellVoltages');
+    expect(result.batteries?.[0]?.cellVoltages?.maxVoltage).toBe(3281);
+    expect(result.batteries?.[0]?.cellVoltages?.minVoltage).toBe(3283);
+    // Low byte: 0xD0 = 208
+    expect(result.batteries?.[0]?.cellVoltages?.maxVoltageCell).toBe(208);
+    // High byte: 0x0C = 12
+    expect(result.batteries?.[0]?.cellVoltages?.minVoltageCell).toBe(12);
+
+    // Battery 1 (external 1): vol4=3283 (0x0CD3), vol5=3283, vol6=3280, vol7=3284
+    expect(result.batteries?.[1]).toHaveProperty('cellVoltages');
+    expect(result.batteries?.[1]?.cellVoltages?.maxVoltage).toBe(3283);
+    expect(result.batteries?.[1]?.cellVoltages?.minVoltage).toBe(3280);
+    // Low byte: 0xD3 = 211
+    expect(result.batteries?.[1]?.cellVoltages?.maxVoltageCell).toBe(211);
+    // High byte: 0x0C = 12
+    expect(result.batteries?.[1]?.cellVoltages?.minVoltageCell).toBe(12);
+
+    // Battery 2 (external 2): vol8=3283 (0x0CD3), vol9=3284, vol10=3282, vol11=3286
+    expect(result.batteries?.[2]).toHaveProperty('cellVoltages');
+    expect(result.batteries?.[2]?.cellVoltages?.maxVoltage).toBe(3284);
+    expect(result.batteries?.[2]?.cellVoltages?.minVoltage).toBe(3282);
+    // Low byte: 0xD3 = 211
+    expect(result.batteries?.[2]?.cellVoltages?.maxVoltageCell).toBe(211);
+    // High byte: 0x0C = 12
+    expect(result.batteries?.[2]?.cellVoltages?.minVoltageCell).toBe(12);
+
+    // Battery 3 (external 3): vol12=3277 (0x0CCD), vol13=3286, vol14=3283, vol15=3284
+    expect(result.batteries?.[3]).toHaveProperty('cellVoltages');
+    expect(result.batteries?.[3]?.cellVoltages?.maxVoltage).toBe(3286);
+    expect(result.batteries?.[3]?.cellVoltages?.minVoltage).toBe(3283);
+    // Low byte: 0xCD = 205
+    expect(result.batteries?.[3]?.cellVoltages?.maxVoltageCell).toBe(205);
+    // High byte: 0x0C = 12
+    expect(result.batteries?.[3]?.cellVoltages?.minVoltageCell).toBe(12);
 
     // Cell temperatures (b_temp0-b_temp3)
     expect(result.cells).toHaveProperty('temperatures');
@@ -474,7 +512,7 @@ describe('MQTT Message Parser', () => {
 
     // Inverter fields
     expect(result).toHaveProperty('inverter');
-    expect(result.inverter).toHaveProperty('temperature', 14.3);
+    expect(result.inverter).toHaveProperty('temperature', 42);
     expect(result.inverter).toHaveProperty('error', 0);
     expect(result.inverter).toHaveProperty('warning', 0);
     expect(result.inverter).toHaveProperty('gridVoltage', 239.9);
@@ -507,6 +545,38 @@ describe('MQTT Message Parser', () => {
     expect(result['mppt']).toHaveProperty('temperature', 5);
 
     expect(result).toHaveProperty('inverter');
-    expect(result.inverter).toHaveProperty('temperature', -3.1);
+    expect(result.inverter).toHaveProperty('temperature', -31);
+  });
+
+  test('should parse surplus feed-in correctly', () => {
+    // Surplus Feed-In disabled
+    const messageDisabled =
+      'ele_d=349,ele_m=2193,ele_y=0,pv1_p=94,pv1_s=1,pv2_p=77,pv2_s=1,pv3_p=41,pv3_s=1,pv4_p=60,pv4_s=1,grd_o=250,grd_t=1,gct_s=1,cel_s=0,cel_p=424,cel_c=83,err_t=0,wor_m=1,tim_0=12|0|23|59|127|800|1,tim_1=0|0|12|0|127|150|1,tim_2=0|0|0|0|255|0|0,tim_3=0|0|0|0|255|0|0,tim_4=0|0|0|0|255|0|0,cts_m=0,grd_d=285,grd_m=2018,dev_n=134,dev_i=106,dev_m=206,dev_b=209,dev_t=110,wif_s=75,ala_c=0,ful_d=0,ssid=xxxx,stop_s=10,htt_p=0,ct_t=4,phase_t=1,dchrg=1,seq_s=3,ctrl_r=0,shelly_p=1010,c_ratio=100,b_lck=0,dod=88,total_b=1,online_b=1';
+    // Surplus Feed-In enabled
+    const messageEnabled =
+      'ele_d=349,ele_m=2193,ele_y=0,pv1_p=94,pv1_s=1,pv2_p=77,pv2_s=1,pv3_p=41,pv3_s=1,pv4_p=60,pv4_s=1,grd_o=250,grd_t=1,gct_s=1,cel_s=0,cel_p=424,cel_c=83,err_t=0,wor_m=1,tim_0=12|0|23|59|127|800|1,tim_1=0|0|12|0|127|150|1,tim_2=0|0|0|0|255|0|0,tim_3=0|0|0|0|255|0|0,tim_4=0|0|0|0|255|0|0,cts_m=0,grd_d=285,grd_m=2018,dev_n=134,dev_i=106,dev_m=206,dev_b=209,dev_t=110,wif_s=75,ala_c=0,ful_d=1,ssid=xxxx,stop_s=10,htt_p=0,ct_t=4,phase_t=1,dchrg=1,seq_s=3,ctrl_r=0,shelly_p=1010,c_ratio=100,b_lck=0,dod=88,total_b=1,online_b=1';
+    // Surplus Feed-In actively feeding-in surplus
+    const messageActive =
+      'ele_d=349,ele_m=2193,ele_y=0,pv1_p=94,pv1_s=1,pv2_p=77,pv2_s=1,pv3_p=41,pv3_s=1,pv4_p=60,pv4_s=1,grd_o=250,grd_t=1,gct_s=1,cel_s=0,cel_p=424,cel_c=83,err_t=0,wor_m=1,tim_0=12|0|23|59|127|800|1,tim_1=0|0|12|0|127|150|1,tim_2=0|0|0|0|255|0|0,tim_3=0|0|0|0|255|0|0,tim_4=0|0|0|0|255|0|0,cts_m=0,grd_d=285,grd_m=2018,dev_n=134,dev_i=106,dev_m=206,dev_b=209,dev_t=110,wif_s=75,ala_c=0,ful_d=3,ssid=xxxx,stop_s=10,htt_p=0,ct_t=4,phase_t=1,dchrg=1,seq_s=3,ctrl_r=0,shelly_p=1010,c_ratio=100,b_lck=0,dod=88,total_b=1,online_b=1';
+    const deviceType = 'JPLS-1';
+    const deviceId = '12345';
+
+    let parsed = parseMessage(messageDisabled, deviceType, deviceId);
+    expect(parsed).toHaveProperty('data');
+
+    let result = parsed['data'] as B2500V2DeviceData;
+    expect(result).toHaveProperty('surplusFeedInEnabled', false);
+
+    parsed = parseMessage(messageEnabled, deviceType, deviceId);
+    expect(parsed).toHaveProperty('data');
+
+    result = parsed['data'] as B2500V2DeviceData;
+    expect(result).toHaveProperty('surplusFeedInEnabled', true);
+
+    parsed = parseMessage(messageActive, deviceType, deviceId);
+    expect(parsed).toHaveProperty('data');
+
+    result = parsed['data'] as B2500V2DeviceData;
+    expect(result).toHaveProperty('surplusFeedInEnabled', true);
   });
 });

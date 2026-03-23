@@ -1,4 +1,9 @@
-import { BuildMessageFn, globalPollInterval, registerDeviceDefinition } from '../deviceDefinition';
+import {
+  BuildMessageFn,
+  globalPollInterval,
+  KeyPath,
+  registerDeviceDefinition,
+} from '../deviceDefinition';
 import {
   CommandParams,
   JupiterBatteryWorkingStatus,
@@ -18,7 +23,16 @@ import {
   textComponent,
   numberComponent,
 } from '../homeAssistantDiscovery';
-import { divide, map, negate, identity, equalsBoolean, number, temperature } from '../transforms';
+import {
+  divide,
+  map,
+  negate,
+  identity,
+  number,
+  temperature,
+  highByte,
+  lowByte,
+} from '../transforms';
 
 /**
  * Command types supported by the Jupiter device (subset of Venus)
@@ -34,6 +48,11 @@ enum CommandType {
   GET_BMS_INFO = 14, // -> inv:g_state=1,w_state1=1,w_state2=1,i_err=0,i_war=0,g_vol=2399,g_cur=0,g_pf=0,g_fre=5000,b_vol=526,g_power=119,i_temp=31,mppt:m_state=244,m_err=0,m_temp=30,m_war=0,pv1=350|37|1304,pv2=349|39|1372,pv3=378|18|712,pv4=365|32|1180,b_vol=525,b_cur=85,base_v=221,pe_v=165,fail_t=0,bms:c_vol=571,c_cur=500,d_cur=500,soc=33,soh=100,b_cap=5120,b_vol=5252,b_cur=63,b_temp=250,b_err=0,b_war=0,b_err2=0,b_war2=0,c_flag=192,s_flag=0,b_num=1,vol0=3280,vol1=3281,vol2=3283,vol3=3283,vol4=3283,vol5=3283,vol6=3280,vol7=3284,vol8=3283,vol9=3284,vol10=3282,vol11=3286,vol12=3277,vol13=3286,vol14=3283,vol15=3284,b_temp0=14,b_temp1=15,b_temp2=15,b_temp3=16,env_t=27,mos_t=20,lck=0
   DEPTH_OF_DISCHARGE = 56,
 }
+
+// Minimum and maximum Depth of Discharge values based on Marstek app limits (30-90%).
+// NOTE: Experience has shown that these limits may change over time!
+const DOD_MIN = 30;
+const DOD_MAX = 90;
 
 function processCommand(command: CommandType, params: CommandParams = {}): string {
   const entries = Object.entries(params);
@@ -436,7 +455,11 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     );
 
     // Surplus Feed-in (ful_d)
-    field({ key: 'ful_d', path: ['surplusFeedInEnabled'], transform: equalsBoolean('1') });
+    field({
+      key: 'ful_d',
+      path: ['surplusFeedInEnabled'],
+      transform: map({ '1': true, '3': true }, false),
+    });
     advertise(
       ['surplusFeedInEnabled'],
       switchComponent({
@@ -449,11 +472,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     command('surplus-feed-in', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
         const enable =
-          message.toLowerCase() === 'true' ||
-          message === '1' ||
-          // `3` is reported when surplus is being fed-in
-          message === '3' ||
-          message === 'on';
+          message.toLowerCase() === 'true' || message.toLowerCase() === 'on' || message === '1';
         updateDeviceState(() => ({ surplusFeedInEnabled: enable }));
         // Yes, it's `full_d` in the command params
         publishCallback(processCommand(CommandType.SURPLUS_FEED_IN, { full_d: enable ? 1 : 0 }));
@@ -470,8 +489,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         unit_of_measurement: '%',
         device_class: 'battery',
         command: 'discharge-depth',
-        min: 30,
-        max: 88,
+        min: DOD_MIN,
+        max: DOD_MAX,
         step: 1,
       }),
       { enabled: state => state.deviceVersion !== undefined && state.deviceVersion >= 140 },
@@ -479,9 +498,11 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     command('discharge-depth', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
         const dod = parseInt(message, 10);
-        // Marstek app limits DoD to 30-88%
-        if (isNaN(dod) || dod < 30 || dod > 88) {
-          logger.warn('Invalid depth of discharge value (should be 30-88):', message);
+        if (Number.isNaN(dod) || dod < DOD_MIN || dod > DOD_MAX) {
+          logger.warn(
+            `Invalid depth of discharge value (should be ${DOD_MIN}-${DOD_MAX}):`,
+            message,
+          );
           return;
         }
         updateDeviceState(() => ({ depthOfDischarge: dod }));
@@ -884,21 +905,107 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
       enabled: process.env.POLL_CELL_DATA === 'true',
     },
     ({ field, advertise }) => {
-      // Cell voltages (vol0-vol15)
-      for (let i = 0; i < 16; i++) {
-        const key = `vol${i}`;
-        field({ key, path: ['cells', 'voltages', i] });
+      // `volX` fields are actually not what they look like. `vol0` encodes two
+      // cell numbers from the internal battery - high byte for the cell with
+      // the maximum voltage, and low byte for the cell with the minimum
+      // voltage. `vol1` and `vol2` provide maximum and minimum voltage,
+      // respectively. This was verified by Marstek support. However, we don't
+      // know which one of those cell numbers corresponds to the maximum voltage
+      // and which one corresponds to the minimum voltage. Marstek's reply to
+      // this question is still pending. For now, based on the observations, we
+      // assume that high byte encodes the cell with the minimum voltage and low
+      // byte encodes the cell with the maximum voltage.
+      //
+      // In addition to that, Marstek Jupiter C Plus can have up to 3 extra
+      // batteries attached, and the remaining `volX` fields should provide
+      // voltages for those batteries in the same way. However, we don't know
+      // where the block of values for the next battery starts. When no external
+      // batteries are attached, `vol3` to `vol15` are all `0`.
+      //
+      // For now, we will assume that four `volX` fields correspond to each
+      // battery, as it nicely aligns with 16 being divisible by 4 (1 internal
+      // battery + up to 3 external batteries). I don't have external batteries,
+      // so I can't verify this assumption.
+      //
+      // See: https://github.com/tomquist/hm2mqtt/discussions/253
+
+      // Batteries: 1 internal (battery 0) + up to 3 external (batteries 1-3)
+      for (let batteryIndex = 0; batteryIndex < 4; batteryIndex++) {
+        const baseIndex = batteryIndex * 4;
+        const batteryLabel =
+          batteryIndex === 0 ? 'Internal Battery' : `External Battery ${batteryIndex}`;
+        const volNumberKey = `vol${baseIndex}`;
+        const pathPrefix: KeyPath<JupiterBMSInfo> = ['batteries', batteryIndex, 'cellVoltages'];
+
+        // Cell with the highest voltage (low byte of volX)
+        field({
+          key: volNumberKey,
+          path: [...pathPrefix, 'maxVoltageCell'],
+          transform: lowByte(),
+        });
         advertise(
-          ['cells', 'voltages', i],
+          [...pathPrefix, 'maxVoltageCell'],
           sensorComponent<number>({
-            id: `cell_voltage_${i + 1}`,
-            name: `Cell Voltage ${i + 1}`,
+            id: `battery_${batteryIndex}_cell_number_voltage_max`,
+            name: `${batteryLabel} Cell With Highest Voltage`,
+            enabled_by_default: false,
+          }),
+        );
+
+        // Cell with the lowest voltage (high byte of volX)
+        field({
+          key: volNumberKey,
+          path: [...pathPrefix, 'minVoltageCell'],
+          transform: highByte(),
+        });
+        advertise(
+          [...pathPrefix, 'minVoltageCell'],
+          sensorComponent<number>({
+            id: `battery_${batteryIndex}_cell_number_voltage_min`,
+            name: `${batteryLabel} Cell With Lowest Voltage`,
+            enabled_by_default: false,
+          }),
+        );
+
+        // Highest voltage
+        const maxVoltageKey = `vol${baseIndex + 1}`;
+        field({
+          key: maxVoltageKey,
+          path: [...pathPrefix, 'maxVoltage'],
+          transform: number(),
+        });
+        advertise(
+          [...pathPrefix, 'maxVoltage'],
+          sensorComponent<number>({
+            id: `battery_${batteryIndex}_cell_voltage_max`,
+            name: `${batteryLabel} Highest Cell Voltage`,
             unit_of_measurement: 'mV',
             device_class: 'voltage',
+            state_class: 'measurement',
+            enabled_by_default: false,
+          }),
+        );
+
+        // Lowest voltage
+        const minVoltageKey = `vol${baseIndex + 2}`;
+        field({
+          key: minVoltageKey,
+          path: [...pathPrefix, 'minVoltage'],
+          transform: number(),
+        });
+        advertise(
+          [...pathPrefix, 'minVoltage'],
+          sensorComponent<number>({
+            id: `battery_${batteryIndex}_cell_voltage_min`,
+            name: `${batteryLabel} Lowest Cell Voltage`,
+            unit_of_measurement: 'mV',
+            device_class: 'voltage',
+            state_class: 'measurement',
             enabled_by_default: false,
           }),
         );
       }
+
       // Cell temperatures (b_temp0-b_temp3)
       for (let i = 0; i < 4; i++) {
         const key = `b_temp${i}`;
@@ -974,13 +1081,28 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             transform: divide(10),
           },
         ],
-        // My unit always reports 75 for `c_cur` and 300 for `d_cur`. 75 mA is
-        // too low, 75 A is too high. Dividing by 10 gives 7.5 A which looks
-        // more reasonable. However, 30 A for `d_cur` seems way too high. These
-        // values definitely need scaling, but I'm not sure what the correct
-        // factors are.
-        ['c_cur', { id: 'chargeCurrent', deviceClass: 'current', unitOfMeasurement: 'mA' }],
-        ['d_cur', { id: 'dischargeCurrent', deviceClass: 'current', unitOfMeasurement: 'mA' }],
+        // By observing the values, these two fields seem to represent the limits, not the actual
+        // charge and discharge currents.
+        [
+          'c_cur',
+          {
+            id: 'chargeCurrentLimit',
+            deviceClass: 'current',
+            unitOfMeasurement: 'A',
+            stateClass: 'measurement',
+            transform: divide(10),
+          },
+        ],
+        [
+          'd_cur',
+          {
+            id: 'dischargeCurrentLimit',
+            deviceClass: 'current',
+            unitOfMeasurement: 'A',
+            stateClass: 'measurement',
+            transform: divide(10),
+          },
+        ],
         ['b_err', { id: 'error' }],
         ['b_war', { id: 'warning' }],
         ['b_err2', { id: 'error2' }],
@@ -1095,7 +1217,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             deviceClass: 'temperature',
             unitOfMeasurement: '°C',
             stateClass: 'measurement',
-            transform: divide(10),
+            transform: temperature(),
           },
         ],
         ['i_err', { id: 'error' }],

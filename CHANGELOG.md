@@ -5,6 +5,10 @@
 
 - Drop 32-bit ARM (linux/arm/v7) image builds. Home Assistant no longer supports 32-bit ARM, and the CI now builds ARM images natively (arm64).
 
+- Jupiter: The "Cell Voltage X" sensors were removed as they were misleading. The `vol0`..`vol15` fields do not represent the actual cell voltages, but rather the numbers and voltages of the cell with the highest and lowest voltage. New sensors were added to represent these values properly.
+
+- Jupiter: `chargeCurrent` and `dischargeCurrent` sensors were renamed to `chargeCurrentLimit` and `dischargeCurrentLimit` to reflect that they represent the current limits set by BMS.
+
 ### Added
 
 - Log the build commit hash at application startup to make it easier to verify which exact source revision a running container/add-on was built from
@@ -15,6 +19,11 @@
 - Venus: Treat out-of-range/sentinel `mcp_w` values (e.g. -1) as unknown for the *Maximum Charging Power* entity to avoid Home Assistant log spam (#240)
 - B2500: Fix `Surplus Feed-in` entity missing for `HMJ-*` devices (firmware 108+) (fixes #235, #242)
 - B2500: Fix time period 5 control topics not being processed and normalize time format in timer commands (fixes #244)
+- Jupiter: Change parsing of cell voltages (`vol0`..`vol15`). They were not what they seemed, as they represent the numbers and the voltages of the cell with the highest and lowest voltage, not the actual cell voltages. See discussion in #253 for more details. The values are now parsed into new sensors and the old sensors ("Cell Voltage X") were removed.
+- Jupiter: Fix incorrect parsing of the "Surplus Feed-In" control state. The fix that was included in the previous release (#223) was incorrect and the control would still show as disabled when the device was actively feeding in surplus power.
+- Jupiter: Fix "Inverter Temperature" (`i_temp`) parsing by applying the correct divisor.
+- Jupiter: Update "Depth of Discharge" control range to 30% - 90% to keep up-to-date with the Marstek app (fixes #260).
+- Jupiter: Fix parsing and naming of "BMS ChargeCurrent" (`c_cur`) and "BMS DischargeCurrent" (`d_cur`) fields. They represent current limits set by the BMS, not the actual currents, so they were renamed to `BMS ChargeCurrentLimit` and `BMS DischargeCurrentLimit` and their values are now in Amperes.
 
 ## [1.6.0] - 2026-01-25
 

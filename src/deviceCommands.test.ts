@@ -923,15 +923,8 @@ const commandTestCases: CommandTestCase[] = [
     input: 'false',
     expectedOutput: 'cd=13,full_d=0',
   },
-  {
-    description: 'Jupiter surplus-feed-in with 3 (feed-in active)',
-    deviceType: 'HMN-1',
-    command: 'surplus-feed-in',
-    input: '3',
-    expectedOutput: 'cd=13,full_d=1',
-  },
 
-  // discharge-depth command (Jupiter: 30-88%)
+  // discharge-depth command (Jupiter: 30-90%)
   {
     description: 'Jupiter discharge-depth valid',
     deviceType: 'HMN-1',
@@ -947,11 +940,11 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: 'cd=56,dod=30',
   },
   {
-    description: 'Jupiter discharge-depth maximum (88%)',
+    description: 'Jupiter discharge-depth maximum (90%)',
     deviceType: 'HMN-1',
     command: 'discharge-depth',
-    input: '88',
-    expectedOutput: 'cd=56,dod=88',
+    input: '90',
+    expectedOutput: 'cd=56,dod=90',
   },
   {
     description: 'Jupiter discharge-depth below minimum (invalid)',
@@ -964,7 +957,7 @@ const commandTestCases: CommandTestCase[] = [
     description: 'Jupiter discharge-depth above maximum (invalid)',
     deviceType: 'HMN-1',
     command: 'discharge-depth',
-    input: '89',
+    input: '91',
     expectedOutput: null,
   },
 

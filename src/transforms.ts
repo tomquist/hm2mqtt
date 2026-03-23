@@ -41,6 +41,8 @@ export type Transform =
   | AverageTransform
   | RoundTransform
   | InRangeTransform
+  | HighByteTransform
+  | LowByteTransform
   | TimePeriodFieldTransform
   | MPPTPVFieldTransform
   | BitMaskToWeekdayTransform
@@ -136,6 +138,16 @@ export interface MapTransform {
 export interface RoundTransform {
   type: 'round';
   decimals?: number;
+}
+
+/** Extract high byte (bits 8-15) from an integer value */
+export interface HighByteTransform {
+  type: 'highByte';
+}
+
+/** Extract low byte (bits 0-7) from an integer value */
+export interface LowByteTransform {
+  type: 'lowByte';
 }
 
 /** Chain multiple transforms together */
@@ -260,6 +272,12 @@ export const map = (
 
 /** Create a round transform */
 export const round = (decimals?: number): RoundTransform => ({ type: 'round', decimals });
+
+/** Create a high byte transform */
+export const highByte = (): HighByteTransform => ({ type: 'highByte' });
+
+/** Create a low byte transform */
+export const lowByte = (): LowByteTransform => ({ type: 'lowByte' });
 
 /** Return the numeric value if it is within range, otherwise undefined */
 export interface InRangeTransform {
@@ -396,6 +414,16 @@ export function executeTransform(
       if (transform.decimals === undefined) return Math.round(num);
       const factor = Math.pow(10, transform.decimals);
       return Math.round(num * factor) / factor;
+    }
+
+    case 'highByte': {
+      const num = parseInt(value, 10);
+      return isNaN(num) ? 0 : (num >> 8) & 0xff;
+    }
+
+    case 'lowByte': {
+      const num = parseInt(value, 10);
+      return isNaN(num) ? 0 : num & 0xff;
     }
 
     case 'inRange': {
@@ -614,6 +642,12 @@ export function transformToJinja2(
         return `{{ (${valueExpr} | float(0)) | round }}`;
       }
       return `{{ (${valueExpr} | float(0)) | round(${transform.decimals}) }}`;
+
+    case 'highByte':
+      return `{{ ((${valueExpr} | int(0)) // 0x100) | bitwise_and(0xff) }}`;
+
+    case 'lowByte':
+      return `{{ (${valueExpr} | int(0)) | bitwise_and(0xff) }}`;
 
     case 'inRange':
       // If outside range, return undefined (rendered as "unknown" by HA)
