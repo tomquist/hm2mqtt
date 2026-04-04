@@ -1,5 +1,5 @@
 import { Device, MqttConfig } from './types';
-import { getDeviceDefinition } from './deviceDefinition';
+import { getDeviceDefinition, extractBaseType, getSuggestedDeviceType } from './deviceDefinition';
 import { calculateNewVersionTopicId, decryptNewVersionTopicId } from './utils/crypt';
 import logger from './logger';
 
@@ -49,7 +49,15 @@ export class DeviceManager {
     this.config.devices.forEach(device => {
       const deviceDefinition = getDeviceDefinition(device.deviceType);
       if (!deviceDefinition) {
-        logger.warn(`Skipping unknown device type: ${device.deviceType}`);
+        const baseType = extractBaseType(device.deviceType);
+        const suggestion = getSuggestedDeviceType(baseType);
+        if (suggestion) {
+          logger.warn(
+            `Skipping unknown device type: ${device.deviceType}. Did you mean "${suggestion}"?`,
+          );
+        } else {
+          logger.warn(`Skipping unknown device type: ${device.deviceType}`);
+        }
         return;
       }
       validDeviceCount++;
@@ -90,9 +98,8 @@ export class DeviceManager {
   }
 
   private shouldEncryptDeviceId(deviceType: string): boolean {
-    const match = /^(.*)-[\d\w]+$/.exec(deviceType);
-    const baseType = match ? match[1] : deviceType;
-    return this.encryptedDeviceTypes.has(baseType);
+    const baseType = extractBaseType(deviceType);
+    return this.encryptedDeviceTypes.has(baseType.toUpperCase());
   }
 
   /**

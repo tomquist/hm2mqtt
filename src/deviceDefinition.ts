@@ -2,6 +2,8 @@ import { HaComponentConfig } from './homeAssistantDiscovery';
 import { ControlHandlerDefinition } from './controlHandler';
 import { HaAdvertisement } from './generateDiscoveryConfigs';
 import { Transform, MultiKeyTransform } from './transforms';
+import { levenshteinDistance } from './utils/stringDistance';
+import logger from './logger';
 
 export const globalPollInterval = parseInt(process.env.MQTT_POLLING_INTERVAL || '60', 10) * 1000;
 
@@ -206,16 +208,49 @@ export function registerDeviceDefinition(
   }
 }
 
+export function extractBaseType(deviceType: string): string {
+  const regex = /(.*)-[\d\w]+/;
+  const match = regex.exec(deviceType);
+  return match != null ? match[1] : deviceType;
+}
+
 export function getDeviceDefinition(
   deviceType: string,
 ): DeviceDefinition<BaseDeviceData> | undefined {
-  const regex = /(.*)-[\d\w]+/;
-  const match = regex.exec(deviceType);
-  if (match == null) {
-    return;
+  const baseType = extractBaseType(deviceType);
+
+  // Exact match
+  const exact = deviceDefinitionRegistry.get(baseType);
+  if (exact) {
+    return exact;
   }
-  const baseType = match[1];
-  return deviceDefinitionRegistry.get(baseType);
+
+  // Case-insensitive match
+  const upperBase = baseType.toUpperCase();
+  for (const [key, definition] of deviceDefinitionRegistry) {
+    if (key.toUpperCase() === upperBase) {
+      logger.info(`Device type "${deviceType}" matched as "${key}" (case-insensitive)`);
+      return definition;
+    }
+  }
+
+  return undefined;
+}
+
+export function getSuggestedDeviceType(baseType: string): string | undefined {
+  const threshold = Math.max(1, Math.floor(baseType.length / 2));
+  let bestMatch: string | undefined;
+  let bestDistance = Infinity;
+
+  for (const key of deviceDefinitionRegistry.keys()) {
+    const distance = levenshteinDistance(baseType.toUpperCase(), key.toUpperCase());
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestMatch = key;
+    }
+  }
+
+  return bestDistance <= threshold ? bestMatch : undefined;
 }
 
 import './device/registry';
