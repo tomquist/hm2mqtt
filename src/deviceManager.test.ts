@@ -2,6 +2,7 @@ import { DeviceManager } from './deviceManager';
 import { MqttConfig } from './types';
 import { DEFAULT_TOPIC_PREFIX } from './constants';
 import { calculateNewVersionTopicId } from './utils/crypt';
+import logger from './logger';
 
 describe('DeviceManager', () => {
   const mockConfig: MqttConfig = {
@@ -105,6 +106,58 @@ describe('DeviceManager', () => {
 
     // getPollingInterval should work since there's at least one valid device
     expect(() => dm.getPollingInterval()).not.toThrow();
+  });
+
+  it('should log "Did you mean" for typo in device type', () => {
+    const warnSpy = jest.spyOn(logger, 'warn');
+    const typoConfig: MqttConfig = {
+      brokerUrl: 'mqtt://localhost',
+      clientId: 'test-client',
+      topicPrefix: DEFAULT_TOPIC_PREFIX,
+      autodiscoveryTopicPrefix: 'homeassistant',
+      devices: [
+        { deviceType: 'HWJ-2', deviceId: 'typo123' },
+        { deviceType: 'HMA-1', deviceId: 'valid123' },
+      ],
+    };
+
+    new DeviceManager(typoConfig, mockOnUpdateState);
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Skipping unknown device type: HWJ-2. Did you mean "HMJ"?',
+    );
+    warnSpy.mockRestore();
+  });
+
+  it('should not suggest for completely unrelated device type', () => {
+    const warnSpy = jest.spyOn(logger, 'warn');
+    const unrelatedConfig: MqttConfig = {
+      brokerUrl: 'mqtt://localhost',
+      clientId: 'test-client',
+      topicPrefix: DEFAULT_TOPIC_PREFIX,
+      autodiscoveryTopicPrefix: 'homeassistant',
+      devices: [
+        { deviceType: 'ZZZZZ-1', deviceId: 'bad123' },
+        { deviceType: 'HMA-1', deviceId: 'valid123' },
+      ],
+    };
+
+    new DeviceManager(unrelatedConfig, mockOnUpdateState);
+    expect(warnSpy).toHaveBeenCalledWith('Skipping unknown device type: ZZZZZ-1');
+    warnSpy.mockRestore();
+  });
+
+  it('should match device type case-insensitively', () => {
+    const caseConfig: MqttConfig = {
+      brokerUrl: 'mqtt://localhost',
+      clientId: 'test-client',
+      topicPrefix: DEFAULT_TOPIC_PREFIX,
+      autodiscoveryTopicPrefix: 'homeassistant',
+      devices: [{ deviceType: 'hma-1', deviceId: 'case123' }],
+    };
+
+    const dm = new DeviceManager(caseConfig, mockOnUpdateState);
+    const topics = dm.getDeviceTopics(caseConfig.devices[0]);
+    expect(topics).toBeDefined();
   });
 
   it('should not encrypt new topics for non-HMA/HMF/HMK/HMJ devices', () => {
