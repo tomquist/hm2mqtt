@@ -14,6 +14,8 @@ import {
   identity,
   map,
   round,
+  highByte,
+  lowByte,
   chain,
   timePeriodField,
   mpptPvField,
@@ -246,6 +248,55 @@ describe('transforms', () => {
     it('should round to specified decimal places', () => {
       expect(executeTransform(round(2), '3.14159')).toBe(3.14);
       expect(executeTransform(round(1), '3.14159')).toBe(3.1);
+    });
+  });
+
+  describe('highByte transform', () => {
+    it('should extract high byte (bits 8-15) from integer', () => {
+      expect(executeTransform(highByte(), '0x1234')).toBe(0); // NaN for hex
+      expect(executeTransform(highByte(), '256')).toBe(1); // 0x0100
+      expect(executeTransform(highByte(), '512')).toBe(2); // 0x0200
+      expect(executeTransform(highByte(), '65280')).toBe(255); // 0xFF00
+      expect(executeTransform(highByte(), '4660')).toBe(18); // 0x1234
+    });
+
+    it('should return 0 for non-numeric values', () => {
+      expect(executeTransform(highByte(), 'invalid')).toBe(0);
+      expect(executeTransform(highByte(), '')).toBe(0);
+    });
+
+    it('should handle zero', () => {
+      expect(executeTransform(highByte(), '0')).toBe(0);
+    });
+
+    it('should generate correct Jinja2 template', () => {
+      expect(transformToJinja2(highByte(), 'value')).toBe(
+        '{{ ((value | int(0)) // 0x100) | bitwise_and(0xff) }}',
+      );
+    });
+  });
+
+  describe('lowByte transform', () => {
+    it('should extract low byte (bits 0-7) from integer', () => {
+      expect(executeTransform(lowByte(), '256')).toBe(0); // 0x0100
+      expect(executeTransform(lowByte(), '257')).toBe(1); // 0x0101
+      expect(executeTransform(lowByte(), '511')).toBe(255); // 0x01FF
+      expect(executeTransform(lowByte(), '4660')).toBe(52); // 0x1234
+    });
+
+    it('should return 0 for non-numeric values', () => {
+      expect(executeTransform(lowByte(), 'invalid')).toBe(0);
+      expect(executeTransform(lowByte(), '')).toBe(0);
+    });
+
+    it('should handle zero', () => {
+      expect(executeTransform(lowByte(), '0')).toBe(0);
+    });
+
+    it('should generate correct Jinja2 template', () => {
+      expect(transformToJinja2(lowByte(), 'value')).toBe(
+        '{{ (value | int(0)) | bitwise_and(0xff) }}',
+      );
     });
   });
 
