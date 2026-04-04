@@ -98,9 +98,8 @@ export class DeviceManager {
   }
 
   private shouldEncryptDeviceId(deviceType: string): boolean {
-    const match = /^(.*)-[\d\w]+$/.exec(deviceType);
-    const baseType = match ? match[1] : deviceType;
-    return this.encryptedDeviceTypes.has(baseType);
+    const baseType = extractBaseType(deviceType);
+    return this.encryptedDeviceTypes.has(baseType.toUpperCase());
   }
 
   /**
