@@ -44,7 +44,7 @@ export function generateDiscoveryConfigs(
       ? { sw_version: additionalDeviceInfo.firmwareVersion }
       : {}),
     ...(MAC_REGEX.test(device.deviceId)
-      ? { connections: [['mac', formatMac(device.deviceId)]] }
+      ? { connections: [['bluetooth', formatMac(device.deviceId)]] }
       : {}),
   };
   const origin = {

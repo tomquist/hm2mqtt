@@ -127,7 +127,7 @@ describe('Home Assistant Discovery', () => {
     );
 
     const firstConfig = configs[0];
-    expect(firstConfig.config!.device.connections).toEqual([['mac', 'E8:8D:A6:F3:5D:EF']]);
+    expect(firstConfig.config!.device.connections).toEqual([['bluetooth', 'E8:8D:A6:F3:5D:EF']]);
   });
 
   test('should not include connections when deviceId is not a MAC address', () => {
