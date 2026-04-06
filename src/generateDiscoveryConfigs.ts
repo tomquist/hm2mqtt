@@ -14,7 +14,8 @@ import { Device } from './types';
 const MAC_REGEX = /^[0-9a-fA-F]{12}$/;
 
 function formatMac(id: string): string {
-  return id.toUpperCase().match(/.{2}/g)!.join(':');
+  const parts = id.toUpperCase().match(/.{2}/g);
+  return parts ? parts.join(':') : id.toUpperCase();
 }
 
 export interface HaAdvertisement<T, KP extends KeyPath<T> | []> {
