@@ -13,6 +13,7 @@
 
 - Log the build commit hash at application startup to make it easier to verify which exact source revision a running container/add-on was built from
 - Add configurable Home Assistant MQTT discovery topic prefix via `AUTODISCOVERY_TOPIC_PREFIX` (add-on option: `autodiscoveryTopicPrefix`, default: `homeassistant`) (#248)
+- Include `connections` field with formatted MAC address in device discovery payloads, allowing Home Assistant to correlate devices by their Bluetooth address
 
 ### Fixed
 
