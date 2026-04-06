@@ -106,6 +106,54 @@ describe('Home Assistant Discovery', () => {
     expect(factoryResetButton?.config!.payload_press).toBe('PRESS');
   });
 
+  test('should include connections with formatted MAC when deviceId is 12 hex chars', () => {
+    const device: Device = { deviceType: 'HMA-1', deviceId: 'e88da6f35def' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/HMA-1/device/e88da6f35def/ctrl',
+      deviceTopicNew: 'marstek_energy/HMA-1/device/e88da6f35def/ctrl',
+      deviceControlTopicOld: 'hame_energy/HMA-1/App/e88da6f35def/ctrl',
+      deviceControlTopicNew: 'marstek_energy/HMA-1/App/e88da6f35def/ctrl',
+      availabilityTopic: 'hame_energy/HMA-1/availability/e88da6f35def',
+      controlSubscriptionTopic: 'hame_energy/HMA-1/control/e88da6f35def/control',
+      publishTopic: 'hame_energy/HMA-1/device/e88da6f35def/data',
+    };
+
+    const configs = generateDiscoveryConfigs(
+      device,
+      deviceTopics,
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
+    );
+
+    const firstConfig = configs[0];
+    expect(firstConfig.config!.device.connections).toEqual([['mac', 'E8:8D:A6:F3:5D:EF']]);
+  });
+
+  test('should not include connections when deviceId is not a MAC address', () => {
+    const device: Device = { deviceType: 'HMA-1', deviceId: 'test123' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/HMA-1/device/test123/ctrl',
+      deviceTopicNew: 'marstek_energy/HMA-1/device/test123/ctrl',
+      deviceControlTopicOld: 'hame_energy/HMA-1/App/test123/ctrl',
+      deviceControlTopicNew: 'marstek_energy/HMA-1/App/test123/ctrl',
+      availabilityTopic: 'hame_energy/HMA-1/availability/test123',
+      controlSubscriptionTopic: 'hame_energy/HMA-1/control/test123/control',
+      publishTopic: 'hame_energy/HMA-1/device/test123/data',
+    };
+
+    const configs = generateDiscoveryConfigs(
+      device,
+      deviceTopics,
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
+    );
+
+    const firstConfig = configs[0];
+    expect(firstConfig.config!.device).not.toHaveProperty('connections');
+  });
+
   test('should publish surplus_feed_in for HMJ-* when firmware supports it (regression #235)', () => {
     const deviceType = 'HMJ-2';
     const deviceId = 'test123';
