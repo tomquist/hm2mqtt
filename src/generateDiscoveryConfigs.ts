@@ -10,6 +10,14 @@ import {
   TypeAtPath,
 } from './deviceDefinition';
 import { Device } from './types';
+
+const MAC_REGEX = /^[0-9a-fA-F]{12}$/;
+
+function formatMac(id: string): string {
+  const parts = id.toUpperCase().match(/.{2}/g);
+  return parts ? parts.join(':') : id.toUpperCase();
+}
+
 export interface HaAdvertisement<T, KP extends KeyPath<T> | []> {
   keyPath: KP;
   advertise: HaStatefulAdvertiseBuilder<KP extends KeyPath<T> ? TypeAtPath<T, KeyPath<T>> : void>;
@@ -34,6 +42,9 @@ export function generateDiscoveryConfigs(
     manufacturer: 'HAME Energy',
     ...(additionalDeviceInfo.firmwareVersion != null
       ? { sw_version: additionalDeviceInfo.firmwareVersion }
+      : {}),
+    ...(MAC_REGEX.test(device.deviceId)
+      ? { connections: [['bluetooth', formatMac(device.deviceId)]] }
       : {}),
   };
   const origin = {

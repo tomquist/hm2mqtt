@@ -103,6 +103,8 @@ export interface HaDiscoveryConfig {
     model: string;
     model_id: string;
     manufacturer: string;
+    sw_version?: string;
+    connections?: [string, string][];
   };
   origin: {
     name: string;
