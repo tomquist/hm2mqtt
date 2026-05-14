@@ -314,6 +314,7 @@ services:
 The device type can be one of the following:
 - **HMB-X**: (e.g. HMB-1, HMB-2, ...) B2500 storage v1
 - **HMA-X**: (e.g. HMA-1, HMA-2, ...) B2500 storage v2
+- **HMJ-X**: (e.g. HMJ-2, ...) B2500 storage v2
 - **HMK-X**: (e.g. HMK-1, HMK-2, ...) Greensolar storage v3
 - **HMG-X**: (e.g. HMG-50) Marstek Venus
 - **VNSE3-X**: (e.g. VNSE3-0) Venus E 3.0
