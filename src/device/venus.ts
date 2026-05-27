@@ -209,6 +209,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       key: 'tot_i',
       path: ['totalChargingCapacity'],
       transform: divide(100), // Convert to kWh
+      monotonic: true,
     });
     advertise(
       ['totalChargingCapacity'],
@@ -225,6 +226,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       key: 'tot_o',
       path: ['totalDischargeCapacity'],
       transform: divide(100), // Convert to kWh
+      monotonic: true,
     });
     advertise(
       ['totalDischargeCapacity'],
@@ -241,6 +243,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       key: 'ele_d',
       path: ['dailyChargingCapacity'],
       transform: divide(100), // Convert to kWh
+      monotonic: true,
     });
     advertise(
       ['dailyChargingCapacity'],
@@ -257,6 +260,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       key: 'ele_m',
       path: ['monthlyChargingCapacity'],
       transform: divide(100), // Convert to kWh
+      monotonic: true,
     });
     advertise(
       ['monthlyChargingCapacity'],
@@ -273,6 +277,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       key: 'grd_d',
       path: ['dailyDischargeCapacity'],
       transform: divide(100), // Convert to kWh
+      monotonic: true,
     });
     advertise(
       ['dailyDischargeCapacity'],
@@ -289,6 +294,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       key: 'grd_m',
       path: ['monthlyDischargeCapacity'],
       transform: divide(100), // Convert to kWh
+      monotonic: true,
     });
     advertise(
       ['monthlyDischargeCapacity'],

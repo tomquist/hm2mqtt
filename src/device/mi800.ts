@@ -70,7 +70,12 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     );
 
     // Energy statistics - divide by 100 to convert to kWh
-    field({ key: 'ele_d', path: ['dailyEnergyGenerated'], transform: divide(100) });
+    field({
+      key: 'ele_d',
+      path: ['dailyEnergyGenerated'],
+      transform: divide(100),
+      monotonic: true,
+    });
     advertise(
       ['dailyEnergyGenerated'],
       sensorComponent<number>({
@@ -82,7 +87,12 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'ele_w', path: ['weeklyEnergyGenerated'], transform: divide(100) });
+    field({
+      key: 'ele_w',
+      path: ['weeklyEnergyGenerated'],
+      transform: divide(100),
+      monotonic: true,
+    });
     advertise(
       ['weeklyEnergyGenerated'],
       sensorComponent<number>({
@@ -94,7 +104,12 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'ele_m', path: ['monthlyEnergyGenerated'], transform: divide(100) });
+    field({
+      key: 'ele_m',
+      path: ['monthlyEnergyGenerated'],
+      transform: divide(100),
+      monotonic: true,
+    });
     advertise(
       ['monthlyEnergyGenerated'],
       sensorComponent<number>({
@@ -106,7 +121,12 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'ele_s', path: ['totalEnergyGenerated'], transform: divide(100) });
+    field({
+      key: 'ele_s',
+      path: ['totalEnergyGenerated'],
+      transform: divide(100),
+      monotonic: true,
+    });
     advertise(
       ['totalEnergyGenerated'],
       sensorComponent<number>({
