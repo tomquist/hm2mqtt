@@ -1,5 +1,11 @@
 import { parseMessage } from './parser';
-import { B2500V2DeviceData, JupiterBMSInfo, JupiterDeviceData, MI800DeviceData } from './types';
+import {
+  B2500V2DeviceData,
+  JupiterBMSInfo,
+  JupiterDeviceData,
+  MI800DeviceData,
+  VenusDeviceData,
+} from './types';
 
 describe('MQTT Message Parser', () => {
   test('should parse comma-separated key-value pairs correctly', () => {
@@ -578,5 +584,19 @@ describe('MQTT Message Parser', () => {
 
     result = parsed['data'] as B2500V2DeviceData;
     expect(result).toHaveProperty('surplusFeedInEnabled', true);
+  });
+
+  test('parses a corrupt Venus reading verbatim (suppression is the guard’s job, not the parser’s)', () => {
+    // A real dropped-trailing-digit reading from issue #296: tot_i=3399 (vs 33993),
+    // tot_o=4318 (vs 43187). The parser must not hide the bad value; the monotonic
+    // guard in DeviceManager is responsible for rejecting it.
+    const message =
+      'cd=1,tot_i=3399,tot_o=4318,ele_d=3399,ele_m=3399,grd_d=4318,grd_m=4318,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=100,err_a=4,dev_n=148,grd_y=0,wor_m=0,tim_0=0|0|0|0|0|0|0,cts_m=0,bac_u=0,tra_a=75,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=3,wif_s=35,inc_a=0,set_v=0,mcp_w=2500,mdp_w=2500,ct_t=3,phase_t=1,dchrg_t=1,bms_v=113,fc_v=202409090159,wifi_n=maekan,seq_s=3,ctrl_r=0,par=0,gen=0,ble=1,shelly_p=1010,c_ratio=100';
+    const parsed = parseMessage(message, 'VNSE3-0', 'venus123');
+
+    expect(parsed).toHaveProperty('data');
+    const result = parsed['data'] as VenusDeviceData;
+    expect(result).toHaveProperty('totalChargingCapacity', 33.99);
+    expect(result).toHaveProperty('totalDischargeCapacity', 43.18);
   });
 });

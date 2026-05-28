@@ -151,7 +151,12 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'ele_d', path: ['dailyChargingCapacity'], transform: divide(100) });
+    field({
+      key: 'ele_d',
+      path: ['dailyChargingCapacity'],
+      transform: divide(100),
+      monotonic: true,
+    });
     advertise(
       ['dailyChargingCapacity'],
       sensorComponent<number>({
@@ -162,7 +167,12 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'total_increasing',
       }),
     );
-    field({ key: 'ele_m', path: ['monthlyChargingCapacity'], transform: divide(100) });
+    field({
+      key: 'ele_m',
+      path: ['monthlyChargingCapacity'],
+      transform: divide(100),
+      monotonic: true,
+    });
     advertise(
       ['monthlyChargingCapacity'],
       sensorComponent<number>({
@@ -173,7 +183,12 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'total_increasing',
       }),
     );
-    field({ key: 'ele_y', path: ['yearlyChargingCapacity'], transform: divide(100) });
+    field({
+      key: 'ele_y',
+      path: ['yearlyChargingCapacity'],
+      transform: divide(100),
+      monotonic: true,
+    });
     advertise(
       ['yearlyChargingCapacity'],
       sensorComponent<number>({
@@ -228,7 +243,12 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'measurement',
       }),
     );
-    field({ key: 'grd_d', path: ['dailyDischargeCapacity'], transform: divide(100) });
+    field({
+      key: 'grd_d',
+      path: ['dailyDischargeCapacity'],
+      transform: divide(100),
+      monotonic: true,
+    });
     advertise(
       ['dailyDischargeCapacity'],
       sensorComponent<number>({
@@ -243,6 +263,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       key: 'grd_m',
       path: ['monthlyDischargeCapacity'],
       transform: divide(100),
+      monotonic: true,
     });
     advertise(
       ['monthlyDischargeCapacity'],

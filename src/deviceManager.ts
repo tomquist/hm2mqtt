@@ -1,7 +1,21 @@
 import { Device, MqttConfig } from './types';
-import { getDeviceDefinition, extractBaseType, getSuggestedDeviceType } from './deviceDefinition';
+import {
+  getDeviceDefinition,
+  extractBaseType,
+  getSuggestedDeviceType,
+  FieldDefinition,
+  KeyPath,
+} from './deviceDefinition';
 import { calculateNewVersionTopicId, decryptNewVersionTopicId } from './utils/crypt';
 import logger from './logger';
+
+/**
+ * Number of confirming readings (beyond the first drop) required before a
+ * backward jump in a `monotonic` counter is accepted as a genuine reset.
+ * A transient corrupt reading recovers on the next poll and is rejected; a real
+ * period reset persists and is accepted once confirmed.
+ */
+const MONOTONIC_RESET_CONFIRMATIONS = 1;
 
 /**
  * Interface for device state data
@@ -34,6 +48,8 @@ export class DeviceManager {
   private deviceTopics: Record<DeviceKey, DeviceTopics> = {};
   private deviceStates: Record<DeviceKey, Record<string, DeviceStateData> | undefined> = {};
   private deviceResponseTimeouts: Record<DeviceKey, NodeJS.Timeout[]> = {};
+  // Consecutive below-previous reading counts per device, per monotonic field id.
+  private monotonicBelowCount: Record<DeviceKey, Record<string, number>> = {};
   private readonly encryptedDeviceTypes = new Set(['HMA', 'HMF', 'HMK', 'HMJ']);
 
   constructor(
@@ -164,9 +180,11 @@ export class DeviceManager {
     updater: (state: DeviceStateData) => T,
   ): DeviceStateData & T {
     const deviceKey = this.getDeviceKey(device);
+    const candidate = updater(this.getDeviceStateForPath(device, path));
+    this.guardMonotonicFields(device, path, this.getDeviceStateForPath(device, path), candidate);
     let newDeviceState: T = {
       ...this.getDeviceStateForPath(device, path),
-      ...updater(this.getDeviceStateForPath(device, path)),
+      ...candidate,
     };
     this.deviceStates[deviceKey] = {
       ...this.deviceStates[deviceKey],
@@ -174,6 +192,62 @@ export class DeviceManager {
     };
     this.onUpdateState(device, path, newDeviceState);
     return newDeviceState as DeviceStateData & T;
+  }
+
+  /**
+   * Suppress transient corrupt backward jumps in cumulative (`monotonic`)
+   * counters. A reading lower than the last good value is rejected — the last
+   * good value is written back into the candidate — until a subsequent reading
+   * confirms the drop persists, at which point it is accepted as a genuine
+   * period reset. Mutates `candidate` in place.
+   */
+  private guardMonotonicFields(
+    device: Device,
+    path: string,
+    prevState: DeviceStateData | undefined,
+    candidate: DeviceStateData | undefined,
+  ): void {
+    if (candidate == null) {
+      return;
+    }
+    const fields =
+      getDeviceDefinition(device.deviceType)?.messages.find(msg => msg.publishPath === path)
+        ?.fields ?? [];
+    const deviceKey = this.getDeviceKey(device);
+
+    for (const field of fields) {
+      if (!field.monotonic) {
+        continue;
+      }
+      const fieldPath = (field as FieldDefinition<any, KeyPath<any>>).path;
+      const nextVal = getAtPath(candidate, fieldPath);
+      if (typeof nextVal !== 'number' || !Number.isFinite(nextVal)) {
+        continue;
+      }
+
+      const fieldId = `${path}|${fieldPath.join('.')}`;
+      const prevVal = getAtPath(prevState, fieldPath);
+      const counts = (this.monotonicBelowCount[deviceKey] ??= {});
+
+      if (typeof prevVal !== 'number' || !Number.isFinite(prevVal) || nextVal >= prevVal) {
+        // First good reading, or a normal non-decreasing value: accept.
+        delete counts[fieldId];
+        continue;
+      }
+
+      // Backward jump.
+      const count = (counts[fieldId] ?? 0) + 1;
+      if (count > MONOTONIC_RESET_CONFIRMATIONS) {
+        // Drop confirmed across consecutive readings: accept as a genuine reset.
+        delete counts[fieldId];
+        continue;
+      }
+      counts[fieldId] = count;
+      logger.warn(
+        `Rejecting backward jump for ${device.deviceType}:${device.deviceId} ${fieldPath.join('.')}: ${prevVal} -> ${nextVal} (keeping previous value, awaiting confirmation)`,
+      );
+      setAtPath(candidate, fieldPath, prevVal);
+    }
   }
 
   /**
@@ -308,4 +382,33 @@ export class DeviceManager {
   getResponseTimeout(): number {
     return this.config.responseTimeout || 15000; // Default to 15 seconds if not specified
   }
+}
+
+/**
+ * Read the value at a nested path, or undefined if any segment is missing.
+ */
+function getAtPath(obj: unknown, path: ReadonlyArray<string | number>): unknown {
+  let current: any = obj;
+  for (const key of path) {
+    if (current == null) {
+      return undefined;
+    }
+    current = current[key];
+  }
+  return current;
+}
+
+/**
+ * Set the value at a nested path, creating intermediate objects as needed.
+ */
+function setAtPath(obj: any, path: ReadonlyArray<string | number>, value: unknown): void {
+  let current = obj;
+  for (let i = 0; i < path.length - 1; i++) {
+    const key = path[i];
+    if (current[key] == null) {
+      current[key] = {};
+    }
+    current = current[key];
+  }
+  current[path[path.length - 1]] = value;
 }

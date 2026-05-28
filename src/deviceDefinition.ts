@@ -70,6 +70,13 @@ export type FieldDefinition<
   key: K;
   path: KP;
   transform?: TransformSpec<K, TypeAtPath<T, KP>>;
+  /**
+   * Marks a never-decreasing cumulative counter. When set, a reading lower than
+   * the last good value is rejected unless a subsequent reading confirms the
+   * drop (see the monotonic guard in DeviceManager.updateDeviceState). Protects
+   * Home Assistant `total_increasing` sensors from transient corrupt readings.
+   */
+  monotonic?: boolean;
 } & (TypeAtPath<T, KP> extends number | undefined
   ? {}
   : {

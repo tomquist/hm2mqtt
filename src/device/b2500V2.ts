@@ -352,6 +352,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       key: 'bc',
       path: ['dailyStats', 'batteryChargingPower'],
       transform: number(),
+      monotonic: true,
     });
     advertise(
       ['dailyStats', 'batteryChargingPower'],
@@ -367,6 +368,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       key: 'bs',
       path: ['dailyStats', 'batteryDischargePower'],
       transform: number(),
+      monotonic: true,
     });
     advertise(
       ['dailyStats', 'batteryDischargePower'],
@@ -382,6 +384,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       key: 'pt',
       path: ['dailyStats', 'photovoltaicChargingPower'],
       transform: number(),
+      monotonic: true,
     });
     advertise(
       ['dailyStats', 'photovoltaicChargingPower'],
@@ -397,6 +400,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       key: 'it',
       path: ['dailyStats', 'microReverseOutputPower'],
       transform: number(),
+      monotonic: true,
     });
     advertise(
       ['dailyStats', 'microReverseOutputPower'],
