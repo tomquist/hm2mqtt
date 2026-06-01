@@ -1,5 +1,5 @@
 # Changelog
-## [Next]
+## [1.7.0] - 2026-06-01
 
 ### Breaking Changes
 
