@@ -7,6 +7,13 @@ on:
 permissions:
   issues: write
 
+# Serialize runs per issue so the "opened" and "labeled" events (which both
+# fire when an issue is created from the bug template that auto-applies the
+# "bug" label) don't race past the duplicate-comment check and post twice.
+concurrency:
+  group: needs-logs-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
 jobs:
   ask-for-logs:
     # Only run when the issue has the "bug" label
