@@ -21,30 +21,117 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 
 ## Prerequisites
 
-- Before you start, you need a local MQTT broker. You can install one as a Home Assistant Addon: https://www.home-assistant.io/integrations/mqtt/#setting-up-a-broker
-- After setting up an MQTT broker, configure your energy storage device to send MQTT data to your MQTT broker:
-  1. For the **B2500**, you have two options:
-  
-     > **⚠️ Important for Multiple B2500 Devices**: If you plan to use multiple B2500 devices with firmware 226.5 or 108.7, configure them to connect to the MQTT proxy port (default: 1890) instead of your main MQTT broker. See the [MQTT Proxy Configuration](#mqtt-proxy-for-b2500-client-id-conflicts) section for details.
-     1. Contact the support and ask them to enable MQTT for your device, then configure the MQTT broker in the device settings through the PowerZero or Marstek app.
-     2. With an Android smartphone or a Bluetooth‑enabled PC, use [this tool](https://tomquist.github.io/hame-relay/b2500.html) to configure the MQTT broker directly via Bluetooth. **Make sure you write down the MAC address that is displayed in this tool or in the Marstek app! You will need it later on and the WIFI MAC address of the battery is the wrong one.**
-   
-     **Warning:** Enabling MQTT on the device will disable the cloud connection. You will not be able to use the PowerZero or Marstek app to monitor or control your device anymore. You can re-enable the cloud connection by installing [Hame Relay](https://github.com/tomquist/hame-relay#mode-1-storage-configured-with-local-broker-inverse_forwarding-false) in Mode 1.
-  2. The **Marstek Venus**, **Marstek Jupiter** and **Jupiter Plus** don't officially support MQTT. However, you can install the [Hame Relay](https://github.com/tomquist/hame-relay) in [Mode 2](https://github.com/tomquist/hame-relay#mode-2-storage-configured-with-hame-broker-inverse_forwarding-true) to forward the Cloud MQTT data to your local MQTT broker.
-  3. The **Marstek HMI micro inverters** (MI800, HMI-2000) require the same setup as Venus/Jupiter devices. Use [Hame Relay](https://github.com/tomquist/hame-relay) in [Mode 2](https://github.com/tomquist/hame-relay#mode-2-storage-configured-with-hame-broker-inverse_forwarding-true) to forward the Cloud MQTT data to your local MQTT broker.
-  
+- A local MQTT broker (for example the Home Assistant Mosquitto broker): https://www.home-assistant.io/integrations/mqtt/#setting-up-a-broker
+- Access to your device details (device type + Bluetooth MAC address) — how to find these is explained in the setup steps below.
+
+## Step-by-step setup
+
+Choose one of the following variants. Install hm2mqtt using your preferred method from the [Installation](#installation) section, then apply the matching setup flow below.
+
+### Variant A: B2500 configured for local MQTT
+
+Use this **only** for B2500 devices when your B2500 should send data directly to your local MQTT broker. If you have any other Marstek device type, follow **Variant B** instead.
+
+**When to use:** Choose this if you want direct local MQTT communication from B2500 to your broker (for local-first integrations), and you accept that direct cloud connectivity is disabled unless you add hame-relay Mode 1.
+
+```mermaid
+flowchart TB
+    B2500[B2500 device] <-->|MQTT telemetry + commands| Broker[Local MQTT broker]
+
+    Broker -->|device telemetry / responses| HM2MQTT[hm2mqtt]
+    HM2MQTT -->|parsed state + HA discovery + command topics| Broker
+    HA[Home Assistant] <-->|MQTT integration| Broker
+
+    Broker -->|local telemetry from device| Relay[hame relay Mode 1 optional]
+    Relay -->|commands forwarded from cloud/app| Broker
+    Cloud[Marstek Cloud] -->|app/cloud commands + control| Relay
+    Relay -->|mirrored local status/telemetry| Cloud
+```
+
+> **⚠️ Cloud/app impact (read first):** Enabling local MQTT on the B2500 disables direct cloud connectivity for that device. You can restore app/cloud functionality by running hame-relay in Mode 1 (local broker setup). For more background, see [FAQ: When do I need hm2mqtt, hame-relay, or both?](#1-when-do-i-need-hm2mqtt-hame-relay-or-both).
+>
+> **⚠️ Important if you want to use multiple B2500 simultaneously:** For firmware `226.5` / `108.7`, you **must** use the hm2mqtt MQTT proxy port (default `1890`) to avoid client-ID conflicts. For newer firmware versions, the recommended approach is to configure different MQTT usernames per B2500. See [MQTT Proxy for B2500 Firmware 226.5/108.7 Client ID Conflict](#mqtt-proxy-for-b2500-firmware-22651087-client-id-conflict) for details.
+
+1. **Enable and configure MQTT on the B2500**
+   - Option 1: Contact support and ask them to enable MQTT in the app.
+   - Option 2: Use the Bluetooth configuration tool in Chrome: https://tomquist.github.io/hmjs/
+2. **Point the B2500 to your local broker**
+   - Configure host/port (or proxy port `1890` if needed for multiple devices).
+3. **Note the correct device ID**
+   - Use the MAC shown in the Bluetooth tool (or app device list).
+   - This is the value used by hm2mqtt (`deviceId` / `DEVICE_n`).
+   - Do **not** use the Wi-Fi MAC.
+4. **Configure hm2mqtt**
+   - Add your MQTT broker settings.
+   - **Home Assistant App:** add a device entry under `devices`:
+     ```yaml
+     devices:
+       - deviceType: "HMA-1"
+         deviceId: "001a2b3c4d5e"
+     ```
+   - **Docker / .env:** add `DEVICE_n` in format `{deviceType}:{bluetoothMac}` (for example `DEVICE_0=HMA-1:001a2b3c4d5e`).
+5. **Start hm2mqtt**
+   - After startup, Home Assistant should discover the new device via MQTT Discovery.
+
+### Variant B: Other Marstek devices (and B2500 without local MQTT)
+
+Use this for devices that stay on cloud MQTT (Venus/Jupiter/Jupiter Plus/MI800/CT002), or for B2500 when you do not switch it to local MQTT.
+
+**When to use:** Choose this if your device remains cloud-configured, or if you want to keep the standard cloud setup and bridge data into your local broker via hame-relay.
+
+```mermaid
+flowchart TB
+    Device[Marstek device in cloud mode] <-->|device MQTT| CloudMQTT[Marstek Cloud MQTT]
+
+    CloudMQTT -->|cloud telemetry + command state| Relay[hame relay]
+    Relay -->|mirrored local status/telemetry| CloudMQTT
+
+    Broker[Local MQTT broker] -->|local commands + local state topics| Relay
+    Relay -->|commands forwarded from cloud/app| Broker
+
+    Broker -->|device telemetry / responses| HM2MQTT[hm2mqtt]
+    HM2MQTT -->|parsed state + HA discovery + command topics| Broker
+    HA[Home Assistant] <-->|MQTT integration| Broker
+```
+
+1. **Install and configure hame-relay**
+   - Follow the hame-relay README: https://github.com/tomquist/hame-relay
+   - Enter your account credentials in hame-relay config.
+   - Use a separate Marstek account (recommended):
+     - Share your devices to that account.
+     - Use that account in hame-relay.
+     - This avoids logging your primary app account out of the mobile app session.
+   - For B2500 in this variant, configure hame-relay inverse forwarding with the 24-character **cloud device ID** in `inverse_forwarding_device_ids` (from hame-relay startup/device output). In hm2mqtt, continue using the **Bluetooth MAC** as `deviceId` (see step 3 above). See hame-relay docs: https://github.com/tomquist/hame-relay#optional-settings
+
+2. **Start hame-relay and check startup output**
+   - hame-relay loads your account device list on startup.
+   - From the startup logs/output, note:
+     - `deviceType`
+     - Bluetooth MAC address (used as hm2mqtt `deviceId`)
+3. **Configure hm2mqtt**
+   - Use `deviceType` + Bluetooth MAC from hame-relay output.
+   - **Home Assistant App:** add entries under `devices`:
+     ```yaml
+     devices:
+       - deviceType: "HMG-50"
+         deviceId: "001a2b3c4d5e"
+     ```
+   - **Docker / .env:** add `DEVICE_n={deviceType}:{bluetoothMac}`.
+4. **Start hm2mqtt**
+   - Home Assistant should discover the devices once data is available on your local broker.
+
 ## Installation
 
-### As a Home Assistant Add-on (Recommended)
+### As a Home Assistant App (Recommended)
 
-The easiest way to use hm2mqtt is as a Home Assistant add-on:
+The easiest way to use hm2mqtt is as a Home Assistant App:
 
-1. Add this repository URL to your Home Assistant add-on store:
+1. Add this repository URL to your Home Assistant App store:
    
    [![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Ftomquist%2Fhm2mqtt)
-2. Install the "hm2mqtt" add-on
-3. Configure your devices in the add-on configuration
-4. Start the add-on
+2. Install the "hm2mqtt" App
+3. Configure your devices in the App configuration
+4. Start the App
 
 ### Using Docker
 
@@ -188,7 +275,7 @@ services:
 | `MQTT_PROXY_ENABLED` | Enable MQTT proxy server for B2500 client ID conflict resolution | `false` |
 | `MQTT_PROXY_PORT` | Port for the MQTT proxy server | `1890` |
 
-### Add-on Configuration
+### App Configuration
 
 ```yaml
 pollingInterval: 60  # Interval between device polls in seconds
@@ -207,11 +294,11 @@ The device id is the MAC address of the device in lowercase, without colons.
 - Use the MAC address shown in the Marstek/PowerZero app's device list or in the Bluetooth configuration tool
 - **Important:** Do not use the WiFi interface MAC address - it must be the one shown in the app or Bluetooth tool
 
-### MQTT Proxy for B2500 Client ID Conflicts
+### MQTT Proxy for B2500 Firmware 226.5/108.7 Client ID Conflict
 
 **🔧 Recommended for Multiple B2500 Devices**
 
-If you have multiple B2500 devices (especially with firmware 226.5/108.7 or later), you **must** use the MQTT proxy to avoid client ID conflicts. The proxy resolves the firmware bug where all B2500 devices try to connect with the same client ID (`mst_`).
+If you run multiple B2500 devices on firmware 226.5/108.7, you **must** use the MQTT proxy to avoid client ID conflicts. In that firmware version, all B2500 devices try to connect with the same client ID (`mst_`). For newer firmware versions, use different MQTT usernames per battery (proxy remains optional).
 
 #### How It Works
 
@@ -271,7 +358,7 @@ DEVICE_1=HMA-1:device2mac
 DEVICE_2=HMB-1:device3mac
 ```
 
-#### Home Assistant Add-on Configuration
+#### Home Assistant App Configuration
 
 ```yaml
 mqttProxyEnabled: true
@@ -308,6 +395,80 @@ services:
 ```
 
 > **📖 Background**: This issue was first reported in [GitHub Issue #41](https://github.com/tomquist/hm2mqtt/issues/41) where users experienced problems with multiple B2500 devices after firmware update 226.5.
+
+## Frequently Asked Questions (FAQ)
+
+This FAQ focuses on recurring issues. For one-off edge cases, please search the issue tracker.
+
+### 1) When do I need **hm2mqtt**, **hame-relay**, or both?
+
+**hm2mqtt** is the Home Assistant integration layer (parsing + JSON topics + MQTT Discovery + control topics).
+
+**hame-relay** bridges MQTT between the Hame cloud broker and your local broker. It does **not** create Home Assistant entities. For full Home Assistant discovery + controls, use **hm2mqtt** on top.
+
+**Important nuance for B2500/Saturn (HMA/HMJ/HMK/HMB …):** the storage typically speaks to **either** the cloud **or** a local MQTT broker. If you configure the B2500 for **local MQTT**, **remote/app cloud connectivity stops working** (e.g., remote control and cloud data). However, you can still control the storage **locally via Bluetooth** in the Marstek/PowerZero app (within BLE range), including performing firmware updates.
+
+In that setup, **hame-relay is commonly used to forward local MQTT back to the cloud** so the app can keep working remotely.
+
+**Troubleshooting (quick):**
+- Missing HA entities? You’re missing **hm2mqtt**.
+- Venus/Jupiter “offline” in hm2mqtt? You’re usually missing **hame-relay** (or it’s misconfigured / not forwarding cloud MQTT into your local broker).
+
+### 2) `No response received within timeout period` — what does it mean?
+
+This message is almost always a **symptom**, not the root cause. It usually means hm2mqtt did not observe the device’s data in the local broker (or it cannot match it to the configured device type / Bluetooth MAC).
+
+#### Troubleshooting: B2500
+1. **Verify the B2500 is actually configured for local MQTT**
+   - Use the configuration tool: <https://tomquist.github.io/hmjs/>
+   - Double-check host/port and the SSL toggle.
+2. If you have **multiple B2500s**, ensure you handled client-ID conflicts
+   - Either configure **unique MQTT usernames** per storage, or
+   - Enable the hm2mqtt **MQTT proxy** and configure the storages to connect to the proxy port (default: 1890).
+3. Confirm your hm2mqtt device config uses the **Bluetooth MAC** (see FAQ #3).
+
+#### Troubleshooting: non-B2500 (Venus/Jupiter/Jupiter Plus/MI800/CT…)
+1. Ensure **hame-relay is installed and running**.
+2. Ensure hame-relay is configured to forward **cloud MQTT → local broker** (this is the standard requirement for these devices).
+3. Use the **device type and Bluetooth MAC** from hame-relay (see FAQ #3).
+
+### 3) What exactly do I put into `deviceId` in hm2mqtt?
+
+In hm2mqtt, `deviceId` must be the **Bluetooth MAC** of the device (12 hex chars, lowercase, no `:`).
+
+**Where to find it:**
+- **B2500:** via <https://tomquist.github.io/hmjs/>
+- **All devices via hame-relay:** check the **hame-relay logs** (they include the mapping).
+
+**Troubleshooting (quick):**
+- If you pasted a long/cryptic cloud “device id” into hm2mqtt: replace it with the **Bluetooth MAC**.
+
+### 4) My Venus/Jupiter works in the Marstek app, but hm2mqtt shows it as offline
+
+These devices usually rely on cloud MQTT. hm2mqtt typically needs the MQTT data to be present in your local broker, which is commonly done by **hame-relay**.
+
+**Troubleshooting (quick):**
+1. Install/start **hame-relay**.
+2. Confirm your local broker receives the forwarded device telemetry.
+3. Configure hm2mqtt with the **device type + Bluetooth MAC** from hame-relay.
+
+### 5) Home Assistant App error: `No MQTT URI provided in config and MQTT service is not available.`
+
+This is usually a Home Assistant MQTT service binding/discovery issue.
+
+**Troubleshooting (quick):**
+1. Restart the **Mosquitto Broker** App.
+2. Restart the **hm2mqtt** App.
+3. If it still fails, explicitly set the broker URL in the App configuration (`mqtt_uri`).
+
+### 6) After a Home Assistant update, entities are `Unknown`/`Unavailable` even though MQTT traffic exists
+
+This is typically stale MQTT Discovery state in Home Assistant.
+
+**Troubleshooting (quick):**
+1. Stop hm2mqtt.
+2. Delete the MQTT-discovered device/entities in Home Assistant.
+3. Start hm2mqtt and wait for Discovery to republish.
 
 ## Device Types
 
@@ -354,12 +515,12 @@ services:
 
 ### Home Assistant
 
-Add the development branch repository to your Home Assistant add-on store:
+Add the development branch repository to your Home Assistant App store:
 ```text
 https://github.com/tomquist/hm2mqtt#develop
 ```
 
-Then install the "hm2mqtt" add-on from this repository to get the development version.
+Then install the "hm2mqtt" App from this repository to get the development version.
 
 ## Development
 
