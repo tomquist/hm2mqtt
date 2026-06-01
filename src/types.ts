@@ -466,15 +466,15 @@ export interface JupiterDeviceData extends BaseDeviceData {
 }
 
 /**
- * MI800 micro inverter data interface
+ * HMI inverter data interface (Marstek HMI family, e.g. MI800 / HMI-2000)
  */
-const validMI800Modes = ['default', 'b2500Boost', 'reverseCurrentProtection'] as const;
-export type MI800Mode = (typeof validMI800Modes)[number];
-export function isValidMI800Mode(mode: string): mode is MI800Mode {
-  return validMI800Modes.includes(mode as MI800Mode);
+const validHmiInverterModes = ['default', 'b2500Boost', 'reverseCurrentProtection'] as const;
+export type HmiInverterMode = (typeof validHmiInverterModes)[number];
+export function isValidHmiInverterMode(mode: string): mode is HmiInverterMode {
+  return validHmiInverterModes.includes(mode as HmiInverterMode);
 }
 
-export interface MI800DeviceData extends BaseDeviceData {
+export interface HmiInverterDeviceData extends BaseDeviceData {
   // Energy statistics
   dailyEnergyGenerated?: number; // ele_d
   weeklyEnergyGenerated?: number; // ele_w
@@ -482,7 +482,7 @@ export interface MI800DeviceData extends BaseDeviceData {
   totalEnergyGenerated?: number; // ele_s
   maximumOutputPower?: number; // pl
   fc4Version?: string; // fc4_v
-  mode?: MI800Mode; // mpt_m
+  mode?: HmiInverterMode; // mpt_m
   gridConnectionBan?: boolean; // gc
 
   // PV Input 1
@@ -496,6 +496,22 @@ export interface MI800DeviceData extends BaseDeviceData {
   pv2Current?: number; // pv2_i
   pv2Power?: number; // pv2_p
   pv2Status?: boolean; // pv2_s
+
+  // PV Input 3 (HMI-2000 4-PV variant)
+  pv3Voltage?: number; // pv3_v
+  pv3Current?: number; // pv3_i
+  pv3Power?: number; // pv3_p
+  pv3Status?: boolean; // pv3_s
+
+  // PV Input 4 (HMI-2000 4-PV variant)
+  pv4Voltage?: number; // pv4_v
+  pv4Current?: number; // pv4_i
+  pv4Power?: number; // pv4_p
+  pv4Status?: boolean; // pv4_s
+
+  // Connectivity diagnostics (field names reused from ct002.ts)
+  bluetoothSignal?: number; // ble_s
+  wifiRssi?: number; // wif_r
 
   // Grid information
   gridFrequency?: number; // grd_f

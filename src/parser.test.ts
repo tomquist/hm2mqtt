@@ -1,9 +1,9 @@
 import { parseMessage } from './parser';
 import {
   B2500V2DeviceData,
+  HmiInverterDeviceData,
   JupiterBMSInfo,
   JupiterDeviceData,
-  MI800DeviceData,
   VenusDeviceData,
 } from './types';
 
@@ -198,8 +198,8 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('wifiStatus', 2);
   });
 
-  test('should parse MI800 micro inverter message correctly', () => {
-    // Sample message from the provided MI800 inverter format
+  test('should parse HMI inverter (2-PV) message correctly', () => {
+    // Sample message from the provided MI800 (2-PV) inverter format
     const message =
       'ele_d=11,ele_s=1433,ele_m=1433,pv1_v=334,pv1_i=0,pv1_p=16,pv1_s=1,pv2_v=335,pv2_i=0,pv2_p=15,pv2_s=1,pe1_v=17,fb1_v=847,fb2_v=826,grd_f=4999,grd_v=2455,grd_s=1,grd_o=29,chp_t=33,rel_s=1,err_t=0,err_c=0,err_d=0,ver_s=120,mpt_m=1,ble_s=1,mpt1=1,mpt2=1,wif_r=69,fc4_v=202406141323,gc=0,pl=800,ct_r=0,ct_f=0,ct_c=0';
     const deviceType = 'HMI-1';
@@ -208,7 +208,7 @@ describe('MQTT Message Parser', () => {
     const parsed = parseMessage(message, deviceType, deviceId);
     expect(parsed).toHaveProperty('data');
 
-    const result = parsed['data'] as MI800DeviceData;
+    const result = parsed['data'] as HmiInverterDeviceData;
 
     // Check the structure
     expect(result).toHaveProperty('deviceType', deviceType);
@@ -256,9 +256,52 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('mode', 'b2500Boost');
     expect(result).toHaveProperty('fc4Version', '202406141323');
     expect(result).toHaveProperty('gridConnectionBan', false);
+
+    // Connectivity diagnostics
+    expect(result).toHaveProperty('bluetoothSignal', 1);
+    expect(result).toHaveProperty('wifiRssi', 69);
+
+    // 2-PV variant: no PV3/PV4 data
+    expect(result.pv3Voltage).toBeUndefined();
+    expect(result.pv4Voltage).toBeUndefined();
   });
 
-  test('should handle MI800 message with different PV status values', () => {
+  test('should parse HMI-2000 (4-PV) inverter message correctly', () => {
+    // HMI-2000 reports four PV inputs (pv3_*/pv4_*) in addition to the base fields
+    const message =
+      'ele_d=11,ele_s=1433,ele_m=1433,pv1_v=334,pv1_i=0,pv1_p=16,pv1_s=1,pv2_v=335,pv2_i=0,pv2_p=15,pv2_s=1,pv3_v=336,pv3_i=2,pv3_p=17,pv3_s=1,pv4_v=337,pv4_i=3,pv4_p=18,pv4_s=0,grd_f=4999,grd_v=2455,grd_s=1,grd_o=66,chp_t=33,ver_s=120,mpt_m=1,ble_s=4,wif_r=72,fc4_v=202406141323,gc=0,pl=2000';
+    const deviceType = 'HMI-2000';
+    const deviceId = '24197287YYYY';
+
+    const parsed = parseMessage(message, deviceType, deviceId);
+    expect(parsed).toHaveProperty('data');
+
+    const result = parsed['data'] as HmiInverterDeviceData;
+
+    expect(result).toHaveProperty('deviceType', deviceType);
+
+    // PV1/PV2 still parse
+    expect(result).toHaveProperty('pv1Voltage', 33.4);
+    expect(result).toHaveProperty('pv2Voltage', 33.5);
+
+    // PV3 (voltage/current /10, power raw, status boolean)
+    expect(result).toHaveProperty('pv3Voltage', 33.6);
+    expect(result).toHaveProperty('pv3Current', 0.2);
+    expect(result).toHaveProperty('pv3Power', 17);
+    expect(result).toHaveProperty('pv3Status', true);
+
+    // PV4
+    expect(result).toHaveProperty('pv4Voltage', 33.7);
+    expect(result).toHaveProperty('pv4Current', 0.3);
+    expect(result).toHaveProperty('pv4Power', 18);
+    expect(result).toHaveProperty('pv4Status', false);
+
+    // Connectivity diagnostics
+    expect(result).toHaveProperty('bluetoothSignal', 4);
+    expect(result).toHaveProperty('wifiRssi', 72);
+  });
+
+  test('should handle HMI inverter message with different PV status values', () => {
     // Test with PV inputs inactive
     const message =
       'ele_d=25,ele_w=1500,ele_m=1500,pv1_v=0,pv1_i=0,pv1_p=0,pv1_s=0,pv2_v=0,pv2_i=0,pv2_p=0,pv2_s=0,grd_f=5000,grd_v=2400,grd_s=0,grd_o=0,chp_t=25,err_t=0,err_c=0,err_d=0,ver_s=105';
@@ -268,7 +311,7 @@ describe('MQTT Message Parser', () => {
     const parsed = parseMessage(message, deviceType, deviceId);
     expect(parsed).toHaveProperty('data');
 
-    const result = parsed['data'] as MI800DeviceData;
+    const result = parsed['data'] as HmiInverterDeviceData;
 
     // Check PV status is false when inputs are inactive
     expect(result).toHaveProperty('pv1Status', false);
@@ -287,7 +330,7 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('gridVoltage', 240.0);
   });
 
-  test('should handle MI800 message with error conditions', () => {
+  test('should handle HMI inverter message with error conditions', () => {
     // Test with error conditions
     const message =
       'ele_d=100,ele_w=2000,ele_m=2000,pv1_v=300,pv1_i=5,pv1_p=50,pv1_s=1,pv2_v=305,pv2_i=6,pv2_p=55,pv2_s=1,grd_f=4980,grd_v=2200,grd_s=1,grd_o=100,chp_t=45,err_t=1,err_c=3,err_d=255,ver_s=107';
@@ -297,7 +340,7 @@ describe('MQTT Message Parser', () => {
     const parsed = parseMessage(message, deviceType, deviceId);
     expect(parsed).toHaveProperty('data');
 
-    const result = parsed['data'] as MI800DeviceData;
+    const result = parsed['data'] as HmiInverterDeviceData;
 
     // Check error conditions are properly parsed
     expect(result).toHaveProperty('errorType', 1);
