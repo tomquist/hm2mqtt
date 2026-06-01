@@ -288,4 +288,47 @@ describe('Home Assistant Discovery', () => {
       {},
     );
   });
+
+  test('should gate HMI PV3/PV4 discovery configs on data presence', () => {
+    const device: Device = { deviceType: 'HMI-2000', deviceId: 'hmi2000' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/HMI-2000/device/hmi2000/ctrl',
+      deviceTopicNew: 'marstek_energy/HMI-2000/device/hmi2000/ctrl',
+      deviceControlTopicOld: 'hame_energy/HMI-2000/App/hmi2000/ctrl',
+      deviceControlTopicNew: 'marstek_energy/HMI-2000/App/hmi2000/ctrl',
+      availabilityTopic: 'hame_energy/HMI-2000/availability/hmi2000',
+      controlSubscriptionTopic: 'hame_energy/HMI-2000/control/hmi2000/control',
+      publishTopic: 'hame_energy/HMI-2000/device/hmi2000/data',
+    };
+
+    const pv34Topics = (state: object) =>
+      generateDiscoveryConfigs(
+        device,
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      )
+        .map(c => c.topic)
+        .filter(t => /pv3_|pv4_/.test(t));
+
+    // 2-PV state (no pv3/pv4 data): no PV3/PV4 configs advertised
+    expect(pv34Topics({ pv1Voltage: 33.4 })).toHaveLength(0);
+
+    // 4-PV state (HMI-2000): PV3/PV4 configs advertised (voltage/current/power/status each)
+    const fourPv = pv34Topics({
+      pv3Voltage: 33.6,
+      pv3Current: 0.2,
+      pv3Power: 17,
+      pv3Status: true,
+      pv4Voltage: 33.7,
+      pv4Current: 0.3,
+      pv4Power: 18,
+      pv4Status: false,
+    });
+    expect(fourPv.some(t => t.includes('pv3_voltage'))).toBe(true);
+    expect(fourPv.some(t => t.includes('pv4_status'))).toBe(true);
+    expect(fourPv).toHaveLength(8);
+  });
 });

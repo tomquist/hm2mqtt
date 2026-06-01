@@ -1034,33 +1034,33 @@ const commandTestCases: CommandTestCase[] = [
   },
 
   // ============================================================
-  // MI800 (HMI) COMMANDS
+  // HMI INVERTER COMMANDS
   // ============================================================
 
   // max-output-power command
   {
-    description: 'MI800 max-output-power valid',
+    description: 'HMI inverter max-output-power valid',
     deviceType: 'HMI-1',
     command: 'max-output-power',
     input: '500',
     expectedOutput: 'cd=8,p1=500',
   },
   {
-    description: 'MI800 max-output-power minimum',
+    description: 'HMI inverter max-output-power minimum',
     deviceType: 'HMI-1',
     command: 'max-output-power',
     input: '0',
     expectedOutput: 'cd=8,p1=0',
   },
   {
-    description: 'MI800 max-output-power maximum',
+    description: 'HMI inverter max-output-power maximum',
     deviceType: 'HMI-1',
     command: 'max-output-power',
     input: '800',
     expectedOutput: 'cd=8,p1=800',
   },
   {
-    description: 'MI800 max-output-power non-numeric (no validation in handler)',
+    description: 'HMI inverter max-output-power non-numeric (no validation in handler)',
     deviceType: 'HMI-1',
     command: 'max-output-power',
     input: 'abc',
@@ -1069,28 +1069,28 @@ const commandTestCases: CommandTestCase[] = [
 
   // mode command
   {
-    description: 'MI800 mode default',
+    description: 'HMI inverter mode default',
     deviceType: 'HMI-1',
     command: 'mode',
     input: 'default',
     expectedOutput: 'cd=11,p1=0',
   },
   {
-    description: 'MI800 mode b2500Boost',
+    description: 'HMI inverter mode b2500Boost',
     deviceType: 'HMI-1',
     command: 'mode',
     input: 'b2500Boost',
     expectedOutput: 'cd=11,p1=1',
   },
   {
-    description: 'MI800 mode reverseCurrentProtection',
+    description: 'HMI inverter mode reverseCurrentProtection',
     deviceType: 'HMI-1',
     command: 'mode',
     input: 'reverseCurrentProtection',
     expectedOutput: 'cd=11,p1=2',
   },
   {
-    description: 'MI800 mode invalid',
+    description: 'HMI inverter mode invalid',
     deviceType: 'HMI-1',
     command: 'mode',
     input: 'invalid',
@@ -1099,28 +1099,28 @@ const commandTestCases: CommandTestCase[] = [
 
   // grid-connection-ban command
   {
-    description: 'MI800 grid-connection-ban enable',
+    description: 'HMI inverter grid-connection-ban enable',
     deviceType: 'HMI-1',
     command: 'grid-connection-ban',
     input: 'true',
     expectedOutput: 'cd=22,p1=1',
   },
   {
-    description: 'MI800 grid-connection-ban disable',
+    description: 'HMI inverter grid-connection-ban disable',
     deviceType: 'HMI-1',
     command: 'grid-connection-ban',
     input: 'false',
     expectedOutput: 'cd=22,p1=0',
   },
   {
-    description: 'MI800 grid-connection-ban with on',
+    description: 'HMI inverter grid-connection-ban with on',
     deviceType: 'HMI-1',
     command: 'grid-connection-ban',
     input: 'on',
     expectedOutput: 'cd=22,p1=1',
   },
   {
-    description: 'MI800 grid-connection-ban with 1',
+    description: 'HMI inverter grid-connection-ban with 1',
     deviceType: 'HMI-1',
     command: 'grid-connection-ban',
     input: '1',

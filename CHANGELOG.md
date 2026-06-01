@@ -14,6 +14,7 @@
 - Log the build commit hash at application startup to make it easier to verify which exact source revision a running container/add-on was built from
 - Add configurable Home Assistant MQTT discovery topic prefix via `AUTODISCOVERY_TOPIC_PREFIX` (add-on option: `autodiscoveryTopicPrefix`, default: `homeassistant`) (#248)
 - Include `connections` field with formatted MAC address in device discovery payloads, allowing Home Assistant to correlate devices by their Bluetooth address
+- HMI inverter: Support 4-PV variants such as the HMI-2000 by adding PV3/PV4 voltage, current, power and status sensors. These are only advertised when the device actually reports them, so 2-PV inverters (e.g. MI800) are unaffected. Also expose the Bluetooth signal and WiFi RSSI diagnostics already received from these devices (fixes #301)
 
 ### Fixed
 
