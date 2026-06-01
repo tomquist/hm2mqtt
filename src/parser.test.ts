@@ -199,7 +199,7 @@ describe('MQTT Message Parser', () => {
   });
 
   test('should parse HMI inverter (2-PV) message correctly', () => {
-    // Sample message from the provided MI800 (2-PV) inverter format
+    // Sample message from an HMI inverter (2-PV variant, formerly MI800)
     const message =
       'ele_d=11,ele_s=1433,ele_m=1433,pv1_v=334,pv1_i=0,pv1_p=16,pv1_s=1,pv2_v=335,pv2_i=0,pv2_p=15,pv2_s=1,pe1_v=17,fb1_v=847,fb2_v=826,grd_f=4999,grd_v=2455,grd_s=1,grd_o=29,chp_t=33,rel_s=1,err_t=0,err_c=0,err_d=0,ver_s=120,mpt_m=1,ble_s=1,mpt1=1,mpt2=1,wif_r=69,fc4_v=202406141323,gc=0,pl=800,ct_r=0,ct_f=0,ct_c=0';
     const deviceType = 'HMI-1';
