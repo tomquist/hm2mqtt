@@ -1,5 +1,11 @@
 import { parseMessage } from './parser';
-import { B2500V2DeviceData, JupiterBMSInfo, JupiterDeviceData, MI800DeviceData } from './types';
+import {
+  B2500V2DeviceData,
+  HmiInverterDeviceData,
+  JupiterBMSInfo,
+  JupiterDeviceData,
+  VenusDeviceData,
+} from './types';
 
 describe('MQTT Message Parser', () => {
   test('should parse comma-separated key-value pairs correctly', () => {
@@ -192,8 +198,8 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('wifiStatus', 2);
   });
 
-  test('should parse MI800 micro inverter message correctly', () => {
-    // Sample message from the provided MI800 inverter format
+  test('should parse HMI inverter (2-PV) message correctly', () => {
+    // Sample message from an HMI inverter (2-PV variant, formerly MI800)
     const message =
       'ele_d=11,ele_s=1433,ele_m=1433,pv1_v=334,pv1_i=0,pv1_p=16,pv1_s=1,pv2_v=335,pv2_i=0,pv2_p=15,pv2_s=1,pe1_v=17,fb1_v=847,fb2_v=826,grd_f=4999,grd_v=2455,grd_s=1,grd_o=29,chp_t=33,rel_s=1,err_t=0,err_c=0,err_d=0,ver_s=120,mpt_m=1,ble_s=1,mpt1=1,mpt2=1,wif_r=69,fc4_v=202406141323,gc=0,pl=800,ct_r=0,ct_f=0,ct_c=0';
     const deviceType = 'HMI-1';
@@ -202,7 +208,7 @@ describe('MQTT Message Parser', () => {
     const parsed = parseMessage(message, deviceType, deviceId);
     expect(parsed).toHaveProperty('data');
 
-    const result = parsed['data'] as MI800DeviceData;
+    const result = parsed['data'] as HmiInverterDeviceData;
 
     // Check the structure
     expect(result).toHaveProperty('deviceType', deviceType);
@@ -250,9 +256,52 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('mode', 'b2500Boost');
     expect(result).toHaveProperty('fc4Version', '202406141323');
     expect(result).toHaveProperty('gridConnectionBan', false);
+
+    // Connectivity diagnostics
+    expect(result).toHaveProperty('bluetoothSignal', 1);
+    expect(result).toHaveProperty('wifiRssi', 69);
+
+    // 2-PV variant: no PV3/PV4 data
+    expect(result.pv3Voltage).toBeUndefined();
+    expect(result.pv4Voltage).toBeUndefined();
   });
 
-  test('should handle MI800 message with different PV status values', () => {
+  test('should parse HMI-2000 (4-PV) inverter message correctly', () => {
+    // HMI-2000 reports four PV inputs (pv3_*/pv4_*) in addition to the base fields
+    const message =
+      'ele_d=11,ele_s=1433,ele_m=1433,pv1_v=334,pv1_i=0,pv1_p=16,pv1_s=1,pv2_v=335,pv2_i=0,pv2_p=15,pv2_s=1,pv3_v=336,pv3_i=2,pv3_p=17,pv3_s=1,pv4_v=337,pv4_i=3,pv4_p=18,pv4_s=0,grd_f=4999,grd_v=2455,grd_s=1,grd_o=66,chp_t=33,ver_s=120,mpt_m=1,ble_s=4,wif_r=72,fc4_v=202406141323,gc=0,pl=2000';
+    const deviceType = 'HMI-2000';
+    const deviceId = '24197287YYYY';
+
+    const parsed = parseMessage(message, deviceType, deviceId);
+    expect(parsed).toHaveProperty('data');
+
+    const result = parsed['data'] as HmiInverterDeviceData;
+
+    expect(result).toHaveProperty('deviceType', deviceType);
+
+    // PV1/PV2 still parse
+    expect(result).toHaveProperty('pv1Voltage', 33.4);
+    expect(result).toHaveProperty('pv2Voltage', 33.5);
+
+    // PV3 (voltage/current /10, power raw, status boolean)
+    expect(result).toHaveProperty('pv3Voltage', 33.6);
+    expect(result).toHaveProperty('pv3Current', 0.2);
+    expect(result).toHaveProperty('pv3Power', 17);
+    expect(result).toHaveProperty('pv3Status', true);
+
+    // PV4
+    expect(result).toHaveProperty('pv4Voltage', 33.7);
+    expect(result).toHaveProperty('pv4Current', 0.3);
+    expect(result).toHaveProperty('pv4Power', 18);
+    expect(result).toHaveProperty('pv4Status', false);
+
+    // Connectivity diagnostics
+    expect(result).toHaveProperty('bluetoothSignal', 4);
+    expect(result).toHaveProperty('wifiRssi', 72);
+  });
+
+  test('should handle HMI inverter message with different PV status values', () => {
     // Test with PV inputs inactive
     const message =
       'ele_d=25,ele_w=1500,ele_m=1500,pv1_v=0,pv1_i=0,pv1_p=0,pv1_s=0,pv2_v=0,pv2_i=0,pv2_p=0,pv2_s=0,grd_f=5000,grd_v=2400,grd_s=0,grd_o=0,chp_t=25,err_t=0,err_c=0,err_d=0,ver_s=105';
@@ -262,7 +311,7 @@ describe('MQTT Message Parser', () => {
     const parsed = parseMessage(message, deviceType, deviceId);
     expect(parsed).toHaveProperty('data');
 
-    const result = parsed['data'] as MI800DeviceData;
+    const result = parsed['data'] as HmiInverterDeviceData;
 
     // Check PV status is false when inputs are inactive
     expect(result).toHaveProperty('pv1Status', false);
@@ -281,7 +330,7 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('gridVoltage', 240.0);
   });
 
-  test('should handle MI800 message with error conditions', () => {
+  test('should handle HMI inverter message with error conditions', () => {
     // Test with error conditions
     const message =
       'ele_d=100,ele_w=2000,ele_m=2000,pv1_v=300,pv1_i=5,pv1_p=50,pv1_s=1,pv2_v=305,pv2_i=6,pv2_p=55,pv2_s=1,grd_f=4980,grd_v=2200,grd_s=1,grd_o=100,chp_t=45,err_t=1,err_c=3,err_d=255,ver_s=107';
@@ -291,7 +340,7 @@ describe('MQTT Message Parser', () => {
     const parsed = parseMessage(message, deviceType, deviceId);
     expect(parsed).toHaveProperty('data');
 
-    const result = parsed['data'] as MI800DeviceData;
+    const result = parsed['data'] as HmiInverterDeviceData;
 
     // Check error conditions are properly parsed
     expect(result).toHaveProperty('errorType', 1);
@@ -392,7 +441,7 @@ describe('MQTT Message Parser', () => {
 
   test('should parse Jupiter BMS message correctly', () => {
     const message =
-      'inv:g_state=1,w_state1=1,w_state2=1,i_err=0,i_war=0,g_vol=2399,g_cur=0,g_pf=0,g_fre=5002,b_vol=526,g_power=119,i_temp=143,mppt:m_state=244,m_err=0,m_temp=30,m_war=0,pv1=350|37|1304,pv2=349|39|1372,pv3=378|18|712,pv4=365|32|1180,b_vol=525,b_cur=85,base_v=221,pe_v=165,fail_t=0,bms:c_vol=571,c_cur=500,d_cur=500,soc=33,soh=100,b_cap=5120,b_vol=5252,b_cur=63,b_temp=213,b_err=0,b_war=0,b_err2=0,b_war2=0,c_flag=192,s_flag=0,b_num=1,vol0=3280,vol1=3281,vol2=3283,vol3=3283,vol4=3283,vol5=3283,vol6=3280,vol7=3284,vol8=3283,vol9=3284,vol10=3282,vol11=3286,vol12=3277,vol13=3286,vol14=3283,vol15=3284,b_temp0=14,b_temp1=15,b_temp2=15,b_temp3=16,env_t=27,mos_t=20,lck=0';
+      'inv:g_state=1,w_state1=1,w_state2=1,i_err=0,i_war=0,g_vol=2399,g_cur=0,g_pf=0,g_fre=5002,b_vol=526,g_power=119,i_temp=42,mppt:m_state=244,m_err=0,m_temp=30,m_war=0,pv1=350|37|1304,pv2=349|39|1372,pv3=378|18|712,pv4=365|32|1180,b_vol=525,b_cur=85,base_v=221,pe_v=165,fail_t=0,bms:c_vol=571,c_cur=500,d_cur=500,soc=33,soh=100,b_cap=5120,b_vol=5252,b_cur=63,b_temp=213,b_err=0,b_war=0,b_err2=0,b_war2=0,c_flag=192,s_flag=0,b_num=1,vol0=3280,vol1=3281,vol2=3283,vol3=3283,vol4=3283,vol5=3283,vol6=3280,vol7=3284,vol8=3283,vol9=3284,vol10=3282,vol11=3286,vol12=3277,vol13=3286,vol14=3283,vol15=3284,b_temp0=14,b_temp1=15,b_temp2=15,b_temp3=16,env_t=27,mos_t=20,lck=0';
     const deviceType = 'JPLS-1';
     const deviceId = 'jupiter123';
 
@@ -409,13 +458,51 @@ describe('MQTT Message Parser', () => {
 
     // Cell voltages (vol0-vol15)
     expect(result).toHaveProperty('cells');
-    expect(result.cells).toHaveProperty('voltages');
-    expect(Array.isArray(result.cells?.voltages)).toBe(true);
-    expect(result.cells?.voltages).toHaveLength(16);
-    expect(result.cells?.voltages).toEqual([
-      3280, 3281, 3283, 3283, 3283, 3283, 3280, 3284, 3283, 3284, 3282, 3286, 3277, 3286, 3283,
-      3284,
-    ]);
+
+    // Battery cell voltages: 4 batteries, each using 4 volX values
+    // Battery 0 (internal): vol0, vol1, vol2, vol3
+    // Battery 1 (external 1): vol4, vol5, vol6, vol7
+    // Battery 2 (external 2): vol8, vol9, vol10, vol11
+    // Battery 3 (external 3): vol12, vol13, vol14, vol15
+    expect(result).toHaveProperty('batteries');
+    expect(Array.isArray(result.batteries)).toBe(true);
+    expect(result.batteries).toHaveLength(4);
+
+    // Battery 0 (internal): vol0=3280 (0x0CD0), vol1=3281, vol2=3283, vol3=3283
+    expect(result.batteries?.[0]).toHaveProperty('cellVoltages');
+    expect(result.batteries?.[0]?.cellVoltages?.maxVoltage).toBe(3281);
+    expect(result.batteries?.[0]?.cellVoltages?.minVoltage).toBe(3283);
+    // Low byte: 0xD0 = 208
+    expect(result.batteries?.[0]?.cellVoltages?.maxVoltageCell).toBe(208);
+    // High byte: 0x0C = 12
+    expect(result.batteries?.[0]?.cellVoltages?.minVoltageCell).toBe(12);
+
+    // Battery 1 (external 1): vol4=3283 (0x0CD3), vol5=3283, vol6=3280, vol7=3284
+    expect(result.batteries?.[1]).toHaveProperty('cellVoltages');
+    expect(result.batteries?.[1]?.cellVoltages?.maxVoltage).toBe(3283);
+    expect(result.batteries?.[1]?.cellVoltages?.minVoltage).toBe(3280);
+    // Low byte: 0xD3 = 211
+    expect(result.batteries?.[1]?.cellVoltages?.maxVoltageCell).toBe(211);
+    // High byte: 0x0C = 12
+    expect(result.batteries?.[1]?.cellVoltages?.minVoltageCell).toBe(12);
+
+    // Battery 2 (external 2): vol8=3283 (0x0CD3), vol9=3284, vol10=3282, vol11=3286
+    expect(result.batteries?.[2]).toHaveProperty('cellVoltages');
+    expect(result.batteries?.[2]?.cellVoltages?.maxVoltage).toBe(3284);
+    expect(result.batteries?.[2]?.cellVoltages?.minVoltage).toBe(3282);
+    // Low byte: 0xD3 = 211
+    expect(result.batteries?.[2]?.cellVoltages?.maxVoltageCell).toBe(211);
+    // High byte: 0x0C = 12
+    expect(result.batteries?.[2]?.cellVoltages?.minVoltageCell).toBe(12);
+
+    // Battery 3 (external 3): vol12=3277 (0x0CCD), vol13=3286, vol14=3283, vol15=3284
+    expect(result.batteries?.[3]).toHaveProperty('cellVoltages');
+    expect(result.batteries?.[3]?.cellVoltages?.maxVoltage).toBe(3286);
+    expect(result.batteries?.[3]?.cellVoltages?.minVoltage).toBe(3283);
+    // Low byte: 0xCD = 205
+    expect(result.batteries?.[3]?.cellVoltages?.maxVoltageCell).toBe(205);
+    // High byte: 0x0C = 12
+    expect(result.batteries?.[3]?.cellVoltages?.minVoltageCell).toBe(12);
 
     // Cell temperatures (b_temp0-b_temp3)
     expect(result.cells).toHaveProperty('temperatures');
@@ -474,7 +561,7 @@ describe('MQTT Message Parser', () => {
 
     // Inverter fields
     expect(result).toHaveProperty('inverter');
-    expect(result.inverter).toHaveProperty('temperature', 14.3);
+    expect(result.inverter).toHaveProperty('temperature', 42);
     expect(result.inverter).toHaveProperty('error', 0);
     expect(result.inverter).toHaveProperty('warning', 0);
     expect(result.inverter).toHaveProperty('gridVoltage', 239.9);
@@ -507,6 +594,52 @@ describe('MQTT Message Parser', () => {
     expect(result['mppt']).toHaveProperty('temperature', 5);
 
     expect(result).toHaveProperty('inverter');
-    expect(result.inverter).toHaveProperty('temperature', -3.1);
+    expect(result.inverter).toHaveProperty('temperature', -31);
+  });
+
+  test('should parse surplus feed-in correctly', () => {
+    // Surplus Feed-In disabled
+    const messageDisabled =
+      'ele_d=349,ele_m=2193,ele_y=0,pv1_p=94,pv1_s=1,pv2_p=77,pv2_s=1,pv3_p=41,pv3_s=1,pv4_p=60,pv4_s=1,grd_o=250,grd_t=1,gct_s=1,cel_s=0,cel_p=424,cel_c=83,err_t=0,wor_m=1,tim_0=12|0|23|59|127|800|1,tim_1=0|0|12|0|127|150|1,tim_2=0|0|0|0|255|0|0,tim_3=0|0|0|0|255|0|0,tim_4=0|0|0|0|255|0|0,cts_m=0,grd_d=285,grd_m=2018,dev_n=134,dev_i=106,dev_m=206,dev_b=209,dev_t=110,wif_s=75,ala_c=0,ful_d=0,ssid=xxxx,stop_s=10,htt_p=0,ct_t=4,phase_t=1,dchrg=1,seq_s=3,ctrl_r=0,shelly_p=1010,c_ratio=100,b_lck=0,dod=88,total_b=1,online_b=1';
+    // Surplus Feed-In enabled
+    const messageEnabled =
+      'ele_d=349,ele_m=2193,ele_y=0,pv1_p=94,pv1_s=1,pv2_p=77,pv2_s=1,pv3_p=41,pv3_s=1,pv4_p=60,pv4_s=1,grd_o=250,grd_t=1,gct_s=1,cel_s=0,cel_p=424,cel_c=83,err_t=0,wor_m=1,tim_0=12|0|23|59|127|800|1,tim_1=0|0|12|0|127|150|1,tim_2=0|0|0|0|255|0|0,tim_3=0|0|0|0|255|0|0,tim_4=0|0|0|0|255|0|0,cts_m=0,grd_d=285,grd_m=2018,dev_n=134,dev_i=106,dev_m=206,dev_b=209,dev_t=110,wif_s=75,ala_c=0,ful_d=1,ssid=xxxx,stop_s=10,htt_p=0,ct_t=4,phase_t=1,dchrg=1,seq_s=3,ctrl_r=0,shelly_p=1010,c_ratio=100,b_lck=0,dod=88,total_b=1,online_b=1';
+    // Surplus Feed-In actively feeding-in surplus
+    const messageActive =
+      'ele_d=349,ele_m=2193,ele_y=0,pv1_p=94,pv1_s=1,pv2_p=77,pv2_s=1,pv3_p=41,pv3_s=1,pv4_p=60,pv4_s=1,grd_o=250,grd_t=1,gct_s=1,cel_s=0,cel_p=424,cel_c=83,err_t=0,wor_m=1,tim_0=12|0|23|59|127|800|1,tim_1=0|0|12|0|127|150|1,tim_2=0|0|0|0|255|0|0,tim_3=0|0|0|0|255|0|0,tim_4=0|0|0|0|255|0|0,cts_m=0,grd_d=285,grd_m=2018,dev_n=134,dev_i=106,dev_m=206,dev_b=209,dev_t=110,wif_s=75,ala_c=0,ful_d=3,ssid=xxxx,stop_s=10,htt_p=0,ct_t=4,phase_t=1,dchrg=1,seq_s=3,ctrl_r=0,shelly_p=1010,c_ratio=100,b_lck=0,dod=88,total_b=1,online_b=1';
+    const deviceType = 'JPLS-1';
+    const deviceId = '12345';
+
+    let parsed = parseMessage(messageDisabled, deviceType, deviceId);
+    expect(parsed).toHaveProperty('data');
+
+    let result = parsed['data'] as B2500V2DeviceData;
+    expect(result).toHaveProperty('surplusFeedInEnabled', false);
+
+    parsed = parseMessage(messageEnabled, deviceType, deviceId);
+    expect(parsed).toHaveProperty('data');
+
+    result = parsed['data'] as B2500V2DeviceData;
+    expect(result).toHaveProperty('surplusFeedInEnabled', true);
+
+    parsed = parseMessage(messageActive, deviceType, deviceId);
+    expect(parsed).toHaveProperty('data');
+
+    result = parsed['data'] as B2500V2DeviceData;
+    expect(result).toHaveProperty('surplusFeedInEnabled', true);
+  });
+
+  test('parses a corrupt Venus reading verbatim (suppression is the guard’s job, not the parser’s)', () => {
+    // A real dropped-trailing-digit reading from issue #296: tot_i=3399 (vs 33993),
+    // tot_o=4318 (vs 43187). The parser must not hide the bad value; the monotonic
+    // guard in DeviceManager is responsible for rejecting it.
+    const message =
+      'cd=1,tot_i=3399,tot_o=4318,ele_d=3399,ele_m=3399,grd_d=4318,grd_m=4318,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=100,err_a=4,dev_n=148,grd_y=0,wor_m=0,tim_0=0|0|0|0|0|0|0,cts_m=0,bac_u=0,tra_a=75,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=3,wif_s=35,inc_a=0,set_v=0,mcp_w=2500,mdp_w=2500,ct_t=3,phase_t=1,dchrg_t=1,bms_v=113,fc_v=202409090159,wifi_n=maekan,seq_s=3,ctrl_r=0,par=0,gen=0,ble=1,shelly_p=1010,c_ratio=100';
+    const parsed = parseMessage(message, 'VNSE3-0', 'venus123');
+
+    expect(parsed).toHaveProperty('data');
+    const result = parsed['data'] as VenusDeviceData;
+    expect(result).toHaveProperty('totalChargingCapacity', 33.99);
+    expect(result).toHaveProperty('totalDischargeCapacity', 43.18);
   });
 });

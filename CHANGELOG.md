@@ -1,4 +1,33 @@
 # Changelog
+## [1.7.0] - 2026-06-01
+
+### Breaking Changes
+
+- Drop 32-bit ARM (linux/arm/v7) image builds. Home Assistant no longer supports 32-bit ARM, and the CI now builds ARM images natively (arm64).
+
+- Jupiter: The "Cell Voltage X" sensors were removed as they were misleading. The `vol0`..`vol15` fields do not represent the actual cell voltages, but rather the numbers and voltages of the cell with the highest and lowest voltage. New sensors were added to represent these values properly.
+
+- Jupiter: `chargeCurrent` and `dischargeCurrent` sensors were renamed to `chargeCurrentLimit` and `dischargeCurrentLimit` to reflect that they represent the current limits set by BMS.
+
+### Added
+
+- Log the build commit hash at application startup to make it easier to verify which exact source revision a running container/add-on was built from
+- Add configurable Home Assistant MQTT discovery topic prefix via `AUTODISCOVERY_TOPIC_PREFIX` (add-on option: `autodiscoveryTopicPrefix`, default: `homeassistant`) (#248)
+- Include `connections` field with formatted MAC address in device discovery payloads, allowing Home Assistant to correlate devices by their Bluetooth address
+- HMI inverter: Support 4-PV variants such as the HMI-2000 by adding PV3/PV4 voltage, current, power and status sensors. These are only advertised when the device actually reports them, so 2-PV inverters (e.g. MI800) are unaffected. Also expose the Bluetooth signal and WiFi RSSI diagnostics already received from these devices (fixes #301)
+
+### Fixed
+
+- Filter transient corrupt readings in cumulative energy counters: a single backward jump (e.g. a dropped digit from the battery) is now suppressed until a following reading confirms it, so genuine period resets still pass through but glitches no longer poison Home Assistant statistics (fixes #296)
+- Venus: Treat out-of-range/sentinel `mcp_w` values (e.g. -1) as unknown for the *Maximum Charging Power* entity to avoid Home Assistant log spam (#240)
+- B2500: Fix `Surplus Feed-in` entity missing for `HMJ-*` devices (firmware 108+) (fixes #235, #242)
+- B2500: Fix time period 5 control topics not being processed and normalize time format in timer commands (fixes #244)
+- Jupiter: Change parsing of cell voltages (`vol0`..`vol15`). They were not what they seemed, as they represent the numbers and the voltages of the cell with the highest and lowest voltage, not the actual cell voltages. See discussion in #253 for more details. The values are now parsed into new sensors and the old sensors ("Cell Voltage X") were removed.
+- Jupiter: Fix incorrect parsing of the "Surplus Feed-In" control state. The fix that was included in the previous release (#223) was incorrect and the control would still show as disabled when the device was actively feeding in surplus power.
+- Jupiter: Fix "Inverter Temperature" (`i_temp`) parsing by applying the correct divisor.
+- Jupiter: Update "Depth of Discharge" control range to 30% - 90% to keep up-to-date with the Marstek app (fixes #260).
+- Jupiter: Fix parsing and naming of "BMS ChargeCurrent" (`c_cur`) and "BMS DischargeCurrent" (`d_cur`) fields. They represent current limits set by the BMS, not the actual currents, so they were renamed to `BMS ChargeCurrentLimit` and `BMS DischargeCurrentLimit` and their values are now in Amperes.
+
 ## [1.6.0] - 2026-01-25
 
 - Fix Home Assistant warning when surplus feed-in is unavailable on older HM firmware versions

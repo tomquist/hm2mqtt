@@ -25,7 +25,7 @@ import {
   switchComponent,
   textComponent,
 } from '../homeAssistantDiscovery';
-import { transformBoolean, transformTimeString } from './helpers';
+import { number, boolean, map, timeString, equalsBoolean, divide } from '../transforms';
 
 /**
  * Create a time period handler for a specific setting
@@ -100,6 +100,22 @@ export const timePeriodSettingHandler = (
 /**
  * Build time period parameters for all periods
  */
+function formatTimeForB2500V2(time: string): string {
+  // Device seems to prefer H:M (no leading zeros).
+  // Examples:
+  // - "00:30" should be sent as "0:30"
+  // - "08:01" should be sent as "8:1"
+  const [hStr, mStr] = time.split(':');
+  if (hStr == null || mStr == null) return time;
+
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  if (Number.isNaN(h) || Number.isNaN(m)) return time;
+
+  // Minutes are also sent without zero-padding (e.g. 08:01 -> 8:1), matching device/app behavior.
+  return `${h}:${m}`;
+}
+
 function buildTimePeriodParams(
   timePeriods: NonNullable<B2500V2DeviceData['timePeriods']>,
 ): CommandParams {
@@ -116,8 +132,8 @@ function buildTimePeriodParams(
 
     // Use new settings if available, otherwise use stored settings
     const enabled = period.enabled;
-    const startTime = period.startTime;
-    const endTime = period.endTime;
+    const startTime = formatTimeForB2500V2(period.startTime);
+    const endTime = formatTimeForB2500V2(period.endTime);
     const outputValue = period.outputValue;
 
     // Set parameters dynamically using the period index
@@ -155,7 +171,13 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
   const isSurplusFeedInSupported = (
     state: Pick<B2500V2DeviceData, 'deviceType'> & { deviceInfo?: B2500V2DeviceData['deviceInfo'] },
   ) => {
-    const requiredVersion = state.deviceType === 'HMJ' ? 108 : 226;
+    // deviceType comes from config/topic and can include a suffix like "HMJ-2".
+    // Normalize it to the base type for feature gating.
+    const baseType = state.deviceType?.split('-')[0];
+    if (baseType == null) {
+      return undefined;
+    }
+    const requiredVersion = baseType === 'HMJ' ? 108 : 226;
     const deviceVersion = state.deviceInfo?.deviceVersion;
     if (deviceVersion == null) {
       return undefined;
@@ -171,6 +193,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'lv',
       path: ['batteryOutputThreshold'],
+      transform: number(),
     });
     advertise(
       ['batteryOutputThreshold'],
@@ -184,14 +207,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'cs',
       path: ['chargingMode'],
-      transform: v => {
-        switch (v) {
-          case '0':
-            return 'chargeDischargeSimultaneously';
-          case '1':
-            return 'chargeThenDischarge';
-        }
-      },
+      transform: map({ '0': 'chargeDischargeSimultaneously', '1': 'chargeThenDischarge' }),
     });
     advertise(
       ['chargingMode'],
@@ -234,7 +250,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'md',
       path: ['adaptiveMode'],
-      transform: transformBoolean,
+      transform: boolean(),
     });
     advertise(
       ['adaptiveMode'],
@@ -264,7 +280,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       field({
         key: `d${i + 1}`,
         path: ['timePeriods', i, 'enabled'],
-        transform: transformBoolean,
+        transform: boolean(),
       });
       advertise(
         ['timePeriods', i, 'enabled'],
@@ -278,7 +294,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       field({
         key: `e${i + 1}`,
         path: ['timePeriods', i, 'startTime'],
-        transform: transformTimeString,
+        transform: timeString(),
       });
       advertise(
         ['timePeriods', i, 'startTime'],
@@ -292,7 +308,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       field({
         key: `f${i + 1}`,
         path: ['timePeriods', i, 'endTime'],
-        transform: transformTimeString,
+        transform: timeString(),
       });
       advertise(
         ['timePeriods', i, 'endTime'],
@@ -306,6 +322,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       field({
         key: `h${i + 1}`,
         path: ['timePeriods', i, 'outputValue'],
+        transform: number(),
       });
       advertise(
         ['timePeriods', i, 'outputValue'],
@@ -320,10 +337,10 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       );
 
       const timerPeriodCommands = [
-        timePeriodSettingHandler(i, 'enabled'),
-        timePeriodSettingHandler(i, 'start-time'),
-        timePeriodSettingHandler(i, 'end-time'),
-        timePeriodSettingHandler(i, 'output-value'),
+        timePeriodSettingHandler(i + 1, 'enabled'),
+        timePeriodSettingHandler(i + 1, 'start-time'),
+        timePeriodSettingHandler(i + 1, 'end-time'),
+        timePeriodSettingHandler(i + 1, 'output-value'),
       ];
       for (const { command: name, ...commandHandler } of timerPeriodCommands) {
         command(name, commandHandler);
@@ -334,6 +351,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'bc',
       path: ['dailyStats', 'batteryChargingPower'],
+      transform: number(),
+      monotonic: true,
     });
     advertise(
       ['dailyStats', 'batteryChargingPower'],
@@ -348,6 +367,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'bs',
       path: ['dailyStats', 'batteryDischargePower'],
+      transform: number(),
+      monotonic: true,
     });
     advertise(
       ['dailyStats', 'batteryDischargePower'],
@@ -362,6 +383,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'pt',
       path: ['dailyStats', 'photovoltaicChargingPower'],
+      transform: number(),
+      monotonic: true,
     });
     advertise(
       ['dailyStats', 'photovoltaicChargingPower'],
@@ -376,6 +399,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'it',
       path: ['dailyStats', 'microReverseOutputPower'],
+      transform: number(),
+      monotonic: true,
     });
     advertise(
       ['dailyStats', 'microReverseOutputPower'],
@@ -392,7 +417,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'sg',
       path: ['ctInfo', 'connected'],
-      transform: transformBoolean,
+      transform: boolean(),
     });
     advertise(
       ['ctInfo', 'connected'],
@@ -405,6 +430,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'sp',
       path: ['ctInfo', 'automaticPowerSize'],
+      transform: number(),
     });
     advertise(
       ['ctInfo', 'automaticPowerSize'],
@@ -419,6 +445,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'st',
       path: ['ctInfo', 'transmittedPower'],
+      transform: number(),
     });
     advertise(
       ['ctInfo', 'transmittedPower'],
@@ -433,20 +460,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'c0',
       path: ['ctInfo', 'connectedPhase'],
-      transform: v => {
-        // Phase connected to Smart Meter (0/1/2/255, 255=no channel)
-        const num = Number(v);
-        switch (num) {
-          case 0:
-          case 1:
-          case 2:
-            return num;
-          case 3:
-            return 'searching';
-          case 255:
-            return 'unknown';
-        }
-      },
+      transform: map({ '0': 0, '1': 1, '2': 2, '3': 'searching', '255': 'unknown' }),
     });
     advertise(
       ['ctInfo', 'connectedPhase'],
@@ -488,27 +502,18 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'c1',
       path: ['ctInfo', 'status'],
-      transform: v => {
-        const num = Number(v);
-        switch (num) {
-          case 5:
-            return 'preparing1';
-          case 6:
-            return 'preparing2';
-          case 7:
-            return 'diagnosingEquipment';
-          case 8:
-            return 'diagnosingChannel';
-          case 9:
-            return 'diagnosisTimeout';
-          case 10:
-            return 'chargingInProgress';
-          case 11:
-            return 'unableToFindChannel';
-          default:
-            return 'notInDiagnosis';
-        }
-      },
+      transform: map(
+        {
+          '5': 'preparing1',
+          '6': 'preparing2',
+          '7': 'diagnosingEquipment',
+          '8': 'diagnosingChannel',
+          '9': 'diagnosisTimeout',
+          '10': 'chargingInProgress',
+          '11': 'unableToFindChannel',
+        },
+        'notInDiagnosis',
+      ),
     });
     advertise(
       ['ctInfo', 'status'],
@@ -530,6 +535,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'm0',
       path: ['ctInfo', 'phase1'],
+      transform: number(),
     });
     advertise(
       ['ctInfo', 'phase1'],
@@ -544,6 +550,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'm1',
       path: ['ctInfo', 'phase2'],
+      transform: number(),
     });
     advertise(
       ['ctInfo', 'phase2'],
@@ -558,6 +565,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'm2',
       path: ['ctInfo', 'phase3'],
+      transform: number(),
     });
     advertise(
       ['ctInfo', 'phase3'],
@@ -572,6 +580,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'm3',
       path: ['ctInfo', 'microInverterPower'],
+      transform: number(),
     });
     advertise(
       ['ctInfo', 'microInverterPower'],
@@ -588,6 +597,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'lmo',
       path: ['ratedPower', 'output'],
+      transform: number(),
     });
     advertise(
       ['ratedPower', 'output'],
@@ -602,6 +612,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'lmi',
       path: ['ratedPower', 'input'],
+      transform: number(),
     });
     advertise(
       ['ratedPower', 'input'],
@@ -616,7 +627,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'lmf',
       path: ['ratedPower', 'isLimited'],
-      transform: transformBoolean,
+      transform: boolean(),
     });
     advertise(
       ['ratedPower', 'isLimited'],
@@ -696,7 +707,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'tc_dis',
       path: ['surplusFeedInEnabled'],
-      transform: v => v === '0',
+      transform: equalsBoolean('0'),
     });
     advertise(
       ['surplusFeedInEnabled'],
@@ -770,7 +781,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
       field({
         key: `m${input}`,
         path: [`input${input}`, 'voltage'],
-        transform: v => parseFloat(v) / 1000,
+        transform: divide(1000),
       });
       advertise(
         [`input${input}`, 'voltage'],
@@ -784,7 +795,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
       field({
         key: `c${input}`,
         path: [`input${input}`, 'current'],
-        transform: v => parseFloat(v) / 1000,
+        transform: divide(1000),
       });
       advertise(
         [`input${input}`, 'current'],
@@ -803,7 +814,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
       field({
         key: `i${input}`,
         path: [`output${input}`, 'voltage'],
-        transform: v => parseFloat(v) / 1000,
+        transform: divide(1000),
       });
       advertise(
         [`output${input}`, 'voltage'],
@@ -817,7 +828,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
       field({
         key: `c${input + 2}`,
         path: [`output${input}`, 'current'],
-        transform: v => parseFloat(v) / 1000,
+        transform: divide(1000),
       });
       advertise(
         [`output${input}`, 'current'],
@@ -841,7 +852,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
     field({
       key: 'bv',
       path: ['batteryData', 'host', 'voltage'],
-      transform: (v: string) => parseFloat(v) / 1000,
+      transform: divide(1000),
     });
     advertise(
       ['batteryData', 'host', 'voltage'],
@@ -855,7 +866,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
     field({
       key: 'bc',
       path: ['batteryData', 'host', 'current'],
-      transform: v => parseFloat(v) / 1000,
+      transform: divide(1000),
     });
     advertise(
       ['batteryData', 'host', 'current'],
@@ -873,7 +884,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
     field({
       key: 'sv',
       path: ['batteryData', 'extra1', 'voltage'],
-      transform: (v: string) => parseFloat(v) / 1000,
+      transform: divide(1000),
     });
     advertise(
       ['batteryData', 'extra1', 'voltage'],
@@ -888,7 +899,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
     field({
       key: 'sc',
       path: ['batteryData', 'extra1', 'current'],
-      transform: v => parseFloat(v) / 1000,
+      transform: divide(1000),
     });
     advertise(
       ['batteryData', 'extra1', 'current'],
@@ -907,7 +918,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
     field({
       key: 'lv',
       path: ['batteryData', 'extra2', 'voltage'],
-      transform: (v: string) => parseFloat(v) / 1000,
+      transform: divide(1000),
     });
     advertise(
       ['batteryData', 'extra2', 'voltage'],
@@ -922,7 +933,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
     field({
       key: 'lc',
       path: ['batteryData', 'extra2', 'current'],
-      transform: v => parseFloat(v) / 1000,
+      transform: divide(1000),
     });
     advertise(
       ['batteryData', 'extra2', 'current'],

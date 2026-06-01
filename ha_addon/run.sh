@@ -13,7 +13,7 @@ start_application() {
 output_env_for_testing() {
     bashio::log.info "Running in test mode, outputting environment variables"
     # Output all environment variables that start with MQTT_ or DEVICE_
-    env | grep -E "^(MQTT_|DEVICE_|POLL_|DEBUG=|LOG_LEVEL=)" | sort
+    env | grep -E "^(MQTT_|AUTODISCOVERY_|DEVICE_|POLL_|DEBUG=|LOG_LEVEL=)" | sort
 }
 
 # Function to manually parse options.json
@@ -114,12 +114,14 @@ export POLL_EXTRA_BATTERY_DATA=$(bashio::config 'enableExtraBatteryData' "false"
 export DEBUG=$(bashio::config 'debug' "false")
 export MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS=$(bashio::config 'allowedConsecutiveTimeouts' "3")
 export MQTT_TOPIC_PREFIX=$(bashio::config 'topicPrefix' "hm2mqtt")
+export AUTODISCOVERY_TOPIC_PREFIX=$(bashio::config 'autodiscoveryTopicPrefix' "homeassistant")
 export MQTT_PROXY_ENABLED=$(bashio::config 'mqttProxyEnabled' "false")
 bashio::log.info "MQTT allowed consecutive timeouts: ${MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS}"
 bashio::log.info "MQTT proxy enabled: ${MQTT_PROXY_ENABLED}"
 bashio::log.info "MQTT polling interval: ${MQTT_POLLING_INTERVAL} seconds"
 bashio::log.info "MQTT response timeout: ${MQTT_RESPONSE_TIMEOUT} seconds"
 bashio::log.info "MQTT topic prefix: ${MQTT_TOPIC_PREFIX}"
+bashio::log.info "MQTT autodiscovery topic prefix: ${AUTODISCOVERY_TOPIC_PREFIX}"
 
 # Process devices using Bashio functions properly
 bashio::log.info "Configuring devices..."

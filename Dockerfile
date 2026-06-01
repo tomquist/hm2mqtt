@@ -1,5 +1,7 @@
 FROM node:20-alpine
 
+ARG BUILD_COMMIT=unknown
+
 # Create app directory
 WORKDIR /app
 
@@ -19,6 +21,7 @@ RUN npm ci --only=production
 
 # Set environment variables
 ENV NODE_ENV=production
+ENV BUILD_COMMIT=${BUILD_COMMIT}
 
 # Expose MQTT port if needed
 # EXPOSE 1883

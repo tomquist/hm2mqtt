@@ -18,6 +18,16 @@ import {
   textComponent,
   binarySensorComponent,
 } from '../homeAssistantDiscovery';
+import {
+  multiply,
+  divide,
+  map,
+  identity,
+  number,
+  equalsBoolean,
+  chain,
+  inRange,
+} from '../transforms';
 
 /**
  * Command types supported by the Venus device
@@ -167,7 +177,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'cel_p',
       path: ['batteryCapacity'],
-      transform: v => parseFloat(v) * 10, // Convert to Wh
+      transform: multiply(10), // Convert to Wh
     });
     advertise(
       ['batteryCapacity'],
@@ -182,6 +192,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'cel_c',
       path: ['batterySoc'],
+      transform: number(),
     });
     advertise(
       ['batterySoc'],
@@ -197,7 +208,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'tot_i',
       path: ['totalChargingCapacity'],
-      transform: v => parseFloat(v) / 100, // Convert to kWh
+      transform: divide(100), // Convert to kWh
+      monotonic: true,
     });
     advertise(
       ['totalChargingCapacity'],
@@ -213,7 +225,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'tot_o',
       path: ['totalDischargeCapacity'],
-      transform: v => parseFloat(v) / 100, // Convert to kWh
+      transform: divide(100), // Convert to kWh
+      monotonic: true,
     });
     advertise(
       ['totalDischargeCapacity'],
@@ -229,7 +242,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'ele_d',
       path: ['dailyChargingCapacity'],
-      transform: v => parseFloat(v) / 100, // Convert to kWh
+      transform: divide(100), // Convert to kWh
+      monotonic: true,
     });
     advertise(
       ['dailyChargingCapacity'],
@@ -245,7 +259,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'ele_m',
       path: ['monthlyChargingCapacity'],
-      transform: v => parseFloat(v) / 100, // Convert to kWh
+      transform: divide(100), // Convert to kWh
+      monotonic: true,
     });
     advertise(
       ['monthlyChargingCapacity'],
@@ -261,7 +276,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'grd_d',
       path: ['dailyDischargeCapacity'],
-      transform: v => parseFloat(v) / 100, // Convert to kWh
+      transform: divide(100), // Convert to kWh
+      monotonic: true,
     });
     advertise(
       ['dailyDischargeCapacity'],
@@ -277,7 +293,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'grd_m',
       path: ['monthlyDischargeCapacity'],
-      transform: v => parseFloat(v) / 100, // Convert to kWh
+      transform: divide(100), // Convert to kWh
+      monotonic: true,
     });
     advertise(
       ['monthlyDischargeCapacity'],
@@ -294,7 +311,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'inc_d',
       path: ['dailyIncome'],
-      transform: v => parseFloat(v) / 1000, // Convert to euros
+      transform: divide(1000), // Convert to euros
     });
     advertise(
       ['dailyIncome'],
@@ -310,7 +327,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'inc_m',
       path: ['monthlyIncome'],
-      transform: v => parseFloat(v) / 1000, // Convert to euros
+      transform: divide(1000), // Convert to euros
     });
     advertise(
       ['monthlyIncome'],
@@ -326,7 +343,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'inc_a',
       path: ['totalIncome'],
-      transform: v => parseFloat(v) / 1000, // Convert to euros
+      transform: divide(1000), // Convert to euros
     });
     advertise(
       ['totalIncome'],
@@ -342,6 +359,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'grd_f',
       path: ['offGridPower'],
+      transform: number(),
     });
     advertise(
       ['offGridPower'],
@@ -356,6 +374,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'grd_o',
       path: ['combinedPower'],
+      transform: number(),
     });
     advertise(
       ['combinedPower'],
@@ -371,26 +390,18 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'grd_t',
       path: ['workingStatus'],
-      transform: v => {
-        switch (v) {
-          case '0':
-            return 'sleep';
-          case '1':
-            return 'standby';
-          case '2':
-            return 'charging';
-          case '3':
-            return 'discharging';
-          case '4':
-            return 'backup';
-          case '5':
-            return 'upgrading';
-          case '6':
-            return 'bypass';
-          default:
-            return 'standby';
-        }
-      },
+      transform: map(
+        {
+          '0': 'sleep',
+          '1': 'standby',
+          '2': 'charging',
+          '3': 'discharging',
+          '4': 'backup',
+          '5': 'upgrading',
+          '6': 'bypass',
+        },
+        'standby',
+      ),
     });
     advertise(
       ['workingStatus'],
@@ -414,18 +425,14 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'gct_s',
       path: ['ctStatus'],
-      transform: v => {
-        switch (v) {
-          case '0':
-            return 'notConnected';
-          case '1':
-            return 'connected';
-          case '2':
-            return 'weakSignal';
-          default:
-            return 'notConnected';
-        }
-      },
+      transform: map(
+        {
+          '0': 'notConnected',
+          '1': 'connected',
+          '2': 'weakSignal',
+        },
+        'notConnected',
+      ),
     });
     advertise(
       ['ctStatus'],
@@ -445,18 +452,14 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'cel_s',
       path: ['batteryWorkingStatus'],
-      transform: v => {
-        switch (v) {
-          case '1':
-            return 'notWorking';
-          case '2':
-            return 'charging';
-          case '3':
-            return 'discharging';
-          default:
-            return 'unknown';
-        }
-      },
+      transform: map(
+        {
+          '1': 'notWorking',
+          '2': 'charging',
+          '3': 'discharging',
+        },
+        'unknown',
+      ),
     });
     advertise(
       ['batteryWorkingStatus'],
@@ -477,6 +480,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'err_t',
       path: ['errorCode'],
+      transform: number(),
     });
     advertise(
       ['errorCode'],
@@ -490,6 +494,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'err_a',
       path: ['warningCode'],
+      transform: number(),
     });
     advertise(
       ['warningCode'],
@@ -504,6 +509,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'dev_n',
       path: ['deviceVersion'],
+      transform: number(),
     });
     advertise(
       ['deviceVersion'],
@@ -517,32 +523,21 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'grd_y',
       path: ['gridType'],
-      transform: v => {
-        switch (v) {
-          case '0':
-            return 'adaptive';
-          case '1':
-            return 'en50549';
-          case '2':
-            return 'netherlands';
-          case '3':
-            return 'germany';
-          case '4':
-            return 'austria';
-          case '5':
-            return 'unitedKingdom';
-          case '6':
-            return 'spain';
-          case '7':
-            return 'poland';
-          case '8':
-            return 'italy';
-          case '9':
-            return 'china';
-          default:
-            return 'adaptive';
-        }
-      },
+      transform: map(
+        {
+          '0': 'adaptive',
+          '1': 'en50549',
+          '2': 'netherlands',
+          '3': 'germany',
+          '4': 'austria',
+          '5': 'unitedKingdom',
+          '6': 'spain',
+          '7': 'poland',
+          '8': 'italy',
+          '9': 'china',
+        },
+        'adaptive',
+      ),
     });
     advertise(
       ['gridType'],
@@ -568,18 +563,14 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'wor_m',
       path: ['workingMode'],
-      transform: v => {
-        switch (v) {
-          case '0':
-            return 'automatic';
-          case '1':
-            return 'manual';
-          case '2':
-            return 'trading';
-          default:
-            return 'automatic';
-        }
-      },
+      transform: map(
+        {
+          '0': 'automatic',
+          '1': 'manual',
+          '2': 'trading',
+        },
+        'automatic',
+      ),
     });
     advertise(
       ['workingMode'],
@@ -599,7 +590,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'wifi_n',
       path: ['wifiName'],
-      transform: v => v,
+      transform: identity(),
     });
     advertise(
       ['wifiName'],
@@ -613,7 +604,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'api',
       path: ['localApiEnabled'],
-      transform: v => v === '1',
+      transform: equalsBoolean('1'),
     });
     advertise(
       ['localApiEnabled'],
@@ -629,7 +620,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'port',
       path: ['localApiPort'],
-      transform: v => parseInt(v, 10),
+      transform: number(),
     });
     advertise(
       ['localApiPort'],
@@ -773,7 +764,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'cts_m',
       path: ['autoSwitchWorkingMode'],
-      transform: v => v === '1',
+      transform: equalsBoolean('1'),
     });
     advertise(
       ['autoSwitchWorkingMode'],
@@ -787,7 +778,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'set_v',
       path: ['versionSet'],
-      transform: v => (v === '0' ? '800W' : '2500W'),
+      transform: map({ '0': '800W' }, '2500W'),
     });
     advertise(
       ['versionSet'],
@@ -1156,6 +1147,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'mdp_w',
       path: ['maxDischargePower'],
+      transform: number(),
     });
     advertise(
       ['maxDischargePower'],
@@ -1190,6 +1182,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'mcp_w',
       path: ['maxChargingPower'],
+      transform: chain(number(), inRange(0, 2500)),
     });
     advertise(
       ['maxChargingPower'],

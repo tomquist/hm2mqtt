@@ -10,6 +10,14 @@ import {
   TypeAtPath,
 } from './deviceDefinition';
 import { Device } from './types';
+
+const MAC_REGEX = /^[0-9a-fA-F]{12}$/;
+
+function formatMac(id: string): string {
+  const parts = id.toUpperCase().match(/.{2}/g);
+  return parts ? parts.join(':') : id.toUpperCase();
+}
+
 export interface HaAdvertisement<T, KP extends KeyPath<T> | []> {
   keyPath: KP;
   advertise: HaStatefulAdvertiseBuilder<KP extends KeyPath<T> ? TypeAtPath<T, KeyPath<T>> : void>;
@@ -21,6 +29,7 @@ export function generateDiscoveryConfigs(
   topics: DeviceTopics,
   additionalDeviceInfo: AdditionalDeviceInfo,
   topicPrefix: string,
+  autodiscoveryTopicPrefix: string,
   deviceState: any = {},
 ): Array<{ topic: string; config: HaDiscoveryConfig | null }> {
   const deviceDefinition = getDeviceDefinition(device.deviceType);
@@ -33,6 +42,9 @@ export function generateDiscoveryConfigs(
     manufacturer: 'HAME Energy',
     ...(additionalDeviceInfo.firmwareVersion != null
       ? { sw_version: additionalDeviceInfo.firmwareVersion }
+      : {}),
+    ...(MAC_REGEX.test(device.deviceId)
+      ? { connections: [['bluetooth', formatMac(device.deviceId)]] }
       : {}),
   };
   const origin = {
@@ -73,7 +85,7 @@ export function generateDiscoveryConfigs(
       });
       const { type: platform, id: _objectId, ...config } = advertisement;
       const objectId = _objectId.replace(/[^a-zA-Z0-9_-]/g, '_');
-      const topic = `homeassistant/${platform}/${nodeId}/${objectId}/config`;
+      const topic = `${autodiscoveryTopicPrefix}/${platform}/${nodeId}/${objectId}/config`;
 
       if (field.enabled) {
         const enabledResult = field.enabled(deviceState);
@@ -110,6 +122,7 @@ export function publishDiscoveryConfigs(
   deviceTopics: DeviceTopics,
   additionalDeviceInfo: AdditionalDeviceInfo,
   topicPrefix: string,
+  autodiscoveryTopicPrefix: string,
   deviceState: any = {},
 ): void {
   const configs = generateDiscoveryConfigs(
@@ -117,6 +130,7 @@ export function publishDiscoveryConfigs(
     deviceTopics,
     additionalDeviceInfo,
     topicPrefix,
+    autodiscoveryTopicPrefix,
     deviceState,
   );
 

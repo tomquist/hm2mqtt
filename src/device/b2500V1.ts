@@ -16,7 +16,7 @@ import {
   sensorComponent,
   switchComponent,
 } from '../homeAssistantDiscovery';
-import { transformBitBoolean } from './helpers';
+import { number, bitBoolean, map } from '../transforms';
 
 registerDeviceDefinition(
   {
@@ -46,14 +46,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'cs',
       path: ['chargingMode'],
-      transform: v => {
-        switch (v) {
-          case '0':
-            return 'pv2PassThrough';
-          case '1':
-            return 'chargeThenDischarge';
-        }
-      },
+      transform: map({ '0': 'pv2PassThrough', '1': 'chargeThenDischarge' }),
     });
     advertise(
       ['chargingMode'],
@@ -95,6 +88,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'lv',
       path: ['batteryOutputThreshold'],
+      transform: number(),
     });
     advertise(
       ['batteryOutputThreshold'],
@@ -131,7 +125,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       field({
         key: 'cd',
         path: ['outputEnabled', `output${outputNumber}`],
-        transform: transformBitBoolean(outputNumber - 1),
+        transform: bitBoolean(outputNumber - 1),
       });
       advertise(
         [`outputEnabled`, `output${outputNumber}`],
@@ -227,6 +221,7 @@ function registerExtraBatteryData(message: BuildMessageFn) {
       field({
         key: `m${input}`,
         path: [`input${input}`, 'voltage'],
+        transform: number(),
       });
       advertise(
         [`input${input}`, 'voltage'],
@@ -240,10 +235,12 @@ function registerExtraBatteryData(message: BuildMessageFn) {
       field({
         key: `w${input}`,
         path: [`input${input}`, 'power'],
+        transform: number(),
       });
       field({
         key: `g${input}`,
         path: [`output${input}`, 'power'],
+        transform: number(),
       });
     }
   });

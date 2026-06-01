@@ -33,6 +33,7 @@ describe('Home Assistant Discovery', () => {
       deviceTopics,
       additionalDeviceInfo,
       DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
     );
 
     // Check that we have configs
@@ -105,6 +106,124 @@ describe('Home Assistant Discovery', () => {
     expect(factoryResetButton?.config!.payload_press).toBe('PRESS');
   });
 
+  test('should include connections with formatted MAC when deviceId is 12 hex chars', () => {
+    const device: Device = { deviceType: 'HMA-1', deviceId: 'e88da6f35def' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/HMA-1/device/e88da6f35def/ctrl',
+      deviceTopicNew: 'marstek_energy/HMA-1/device/e88da6f35def/ctrl',
+      deviceControlTopicOld: 'hame_energy/HMA-1/App/e88da6f35def/ctrl',
+      deviceControlTopicNew: 'marstek_energy/HMA-1/App/e88da6f35def/ctrl',
+      availabilityTopic: 'hame_energy/HMA-1/availability/e88da6f35def',
+      controlSubscriptionTopic: 'hame_energy/HMA-1/control/e88da6f35def/control',
+      publishTopic: 'hame_energy/HMA-1/device/e88da6f35def/data',
+    };
+
+    const configs = generateDiscoveryConfigs(
+      device,
+      deviceTopics,
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
+    );
+
+    const firstConfig = configs[0];
+    expect(firstConfig.config!.device.connections).toEqual([['bluetooth', 'E8:8D:A6:F3:5D:EF']]);
+  });
+
+  test('should not include connections when deviceId is not a MAC address', () => {
+    const device: Device = { deviceType: 'HMA-1', deviceId: 'test123' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/HMA-1/device/test123/ctrl',
+      deviceTopicNew: 'marstek_energy/HMA-1/device/test123/ctrl',
+      deviceControlTopicOld: 'hame_energy/HMA-1/App/test123/ctrl',
+      deviceControlTopicNew: 'marstek_energy/HMA-1/App/test123/ctrl',
+      availabilityTopic: 'hame_energy/HMA-1/availability/test123',
+      controlSubscriptionTopic: 'hame_energy/HMA-1/control/test123/control',
+      publishTopic: 'hame_energy/HMA-1/device/test123/data',
+    };
+
+    const configs = generateDiscoveryConfigs(
+      device,
+      deviceTopics,
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
+    );
+
+    const firstConfig = configs[0];
+    expect(firstConfig.config!.device).not.toHaveProperty('connections');
+  });
+
+  test('should publish surplus_feed_in for HMJ-* when firmware supports it (regression #235)', () => {
+    const deviceType = 'HMJ-2';
+    const deviceId = 'test123';
+
+    const device: Device = { deviceType, deviceId };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/HMJ-2/device/test123/ctrl',
+      deviceTopicNew: 'marstek_energy/HMJ-2/device/test123/ctrl',
+      publishTopic: 'hame_energy/HMJ-2/device/test123/data',
+      deviceControlTopicOld: 'hame_energy/HMJ-2/App/test123/ctrl',
+      deviceControlTopicNew: 'marstek_energy/HMJ-2/App/test123/ctrl',
+      controlSubscriptionTopic: 'hame_energy/HMJ-2/control/test123/control',
+      availabilityTopic: 'hame_energy/HMJ-2/availability/test123',
+    };
+
+    // HMJ models support surplus feed-in starting with version 108 (e.g. 116.6)
+    const supportedState = { deviceType, deviceInfo: { deviceVersion: 116 } };
+    const supportedConfigs = generateDiscoveryConfigs(
+      device,
+      deviceTopics,
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
+      supportedState,
+    );
+
+    const surplusSwitch = supportedConfigs.find(c => c.topic.includes('surplus_feed_in'));
+    expect(surplusSwitch).toBeDefined();
+    expect(surplusSwitch?.config).not.toBeNull();
+
+    // Below required version: should be explicitly disabled (null config)
+    const unsupportedState = { deviceType, deviceInfo: { deviceVersion: 107 } };
+    const unsupportedConfigs = generateDiscoveryConfigs(
+      device,
+      deviceTopics,
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
+      unsupportedState,
+    );
+
+    const surplusSwitchDisabled = unsupportedConfigs.find(c => c.topic.includes('surplus_feed_in'));
+    expect(surplusSwitchDisabled).toBeDefined();
+    expect(surplusSwitchDisabled?.config).toBeNull();
+  });
+
+  test('should support custom autodiscovery topic prefix', () => {
+    const device: Device = { deviceType: 'HMA-1', deviceId: 'test123' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/HMA-1/device/test123/ctrl',
+      deviceTopicNew: 'marstek_energy/HMA-1/device/test123/ctrl',
+      deviceControlTopicOld: 'hame_energy/HMA-1/App/test123/ctrl',
+      deviceControlTopicNew: 'marstek_energy/HMA-1/App/test123/ctrl',
+      availabilityTopic: 'hame_energy/HMA-1/availability/test123',
+      controlSubscriptionTopic: 'hame_energy/HMA-1/control/test123/control',
+      publishTopic: 'hame_energy/HMA-1/device/test123/data',
+    };
+
+    const configs = generateDiscoveryConfigs(
+      device,
+      deviceTopics,
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      'domoticz',
+    );
+
+    expect(configs.length).toBeGreaterThan(0);
+    expect(configs[0].topic.startsWith('domoticz/')).toBe(true);
+  });
+
   test('should mock publishDiscoveryConfigs', () => {
     // Create a mock MQTT client
     const mockClient = {
@@ -138,7 +257,15 @@ describe('Home Assistant Discovery', () => {
     const { publishDiscoveryConfigs } = require('./generateDiscoveryConfigs');
 
     // Call the function with the mock client
-    publishDiscoveryConfigs(mockClient, device, deviceTopics, {}, DEFAULT_TOPIC_PREFIX, {});
+    publishDiscoveryConfigs(
+      mockClient,
+      device,
+      deviceTopics,
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
+      {},
+    );
 
     // Check that publish was called
     expect(mockClient.publish).toHaveBeenCalled();
@@ -157,7 +284,51 @@ describe('Home Assistant Discovery', () => {
       deviceTopics,
       {},
       DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
       {},
     );
+  });
+
+  test('should gate HMI PV3/PV4 discovery configs on data presence', () => {
+    const device: Device = { deviceType: 'HMI-2000', deviceId: 'hmi2000' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/HMI-2000/device/hmi2000/ctrl',
+      deviceTopicNew: 'marstek_energy/HMI-2000/device/hmi2000/ctrl',
+      deviceControlTopicOld: 'hame_energy/HMI-2000/App/hmi2000/ctrl',
+      deviceControlTopicNew: 'marstek_energy/HMI-2000/App/hmi2000/ctrl',
+      availabilityTopic: 'hame_energy/HMI-2000/availability/hmi2000',
+      controlSubscriptionTopic: 'hame_energy/HMI-2000/control/hmi2000/control',
+      publishTopic: 'hame_energy/HMI-2000/device/hmi2000/data',
+    };
+
+    const pv34Topics = (state: object) =>
+      generateDiscoveryConfigs(
+        device,
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      )
+        .map(c => c.topic)
+        .filter(t => /pv3_|pv4_/.test(t));
+
+    // 2-PV state (no pv3/pv4 data): no PV3/PV4 configs advertised
+    expect(pv34Topics({ pv1Voltage: 33.4 })).toHaveLength(0);
+
+    // 4-PV state (HMI-2000): PV3/PV4 configs advertised (voltage/current/power/status each)
+    const fourPv = pv34Topics({
+      pv3Voltage: 33.6,
+      pv3Current: 0.2,
+      pv3Power: 17,
+      pv3Status: true,
+      pv4Voltage: 33.7,
+      pv4Current: 0.3,
+      pv4Power: 18,
+      pv4Status: false,
+    });
+    expect(fourPv.some(t => t.includes('pv3_voltage'))).toBe(true);
+    expect(fourPv.some(t => t.includes('pv4_status'))).toBe(true);
+    expect(fourPv).toHaveLength(8);
   });
 });

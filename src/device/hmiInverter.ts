@@ -1,5 +1,5 @@
 import { BuildMessageFn, globalPollInterval, registerDeviceDefinition } from '../deviceDefinition';
-import { CommandParams, MI800DeviceData, isValidMI800Mode } from '../types';
+import { CommandParams, HmiInverterDeviceData, isValidHmiInverterMode } from '../types';
 import {
   sensorComponent,
   binarySensorComponent,
@@ -7,9 +7,10 @@ import {
   selectComponent,
   switchComponent,
 } from '../homeAssistantDiscovery';
+import { number, divide, identity, equalsBoolean, map } from '../transforms';
 
 /**
- * Command types supported by the MI800 device
+ * Command types supported by the HMI inverter (Marstek HMI family)
  */
 enum CommandType {
   READ_DEVICE_INFO = 1, // -> ele_d=53,ele_w=3984,ele_m=3984,pv1_v=335,pv1_i=3,pv1_p=39,pv1_s=1,pv2_v=341,pv2_i=11,pv2_p=38,pv2_s=1,pe1_v=17,fb1_v=832,fb2_v=773,grd_f=5001,grd_v=2543,grd_s=1,grd_o=72,chp_t=36,rel_s=1,err_t=0,err_c=0,err_d=0,ver_s=106,mpt_m=1,ble_s=2
@@ -26,9 +27,9 @@ function processCommand(command: CommandType, params: CommandParams = {}): strin
 }
 
 /**
- * Check if the message is an MI800 runtime info message
+ * Check if the message is an HMI inverter runtime info message
  */
-function isMI800RuntimeInfoMessage(values: Record<string, string>): boolean {
+function isHmiInverterRuntimeInfoMessage(values: Record<string, string>): boolean {
   return (
     'ele_d' in values &&
     'pv1_v' in values &&
@@ -46,17 +47,17 @@ function isMI800RuntimeInfoMessage(values: Record<string, string>): boolean {
 function registerRuntimeInfoMessage(message: BuildMessageFn) {
   const options = {
     refreshDataPayload: 'cd=1',
-    isMessage: isMI800RuntimeInfoMessage,
+    isMessage: isHmiInverterRuntimeInfoMessage,
     publishPath: 'data',
     defaultState: {},
-    getAdditionalDeviceInfo: (state: MI800DeviceData) => ({
+    getAdditionalDeviceInfo: (state: HmiInverterDeviceData) => ({
       firmwareVersion: state.firmwareVersion?.toString(),
     }),
     pollInterval: globalPollInterval,
     controlsDeviceAvailability: true,
   };
 
-  message<MI800DeviceData>(options, ({ field, advertise, command }) => {
+  message<HmiInverterDeviceData>(options, ({ field, advertise, command }) => {
     // Timestamp
     advertise(
       ['timestamp'],
@@ -68,8 +69,13 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    // Energy statistics
-    field({ key: 'ele_d', path: ['dailyEnergyGenerated'], transform: v => parseFloat(v) / 100 });
+    // Energy statistics - divide by 100 to convert to kWh
+    field({
+      key: 'ele_d',
+      path: ['dailyEnergyGenerated'],
+      transform: divide(100),
+      monotonic: true,
+    });
     advertise(
       ['dailyEnergyGenerated'],
       sensorComponent<number>({
@@ -81,7 +87,12 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'ele_w', path: ['weeklyEnergyGenerated'], transform: v => parseFloat(v) / 100 });
+    field({
+      key: 'ele_w',
+      path: ['weeklyEnergyGenerated'],
+      transform: divide(100),
+      monotonic: true,
+    });
     advertise(
       ['weeklyEnergyGenerated'],
       sensorComponent<number>({
@@ -93,7 +104,12 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'ele_m', path: ['monthlyEnergyGenerated'], transform: v => parseFloat(v) / 100 });
+    field({
+      key: 'ele_m',
+      path: ['monthlyEnergyGenerated'],
+      transform: divide(100),
+      monotonic: true,
+    });
     advertise(
       ['monthlyEnergyGenerated'],
       sensorComponent<number>({
@@ -105,7 +121,12 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'ele_s', path: ['totalEnergyGenerated'], transform: v => parseFloat(v) / 100 });
+    field({
+      key: 'ele_s',
+      path: ['totalEnergyGenerated'],
+      transform: divide(100),
+      monotonic: true,
+    });
     advertise(
       ['totalEnergyGenerated'],
       sensorComponent<number>({
@@ -117,8 +138,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    // PV Input 1
-    field({ key: 'pv1_v', path: ['pv1Voltage'], transform: v => parseFloat(v) / 10 });
+    // PV Input 1 - divide by 10 for voltage/current
+    field({ key: 'pv1_v', path: ['pv1Voltage'], transform: divide(10) });
     advertise(
       ['pv1Voltage'],
       sensorComponent<number>({
@@ -130,7 +151,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'pv1_i', path: ['pv1Current'], transform: v => parseFloat(v) / 10 });
+    field({ key: 'pv1_i', path: ['pv1Current'], transform: divide(10) });
     advertise(
       ['pv1Current'],
       sensorComponent<number>({
@@ -142,7 +163,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'pv1_p', path: ['pv1Power'] });
+    field({ key: 'pv1_p', path: ['pv1Power'], transform: number() });
     advertise(
       ['pv1Power'],
       sensorComponent<number>({
@@ -154,7 +175,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'pv1_s', path: ['pv1Status'], transform: v => parseInt(v) === 1 });
+    field({ key: 'pv1_s', path: ['pv1Status'], transform: equalsBoolean('1') });
     advertise(
       ['pv1Status'],
       binarySensorComponent({
@@ -164,8 +185,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    // PV Input 2
-    field({ key: 'pv2_v', path: ['pv2Voltage'], transform: v => parseFloat(v) / 10 });
+    // PV Input 2 - divide by 10 for voltage/current
+    field({ key: 'pv2_v', path: ['pv2Voltage'], transform: divide(10) });
     advertise(
       ['pv2Voltage'],
       sensorComponent<number>({
@@ -177,7 +198,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'pv2_i', path: ['pv2Current'], transform: v => parseFloat(v) / 10 });
+    field({ key: 'pv2_i', path: ['pv2Current'], transform: divide(10) });
     advertise(
       ['pv2Current'],
       sensorComponent<number>({
@@ -189,7 +210,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'pv2_p', path: ['pv2Power'] });
+    field({ key: 'pv2_p', path: ['pv2Power'], transform: number() });
     advertise(
       ['pv2Power'],
       sensorComponent<number>({
@@ -201,7 +222,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'pv2_s', path: ['pv2Status'], transform: v => parseInt(v) === 1 });
+    field({ key: 'pv2_s', path: ['pv2Status'], transform: equalsBoolean('1') });
     advertise(
       ['pv2Status'],
       binarySensorComponent({
@@ -211,8 +232,110 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
+    // PV Input 3 - only present on 4-PV variants (e.g. HMI-2000); gate discovery on data presence
+    field({ key: 'pv3_v', path: ['pv3Voltage'], transform: divide(10) });
+    advertise(
+      ['pv3Voltage'],
+      sensorComponent<number>({
+        id: 'pv3_voltage',
+        name: 'PV3 Voltage',
+        device_class: 'voltage',
+        unit_of_measurement: 'V',
+        state_class: 'measurement',
+      }),
+      { enabled: (state: HmiInverterDeviceData) => (state.pv3Voltage != null ? true : undefined) },
+    );
+
+    field({ key: 'pv3_i', path: ['pv3Current'], transform: divide(10) });
+    advertise(
+      ['pv3Current'],
+      sensorComponent<number>({
+        id: 'pv3_current',
+        name: 'PV3 Current',
+        device_class: 'current',
+        unit_of_measurement: 'A',
+        state_class: 'measurement',
+      }),
+      { enabled: (state: HmiInverterDeviceData) => (state.pv3Current != null ? true : undefined) },
+    );
+
+    field({ key: 'pv3_p', path: ['pv3Power'], transform: number() });
+    advertise(
+      ['pv3Power'],
+      sensorComponent<number>({
+        id: 'pv3_power',
+        name: 'PV3 Power',
+        device_class: 'power',
+        unit_of_measurement: 'W',
+        state_class: 'measurement',
+      }),
+      { enabled: (state: HmiInverterDeviceData) => (state.pv3Power != null ? true : undefined) },
+    );
+
+    field({ key: 'pv3_s', path: ['pv3Status'], transform: equalsBoolean('1') });
+    advertise(
+      ['pv3Status'],
+      binarySensorComponent({
+        id: 'pv3_status',
+        name: 'PV3 Active',
+        device_class: 'power',
+      }),
+      { enabled: (state: HmiInverterDeviceData) => (state.pv3Status != null ? true : undefined) },
+    );
+
+    // PV Input 4 - only present on 4-PV variants (e.g. HMI-2000); gate discovery on data presence
+    field({ key: 'pv4_v', path: ['pv4Voltage'], transform: divide(10) });
+    advertise(
+      ['pv4Voltage'],
+      sensorComponent<number>({
+        id: 'pv4_voltage',
+        name: 'PV4 Voltage',
+        device_class: 'voltage',
+        unit_of_measurement: 'V',
+        state_class: 'measurement',
+      }),
+      { enabled: (state: HmiInverterDeviceData) => (state.pv4Voltage != null ? true : undefined) },
+    );
+
+    field({ key: 'pv4_i', path: ['pv4Current'], transform: divide(10) });
+    advertise(
+      ['pv4Current'],
+      sensorComponent<number>({
+        id: 'pv4_current',
+        name: 'PV4 Current',
+        device_class: 'current',
+        unit_of_measurement: 'A',
+        state_class: 'measurement',
+      }),
+      { enabled: (state: HmiInverterDeviceData) => (state.pv4Current != null ? true : undefined) },
+    );
+
+    field({ key: 'pv4_p', path: ['pv4Power'], transform: number() });
+    advertise(
+      ['pv4Power'],
+      sensorComponent<number>({
+        id: 'pv4_power',
+        name: 'PV4 Power',
+        device_class: 'power',
+        unit_of_measurement: 'W',
+        state_class: 'measurement',
+      }),
+      { enabled: (state: HmiInverterDeviceData) => (state.pv4Power != null ? true : undefined) },
+    );
+
+    field({ key: 'pv4_s', path: ['pv4Status'], transform: equalsBoolean('1') });
+    advertise(
+      ['pv4Status'],
+      binarySensorComponent({
+        id: 'pv4_status',
+        name: 'PV4 Active',
+        device_class: 'power',
+      }),
+      { enabled: (state: HmiInverterDeviceData) => (state.pv4Status != null ? true : undefined) },
+    );
+
     // Grid information
-    field({ key: 'grd_f', path: ['gridFrequency'], transform: v => parseFloat(v) / 100 });
+    field({ key: 'grd_f', path: ['gridFrequency'], transform: divide(100) });
     advertise(
       ['gridFrequency'],
       sensorComponent<number>({
@@ -224,7 +347,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'grd_v', path: ['gridVoltage'], transform: v => parseFloat(v) / 10 });
+    field({ key: 'grd_v', path: ['gridVoltage'], transform: divide(10) });
     advertise(
       ['gridVoltage'],
       sensorComponent<number>({
@@ -236,7 +359,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'grd_s', path: ['gridStatus'], transform: v => parseInt(v) === 1 });
+    field({ key: 'grd_s', path: ['gridStatus'], transform: equalsBoolean('1') });
     advertise(
       ['gridStatus'],
       binarySensorComponent({
@@ -246,7 +369,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'grd_o', path: ['gridOutputPower'] });
+    field({ key: 'grd_o', path: ['gridOutputPower'], transform: number() });
     advertise(
       ['gridOutputPower'],
       sensorComponent<number>({
@@ -258,7 +381,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'pl', path: ['maximumOutputPower'] });
+    field({ key: 'pl', path: ['maximumOutputPower'], transform: number() });
     advertise(
       ['maximumOutputPower'],
       numberComponent({
@@ -273,7 +396,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     );
 
     // Device status
-    field({ key: 'chp_t', path: ['chipTemperature'] });
+    field({ key: 'chp_t', path: ['chipTemperature'], transform: number() });
     advertise(
       ['chipTemperature'],
       sensorComponent<number>({
@@ -285,7 +408,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'err_t', path: ['errorType'] });
+    field({ key: 'err_t', path: ['errorType'], transform: number() });
     advertise(
       ['errorType'],
       sensorComponent<number>({
@@ -295,7 +418,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'err_c', path: ['errorCount'] });
+    field({ key: 'err_c', path: ['errorCount'], transform: number() });
     advertise(
       ['errorCount'],
       sensorComponent<number>({
@@ -305,7 +428,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'err_d', path: ['errorDetails'] });
+    field({ key: 'err_d', path: ['errorDetails'], transform: number() });
     advertise(
       ['errorDetails'],
       sensorComponent<number>({
@@ -315,7 +438,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'ver_s', path: ['firmwareVersion'] });
+    field({ key: 'ver_s', path: ['firmwareVersion'], transform: number() });
     advertise(
       ['firmwareVersion'],
       sensorComponent<number>({
@@ -325,7 +448,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'fc4_v', path: ['fc4Version'], transform: v => v });
+    field({ key: 'fc4_v', path: ['fc4Version'], transform: identity() });
     advertise(
       ['fc4Version'],
       sensorComponent<string>({
@@ -335,25 +458,44 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
+    // Connectivity diagnostics
+    field({ key: 'ble_s', path: ['bluetoothSignal'], transform: number() });
+    advertise(
+      ['bluetoothSignal'],
+      sensorComponent<number>({
+        id: 'bluetooth_signal',
+        name: 'Bluetooth Signal',
+      }),
+    );
+
+    field({ key: 'wif_r', path: ['wifiRssi'], transform: number() });
+    advertise(
+      ['wifiRssi'],
+      sensorComponent<number>({
+        id: 'wifi_rssi',
+        name: 'WiFi RSSI',
+        device_class: 'signal_strength',
+        unit_of_measurement: 'dBm',
+        state_class: 'measurement',
+      }),
+    );
+
+    // Mode - use map transform for string mappings
     field({
       key: 'mpt_m',
       path: ['mode'],
-      transform: v => {
-        switch (v) {
-          case '0':
-            return 'default';
-          case '1':
-            return 'b2500Boost';
-          case '2':
-            return 'reverseCurrentProtection';
-          default:
-            return 'default';
-        }
-      },
+      transform: map(
+        {
+          '0': 'default',
+          '1': 'b2500Boost',
+          '2': 'reverseCurrentProtection',
+        },
+        'default',
+      ),
     });
     advertise(
       ['mode'],
-      selectComponent<NonNullable<MI800DeviceData['mode']>>({
+      selectComponent<NonNullable<HmiInverterDeviceData['mode']>>({
         id: 'mode',
         name: 'Mode',
         icon: 'mdi:cog',
@@ -366,7 +508,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'gc', path: ['gridConnectionBan'], transform: v => v === '1' });
+    field({ key: 'gc', path: ['gridConnectionBan'], transform: equalsBoolean('1') });
     advertise(
       ['gridConnectionBan'],
       switchComponent({
@@ -390,7 +532,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
     command('mode', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
-        if (!isValidMI800Mode(message)) {
+        if (!isValidHmiInverterMode(message)) {
           return;
         }
 
@@ -424,7 +566,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
   });
 }
 
-// Register the MI800 device
+// Register the HMI inverter device
 registerDeviceDefinition(
   {
     deviceTypes: ['HMI'],

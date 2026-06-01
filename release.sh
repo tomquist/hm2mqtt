@@ -84,6 +84,13 @@ if [ "$LOCAL" != "$REMOTE" ]; then
     exit 1
 fi
 
+# Ensure we have an up-to-date view of main as well, since the release is
+# merged into it further down.
+if ! git rev-parse --verify --quiet origin/main >/dev/null; then
+    print_error "Could not find origin/main. Make sure the repository was checked out with full history (fetch-depth: 0)."
+    exit 1
+fi
+
 # Check if release branch already exists
 if git show-ref --verify --quiet "refs/heads/$RELEASE_BRANCH"; then
     print_error "Release branch $RELEASE_BRANCH already exists"
@@ -105,9 +112,57 @@ fi
 
 print_info "All pre-checks passed"
 
+# ---------------------------------------------------------------------------
+# Failure handling
+#
+# All operations that mutate the *remote* (git push) are deferred to the very
+# end of this script, after every local merge/tag has already succeeded. That
+# way a failure midway (most commonly a merge conflict between main and
+# develop) never leaves a half-finished release pushed to origin — we only
+# need to roll back local state.
+# ---------------------------------------------------------------------------
+RELEASE_BRANCH_CREATED=false
+TAG_CREATED=false
+
+cleanup_on_failure() {
+    local exit_code=$?
+    if [ "$exit_code" -eq 0 ]; then
+        return
+    fi
+    print_error "Release failed (exit code ${exit_code}). Rolling back local changes..."
+    # Abort any merge that may be in progress so the working tree is clean.
+    git merge --abort 2>/dev/null || true
+    # Return to the branch we started on.
+    git checkout "$CURRENT_BRANCH" 2>/dev/null || true
+    if [ "$TAG_CREATED" = true ]; then
+        git tag -d "$VERSION" 2>/dev/null || true
+    fi
+    if [ "$RELEASE_BRANCH_CREATED" = true ]; then
+        git branch -D "$RELEASE_BRANCH" 2>/dev/null || true
+    fi
+    print_info "Local state restored. Nothing was pushed to the remote."
+}
+trap cleanup_on_failure EXIT
+
 # Create release branch
 print_info "Creating release branch: $RELEASE_BRANCH"
 git checkout -b "$RELEASE_BRANCH"
+RELEASE_BRANCH_CREATED=true
+
+# Incorporate any commits that exist on main but not on develop (e.g. docs or
+# CI hotfixes that were merged directly into main). Doing this on the release
+# branch first guarantees that merging the release branch back into main later
+# is a clean fast-forward, and surfaces any genuine conflict *before* we touch
+# the remote.
+print_info "Merging origin/main into the release branch to reconcile any main-only changes"
+if ! git merge origin/main --no-ff -m "Merge main into release v${VERSION}"; then
+    print_error "Merge conflict between main and develop while preparing the release."
+    print_info "This usually means commits were pushed directly to 'main' and never"
+    print_info "merged back into 'develop'. Resolve it once by running, e.g.:"
+    print_info "    git checkout develop && git merge origin/main"
+    print_info "  (fix conflicts, commit, push develop), then re-run the release."
+    exit 1
+fi
 
 # Update version in package.json
 print_info "Updating version in package.json"
@@ -131,7 +186,7 @@ npm install
 
 # Show the changes
 print_info "Changes to be committed:"
-git diff --cached package.json ha_addon/config.yaml CHANGELOG.md package-lock.json || git diff package.json ha_addon/config.yaml CHANGELOG.md package-lock.json
+git diff package.json ha_addon/config.yaml CHANGELOG.md package-lock.json
 
 # Stage and commit changes
 git add package.json ha_addon/config.yaml CHANGELOG.md package-lock.json
@@ -144,11 +199,8 @@ git commit -m "Release v${VERSION}
 
 print_success "Created release commit"
 
-# Push release branch
-print_info "Pushing release branch to origin"
-git push origin "$RELEASE_BRANCH"
-
-# Switch to main and merge
+# Switch to main and merge the release branch. Because the release branch
+# already contains main, this is a clean (conflict-free) merge.
 print_info "Switching to main branch"
 git checkout main
 git pull origin main
@@ -156,15 +208,12 @@ git pull origin main
 print_info "Merging release branch into main"
 git merge "$RELEASE_BRANCH" --no-ff -m "Merge release v${VERSION}"
 
-# Create and push tag
+# Create tag
 print_info "Creating tag ${VERSION}"
 git tag "${VERSION}"
+TAG_CREATED=true
 
-print_info "Pushing main branch and tag"
-git push origin main
-git push origin "${VERSION}"
-
-# Switch back to develop and sync with main
+# Switch back to develop and sync with main to include release changes
 print_info "Switching back to develop branch"
 git checkout develop
 
@@ -181,13 +230,27 @@ if ! grep -q "\[Next\]" CHANGELOG.md; then
 
 ' CHANGELOG.md
     rm CHANGELOG.md.bak
-    
+
     git add CHANGELOG.md
     git commit -m "Add new [Next] section to CHANGELOG.md"
 fi
 
+# ---------------------------------------------------------------------------
+# All local work succeeded. Now publish to the remote. From here on, a failure
+# means a push didn't go through (typically a transient network issue) rather
+# than an inconsistent repository state, so we stop touching local refs.
+# ---------------------------------------------------------------------------
+print_info "Pushing release branch to origin"
+git push origin "$RELEASE_BRANCH"
+
+print_info "Pushing main branch and tag"
+git push --atomic origin main "${VERSION}"
+
 print_info "Pushing updated develop branch"
 git push origin develop
+
+# Everything is pushed; disarm the rollback trap.
+trap - EXIT
 
 print_success "Release v${VERSION} completed successfully!"
 print_info ""

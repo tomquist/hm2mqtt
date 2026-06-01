@@ -17,7 +17,7 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 - Marstek Jupiter E
 - Marstek Jupiter Plus
 - Marstek CT002 Smart Meter
-- Marstek MI800 Micro Inverter
+- Marstek HMI micro inverters (MI800, HMI-2000 with 4 PV inputs)
 
 ## Prerequisites
 
@@ -262,6 +262,7 @@ services:
 | `MQTT_BROKER_URL` | MQTT broker URL | `mqtt://localhost:1883` |
 | `MQTT_CLIENT_ID` | MQTT client ID | `hm2mqtt-{random}`      |
 | `MQTT_TOPIC_PREFIX` | Base MQTT topic prefix for published data | `hm2mqtt` |
+| `AUTODISCOVERY_TOPIC_PREFIX` | Base MQTT topic prefix for Home Assistant auto discovery topics | `homeassistant` |
 | `MQTT_USERNAME` | MQTT username | -                       |
 | `MQTT_PASSWORD` | MQTT password | -                       |
 | `MQTT_POLLING_INTERVAL` | Interval between device polls in seconds | `60`                 |
@@ -281,6 +282,7 @@ pollingInterval: 60  # Interval between device polls in seconds
 responseTimeout: 30  # Timeout for device responses in seconds
 allowedConsecutiveTimeouts: 3  # Number of consecutive timeouts before a device is marked offline
 topicPrefix: hm2mqtt  # Base MQTT topic prefix for published data
+autodiscoveryTopicPrefix: homeassistant  # Base MQTT topic prefix for HA auto discovery
 devices:
   - deviceType: "HMA-1"
     deviceId: "your-device-mac"
@@ -361,6 +363,7 @@ DEVICE_2=HMB-1:device3mac
 ```yaml
 mqttProxyEnabled: true
 topicPrefix: hm2mqtt
+autodiscoveryTopicPrefix: homeassistant
 devices:
   - deviceType: "HMA-1"
     deviceId: "device1-mac"
@@ -472,6 +475,7 @@ This is typically stale MQTT Discovery state in Home Assistant.
 The device type can be one of the following:
 - **HMB-X**: (e.g. HMB-1, HMB-2, ...) B2500 storage v1
 - **HMA-X**: (e.g. HMA-1, HMA-2, ...) B2500 storage v2
+- **HMJ-X**: (e.g. HMJ-2, ...) B2500 storage v2
 - **HMK-X**: (e.g. HMK-1, HMK-2, ...) Greensolar storage v3
 - **HMG-X**: (e.g. HMG-50) Marstek Venus
 - **VNSE3-X**: (e.g. VNSE3-0) Venus E 3.0
@@ -481,7 +485,7 @@ The device type can be one of the following:
 - **HMM-X**: (e.g. HMM-1) Marstek Jupiter C
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus
 - **HME-X**: (e.g. HME-3) Marstek CT002 Smart Meter
-- **HMI-X**: (e.g. HMI-1) Marstek MI800 Micro Inverter
+- **HMI-X**: (e.g. HMI-1) Marstek HMI micro inverters, including the MI800 and the 4-PV HMI-2000
 
 ## Using the Development Version
 
@@ -566,6 +570,14 @@ You can control your device by publishing messages to specific MQTT topics. The 
 
 ```
 hm2mqtt/{device_type}/control/{device_mac}/{command}
+```
+
+### Home Assistant Discovery Topics
+
+Home Assistant discovery config is published under this prefix (configurable via `AUTODISCOVERY_TOPIC_PREFIX`):
+
+```
+homeassistant/{component}/{node_id}/{object_id}/config
 ```
 
 ### Common Commands (All Devices)

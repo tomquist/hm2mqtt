@@ -3,7 +3,7 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 import { Device, MqttConfig } from './types';
-import { DEFAULT_TOPIC_PREFIX } from './constants';
+import { DEFAULT_AUTODISCOVERY_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX } from './constants';
 import { DeviceManager, DeviceStateData } from './deviceManager';
 import { MqttClient } from './mqttClient';
 import { ControlHandler } from './controlHandler';
@@ -111,6 +111,8 @@ function createMqttConfig(devices: Device[]): MqttConfig {
     username: process.env.MQTT_USERNAME || undefined,
     password: process.env.MQTT_PASSWORD || undefined,
     topicPrefix: process.env.MQTT_TOPIC_PREFIX || DEFAULT_TOPIC_PREFIX,
+    autodiscoveryTopicPrefix:
+      process.env.AUTODISCOVERY_TOPIC_PREFIX || DEFAULT_AUTODISCOVERY_TOPIC_PREFIX,
     devices,
     responseTimeout: parseInt(process.env.MQTT_RESPONSE_TIMEOUT || '15', 10) * 1000,
     allowedConsecutiveTimeouts: parseInt(process.env.MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS || '3', 10),
@@ -123,6 +125,7 @@ function createMqttConfig(devices: Device[]): MqttConfig {
 async function main() {
   try {
     logger.info('Starting hm2mqtt application...');
+    logger.info(`Build commit: ${process.env.BUILD_COMMIT || 'unknown'}`);
     logger.info(`Environment: ${process.env.NODE_ENV || 'production'}`);
     logger.info(
       `MQTT Proxy: ${MQTT_PROXY_ENABLED ? `enabled on port ${MQTT_PROXY_PORT}` : 'disabled'}`,
