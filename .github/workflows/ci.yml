@@ -85,7 +85,7 @@ jobs:
       contents: read
       packages: write
     with:
-      checkout-ref: ${{ github.ref }}
+      checkout-ref: ${{ github.sha }}
       push: ${{ github.event_name != 'pull_request' }}
       tag-latest: ${{ github.ref == 'refs/heads/main' }}
       tag-next: ${{ github.ref == 'refs/heads/develop' }}
