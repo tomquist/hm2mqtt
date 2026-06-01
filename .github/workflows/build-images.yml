@@ -1,0 +1,341 @@
+name: Build images
+
+# Reusable workflow that builds and pushes the multi-arch app and add-on
+# images. It is called from ci.yml (on push/tag) and from release.yml (after a
+# release is tagged). All tagging is driven by explicit inputs rather than
+# github.ref, so it produces the right tags regardless of which event invoked
+# the caller. It only needs the default GITHUB_TOKEN (packages: write).
+
+on:
+  workflow_call:
+    inputs:
+      checkout-ref:
+        description: 'Git ref to check out and build from'
+        required: false
+        type: string
+        default: ''
+      push:
+        description: 'Whether to push images to the registry'
+        required: false
+        type: boolean
+        default: true
+      tag-latest:
+        description: 'Tag the image as "latest"'
+        required: false
+        type: boolean
+        default: false
+      tag-next:
+        description: 'Tag the image as "next"'
+        required: false
+        type: boolean
+        default: false
+      semver:
+        description: 'Semantic version to tag (e.g. 1.7.0); empty to skip semver tags'
+        required: false
+        type: string
+        default: ''
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.checkout-ref }}
+          persist-credentials: false
+
+      - id: commit
+        run: echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - id: lower-repo
+        run: |
+          echo "IMAGE_NAME=${GITHUB_REPOSITORY@L}" >> $GITHUB_OUTPUT
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable=${{ inputs.tag-latest }}
+            type=raw,value=next,enable=${{ inputs.tag-next }}
+            type=semver,pattern={{version}},value=${{ inputs.semver }},enable=${{ inputs.semver != '' }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.semver }},enable=${{ inputs.semver != '' }}
+            type=semver,pattern={{major}},value=${{ inputs.semver }},enable=${{ inputs.semver != '' }}
+
+      - name: Log in to Container registry
+        if: inputs.push
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          push: ${{ inputs.push }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ inputs.push }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            NODE_ENV=production
+            BUILD_COMMIT=${{ steps.commit.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Export digest
+        if: inputs.push
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Set platform name
+        if: inputs.push
+        id: platform
+        run: |
+          SAFE_PLATFORM=$(echo "${{ matrix.platform }}" | sed 's|/|-|g')
+          echo "name=$SAFE_PLATFORM" >> $GITHUB_OUTPUT
+
+      - name: Upload digest
+        if: inputs.push
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ steps.platform.outputs.name }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge-artifacts:
+    if: inputs.push
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Merge Artifacts
+        uses: actions/upload-artifact/merge@v4
+        with:
+          name: digests
+          pattern: digests-*
+
+  merge:
+    if: inputs.push
+    runs-on: ubuntu-latest
+    needs: [merge-artifacts]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          name: digests
+          path: /tmp/digests
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - id: lower-repo
+        run: |
+          echo "IMAGE_NAME=${GITHUB_REPOSITORY@L}" >> $GITHUB_OUTPUT
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable=${{ inputs.tag-latest }}
+            type=raw,value=next,enable=${{ inputs.tag-next }}
+            type=semver,pattern={{version}},value=${{ inputs.semver }},enable=${{ inputs.semver != '' }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.semver }},enable=${{ inputs.semver != '' }}
+            type=semver,pattern={{major}},value=${{ inputs.semver }},enable=${{ inputs.semver != '' }}
+
+      - name: Log in to Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}@sha256:%s ' *)
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+
+  build-addon:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.checkout-ref }}
+          persist-credentials: false
+
+      - id: commit
+        run: echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - id: lower-repo
+        run: |
+          echo "ADDON_IMAGE_NAME=${GITHUB_REPOSITORY@L}-addon" >> $GITHUB_OUTPUT
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.ADDON_IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable=${{ inputs.tag-latest }}
+            type=raw,value=next,enable=${{ inputs.tag-next }}
+            type=semver,pattern={{version}},value=${{ inputs.semver }},enable=${{ inputs.semver != '' }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.semver }},enable=${{ inputs.semver != '' }}
+            type=semver,pattern={{major}},value=${{ inputs.semver }},enable=${{ inputs.semver != '' }}
+
+      - name: Log in to Container registry
+        if: inputs.push
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          file: ha_addon/Dockerfile
+          push: ${{ inputs.push }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.ADDON_IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ inputs.push }}
+          build-args: |
+            BUILD_FROM=ghcr.io/hassio-addons/base:14.2.2
+            BUILD_COMMIT=${{ steps.commit.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Export digest
+        if: inputs.push
+        run: |
+          mkdir -p /tmp/addon-digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/addon-digests/${digest#sha256:}"
+
+      - name: Set platform name
+        if: inputs.push
+        id: platform
+        run: |
+          SAFE_PLATFORM=$(echo "${{ matrix.platform }}" | sed 's|/|-|g')
+          echo "name=$SAFE_PLATFORM" >> $GITHUB_OUTPUT
+
+      - name: Upload digest
+        if: inputs.push
+        uses: actions/upload-artifact@v4
+        with:
+          name: addon-digests-${{ steps.platform.outputs.name }}
+          path: /tmp/addon-digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge-addon-artifacts:
+    if: inputs.push
+    runs-on: ubuntu-latest
+    needs: [build-addon]
+    steps:
+      - name: Merge Artifacts
+        uses: actions/upload-artifact/merge@v4
+        with:
+          name: addon-digests
+          pattern: addon-digests-*
+
+  merge-addon:
+    if: inputs.push
+    runs-on: ubuntu-latest
+    needs: [merge-addon-artifacts]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          name: addon-digests
+          path: /tmp/addon-digests
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - id: lower-repo
+        run: |
+          echo "ADDON_IMAGE_NAME=${GITHUB_REPOSITORY@L}-addon" >> $GITHUB_OUTPUT
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.ADDON_IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable=${{ inputs.tag-latest }}
+            type=raw,value=next,enable=${{ inputs.tag-next }}
+            type=semver,pattern={{version}},value=${{ inputs.semver }},enable=${{ inputs.semver != '' }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.semver }},enable=${{ inputs.semver != '' }}
+            type=semver,pattern={{major}},value=${{ inputs.semver }},enable=${{ inputs.semver != '' }}
+
+      - name: Log in to Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create manifest list and push
+        working-directory: /tmp/addon-digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.ADDON_IMAGE_NAME }}@sha256:%s ' *)
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.ADDON_IMAGE_NAME }}:${{ steps.meta.outputs.version }}

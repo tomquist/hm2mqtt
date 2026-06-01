@@ -64,3 +64,21 @@ jobs:
           echo "🔗 Links:"
           echo "- Release: https://github.com/${{ github.repository }}/releases/tag/${VERSION}"
           echo "- Release branch: https://github.com/${{ github.repository }}/tree/release/v${VERSION}"
+
+  # Build and push the release images directly. The tag push performed by the
+  # release job above is authenticated with GITHUB_TOKEN, which (by design) does
+  # NOT trigger the CI Pipeline's tag build. So we invoke the build here instead
+  # of relying on that trigger. No PAT or extra secret is required — the default
+  # GITHUB_TOKEN already has packages: write.
+  images:
+    needs: [release]
+    uses: ./.github/workflows/build-images.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      checkout-ref: ${{ github.event.inputs.version }}
+      push: true
+      tag-latest: true
+      tag-next: false
+      semver: ${{ github.event.inputs.version }}
