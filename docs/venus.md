@@ -157,7 +157,7 @@ Description of the above parameters:
 | bms_v | BMS version number |
 | fc_v | Communication module version number |
 | wifi_n | WIFI Name |
-| dod | Depth of discharge (%) (configurable 30-88% in the Marstek app) |
+| dod | Depth of discharge (%) (configurable 30-88% in the Marstek app; the maximum of 88% is encoded as 0) |
 
 ## 4 Set working status
 
@@ -434,6 +434,6 @@ Description of the above parameters:
 | Key | Description |
 |-----|-------------|
 | cd | Instruction identification |
-| dod | Depth of discharge (%) (configurable 30-88% in the Marstek app) |
+| dod | Depth of discharge (%) (configurable 30-88% in the Marstek app; the maximum of 88% is encoded as 0) |
 
 The current depth of discharge is reported as the `dod` field in the device information (see [Read device information](#3-read-device-information)).

@@ -1221,7 +1221,19 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     });
 
     // Depth of Discharge (dod)
-    field({ key: 'dod', path: ['depthOfDischarge'], transform: number() });
+    // The device encodes the maximum depth of discharge (DOD_MAX) as 0, so we
+    // translate it back to the actual percentage when reading.
+    field({
+      key: 'dod',
+      path: ['depthOfDischarge'],
+      transform: value => {
+        const dod = parseInt(value, 10);
+        if (Number.isNaN(dod)) {
+          return undefined;
+        }
+        return dod === 0 ? DOD_MAX : dod;
+      },
+    });
     advertise(
       ['depthOfDischarge'],
       numberComponent({
@@ -1247,7 +1259,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           return;
         }
         updateDeviceState(() => ({ depthOfDischarge: dod }));
-        publishCallback(processCommand(CommandType.DEPTH_OF_DISCHARGE, { dod }));
+        // The device expects the maximum depth of discharge (DOD_MAX) to be sent as 0.
+        const dodValue = dod >= DOD_MAX ? 0 : dod;
+        publishCallback(processCommand(CommandType.DEPTH_OF_DISCHARGE, { dod: dodValue }));
       },
     });
   });

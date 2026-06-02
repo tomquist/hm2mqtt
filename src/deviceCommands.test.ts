@@ -757,11 +757,19 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: 'cd=56,dod=30',
   },
   {
-    description: 'Venus discharge-depth maximum (88%)',
+    description: 'Venus discharge-depth near maximum (86%) sent as-is',
+    deviceType: 'HMG-1',
+    command: 'discharge-depth',
+    input: '86',
+    expectedOutput: 'cd=56,dod=86',
+  },
+  {
+    // The device encodes the maximum depth of discharge (88%) as 0.
+    description: 'Venus discharge-depth maximum (88%) sent as 0',
     deviceType: 'HMG-1',
     command: 'discharge-depth',
     input: '88',
-    expectedOutput: 'cd=56,dod=88',
+    expectedOutput: 'cd=56,dod=0',
   },
   {
     description: 'Venus discharge-depth below minimum (invalid)',
