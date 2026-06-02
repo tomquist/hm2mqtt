@@ -49,14 +49,25 @@ type TransformParams<K extends string | readonly string[]> = K extends string
   : [{ [P in K[number]]: string }];
 
 /**
+ * A function-based transform.
+ *
+ * @deprecated Function-based transforms cannot be introspected (e.g. to generate
+ * Home Assistant Jinja2 value templates) or serialized. Use a declarative
+ * {@link Transform} (composed with `chain`, `map`, `inRange`, …) instead. This
+ * form is retained only for backward compatibility and must not be used for new
+ * fields.
+ */
+export type TransformFn<Args, R> = (args: Args) => R;
+
+/**
  * Transform specification for a field.
  * Can be either:
  * - A declarative Transform object (preferred for introspection/serialization)
- * - A function (legacy, for backward compatibility)
+ * - A function (deprecated, see {@link TransformFn})
  */
 export type TransformSpec<K extends string | readonly string[], R> = K extends string
-  ? Exclude<Transform, MultiKeyTransform> | ((value: string) => R)
-  : MultiKeyTransform | ((values: { [P in K[number]]: string }) => R);
+  ? Exclude<Transform, MultiKeyTransform> | TransformFn<string, R>
+  : MultiKeyTransform | TransformFn<{ [P in K[number]]: string }, R>;
 
 /**
  * Interface for field definition.
