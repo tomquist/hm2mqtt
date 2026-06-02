@@ -110,6 +110,25 @@ function weekdaySetToBitMask(weekday: VenusTimePeriod['weekday']): number {
 }
 
 /**
+ * Parse a Venus PV input string from the device.
+ *
+ * Format: "<power>|<connected>", e.g. "1076|1" where the first value is the
+ * input power in watts and the second value is the connection flag.
+ * Unconnected inputs report "0|0".
+ *
+ * @param value - PV input string
+ * @returns Parsed PV input info
+ */
+function parseVenusPvInput(value: string): { power: number; connected: boolean } {
+  const parts = value.split('|');
+  const power = parseInt(parts[0], 10);
+  return {
+    power: Number.isNaN(power) ? 0 : power,
+    connected: parts[1] === '1',
+  };
+}
+
+/**
  * Extract additional device info for Home Assistant discovery
  *
  * @param state - Device state
@@ -150,7 +169,7 @@ function isVenusRuntimeInfoMessage(values: Record<string, string>): boolean {
 
 registerDeviceDefinition(
   {
-    deviceTypes: ['HMG', 'VNSE3', 'VNSA', 'VNSD'],
+    deviceTypes: ['HMG', 'VNSE3', 'VNSD'],
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
@@ -158,7 +177,23 @@ registerDeviceDefinition(
   },
 );
 
-function registerRuntimeInfoMessage(message: BuildMessageFn) {
+// Venus A (VNSA) reports additional per-string PV input power and uses a
+// different scaling for the BMS cell/MOSFET temperatures (factor of 10)
+// compared to the other Venus variants.
+registerDeviceDefinition(
+  {
+    deviceTypes: ['VNSA'],
+  },
+  ({ message }) => {
+    registerRuntimeInfoMessage(message, { withPvInputs: true });
+    registerBMSInfoMessage(message, { scaleTemperatures: true });
+  },
+);
+
+function registerRuntimeInfoMessage(
+  message: BuildMessageFn,
+  { withPvInputs = false }: { withPvInputs?: boolean } = {},
+) {
   let options = {
     refreshDataPayload: 'cd=1',
     isMessage: isVenusRuntimeInfoMessage,
@@ -209,6 +244,122 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         unit_of_measurement: '%',
       }),
     );
+
+    // PV / solar input information
+    if (withPvInputs) {
+      // Per-string PV input power (pv1..pv4 = "<power>|<connected>")
+      field({ key: 'pv1', path: ['pv1Power'], transform: v => parseVenusPvInput(v).power });
+      advertise(
+        ['pv1Power'],
+        sensorComponent<number>({
+          id: 'pv1_power',
+          name: 'PV1 Power',
+          device_class: 'power',
+          unit_of_measurement: 'W',
+          state_class: 'measurement',
+        }),
+      );
+      field({ key: 'pv2', path: ['pv2Power'], transform: v => parseVenusPvInput(v).power });
+      advertise(
+        ['pv2Power'],
+        sensorComponent<number>({
+          id: 'pv2_power',
+          name: 'PV2 Power',
+          device_class: 'power',
+          unit_of_measurement: 'W',
+          state_class: 'measurement',
+        }),
+      );
+      field({ key: 'pv3', path: ['pv3Power'], transform: v => parseVenusPvInput(v).power });
+      advertise(
+        ['pv3Power'],
+        sensorComponent<number>({
+          id: 'pv3_power',
+          name: 'PV3 Power',
+          device_class: 'power',
+          unit_of_measurement: 'W',
+          state_class: 'measurement',
+        }),
+      );
+      field({ key: 'pv4', path: ['pv4Power'], transform: v => parseVenusPvInput(v).power });
+      advertise(
+        ['pv4Power'],
+        sensorComponent<number>({
+          id: 'pv4_power',
+          name: 'PV4 Power',
+          device_class: 'power',
+          unit_of_measurement: 'W',
+          state_class: 'measurement',
+        }),
+      );
+
+      // Connection status per PV input
+      field({ key: 'pv1', path: ['pv1Connected'], transform: v => parseVenusPvInput(v).connected });
+      advertise(
+        ['pv1Connected'],
+        binarySensorComponent({
+          id: 'pv1_connected',
+          name: 'PV1 Connected',
+          device_class: 'connectivity',
+          icon: 'mdi:solar-power',
+          enabled_by_default: false,
+        }),
+      );
+      field({ key: 'pv2', path: ['pv2Connected'], transform: v => parseVenusPvInput(v).connected });
+      advertise(
+        ['pv2Connected'],
+        binarySensorComponent({
+          id: 'pv2_connected',
+          name: 'PV2 Connected',
+          device_class: 'connectivity',
+          icon: 'mdi:solar-power',
+          enabled_by_default: false,
+        }),
+      );
+      field({ key: 'pv3', path: ['pv3Connected'], transform: v => parseVenusPvInput(v).connected });
+      advertise(
+        ['pv3Connected'],
+        binarySensorComponent({
+          id: 'pv3_connected',
+          name: 'PV3 Connected',
+          device_class: 'connectivity',
+          icon: 'mdi:solar-power',
+          enabled_by_default: false,
+        }),
+      );
+      field({ key: 'pv4', path: ['pv4Connected'], transform: v => parseVenusPvInput(v).connected });
+      advertise(
+        ['pv4Connected'],
+        binarySensorComponent({
+          id: 'pv4_connected',
+          name: 'PV4 Connected',
+          device_class: 'connectivity',
+          icon: 'mdi:solar-power',
+          enabled_by_default: false,
+        }),
+      );
+
+      // Total PV power across all inputs
+      field({
+        key: ['pv1', 'pv2', 'pv3', 'pv4'],
+        path: ['totalPvPower'],
+        transform: values =>
+          parseVenusPvInput(values.pv1).power +
+          parseVenusPvInput(values.pv2).power +
+          parseVenusPvInput(values.pv3).power +
+          parseVenusPvInput(values.pv4).power,
+      });
+      advertise(
+        ['totalPvPower'],
+        sensorComponent<number>({
+          id: 'total_pv_power',
+          name: 'Total PV Power',
+          device_class: 'power',
+          unit_of_measurement: 'W',
+          state_class: 'measurement',
+        }),
+      );
+    }
 
     // Power information
     field({
@@ -1267,7 +1418,10 @@ const requiredBMSFields = ['b_ver', 'b_soc', 'b_tp1', 'b_vo1'];
 function isVenusBmsInfoMessage(values: Record<string, string>): boolean {
   return requiredBMSFields.every(field => field in values);
 }
-function registerBMSInfoMessage(message: BuildMessageFn) {
+function registerBMSInfoMessage(
+  message: BuildMessageFn,
+  { scaleTemperatures = false }: { scaleTemperatures?: boolean } = {},
+) {
   message<VenusBMSInfo>(
     {
       refreshDataPayload: `cd=${CommandType.GET_BMS_INFO}`,
@@ -1297,7 +1451,11 @@ function registerBMSInfoMessage(message: BuildMessageFn) {
 
       for (let i = 1; i <= 4; i++) {
         const key = `b_tp${i}`;
-        field({ key, path: ['cells', 'temperatures', i - 1] });
+        field({
+          key,
+          path: ['cells', 'temperatures', i - 1],
+          transform: scaleTemperatures ? divide(10) : undefined,
+        });
         advertise(
           ['cells', 'temperatures', i - 1],
           sensorComponent<number>({
@@ -1315,21 +1473,46 @@ function registerBMSInfoMessage(message: BuildMessageFn) {
         ['b_soc', { id: 'soc' }],
         ['b_soh', { id: 'soh' }],
         ['b_cap', { id: 'capacity' }],
-        ['b_vol', { id: 'voltage', deviceClass: 'voltage', unitOfMeasurement: 'V' }],
+        // Battery pack voltage is reported in centivolts (e.g. 4328 -> 43.28 V)
+        [
+          'b_vol',
+          { id: 'voltage', deviceClass: 'voltage', unitOfMeasurement: 'V', transform: divide(100) },
+        ],
         ['b_cur', { id: 'current', deviceClass: 'current', unitOfMeasurement: 'mA' }],
         ['b_tem', { id: 'temperature', deviceClass: 'temperature', unitOfMeasurement: '°C' }],
-        ['b_chv', { id: 'chargeVoltage', deviceClass: 'voltage', unitOfMeasurement: 'V' }],
+        // Charge voltage is reported in decivolts (e.g. 468 -> 46.8 V)
+        [
+          'b_chv',
+          {
+            id: 'chargeVoltage',
+            deviceClass: 'voltage',
+            unitOfMeasurement: 'V',
+            transform: divide(10),
+          },
+        ],
         ['b_chf', { id: 'fullChargeCapacity' }],
         ['b_cpc', { id: 'cellCycle' }],
         ['b_err', { id: 'error' }],
         ['b_war', { id: 'warning' }],
         ['b_ret', { id: 'totalRuntime' }],
         ['b_ent', { id: 'energyThroughput' }],
-        ['b_mot', { id: 'mosfetTemp', deviceClass: 'temperature', unitOfMeasurement: '°C' }],
+        [
+          'b_mot',
+          {
+            id: 'mosfetTemp',
+            deviceClass: 'temperature',
+            unitOfMeasurement: '°C',
+            transform: scaleTemperatures ? divide(10) : undefined,
+          },
+        ],
       ] as const;
 
       for (const [key, info] of bmsFields) {
-        field({ key, path: ['bms', info.id] });
+        field({
+          key,
+          path: ['bms', info.id],
+          transform: 'transform' in info ? info.transform : undefined,
+        });
         advertise(
           ['bms', info.id],
           sensorComponent<number>({

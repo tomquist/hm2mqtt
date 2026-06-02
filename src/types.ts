@@ -345,6 +345,17 @@ export interface VenusDeviceData extends BaseDeviceData {
   monthlyIncome?: number;
   totalIncome?: number;
 
+  // PV / solar input information
+  pv1Power?: number;
+  pv2Power?: number;
+  pv3Power?: number;
+  pv4Power?: number;
+  pv1Connected?: boolean;
+  pv2Connected?: boolean;
+  pv3Connected?: boolean;
+  pv4Connected?: boolean;
+  totalPvPower?: number;
+
   // Grid information
   offGridPower?: number;
   combinedPower?: number;

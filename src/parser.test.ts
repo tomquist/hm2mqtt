@@ -4,6 +4,7 @@ import {
   HmiInverterDeviceData,
   JupiterBMSInfo,
   JupiterDeviceData,
+  VenusBMSInfo,
   VenusDeviceData,
 } from './types';
 
@@ -663,5 +664,60 @@ describe('MQTT Message Parser', () => {
     expect(parsed).toHaveProperty('data');
     const result = parsed['data'] as VenusDeviceData;
     expect(result.depthOfDischarge).toBeUndefined();
+  });
+
+  test('parses Venus A (VNSA) PV input power and connection status (issue #218)', () => {
+    // Real runtime reading from a Venus A: pv1 connected and producing, pv2-4 idle.
+    const message =
+      'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=1,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=0,cel_s=2,cel_p=157,cel_c=75,err_t=800,err_a=8,dev_n=143,grd_y=0,wor_m=1,tim_0=0|0|0|0|0|0|0,cts_m=0,bac_u=0,tra_a=74,tra_i=1,tra_o=0,htt_p=0,prc_c=0,prc_d=1,wif_s=51,inc_a=0,set_v=4,mcp_w=1200,mdp_w=1200,ct_t=1,phase_t=0,dchrg_t=1,bms_v=106,fc_v=202409090159,wifi_n=xxxx,seq_s=1,ctrl_r=0,par=0,gen=0,ble=3,shelly_p=1010,c_ratio=100,udp=0,api=1,net=1,port=48977,inv_v=113,id=2|0|0|0|0,lk=0,bp=99,ei=0,eb=0,rp=107,gp=0,vp=0,mppt=0,pv1=1076|1,pv2=0|0,pv3=0|0,pv4=0|0,pack=1|1|1|0,pv=41|57,fu=1|0,em=0';
+    const parsed = parseMessage(message, 'VNSA-0', 'venusA123');
+
+    expect(parsed).toHaveProperty('data');
+    const result = parsed['data'] as VenusDeviceData;
+    expect(result).toHaveProperty('pv1Power', 1076);
+    expect(result).toHaveProperty('pv2Power', 0);
+    expect(result).toHaveProperty('pv1Connected', true);
+    expect(result).toHaveProperty('pv2Connected', false);
+    expect(result).toHaveProperty('totalPvPower', 1076);
+  });
+
+  test('does not expose PV inputs for non-Venus-A variants (VNSE3)', () => {
+    const message =
+      'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0,pv1=1076|1';
+    const parsed = parseMessage(message, 'VNSE3-0', 'venus123');
+
+    const result = parsed['data'] as VenusDeviceData;
+    expect(result).not.toHaveProperty('pv1Power');
+    expect(result).not.toHaveProperty('totalPvPower');
+  });
+
+  test('scales Venus A (VNSA) BMS voltages and temperatures (issue #218)', () => {
+    // Real BMS reading from a Venus A. Battery voltage is in centivolts,
+    // charge voltage in decivolts, cell/MOSFET temperatures in deci-degrees.
+    const message =
+      'cd=14,b_ver=106,b_chv=468,b_rci=400,b_rdi=400,b_soc=75,b_soh=0,b_cap=2080,b_vol=4328,b_cur=20,b_tem=16,b_chf=3,b_slf=0,b_cpc=157,b_err=0,b_war=0,b_ret=0,b_ent=228,b_mot=173,b_tp1=164,b_tp2=166,b_tp3=168,b_tp4=166,b_vo1=3334,b_vo2=3332,b_vo3=3333,b_vo4=3333,b_vo5=3334,b_vo6=3335,b_vo7=3334,b_vo8=3334,b_vo9=3334,b_vo10=3334,b_vo11=3333,b_vo12=3333,b_vo13=3333,b_vo14=0,b_vo15=0,b_vo16=0';
+    const parsed = parseMessage(message, 'VNSA-0', 'venusA123');
+
+    expect(parsed).toHaveProperty('bms');
+    const result = parsed['bms'] as VenusBMSInfo;
+    expect(result.bms?.voltage).toBeCloseTo(43.28);
+    expect(result.bms?.chargeVoltage).toBeCloseTo(46.8);
+    expect(result.bms?.mosfetTemp).toBeCloseTo(17.3);
+    expect(result.cells?.temperatures?.[0]).toBeCloseTo(16.4);
+    // Cell voltages are already reported in mV and stay unscaled.
+    expect(result.cells?.voltages?.[0]).toBe(3334);
+  });
+
+  test('Venus E (VNSE3) BMS scales voltages but keeps raw temperatures', () => {
+    const message =
+      'cd=14,b_ver=212,b_chv=571,b_soc=65,b_soh=100,b_cap=5120,b_vol=5223,b_cur=-94,b_tem=25,b_chf=192,b_cpc=332,b_err=0,b_war=0,b_ret=0,b_ent=0,b_mot=23,b_tp1=18,b_tp2=19,b_tp3=18,b_tp4=19,b_vo1=3265,b_vo2=3265,b_vo3=3265,b_vo4=3265,b_vo5=3264,b_vo6=3264,b_vo7=3265,b_vo8=3265,b_vo9=3264,b_vo10=3265,b_vo11=3264,b_vo12=3265,b_vo13=3265,b_vo14=3265,b_vo15=3264,b_vo16=3262';
+    const parsed = parseMessage(message, 'VNSE3-0', 'venus123');
+
+    const result = parsed['bms'] as VenusBMSInfo;
+    expect(result.bms?.voltage).toBeCloseTo(52.23);
+    expect(result.bms?.chargeVoltage).toBeCloseTo(57.1);
+    // Other Venus variants already report temperatures in whole degrees.
+    expect(result.bms?.mosfetTemp).toBe(23);
+    expect(result.cells?.temperatures?.[0]).toBe(18);
   });
 });

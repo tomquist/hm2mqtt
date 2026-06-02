@@ -4,6 +4,12 @@
 ### Added
 
 - Venus: Add *Depth of Discharge* number entity (`discharge-depth` command) so the battery's depth of discharge (`dod`) can be read and configured (30-88%). The entity is only advertised on devices that report the value (fixes #306)
+- Venus A (VNSA): Expose per-string PV input power (PV1–PV4), their connection status and a combined Total PV Power sensor (fixes #218)
+
+### Fixed
+
+- Venus: Scale the BMS battery voltage and charge voltage to volts (they were previously published as raw centivolt/decivolt values, e.g. 4328 instead of 43.28 V) (fixes #218)
+- Venus A (VNSA): Scale the BMS cell and MOSFET temperatures to °C (they were previously published 10× too high, e.g. 164 instead of 16.4 °C) (fixes #218)
 
 ## [1.7.0] - 2026-06-01
 
