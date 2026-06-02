@@ -785,6 +785,34 @@ const commandTestCases: CommandTestCase[] = [
     input: '89',
     expectedOutput: null,
   },
+  {
+    description: 'Venus discharge-depth with trailing garbage (invalid)',
+    deviceType: 'HMG-1',
+    command: 'discharge-depth',
+    input: '88foo',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus discharge-depth with decimal (invalid)',
+    deviceType: 'HMG-1',
+    command: 'discharge-depth',
+    input: '30.5',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus discharge-depth empty payload (invalid)',
+    deviceType: 'HMG-1',
+    command: 'discharge-depth',
+    input: '',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus discharge-depth with surrounding whitespace (invalid)',
+    deviceType: 'HMG-1',
+    command: 'discharge-depth',
+    input: ' 70 ',
+    expectedOutput: null,
+  },
 
   // local-api-enabled command (requires firmware >= 153)
   {

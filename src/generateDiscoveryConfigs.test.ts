@@ -357,9 +357,10 @@ describe('Home Assistant Discovery', () => {
     // No dod in the device data: the config is deferred (nothing published)
     expect(dodConfigs({ batterySoc: 11 })).toHaveLength(0);
 
-    // dod present: the config is advertised
+    // dod present: the config is advertised with the expected 30..88 step:1 range
     const withDod = dodConfigs({ depthOfDischarge: 88 });
     expect(withDod).toHaveLength(1);
     expect(withDod[0].config).not.toBeNull();
+    expect(withDod[0].config).toMatchObject({ min: 30, max: 88, step: 1 });
   });
 });

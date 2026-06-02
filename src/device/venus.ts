@@ -1227,11 +1227,15 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       key: 'dod',
       path: ['depthOfDischarge'],
       transform: value => {
-        const dod = parseInt(value, 10);
-        if (Number.isNaN(dod)) {
+        const parsed = parseInt(value, 10);
+        if (Number.isNaN(parsed)) {
           return undefined;
         }
-        return dod === 0 ? DOD_MAX : dod;
+        const dod = parsed === 0 ? DOD_MAX : parsed;
+        if (dod < DOD_MIN || dod > DOD_MAX) {
+          return undefined;
+        }
+        return dod;
       },
     });
     advertise(
@@ -1250,7 +1254,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     );
     command('discharge-depth', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
-        const dod = parseInt(message, 10);
+        // Require an exact integer payload (reject e.g. "88foo", "30.5", "", " 70 ").
+        const dod = /^\d+$/.test(message) ? parseInt(message, 10) : NaN;
         if (Number.isNaN(dod) || dod < DOD_MIN || dod > DOD_MAX) {
           logger.warn(
             `Invalid depth of discharge value (should be ${DOD_MIN}-${DOD_MAX}):`,
