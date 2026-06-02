@@ -1220,23 +1220,13 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       },
     });
 
-    // Depth of Discharge (dod)
-    // The device encodes the maximum depth of discharge (DOD_MAX) as 0, so we
-    // translate it back to the actual percentage when reading.
+    // Depth of Discharge (dod). The device reports the actual percentage; values
+    // outside the valid range are treated as unknown. The maximum is encoded as 0
+    // only in the write direction (see the discharge-depth command below).
     field({
       key: 'dod',
       path: ['depthOfDischarge'],
-      transform: value => {
-        const parsed = parseInt(value, 10);
-        if (Number.isNaN(parsed)) {
-          return undefined;
-        }
-        const dod = parsed === 0 ? DOD_MAX : parsed;
-        if (dod < DOD_MIN || dod > DOD_MAX) {
-          return undefined;
-        }
-        return dod;
-      },
+      transform: chain(number(), inRange(DOD_MIN, DOD_MAX)),
     });
     advertise(
       ['depthOfDischarge'],
