@@ -49,7 +49,13 @@ enum CommandType {
   GET_CT_POWER = 19,
   UPGRADE_FC4_MODULE = 20,
   SET_LOCAL_API = 30,
+  DEPTH_OF_DISCHARGE = 56,
 }
+
+// Minimum and maximum Depth of Discharge values based on Marstek app limits (30-88%).
+// NOTE: Experience has shown that these limits may change over time!
+const DOD_MIN = 30;
+const DOD_MAX = 88;
 
 /**
  * Process a command for the Venus device
@@ -1211,6 +1217,46 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         }));
 
         publishCallback(processCommand(CommandType.SET_MAX_CHARGING_POWER, { cp: power }));
+      },
+    });
+
+    // Depth of Discharge (dod). The device reports the actual percentage; values
+    // outside the valid range are treated as unknown. The maximum is encoded as 0
+    // only in the write direction (see the discharge-depth command below).
+    field({
+      key: 'dod',
+      path: ['depthOfDischarge'],
+      transform: chain(number(), inRange(DOD_MIN, DOD_MAX)),
+    });
+    advertise(
+      ['depthOfDischarge'],
+      numberComponent({
+        id: 'depth_of_discharge',
+        name: 'Depth of Discharge',
+        unit_of_measurement: '%',
+        device_class: 'battery',
+        command: 'discharge-depth',
+        min: DOD_MIN,
+        max: DOD_MAX,
+        step: 1,
+      }),
+      { enabled: state => (state.depthOfDischarge != null ? true : undefined) },
+    );
+    command('discharge-depth', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        // Require an exact integer payload (reject e.g. "88foo", "30.5", "", " 70 ").
+        const dod = /^\d+$/.test(message) ? parseInt(message, 10) : NaN;
+        if (Number.isNaN(dod) || dod < DOD_MIN || dod > DOD_MAX) {
+          logger.warn(
+            `Invalid depth of discharge value (should be ${DOD_MIN}-${DOD_MAX}):`,
+            message,
+          );
+          return;
+        }
+        updateDeviceState(() => ({ depthOfDischarge: dod }));
+        // The device expects the maximum depth of discharge (DOD_MAX) to be sent as 0.
+        const dodValue = dod >= DOD_MAX ? 0 : dod;
+        publishCallback(processCommand(CommandType.DEPTH_OF_DISCHARGE, { dod: dodValue }));
       },
     });
   });

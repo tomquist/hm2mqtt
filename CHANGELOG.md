@@ -1,6 +1,9 @@
 # Changelog
 ## [Next]
 
+### Added
+
+- Venus: Add *Depth of Discharge* number entity (`discharge-depth` command) so the battery's depth of discharge (`dod`) can be read and configured (30-88%). The entity is only advertised on devices that report the value (fixes #306)
 
 ## [1.7.0] - 2026-06-01
 

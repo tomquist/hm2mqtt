@@ -741,6 +741,79 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
 
+  // discharge-depth command (Venus: 30-88%)
+  {
+    description: 'Venus discharge-depth valid',
+    deviceType: 'HMG-1',
+    command: 'discharge-depth',
+    input: '70',
+    expectedOutput: 'cd=56,dod=70',
+  },
+  {
+    description: 'Venus discharge-depth minimum (30%)',
+    deviceType: 'HMG-1',
+    command: 'discharge-depth',
+    input: '30',
+    expectedOutput: 'cd=56,dod=30',
+  },
+  {
+    description: 'Venus discharge-depth near maximum (86%) sent as-is',
+    deviceType: 'HMG-1',
+    command: 'discharge-depth',
+    input: '86',
+    expectedOutput: 'cd=56,dod=86',
+  },
+  {
+    // The device encodes the maximum depth of discharge (88%) as 0.
+    description: 'Venus discharge-depth maximum (88%) sent as 0',
+    deviceType: 'HMG-1',
+    command: 'discharge-depth',
+    input: '88',
+    expectedOutput: 'cd=56,dod=0',
+  },
+  {
+    description: 'Venus discharge-depth below minimum (invalid)',
+    deviceType: 'HMG-1',
+    command: 'discharge-depth',
+    input: '29',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus discharge-depth above maximum (invalid)',
+    deviceType: 'HMG-1',
+    command: 'discharge-depth',
+    input: '89',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus discharge-depth with trailing garbage (invalid)',
+    deviceType: 'HMG-1',
+    command: 'discharge-depth',
+    input: '88foo',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus discharge-depth with decimal (invalid)',
+    deviceType: 'HMG-1',
+    command: 'discharge-depth',
+    input: '30.5',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus discharge-depth empty payload (invalid)',
+    deviceType: 'HMG-1',
+    command: 'discharge-depth',
+    input: '',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus discharge-depth with surrounding whitespace (invalid)',
+    deviceType: 'HMG-1',
+    command: 'discharge-depth',
+    input: ' 70 ',
+    expectedOutput: null,
+  },
+
   // local-api-enabled command (requires firmware >= 153)
   {
     description: 'Venus local-api-enabled enable',
