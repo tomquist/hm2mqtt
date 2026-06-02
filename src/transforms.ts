@@ -45,6 +45,7 @@ export type Transform =
   | LowByteTransform
   | TimePeriodFieldTransform
   | MPPTPVFieldTransform
+  | VenusPvFieldTransform
   | BitMaskToWeekdayTransform
   | ChainTransform;
 
@@ -170,6 +171,12 @@ export interface TimePeriodFieldTransform {
 export interface MPPTPVFieldTransform {
   type: 'mpptPvField';
   field: 'voltage' | 'current' | 'power';
+}
+
+/** Extract a field from a Venus PV input string (format: "POWER|CONNECTED") */
+export interface VenusPvFieldTransform {
+  type: 'venusPvField';
+  field: 'power' | 'connected';
 }
 
 /** Convert weekday bitmask to weekday set string */
@@ -314,6 +321,12 @@ export const mpptPvField = (field: MPPTPVFieldTransform['field']): MPPTPVFieldTr
   field,
 });
 
+/** Create a Venus PV input field transform */
+export const venusPvField = (field: VenusPvFieldTransform['field']): VenusPvFieldTransform => ({
+  type: 'venusPvField',
+  field,
+});
+
 /** Create a bitmask to weekday transform */
 export const bitMaskToWeekday = (): BitMaskToWeekdayTransform => ({ type: 'bitMaskToWeekday' });
 
@@ -447,6 +460,9 @@ export function executeTransform(
     case 'mpptPvField':
       return executeMPPTPVField(value, transform.field);
 
+    case 'venusPvField':
+      return executeVenusPvField(value, transform.field);
+
     case 'bitMaskToWeekday': {
       const bitmask = parseInt(value, 10);
       return '0123456'
@@ -568,6 +584,17 @@ function executeMPPTPVField(value: string, field: MPPTPVFieldTransform['field'])
   }
 }
 
+function executeVenusPvField(
+  value: string,
+  field: VenusPvFieldTransform['field'],
+): number | boolean {
+  const parts = value.split('|');
+  if (field === 'connected') {
+    return parts[1] === '1';
+  }
+  return safeParseInt(parts[0]);
+}
+
 // =============================================================================
 // Jinja2 Template Generation
 // =============================================================================
@@ -684,6 +711,9 @@ export function transformToJinja2(
     case 'mpptPvField':
       return generateMPPTPVFieldJinja2(valueExpr, transform.field);
 
+    case 'venusPvField':
+      return generateVenusPvFieldJinja2(valueExpr, transform.field);
+
     case 'bitMaskToWeekday':
       // Convert bitmask to weekday set string - only mutate inside loop, output once at end
       return `{% set bm = ${valueExpr} | int(0) %}{% set days = '' %}{% for i in range(7) %}{% if bm | bitwise_and(2**i) %}{% set days = days ~ i %}{% endif %}{% endfor %}{{ days }}`;
@@ -767,6 +797,17 @@ function generateMPPTPVFieldJinja2(
   const index = field === 'voltage' ? 0 : field === 'current' ? 1 : 2;
 
   return `{% set p = ${partsExpr} %}{% if p | length >= 3 %}{{ (p[${index}] | int) / 10 }}{% else %}0{% endif %}`;
+}
+
+function generateVenusPvFieldJinja2(
+  valueExpr: string,
+  field: VenusPvFieldTransform['field'],
+): string {
+  const partsExpr = `${valueExpr}.split('|')`;
+  if (field === 'connected') {
+    return `{% set p = ${partsExpr} %}{% if p | length >= 2 %}{{ p[1] == '1' }}{% else %}false{% endif %}`;
+  }
+  return `{% set p = ${partsExpr} %}{% if p | length >= 1 %}{{ p[0] | int }}{% else %}0{% endif %}`;
 }
 
 // =============================================================================

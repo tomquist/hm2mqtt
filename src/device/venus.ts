@@ -27,6 +27,8 @@ import {
   equalsBoolean,
   chain,
   inRange,
+  sum,
+  venusPvField,
 } from '../transforms';
 
 /**
@@ -107,25 +109,6 @@ function parseTimePeriod(value: string): NonNullable<VenusDeviceData['timePeriod
 
 function weekdaySetToBitMask(weekday: VenusTimePeriod['weekday']): number {
   return weekday.split('').reduce((mask, day) => mask | (1 << parseInt(day, 10)), 0);
-}
-
-/**
- * Parse a Venus PV input string from the device.
- *
- * Format: "<power>|<connected>", e.g. "1076|1" where the first value is the
- * input power in watts and the second value is the connection flag.
- * Unconnected inputs report "0|0".
- *
- * @param value - PV input string
- * @returns Parsed PV input info
- */
-function parseVenusPvInput(value: string): { power: number; connected: boolean } {
-  const parts = value.split('|');
-  const power = parseInt(parts[0], 10);
-  return {
-    power: Number.isNaN(power) ? 0 : power,
-    connected: parts[1] === '1',
-  };
 }
 
 /**
@@ -248,7 +231,7 @@ function registerRuntimeInfoMessage(
     // PV / solar input information
     if (withPvInputs) {
       // Per-string PV input power (pv1..pv4 = "<power>|<connected>")
-      field({ key: 'pv1', path: ['pv1Power'], transform: v => parseVenusPvInput(v).power });
+      field({ key: 'pv1', path: ['pv1Power'], transform: venusPvField('power') });
       advertise(
         ['pv1Power'],
         sensorComponent<number>({
@@ -259,7 +242,7 @@ function registerRuntimeInfoMessage(
           state_class: 'measurement',
         }),
       );
-      field({ key: 'pv2', path: ['pv2Power'], transform: v => parseVenusPvInput(v).power });
+      field({ key: 'pv2', path: ['pv2Power'], transform: venusPvField('power') });
       advertise(
         ['pv2Power'],
         sensorComponent<number>({
@@ -270,7 +253,7 @@ function registerRuntimeInfoMessage(
           state_class: 'measurement',
         }),
       );
-      field({ key: 'pv3', path: ['pv3Power'], transform: v => parseVenusPvInput(v).power });
+      field({ key: 'pv3', path: ['pv3Power'], transform: venusPvField('power') });
       advertise(
         ['pv3Power'],
         sensorComponent<number>({
@@ -281,7 +264,7 @@ function registerRuntimeInfoMessage(
           state_class: 'measurement',
         }),
       );
-      field({ key: 'pv4', path: ['pv4Power'], transform: v => parseVenusPvInput(v).power });
+      field({ key: 'pv4', path: ['pv4Power'], transform: venusPvField('power') });
       advertise(
         ['pv4Power'],
         sensorComponent<number>({
@@ -294,7 +277,7 @@ function registerRuntimeInfoMessage(
       );
 
       // Connection status per PV input
-      field({ key: 'pv1', path: ['pv1Connected'], transform: v => parseVenusPvInput(v).connected });
+      field({ key: 'pv1', path: ['pv1Connected'], transform: venusPvField('connected') });
       advertise(
         ['pv1Connected'],
         binarySensorComponent({
@@ -305,7 +288,7 @@ function registerRuntimeInfoMessage(
           enabled_by_default: false,
         }),
       );
-      field({ key: 'pv2', path: ['pv2Connected'], transform: v => parseVenusPvInput(v).connected });
+      field({ key: 'pv2', path: ['pv2Connected'], transform: venusPvField('connected') });
       advertise(
         ['pv2Connected'],
         binarySensorComponent({
@@ -316,7 +299,7 @@ function registerRuntimeInfoMessage(
           enabled_by_default: false,
         }),
       );
-      field({ key: 'pv3', path: ['pv3Connected'], transform: v => parseVenusPvInput(v).connected });
+      field({ key: 'pv3', path: ['pv3Connected'], transform: venusPvField('connected') });
       advertise(
         ['pv3Connected'],
         binarySensorComponent({
@@ -327,7 +310,7 @@ function registerRuntimeInfoMessage(
           enabled_by_default: false,
         }),
       );
-      field({ key: 'pv4', path: ['pv4Connected'], transform: v => parseVenusPvInput(v).connected });
+      field({ key: 'pv4', path: ['pv4Connected'], transform: venusPvField('connected') });
       advertise(
         ['pv4Connected'],
         binarySensorComponent({
@@ -339,15 +322,12 @@ function registerRuntimeInfoMessage(
         }),
       );
 
-      // Total PV power across all inputs
+      // Total PV power across all inputs. Each value is "<power>|<connected>";
+      // sum() parses the leading number from each, i.e. the per-input power.
       field({
         key: ['pv1', 'pv2', 'pv3', 'pv4'],
         path: ['totalPvPower'],
-        transform: values =>
-          parseVenusPvInput(values.pv1).power +
-          parseVenusPvInput(values.pv2).power +
-          parseVenusPvInput(values.pv3).power +
-          parseVenusPvInput(values.pv4).power,
+        transform: sum(),
       });
       advertise(
         ['totalPvPower'],

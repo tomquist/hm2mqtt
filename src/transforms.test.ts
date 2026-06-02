@@ -19,6 +19,7 @@ import {
   chain,
   timePeriodField,
   mpptPvField,
+  venusPvField,
   bitMaskToWeekday,
   sum,
   min,
@@ -366,6 +367,34 @@ describe('transforms', () => {
 
     it('should return 0 for invalid input', () => {
       expect(executeTransform(mpptPvField('voltage'), 'invalid')).toBe(0);
+    });
+  });
+
+  describe('venusPvField transform', () => {
+    const connectedPvInfo = '1076|1';
+    const disconnectedPvInfo = '0|0';
+
+    it('should extract power', () => {
+      expect(executeTransform(venusPvField('power'), connectedPvInfo)).toBe(1076);
+      expect(executeTransform(venusPvField('power'), disconnectedPvInfo)).toBe(0);
+    });
+
+    it('should extract connection status', () => {
+      expect(executeTransform(venusPvField('connected'), connectedPvInfo)).toBe(true);
+      expect(executeTransform(venusPvField('connected'), disconnectedPvInfo)).toBe(false);
+    });
+
+    it('should return 0 power for invalid input', () => {
+      expect(executeTransform(venusPvField('power'), 'invalid')).toBe(0);
+    });
+
+    it('should generate correct Jinja2 templates', () => {
+      expect(transformToJinja2(venusPvField('power'), 'value')).toBe(
+        "{% set p = value.split('|') %}{% if p | length >= 1 %}{{ p[0] | int }}{% else %}0{% endif %}",
+      );
+      expect(transformToJinja2(venusPvField('connected'), 'value')).toBe(
+        "{% set p = value.split('|') %}{% if p | length >= 2 %}{{ p[1] == '1' }}{% else %}false{% endif %}",
+      );
     });
   });
 
