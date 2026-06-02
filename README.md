@@ -617,6 +617,7 @@ homeassistant/{component}/{node_id}/{object_id}/config
 - `time-period/[0-9]/weekday`: Sets days of week for period (0-6, where 0 is Sunday)
 - `get-ct-power`: Gets current transformer power readings
 - `transaction-mode`: Sets transaction mode parameters
+- `discharge-depth`: Sets the battery depth of discharge (30-88%). Only available on devices that report it.
 
 ### Jupiter Device Commands
 

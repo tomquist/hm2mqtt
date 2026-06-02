@@ -42,6 +42,8 @@
 16. [Upgrade the firmware of the FC4 module](#16-upgrade-the-firmware-of-the-fc4-module)
     1. [Public](#161-public)
     2. [Receive](#162-receive)
+17. [Set depth of discharge](#17-set-depth-of-discharge)
+    1. [Public](#171-public)
 
 ## 1 MQTT Core Concepts
 
@@ -155,6 +157,7 @@ Description of the above parameters:
 | bms_v | BMS version number |
 | fc_v | Communication module version number |
 | wifi_n | WIFI Name |
+| dod | Depth of discharge (%) (configurable 30-88% in the Marstek app) |
 
 ## 4 Set working status
 
@@ -411,3 +414,26 @@ Description of the above parameters:
 ### 16.2 Receive
 
 If the device receives the message correctly, it will return `ret=1`. If it does not receive the message, there will be no return.
+
+## 17 Set depth of discharge
+
+### 17.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+```
+cd=56,dod=%d
+```
+
+Description of the above parameters:
+
+| Key | Description |
+|-----|-------------|
+| cd | Instruction identification |
+| dod | Depth of discharge (%) (configurable 30-88% in the Marstek app) |
+
+The current depth of discharge is reported as the `dod` field in the device information (see [Read device information](#3-read-device-information)).

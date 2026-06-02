@@ -387,6 +387,7 @@ export interface VenusDeviceData extends BaseDeviceData {
   wifiName?: string;
   localApiEnabled?: boolean;
   localApiPort?: number;
+  depthOfDischarge?: number; // dod
 }
 
 export interface VenusBMSInfo extends BaseDeviceData {
