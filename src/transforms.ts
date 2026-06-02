@@ -191,6 +191,7 @@ export interface BitMaskToWeekdayTransform {
 /** Sum multiple values */
 export interface SumTransform {
   type: 'sum';
+  scale?: number;
 }
 
 /** Get minimum value */
@@ -331,7 +332,7 @@ export const venusPvField = (field: VenusPvFieldTransform['field']): VenusPvFiel
 export const bitMaskToWeekday = (): BitMaskToWeekdayTransform => ({ type: 'bitMaskToWeekday' });
 
 /** Create a sum transform */
-export const sum = (): SumTransform => ({ type: 'sum' });
+export const sum = (scale?: number): SumTransform => ({ type: 'sum', scale });
 
 /** Create a min transform */
 export const min = (scale?: number): MinTransform => ({ type: 'min', scale });
@@ -483,8 +484,10 @@ export function executeMultiKeyTransform(
   const numericValues = Object.values(values).map(v => parseFloat(v));
 
   switch (transform.type) {
-    case 'sum':
-      return numericValues.reduce((acc, v) => acc + (isNaN(v) ? 0 : v), 0);
+    case 'sum': {
+      const total = numericValues.reduce((acc, v) => acc + (isNaN(v) ? 0 : v), 0);
+      return transform.scale ? total / transform.scale : total;
+    }
 
     case 'min': {
       const validValues = numericValues.filter(v => !isNaN(v));
@@ -592,7 +595,8 @@ function executeVenusPvField(
   if (field === 'connected') {
     return parts[1] === '1';
   }
-  return safeParseInt(parts[0]);
+  // The power value is reported in deciwatts (e.g. 1076 -> 107.6 W).
+  return safeParseInt(parts[0]) / 10;
 }
 
 // =============================================================================
@@ -740,9 +744,11 @@ export function multiKeyTransformToJinja2(
   const filteredListExpr = `${rawListExpr} | reject('equalto', none) | list`;
 
   switch (transform.type) {
-    case 'sum':
+    case 'sum': {
       // For sum, we can use default 0 since adding 0 doesn't affect the result
-      return `{{ [${keys.map(k => `${valuePrefix}.${k} | float(0)`).join(', ')}] | sum }}`;
+      const summed = `[${keys.map(k => `${valuePrefix}.${k} | float(0)`).join(', ')}] | sum`;
+      return transform.scale ? `{{ (${summed}) / ${transform.scale} }}` : `{{ ${summed} }}`;
+    }
 
     case 'min': {
       const scaleExpr = transform.scale ? ` / ${transform.scale}` : '';
@@ -807,7 +813,7 @@ function generateVenusPvFieldJinja2(
   if (field === 'connected') {
     return `{% set p = ${partsExpr} %}{% if p | length >= 2 %}{{ p[1] == '1' }}{% else %}false{% endif %}`;
   }
-  return `{% set p = ${partsExpr} %}{% if p | length >= 1 %}{{ p[0] | int }}{% else %}0{% endif %}`;
+  return `{% set p = ${partsExpr} %}{% if p | length >= 1 %}{{ (p[0] | int) / 10 }}{% else %}0{% endif %}`;
 }
 
 // =============================================================================

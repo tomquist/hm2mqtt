@@ -322,12 +322,13 @@ function registerRuntimeInfoMessage(
         }),
       );
 
-      // Total PV power across all inputs. Each value is "<power>|<connected>";
-      // sum() parses the leading number from each, i.e. the per-input power.
+      // Total PV power across all inputs. Each value is "<power>|<connected>"
+      // with power in deciwatts; sum() reads the leading number from each and
+      // the scale converts the deciwatt total to watts.
       field({
         key: ['pv1', 'pv2', 'pv3', 'pv4'],
         path: ['totalPvPower'],
-        transform: sum(),
+        transform: sum(10),
       });
       advertise(
         ['totalPvPower'],

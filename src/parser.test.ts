@@ -674,11 +674,12 @@ describe('MQTT Message Parser', () => {
 
     expect(parsed).toHaveProperty('data');
     const result = parsed['data'] as VenusDeviceData;
-    expect(result).toHaveProperty('pv1Power', 1076);
+    // PV power is reported in deciwatts: 1076 -> 107.6 W
+    expect(result).toHaveProperty('pv1Power', 107.6);
     expect(result).toHaveProperty('pv2Power', 0);
     expect(result).toHaveProperty('pv1Connected', true);
     expect(result).toHaveProperty('pv2Connected', false);
-    expect(result).toHaveProperty('totalPvPower', 1076);
+    expect(result).toHaveProperty('totalPvPower', 107.6);
   });
 
   test('does not expose PV inputs for non-Venus-A variants (VNSE3)', () => {
