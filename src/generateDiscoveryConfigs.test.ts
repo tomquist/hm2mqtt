@@ -331,4 +331,35 @@ describe('Home Assistant Discovery', () => {
     expect(fourPv.some(t => t.includes('pv4_status'))).toBe(true);
     expect(fourPv).toHaveLength(8);
   });
+
+  test('should gate Venus depth of discharge discovery config on data presence', () => {
+    const device: Device = { deviceType: 'HMG-25', deviceId: 'venus123' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/HMG-25/device/venus123/ctrl',
+      deviceTopicNew: 'marstek_energy/HMG-25/device/venus123/ctrl',
+      deviceControlTopicOld: 'hame_energy/HMG-25/App/venus123/ctrl',
+      deviceControlTopicNew: 'marstek_energy/HMG-25/App/venus123/ctrl',
+      availabilityTopic: 'hame_energy/HMG-25/availability/venus123',
+      controlSubscriptionTopic: 'hame_energy/HMG-25/control/venus123/control',
+      publishTopic: 'hame_energy/HMG-25/device/venus123/data',
+    };
+
+    const dodConfigs = (state: object) =>
+      generateDiscoveryConfigs(
+        device,
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      ).filter(c => c.topic.includes('depth_of_discharge'));
+
+    // No dod in the device data: the config is deferred (nothing published)
+    expect(dodConfigs({ batterySoc: 11 })).toHaveLength(0);
+
+    // dod present: the config is advertised
+    const withDod = dodConfigs({ depthOfDischarge: 88 });
+    expect(withDod).toHaveLength(1);
+    expect(withDod[0].config).not.toBeNull();
+  });
 });

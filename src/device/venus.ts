@@ -1246,7 +1246,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         max: DOD_MAX,
         step: 1,
       }),
-      { enabled: state => state.depthOfDischarge !== undefined },
+      { enabled: state => (state.depthOfDischarge != null ? true : undefined) },
     );
     command('discharge-depth', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
