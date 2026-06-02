@@ -230,97 +230,38 @@ function registerRuntimeInfoMessage(
 
     // PV / solar input information
     if (withPvInputs) {
-      // Per-string PV input power (pv1..pv4 = "<power>|<connected>")
-      field({ key: 'pv1', path: ['pv1Power'], transform: venusPvField('power') });
-      advertise(
-        ['pv1Power'],
-        sensorComponent<number>({
-          id: 'pv1_power',
-          name: 'PV1 Power',
-          device_class: 'power',
-          unit_of_measurement: 'W',
-          state_class: 'measurement',
-        }),
-      );
-      field({ key: 'pv2', path: ['pv2Power'], transform: venusPvField('power') });
-      advertise(
-        ['pv2Power'],
-        sensorComponent<number>({
-          id: 'pv2_power',
-          name: 'PV2 Power',
-          device_class: 'power',
-          unit_of_measurement: 'W',
-          state_class: 'measurement',
-        }),
-      );
-      field({ key: 'pv3', path: ['pv3Power'], transform: venusPvField('power') });
-      advertise(
-        ['pv3Power'],
-        sensorComponent<number>({
-          id: 'pv3_power',
-          name: 'PV3 Power',
-          device_class: 'power',
-          unit_of_measurement: 'W',
-          state_class: 'measurement',
-        }),
-      );
-      field({ key: 'pv4', path: ['pv4Power'], transform: venusPvField('power') });
-      advertise(
-        ['pv4Power'],
-        sensorComponent<number>({
-          id: 'pv4_power',
-          name: 'PV4 Power',
-          device_class: 'power',
-          unit_of_measurement: 'W',
-          state_class: 'measurement',
-        }),
-      );
+      // Per-string PV input power and connection status (pvN = "<power>|<connected>")
+      const pvInputs = [
+        { key: 'pv1', power: 'pv1Power', connected: 'pv1Connected', label: 'PV1' },
+        { key: 'pv2', power: 'pv2Power', connected: 'pv2Connected', label: 'PV2' },
+        { key: 'pv3', power: 'pv3Power', connected: 'pv3Connected', label: 'PV3' },
+        { key: 'pv4', power: 'pv4Power', connected: 'pv4Connected', label: 'PV4' },
+      ] as const;
+      for (const pv of pvInputs) {
+        field({ key: pv.key, path: [pv.power], transform: venusPvField('power') });
+        advertise(
+          [pv.power],
+          sensorComponent<number>({
+            id: `${pv.key}_power`,
+            name: `${pv.label} Power`,
+            device_class: 'power',
+            unit_of_measurement: 'W',
+            state_class: 'measurement',
+          }),
+        );
 
-      // Connection status per PV input
-      field({ key: 'pv1', path: ['pv1Connected'], transform: venusPvField('connected') });
-      advertise(
-        ['pv1Connected'],
-        binarySensorComponent({
-          id: 'pv1_connected',
-          name: 'PV1 Connected',
-          device_class: 'connectivity',
-          icon: 'mdi:solar-power',
-          enabled_by_default: false,
-        }),
-      );
-      field({ key: 'pv2', path: ['pv2Connected'], transform: venusPvField('connected') });
-      advertise(
-        ['pv2Connected'],
-        binarySensorComponent({
-          id: 'pv2_connected',
-          name: 'PV2 Connected',
-          device_class: 'connectivity',
-          icon: 'mdi:solar-power',
-          enabled_by_default: false,
-        }),
-      );
-      field({ key: 'pv3', path: ['pv3Connected'], transform: venusPvField('connected') });
-      advertise(
-        ['pv3Connected'],
-        binarySensorComponent({
-          id: 'pv3_connected',
-          name: 'PV3 Connected',
-          device_class: 'connectivity',
-          icon: 'mdi:solar-power',
-          enabled_by_default: false,
-        }),
-      );
-      field({ key: 'pv4', path: ['pv4Connected'], transform: venusPvField('connected') });
-      advertise(
-        ['pv4Connected'],
-        binarySensorComponent({
-          id: 'pv4_connected',
-          name: 'PV4 Connected',
-          device_class: 'connectivity',
-          icon: 'mdi:solar-power',
-          enabled_by_default: false,
-        }),
-      );
+        field({ key: pv.key, path: [pv.connected], transform: venusPvField('connected') });
+        advertise(
+          [pv.connected],
+          binarySensorComponent({
+            id: `${pv.key}_connected`,
+            name: `${pv.label} Connected`,
+            device_class: 'connectivity',
+            icon: 'mdi:solar-power',
+            enabled_by_default: false,
+          }),
+        );
+      }
 
       // Total PV power across all inputs. Each value is "<power>|<connected>"
       // with power in deciwatts; sum() reads the leading number from each and

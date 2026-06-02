@@ -705,6 +705,8 @@ describe('MQTT Message Parser', () => {
     expect(result.bms?.chargeVoltage).toBeCloseTo(46.8);
     expect(result.bms?.mosfetTemp).toBeCloseTo(17.3);
     expect(result.cells?.temperatures?.[0]).toBeCloseTo(16.4);
+    // Battery temperature (b_tem) is already in whole degrees and must stay unscaled.
+    expect(result.bms?.temperature).toBe(16);
     // Cell voltages are already reported in mV and stay unscaled.
     expect(result.cells?.voltages?.[0]).toBe(3334);
   });
