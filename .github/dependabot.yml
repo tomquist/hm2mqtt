@@ -4,9 +4,21 @@ updates:
   # commit SHA and the trailing "# vN" version comment.
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
     groups:
       actions:
+        patterns:
+          - "*"
+
+  # Keep npm dependencies up to date.
+  - package-ecosystem: "npm"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    groups:
+      npm:
         patterns:
           - "*"
