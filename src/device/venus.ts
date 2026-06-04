@@ -1411,8 +1411,24 @@ function registerBMSInfoMessage(
             stateClass: 'measurement',
           },
         ],
-        ['b_cur', { id: 'current', deviceClass: 'current', unitOfMeasurement: 'mA', stateClass: 'measurement' }],
-        ['b_tem', { id: 'temperature', deviceClass: 'temperature', unitOfMeasurement: '°C', stateClass: 'measurement' }],
+        [
+          'b_cur',
+          {
+            id: 'current',
+            deviceClass: 'current',
+            unitOfMeasurement: 'mA',
+            stateClass: 'measurement',
+          },
+        ],
+        [
+          'b_tem',
+          {
+            id: 'temperature',
+            deviceClass: 'temperature',
+            unitOfMeasurement: '°C',
+            stateClass: 'measurement',
+          },
+        ],
         // Charge voltage is reported in decivolts (e.g. 468 -> 46.8 V)
         [
           'b_chv',
@@ -1437,7 +1453,7 @@ function registerBMSInfoMessage(
             deviceClass: 'temperature',
             unitOfMeasurement: '°C',
             transform: scaleTemperatures ? divide(10) : undefined,
-            stateClass: 'measurement'
+            stateClass: 'measurement',
           },
         ],
       ] as const;
