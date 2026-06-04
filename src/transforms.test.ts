@@ -19,6 +19,7 @@ import {
   chain,
   timePeriodField,
   mpptPvField,
+  venusPvField,
   bitMaskToWeekday,
   sum,
   min,
@@ -369,6 +370,34 @@ describe('transforms', () => {
     });
   });
 
+  describe('venusPvField transform', () => {
+    const connectedPvInfo = '1076|1';
+    const disconnectedPvInfo = '0|0';
+
+    it('should extract power in watts (deciwatt input)', () => {
+      expect(executeTransform(venusPvField('power'), connectedPvInfo)).toBe(107.6);
+      expect(executeTransform(venusPvField('power'), disconnectedPvInfo)).toBe(0);
+    });
+
+    it('should extract connection status', () => {
+      expect(executeTransform(venusPvField('connected'), connectedPvInfo)).toBe(true);
+      expect(executeTransform(venusPvField('connected'), disconnectedPvInfo)).toBe(false);
+    });
+
+    it('should return 0 power for invalid input', () => {
+      expect(executeTransform(venusPvField('power'), 'invalid')).toBe(0);
+    });
+
+    it('should generate correct Jinja2 templates', () => {
+      expect(transformToJinja2(venusPvField('power'), 'value')).toBe(
+        "{% set p = value.split('|') %}{% if p | length >= 1 %}{{ (p[0] | int) / 10 }}{% else %}0{% endif %}",
+      );
+      expect(transformToJinja2(venusPvField('connected'), 'value')).toBe(
+        "{% set p = value.split('|') %}{% if p | length >= 2 %}{{ p[1] == '1' }}{% else %}false{% endif %}",
+      );
+    });
+  });
+
   describe('bitMaskToWeekday transform', () => {
     it('should convert bitmask to weekday set', () => {
       expect(executeTransform(bitMaskToWeekday(), '127')).toBe('0123456');
@@ -389,9 +418,21 @@ describe('transforms', () => {
         expect(executeMultiKeyTransform(sum(), { a: '100', b: 'invalid' })).toBe(100);
       });
 
+      it('should apply an optional scale divisor', () => {
+        expect(executeMultiKeyTransform(sum(10), { a: '1076', b: '0' })).toBe(107.6);
+        // Leading number is parsed from pipe-delimited values
+        expect(executeMultiKeyTransform(sum(10), { pv1: '1076|1', pv2: '0|0' })).toBe(107.6);
+      });
+
       it('should generate correct Jinja2 template', () => {
         expect(multiKeyTransformToJinja2(sum(), ['w1', 'w2'], 'value_json')).toBe(
           '{{ [value_json.w1 | float(0), value_json.w2 | float(0)] | sum }}',
+        );
+      });
+
+      it('should generate correct Jinja2 template with scale', () => {
+        expect(multiKeyTransformToJinja2(sum(10), ['pv1', 'pv2'], 'value_json')).toBe(
+          '{{ ([value_json.pv1 | float(0), value_json.pv2 | float(0)] | sum) / 10 }}',
         );
       });
     });
