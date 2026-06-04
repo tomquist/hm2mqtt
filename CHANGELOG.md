@@ -8,6 +8,7 @@
 
 ### Fixed
 
+- Add missing `state_class: measurement` to battery, voltage, current and temperature sensors across the B2500, Venus and Jupiter devices so Home Assistant records long-term statistics and the *State of Charge* sensors can be added to the Energy Dashboard battery configuration introduced in Home Assistant 2026.6 (#311, #312). Thanks @michikrug! (fixes #310)
 - Venus: Scale the BMS battery voltage and charge voltage to volts (they were previously published as raw centivolt/decivolt values, e.g. 4328 instead of 43.28 V) (fixes #218)
 - Venus A (VNSA): Scale the BMS cell and MOSFET temperatures to °C (they were previously published 10× too high, e.g. 164 instead of 16.4 °C) (fixes #218)
 
