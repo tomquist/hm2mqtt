@@ -186,6 +186,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Battery Capacity',
         device_class: 'energy_storage',
         unit_of_measurement: 'Wh',
+        state_class: 'measurement',
       }),
     );
 
@@ -201,6 +202,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Battery State of Charge',
         device_class: 'battery',
         unit_of_measurement: '%',
+        state_class: 'measurement',
       }),
     );
 
@@ -368,6 +370,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Off Grid Power',
         device_class: 'apparent_power',
         unit_of_measurement: 'VA',
+        state_class: 'measurement',
       }),
     );
 
@@ -1244,6 +1247,7 @@ function registerBMSInfoMessage(message: BuildMessageFn) {
             name: `Cell Voltage ${i}`,
             unit_of_measurement: 'mV',
             device_class: 'voltage',
+            state_class: 'measurement',
             enabled_by_default: false,
           }),
         );
@@ -1259,6 +1263,7 @@ function registerBMSInfoMessage(message: BuildMessageFn) {
             name: `Cell Temperature ${i}`,
             unit_of_measurement: '°C',
             device_class: 'temperature',
+            state_class: 'measurement',
             enabled_by_default: false,
           }),
         );
@@ -1269,17 +1274,17 @@ function registerBMSInfoMessage(message: BuildMessageFn) {
         ['b_soc', { id: 'soc' }],
         ['b_soh', { id: 'soh' }],
         ['b_cap', { id: 'capacity' }],
-        ['b_vol', { id: 'voltage', deviceClass: 'voltage', unitOfMeasurement: 'V' }],
-        ['b_cur', { id: 'current', deviceClass: 'current', unitOfMeasurement: 'mA' }],
-        ['b_tem', { id: 'temperature', deviceClass: 'temperature', unitOfMeasurement: '°C' }],
-        ['b_chv', { id: 'chargeVoltage', deviceClass: 'voltage', unitOfMeasurement: 'V' }],
+        ['b_vol', { id: 'voltage', deviceClass: 'voltage', unitOfMeasurement: 'V', stateClass: 'measurement' }],
+        ['b_cur', { id: 'current', deviceClass: 'current', unitOfMeasurement: 'mA', stateClass: 'measurement' }],
+        ['b_tem', { id: 'temperature', deviceClass: 'temperature', unitOfMeasurement: '°C', stateClass: 'measurement' }],
+        ['b_chv', { id: 'chargeVoltage', deviceClass: 'voltage', unitOfMeasurement: 'V', stateClass: 'measurement' }],
         ['b_chf', { id: 'fullChargeCapacity' }],
         ['b_cpc', { id: 'cellCycle' }],
         ['b_err', { id: 'error' }],
         ['b_war', { id: 'warning' }],
         ['b_ret', { id: 'totalRuntime' }],
         ['b_ent', { id: 'energyThroughput' }],
-        ['b_mot', { id: 'mosfetTemp', deviceClass: 'temperature', unitOfMeasurement: '°C' }],
+        ['b_mot', { id: 'mosfetTemp', deviceClass: 'temperature', unitOfMeasurement: '°C', stateClass: 'measurement' }],
       ] as const;
 
       for (const [key, info] of bmsFields) {
@@ -1291,6 +1296,7 @@ function registerBMSInfoMessage(message: BuildMessageFn) {
             name: `BMS ${info.id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`,
             unit_of_measurement: 'unitOfMeasurement' in info ? info.unitOfMeasurement : undefined,
             device_class: 'deviceClass' in info ? info.deviceClass : undefined,
+            state_class: 'stateClass' in info ? info.stateClass : undefined,
             enabled_by_default: false,
           }),
         );
