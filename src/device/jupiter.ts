@@ -1054,7 +1054,15 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
           { id: 'soc', deviceClass: 'battery', unitOfMeasurement: '%', stateClass: 'measurement' },
         ],
         ['soh', { id: 'soh' }],
-        ['b_cap', { id: 'capacity', deviceClass: 'energy_storage', unitOfMeasurement: 'Wh' }],
+        [
+          'b_cap',
+          {
+            id: 'capacity',
+            deviceClass: 'energy_storage',
+            unitOfMeasurement: 'Wh',
+            stateClass: 'measurement',
+          },
+        ],
         [
           'b_vol',
           {
@@ -1097,6 +1105,7 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
             id: 'chargeVoltage',
             deviceClass: 'voltage',
             unitOfMeasurement: 'V',
+            stateClass: 'measurement',
             // My unit always reports 600 which, when divided by 10, gives a
             // close to adequate 60 V charging voltage.
             transform: divide(10),
