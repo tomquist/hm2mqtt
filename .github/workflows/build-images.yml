@@ -121,7 +121,7 @@ jobs:
 
       - name: Upload digest
         if: inputs.push
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: digests-${{ steps.platform.outputs.name }}
           path: /tmp/digests/*
@@ -134,7 +134,7 @@ jobs:
     needs: [build]
     steps:
       - name: Merge Artifacts
-        uses: actions/upload-artifact/merge@v5
+        uses: actions/upload-artifact/merge@v7
         with:
           name: digests
           pattern: digests-*
@@ -148,7 +148,7 @@ jobs:
       packages: write
     steps:
       - name: Download digests
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: digests
           path: /tmp/digests
@@ -272,7 +272,7 @@ jobs:
 
       - name: Upload digest
         if: inputs.push
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: addon-digests-${{ steps.platform.outputs.name }}
           path: /tmp/addon-digests/*
@@ -285,7 +285,7 @@ jobs:
     needs: [build-addon]
     steps:
       - name: Merge Artifacts
-        uses: actions/upload-artifact/merge@v5
+        uses: actions/upload-artifact/merge@v7
         with:
           name: addon-digests
           pattern: addon-digests-*
@@ -299,7 +299,7 @@ jobs:
       packages: write
     steps:
       - name: Download digests
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: addon-digests
           path: /tmp/addon-digests
