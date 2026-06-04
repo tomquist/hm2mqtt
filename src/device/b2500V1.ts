@@ -230,6 +230,7 @@ function registerExtraBatteryData(message: BuildMessageFn) {
           name: `Input Voltage ${input}`,
           device_class: 'voltage',
           unit_of_measurement: 'V',
+          state_class: 'measurement',
         }),
       );
       field({

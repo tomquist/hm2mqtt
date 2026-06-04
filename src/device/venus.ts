@@ -210,6 +210,7 @@ function registerRuntimeInfoMessage(
         name: 'Battery Capacity',
         device_class: 'energy_storage',
         unit_of_measurement: 'Wh',
+        state_class: 'measurement',
       }),
     );
 
@@ -225,6 +226,7 @@ function registerRuntimeInfoMessage(
         name: 'Battery State of Charge',
         device_class: 'battery',
         unit_of_measurement: '%',
+        state_class: 'measurement',
       }),
     );
 
@@ -447,6 +449,7 @@ function registerRuntimeInfoMessage(
         name: 'Off Grid Power',
         device_class: 'apparent_power',
         unit_of_measurement: 'VA',
+        state_class: 'measurement',
       }),
     );
 
@@ -1366,6 +1369,7 @@ function registerBMSInfoMessage(
             name: `Cell Voltage ${i}`,
             unit_of_measurement: 'mV',
             device_class: 'voltage',
+            state_class: 'measurement',
             enabled_by_default: false,
           }),
         );
@@ -1385,6 +1389,7 @@ function registerBMSInfoMessage(
             name: `Cell Temperature ${i}`,
             unit_of_measurement: '°C',
             device_class: 'temperature',
+            state_class: 'measurement',
             enabled_by_default: false,
           }),
         );
@@ -1398,10 +1403,32 @@ function registerBMSInfoMessage(
         // Battery pack voltage is reported in centivolts (e.g. 4328 -> 43.28 V)
         [
           'b_vol',
-          { id: 'voltage', deviceClass: 'voltage', unitOfMeasurement: 'V', transform: divide(100) },
+          {
+            id: 'voltage',
+            deviceClass: 'voltage',
+            unitOfMeasurement: 'V',
+            transform: divide(100),
+            stateClass: 'measurement',
+          },
         ],
-        ['b_cur', { id: 'current', deviceClass: 'current', unitOfMeasurement: 'mA' }],
-        ['b_tem', { id: 'temperature', deviceClass: 'temperature', unitOfMeasurement: '°C' }],
+        [
+          'b_cur',
+          {
+            id: 'current',
+            deviceClass: 'current',
+            unitOfMeasurement: 'mA',
+            stateClass: 'measurement',
+          },
+        ],
+        [
+          'b_tem',
+          {
+            id: 'temperature',
+            deviceClass: 'temperature',
+            unitOfMeasurement: '°C',
+            stateClass: 'measurement',
+          },
+        ],
         // Charge voltage is reported in decivolts (e.g. 468 -> 46.8 V)
         [
           'b_chv',
@@ -1410,6 +1437,7 @@ function registerBMSInfoMessage(
             deviceClass: 'voltage',
             unitOfMeasurement: 'V',
             transform: divide(10),
+            stateClass: 'measurement',
           },
         ],
         ['b_chf', { id: 'fullChargeCapacity' }],
@@ -1425,6 +1453,7 @@ function registerBMSInfoMessage(
             deviceClass: 'temperature',
             unitOfMeasurement: '°C',
             transform: scaleTemperatures ? divide(10) : undefined,
+            stateClass: 'measurement',
           },
         ],
       ] as const;
@@ -1442,6 +1471,7 @@ function registerBMSInfoMessage(
             name: `BMS ${info.id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`,
             unit_of_measurement: 'unitOfMeasurement' in info ? info.unitOfMeasurement : undefined,
             device_class: 'deviceClass' in info ? info.deviceClass : undefined,
+            state_class: 'stateClass' in info ? info.stateClass : undefined,
             enabled_by_default: false,
           }),
         );
