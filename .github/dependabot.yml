@@ -22,3 +22,26 @@ updates:
       npm:
         patterns:
           - "*"
+
+  # Keep Docker base images up to date. Note: the addon's final stage uses
+  # an ARG-defaulted FROM (BUILD_FROM), whose effective value is set in
+  # build-images.yml and must be bumped manually.
+  - package-ecosystem: "docker"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    groups:
+      docker:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "docker"
+    directory: "/ha_addon"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    groups:
+      docker:
+        patterns:
+          - "*"
