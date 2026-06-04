@@ -1,3 +1,6 @@
+# Global build argument (declared before any FROM so it can be used in FROM)
+ARG BUILD_FROM
+
 # Build stage
 FROM node:18.19.1-alpine AS builder
 
@@ -20,7 +23,6 @@ RUN npm run build
 RUN npm ci --only=production
 
 # Final stage
-ARG BUILD_FROM
 FROM ${BUILD_FROM:-ghcr.io/hassio-addons/base:14.2.2}
 ARG BUILD_COMMIT=unknown
 
