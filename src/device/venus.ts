@@ -27,6 +27,8 @@ import {
   equalsBoolean,
   chain,
   inRange,
+  sum,
+  venusPvField,
 } from '../transforms';
 
 /**
@@ -49,7 +51,13 @@ enum CommandType {
   GET_CT_POWER = 19,
   UPGRADE_FC4_MODULE = 20,
   SET_LOCAL_API = 30,
+  DEPTH_OF_DISCHARGE = 56,
 }
+
+// Minimum and maximum Depth of Discharge values based on Marstek app limits (30-88%).
+// NOTE: Experience has shown that these limits may change over time!
+const DOD_MIN = 30;
+const DOD_MAX = 88;
 
 /**
  * Process a command for the Venus device
@@ -144,7 +152,7 @@ function isVenusRuntimeInfoMessage(values: Record<string, string>): boolean {
 
 registerDeviceDefinition(
   {
-    deviceTypes: ['HMG', 'VNSE3', 'VNSA', 'VNSD'],
+    deviceTypes: ['HMG', 'VNSE3', 'VNSD'],
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
@@ -152,7 +160,23 @@ registerDeviceDefinition(
   },
 );
 
-function registerRuntimeInfoMessage(message: BuildMessageFn) {
+// Venus A (VNSA) reports additional per-string PV input power and uses a
+// different scaling for the BMS cell/MOSFET temperatures (factor of 10)
+// compared to the other Venus variants.
+registerDeviceDefinition(
+  {
+    deviceTypes: ['VNSA'],
+  },
+  ({ message }) => {
+    registerRuntimeInfoMessage(message, { withPvInputs: true });
+    registerBMSInfoMessage(message, { scaleTemperatures: true });
+  },
+);
+
+function registerRuntimeInfoMessage(
+  message: BuildMessageFn,
+  { withPvInputs = false }: { withPvInputs?: boolean } = {},
+) {
   let options = {
     refreshDataPayload: 'cd=1',
     isMessage: isVenusRuntimeInfoMessage,
@@ -186,6 +210,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Battery Capacity',
         device_class: 'energy_storage',
         unit_of_measurement: 'Wh',
+        state_class: 'measurement',
       }),
     );
 
@@ -201,8 +226,64 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Battery State of Charge',
         device_class: 'battery',
         unit_of_measurement: '%',
+        state_class: 'measurement',
       }),
     );
+
+    // PV / solar input information
+    if (withPvInputs) {
+      // Per-string PV input power and connection status (pvN = "<power>|<connected>")
+      const pvInputs = [
+        { key: 'pv1', power: 'pv1Power', connected: 'pv1Connected', label: 'PV1' },
+        { key: 'pv2', power: 'pv2Power', connected: 'pv2Connected', label: 'PV2' },
+        { key: 'pv3', power: 'pv3Power', connected: 'pv3Connected', label: 'PV3' },
+        { key: 'pv4', power: 'pv4Power', connected: 'pv4Connected', label: 'PV4' },
+      ] as const;
+      for (const pv of pvInputs) {
+        field({ key: pv.key, path: [pv.power], transform: venusPvField('power') });
+        advertise(
+          [pv.power],
+          sensorComponent<number>({
+            id: `${pv.key}_power`,
+            name: `${pv.label} Power`,
+            device_class: 'power',
+            unit_of_measurement: 'W',
+            state_class: 'measurement',
+          }),
+        );
+
+        field({ key: pv.key, path: [pv.connected], transform: venusPvField('connected') });
+        advertise(
+          [pv.connected],
+          binarySensorComponent({
+            id: `${pv.key}_connected`,
+            name: `${pv.label} Connected`,
+            device_class: 'connectivity',
+            icon: 'mdi:solar-power',
+            enabled_by_default: false,
+          }),
+        );
+      }
+
+      // Total PV power across all inputs. Each value is "<power>|<connected>"
+      // with power in deciwatts; sum() reads the leading number from each and
+      // the scale converts the deciwatt total to watts.
+      field({
+        key: ['pv1', 'pv2', 'pv3', 'pv4'],
+        path: ['totalPvPower'],
+        transform: sum(10),
+      });
+      advertise(
+        ['totalPvPower'],
+        sensorComponent<number>({
+          id: 'total_pv_power',
+          name: 'Total PV Power',
+          device_class: 'power',
+          unit_of_measurement: 'W',
+          state_class: 'measurement',
+        }),
+      );
+    }
 
     // Power information
     field({
@@ -368,6 +449,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Off Grid Power',
         device_class: 'apparent_power',
         unit_of_measurement: 'VA',
+        state_class: 'measurement',
       }),
     );
 
@@ -1213,6 +1295,46 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         publishCallback(processCommand(CommandType.SET_MAX_CHARGING_POWER, { cp: power }));
       },
     });
+
+    // Depth of Discharge (dod). The device reports the actual percentage; values
+    // outside the valid range are treated as unknown. The maximum is encoded as 0
+    // only in the write direction (see the discharge-depth command below).
+    field({
+      key: 'dod',
+      path: ['depthOfDischarge'],
+      transform: chain(number(), inRange(DOD_MIN, DOD_MAX)),
+    });
+    advertise(
+      ['depthOfDischarge'],
+      numberComponent({
+        id: 'depth_of_discharge',
+        name: 'Depth of Discharge',
+        unit_of_measurement: '%',
+        device_class: 'battery',
+        command: 'discharge-depth',
+        min: DOD_MIN,
+        max: DOD_MAX,
+        step: 1,
+      }),
+      { enabled: state => (state.depthOfDischarge != null ? true : undefined) },
+    );
+    command('discharge-depth', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        // Require an exact integer payload (reject e.g. "88foo", "30.5", "", " 70 ").
+        const dod = /^\d+$/.test(message) ? parseInt(message, 10) : NaN;
+        if (Number.isNaN(dod) || dod < DOD_MIN || dod > DOD_MAX) {
+          logger.warn(
+            `Invalid depth of discharge value (should be ${DOD_MIN}-${DOD_MAX}):`,
+            message,
+          );
+          return;
+        }
+        updateDeviceState(() => ({ depthOfDischarge: dod }));
+        // The device expects the maximum depth of discharge (DOD_MAX) to be sent as 0.
+        const dodValue = dod >= DOD_MAX ? 0 : dod;
+        publishCallback(processCommand(CommandType.DEPTH_OF_DISCHARGE, { dod: dodValue }));
+      },
+    });
   });
 }
 
@@ -1221,7 +1343,10 @@ const requiredBMSFields = ['b_ver', 'b_soc', 'b_tp1', 'b_vo1'];
 function isVenusBmsInfoMessage(values: Record<string, string>): boolean {
   return requiredBMSFields.every(field => field in values);
 }
-function registerBMSInfoMessage(message: BuildMessageFn) {
+function registerBMSInfoMessage(
+  message: BuildMessageFn,
+  { scaleTemperatures = false }: { scaleTemperatures?: boolean } = {},
+) {
   message<VenusBMSInfo>(
     {
       refreshDataPayload: `cd=${CommandType.GET_BMS_INFO}`,
@@ -1244,6 +1369,7 @@ function registerBMSInfoMessage(message: BuildMessageFn) {
             name: `Cell Voltage ${i}`,
             unit_of_measurement: 'mV',
             device_class: 'voltage',
+            state_class: 'measurement',
             enabled_by_default: false,
           }),
         );
@@ -1251,7 +1377,11 @@ function registerBMSInfoMessage(message: BuildMessageFn) {
 
       for (let i = 1; i <= 4; i++) {
         const key = `b_tp${i}`;
-        field({ key, path: ['cells', 'temperatures', i - 1] });
+        field({
+          key,
+          path: ['cells', 'temperatures', i - 1],
+          transform: scaleTemperatures ? divide(10) : undefined,
+        });
         advertise(
           ['cells', 'temperatures', i - 1],
           sensorComponent<number>({
@@ -1259,6 +1389,7 @@ function registerBMSInfoMessage(message: BuildMessageFn) {
             name: `Cell Temperature ${i}`,
             unit_of_measurement: '°C',
             device_class: 'temperature',
+            state_class: 'measurement',
             enabled_by_default: false,
           }),
         );
@@ -1269,21 +1400,70 @@ function registerBMSInfoMessage(message: BuildMessageFn) {
         ['b_soc', { id: 'soc' }],
         ['b_soh', { id: 'soh' }],
         ['b_cap', { id: 'capacity' }],
-        ['b_vol', { id: 'voltage', deviceClass: 'voltage', unitOfMeasurement: 'V' }],
-        ['b_cur', { id: 'current', deviceClass: 'current', unitOfMeasurement: 'mA' }],
-        ['b_tem', { id: 'temperature', deviceClass: 'temperature', unitOfMeasurement: '°C' }],
-        ['b_chv', { id: 'chargeVoltage', deviceClass: 'voltage', unitOfMeasurement: 'V' }],
+        // Battery pack voltage is reported in centivolts (e.g. 4328 -> 43.28 V)
+        [
+          'b_vol',
+          {
+            id: 'voltage',
+            deviceClass: 'voltage',
+            unitOfMeasurement: 'V',
+            transform: divide(100),
+            stateClass: 'measurement',
+          },
+        ],
+        [
+          'b_cur',
+          {
+            id: 'current',
+            deviceClass: 'current',
+            unitOfMeasurement: 'mA',
+            stateClass: 'measurement',
+          },
+        ],
+        [
+          'b_tem',
+          {
+            id: 'temperature',
+            deviceClass: 'temperature',
+            unitOfMeasurement: '°C',
+            stateClass: 'measurement',
+          },
+        ],
+        // Charge voltage is reported in decivolts (e.g. 468 -> 46.8 V)
+        [
+          'b_chv',
+          {
+            id: 'chargeVoltage',
+            deviceClass: 'voltage',
+            unitOfMeasurement: 'V',
+            transform: divide(10),
+            stateClass: 'measurement',
+          },
+        ],
         ['b_chf', { id: 'fullChargeCapacity' }],
         ['b_cpc', { id: 'cellCycle' }],
         ['b_err', { id: 'error' }],
         ['b_war', { id: 'warning' }],
         ['b_ret', { id: 'totalRuntime' }],
         ['b_ent', { id: 'energyThroughput' }],
-        ['b_mot', { id: 'mosfetTemp', deviceClass: 'temperature', unitOfMeasurement: '°C' }],
+        [
+          'b_mot',
+          {
+            id: 'mosfetTemp',
+            deviceClass: 'temperature',
+            unitOfMeasurement: '°C',
+            transform: scaleTemperatures ? divide(10) : undefined,
+            stateClass: 'measurement',
+          },
+        ],
       ] as const;
 
       for (const [key, info] of bmsFields) {
-        field({ key, path: ['bms', info.id] });
+        field({
+          key,
+          path: ['bms', info.id],
+          transform: 'transform' in info ? info.transform : undefined,
+        });
         advertise(
           ['bms', info.id],
           sensorComponent<number>({
@@ -1291,6 +1471,7 @@ function registerBMSInfoMessage(message: BuildMessageFn) {
             name: `BMS ${info.id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`,
             unit_of_measurement: 'unitOfMeasurement' in info ? info.unitOfMeasurement : undefined,
             device_class: 'deviceClass' in info ? info.deviceClass : undefined,
+            state_class: 'stateClass' in info ? info.stateClass : undefined,
             enabled_by_default: false,
           }),
         );

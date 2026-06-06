@@ -1,4 +1,17 @@
 # Changelog
+## [1.7.1] - 2026-06-06
+
+### Added
+
+- Venus: Add *Depth of Discharge* number entity (`discharge-depth` command) so the battery's depth of discharge (`dod`) can be read and configured (30-88%). The entity is only advertised on devices that report the value (fixes #306)
+- Venus A (VNSA): Expose per-string PV input power (PV1–PV4), their connection status and a combined Total PV Power sensor (fixes #218)
+
+### Fixed
+
+- Add missing `state_class: measurement` to battery, voltage, current and temperature sensors across the B2500, Venus and Jupiter devices so Home Assistant records long-term statistics and the *State of Charge* sensors can be added to the Energy Dashboard battery configuration introduced in Home Assistant 2026.6 (#311, #312). Thanks @michikrug! (fixes #310)
+- Venus: Scale the BMS battery voltage and charge voltage to volts (they were previously published as raw centivolt/decivolt values, e.g. 4328 instead of 43.28 V) (fixes #218)
+- Venus A (VNSA): Scale the BMS cell and MOSFET temperatures to °C (they were previously published 10× too high, e.g. 164 instead of 16.4 °C) (fixes #218)
+
 ## [1.7.0] - 2026-06-01
 
 ### Breaking Changes

@@ -1,0 +1,47 @@
+version: 2
+updates:
+  # Keep SHA-pinned GitHub Actions up to date. Dependabot updates both the
+  # commit SHA and the trailing "# vN" version comment.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # Keep npm dependencies up to date.
+  - package-ecosystem: "npm"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    groups:
+      npm:
+        patterns:
+          - "*"
+
+  # Keep Docker base images up to date. Note: the addon's final stage uses
+  # an ARG-defaulted FROM (BUILD_FROM), whose effective value is set in
+  # build-images.yml and must be bumped manually.
+  - package-ecosystem: "docker"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    groups:
+      docker:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "docker"
+    directory: "/ha_addon"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    groups:
+      docker:
+        patterns:
+          - "*"

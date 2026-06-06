@@ -790,6 +790,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
           name: `Input Voltage ${input}`,
           device_class: 'voltage',
           unit_of_measurement: 'V',
+          state_class: 'measurement',
         }),
       );
       field({
@@ -804,6 +805,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
           name: `Input Current ${input}`,
           device_class: 'current',
           unit_of_measurement: 'A',
+          state_class: 'measurement',
         }),
       );
       field({
@@ -823,6 +825,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
           name: `Output Voltage ${input}`,
           device_class: 'voltage',
           unit_of_measurement: 'V',
+          state_class: 'measurement',
         }),
       );
       field({
@@ -837,6 +840,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
           name: `Output Current ${input}`,
           device_class: 'current',
           unit_of_measurement: 'A',
+          state_class: 'measurement',
         }),
       );
       field({
@@ -861,6 +865,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
         name: 'Host Battery Voltage',
         device_class: 'voltage',
         unit_of_measurement: 'V',
+        state_class: 'measurement',
       }),
     );
     field({
@@ -875,6 +880,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
         name: 'Host Battery Current',
         device_class: 'current',
         unit_of_measurement: 'A',
+        state_class: 'measurement',
       }),
     );
     field({
@@ -893,6 +899,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
         name: 'Extra Battery 1 Voltage',
         device_class: 'voltage',
         unit_of_measurement: 'V',
+        state_class: 'measurement',
         enabled_by_default: false,
       }),
     );
@@ -908,6 +915,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
         name: 'Extra Battery 1 Current',
         device_class: 'current',
         unit_of_measurement: 'A',
+        state_class: 'measurement',
         enabled_by_default: false,
       }),
     );
@@ -927,6 +935,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
         name: 'Extra Battery 2 Voltage',
         device_class: 'voltage',
         unit_of_measurement: 'V',
+        state_class: 'measurement',
         enabled_by_default: false,
       }),
     );
@@ -942,6 +951,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
         name: 'Extra Battery 2 Current',
         device_class: 'current',
         unit_of_measurement: 'A',
+        state_class: 'measurement',
         enabled_by_default: false,
       }),
     );

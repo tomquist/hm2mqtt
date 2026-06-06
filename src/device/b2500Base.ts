@@ -82,6 +82,7 @@ export function registerBaseMessage({
       name: 'Battery Percentage',
       device_class: 'battery',
       unit_of_measurement: '%',
+      state_class: 'measurement',
     }),
   );
   field({
@@ -96,6 +97,7 @@ export function registerBaseMessage({
       name: 'Battery Capacity',
       device_class: 'energy_storage',
       unit_of_measurement: 'Wh',
+      state_class: 'measurement',
     }),
   );
   field({
@@ -284,6 +286,7 @@ export function registerBaseMessage({
       name: 'Temperature Min',
       device_class: 'temperature',
       unit_of_measurement: '°C',
+      state_class: 'measurement',
     }),
   );
   field({
@@ -298,6 +301,7 @@ export function registerBaseMessage({
       name: 'Temperature Max',
       device_class: 'temperature',
       unit_of_measurement: '°C',
+      state_class: 'measurement',
     }),
   );
   field({
@@ -551,6 +555,7 @@ export function registerBaseMessage({
       name: 'Host Battery SoC',
       device_class: 'battery',
       unit_of_measurement: '%',
+      state_class: 'measurement',
     }),
   );
   field({
@@ -565,6 +570,7 @@ export function registerBaseMessage({
       name: 'Extra 1 Battery SoC',
       device_class: 'battery',
       unit_of_measurement: '%',
+      state_class: 'measurement',
       enabled_by_default: false,
     }),
   );
@@ -580,6 +586,7 @@ export function registerBaseMessage({
       name: 'Extra 2 Battery SoC',
       device_class: 'battery',
       unit_of_measurement: '%',
+      state_class: 'measurement',
       enabled_by_default: false,
     }),
   );
@@ -725,6 +732,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
           name: `Min Cell Voltage ${battery}`,
           device_class: 'voltage',
           unit_of_measurement: 'V',
+          state_class: 'measurement',
           enabled_by_default: battery === 'host',
         }),
       );
@@ -740,6 +748,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
           name: `Max Cell Voltage ${battery}`,
           device_class: 'voltage',
           unit_of_measurement: 'V',
+          state_class: 'measurement',
           enabled_by_default: battery === 'host',
         }),
       );
@@ -755,6 +764,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
           name: `Cell Voltage Difference ${battery}`,
           device_class: 'voltage',
           unit_of_measurement: 'V',
+          state_class: 'measurement',
           enabled_by_default: battery === 'host',
         }),
       );
@@ -770,6 +780,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
           name: `Average Cell Voltage ${battery}`,
           device_class: 'voltage',
           unit_of_measurement: 'V',
+          state_class: 'measurement',
           enabled_by_default: battery === 'host',
         }),
       );
@@ -787,6 +798,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
             name: `Cell Voltage ${battery} ${(i + 1).toString().padStart(2, '0')}`,
             device_class: 'voltage',
             unit_of_measurement: 'V',
+            state_class: 'measurement',
             enabled_by_default: battery === 'host',
           }),
         );

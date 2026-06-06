@@ -1,0 +1,87 @@
+name: "Enforce PR target branch"
+
+on:
+  pull_request_target:
+    types: [opened, reopened, edited, synchronize]
+    branches: [ "main" ]
+
+permissions:
+  pull-requests: write
+
+# Serialize runs per PR so rapid events don't race past the duplicate check.
+concurrency:
+  group: enforce-pr-target-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  reject-main-target:
+    # Only act on PRs that target the main branch, and skip owners, members and
+    # collaborators so maintainers can target main directly (e.g. release PRs).
+    if: >-
+      github.event.pull_request.base.ref == 'main' &&
+      !contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.pull_request.author_association)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Request changes and explain target branch policy
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pull_number = pr.number;
+
+            const marker = '<!-- hm2mqtt-wrong-target-branch-bot -->';
+
+            // Avoid duplicate "request changes" reviews from this bot.
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
+              owner,
+              repo,
+              pull_number,
+              per_page: 100,
+            });
+
+            const alreadyRequested = reviews.some(
+              r => r.state === 'CHANGES_REQUESTED' && (r.body || '').includes(marker),
+            );
+            if (alreadyRequested) {
+              core.info('Already requested changes for wrong target branch; exiting.');
+              core.setFailed('Pull request targets `main`; it should target `develop`.');
+              return;
+            }
+
+            const body = [
+              marker,
+              'Thanks for the pull request! 🙏',
+              '',
+              'This PR targets the `main` branch, but contributions should target the `develop` branch instead.',
+              '`main` only receives changes via releases from `develop`.',
+              '',
+              'Please update the base branch of this PR to `develop`:',
+              '',
+              '1. Open the PR and click **Edit** next to the title.',
+              '2. Change the base branch dropdown from `main` to `develop`.',
+              '3. Save the change.',
+              '',
+              'If your branch was created from `main`, you may also need to rebase it onto `develop` so that unrelated commits don\'t show up in this PR:',
+              '',
+              '```bash',
+              'git fetch origin',
+              'git rebase --onto origin/develop origin/main <your-branch>',
+              'git push --force-with-lease',
+              '```',
+              '',
+              'This PR is **not** being closed — once it targets `develop`, this check will clear automatically.',
+            ].join('\n');
+
+            await github.rest.pulls.createReview({
+              owner,
+              repo,
+              pull_number,
+              body,
+              event: 'REQUEST_CHANGES',
+            });
+
+            core.info('Requested changes: PR should target develop, not main.');
+            core.setFailed('Pull request targets `main`; it should target `develop`.');

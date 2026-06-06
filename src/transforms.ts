@@ -45,6 +45,7 @@ export type Transform =
   | LowByteTransform
   | TimePeriodFieldTransform
   | MPPTPVFieldTransform
+  | VenusPvFieldTransform
   | BitMaskToWeekdayTransform
   | ChainTransform;
 
@@ -172,6 +173,12 @@ export interface MPPTPVFieldTransform {
   field: 'voltage' | 'current' | 'power';
 }
 
+/** Extract a field from a Venus PV input string (format: "POWER|CONNECTED") */
+export interface VenusPvFieldTransform {
+  type: 'venusPvField';
+  field: 'power' | 'connected';
+}
+
 /** Convert weekday bitmask to weekday set string */
 export interface BitMaskToWeekdayTransform {
   type: 'bitMaskToWeekday';
@@ -184,6 +191,7 @@ export interface BitMaskToWeekdayTransform {
 /** Sum multiple values */
 export interface SumTransform {
   type: 'sum';
+  scale?: number;
 }
 
 /** Get minimum value */
@@ -314,11 +322,17 @@ export const mpptPvField = (field: MPPTPVFieldTransform['field']): MPPTPVFieldTr
   field,
 });
 
+/** Create a Venus PV input field transform */
+export const venusPvField = (field: VenusPvFieldTransform['field']): VenusPvFieldTransform => ({
+  type: 'venusPvField',
+  field,
+});
+
 /** Create a bitmask to weekday transform */
 export const bitMaskToWeekday = (): BitMaskToWeekdayTransform => ({ type: 'bitMaskToWeekday' });
 
 /** Create a sum transform */
-export const sum = (): SumTransform => ({ type: 'sum' });
+export const sum = (scale?: number): SumTransform => ({ type: 'sum', scale });
 
 /** Create a min transform */
 export const min = (scale?: number): MinTransform => ({ type: 'min', scale });
@@ -447,6 +461,9 @@ export function executeTransform(
     case 'mpptPvField':
       return executeMPPTPVField(value, transform.field);
 
+    case 'venusPvField':
+      return executeVenusPvField(value, transform.field);
+
     case 'bitMaskToWeekday': {
       const bitmask = parseInt(value, 10);
       return '0123456'
@@ -467,8 +484,10 @@ export function executeMultiKeyTransform(
   const numericValues = Object.values(values).map(v => parseFloat(v));
 
   switch (transform.type) {
-    case 'sum':
-      return numericValues.reduce((acc, v) => acc + (isNaN(v) ? 0 : v), 0);
+    case 'sum': {
+      const total = numericValues.reduce((acc, v) => acc + (isNaN(v) ? 0 : v), 0);
+      return transform.scale ? total / transform.scale : total;
+    }
 
     case 'min': {
       const validValues = numericValues.filter(v => !isNaN(v));
@@ -566,6 +585,18 @@ function executeMPPTPVField(value: string, field: MPPTPVFieldTransform['field'])
     case 'power':
       return safeParseInt(parts[2]) / 10;
   }
+}
+
+function executeVenusPvField(
+  value: string,
+  field: VenusPvFieldTransform['field'],
+): number | boolean {
+  const parts = value.split('|');
+  if (field === 'connected') {
+    return parts[1] === '1';
+  }
+  // The power value is reported in deciwatts (e.g. 1076 -> 107.6 W).
+  return safeParseInt(parts[0]) / 10;
 }
 
 // =============================================================================
@@ -684,6 +715,9 @@ export function transformToJinja2(
     case 'mpptPvField':
       return generateMPPTPVFieldJinja2(valueExpr, transform.field);
 
+    case 'venusPvField':
+      return generateVenusPvFieldJinja2(valueExpr, transform.field);
+
     case 'bitMaskToWeekday':
       // Convert bitmask to weekday set string - only mutate inside loop, output once at end
       return `{% set bm = ${valueExpr} | int(0) %}{% set days = '' %}{% for i in range(7) %}{% if bm | bitwise_and(2**i) %}{% set days = days ~ i %}{% endif %}{% endfor %}{{ days }}`;
@@ -710,9 +744,11 @@ export function multiKeyTransformToJinja2(
   const filteredListExpr = `${rawListExpr} | reject('equalto', none) | list`;
 
   switch (transform.type) {
-    case 'sum':
+    case 'sum': {
       // For sum, we can use default 0 since adding 0 doesn't affect the result
-      return `{{ [${keys.map(k => `${valuePrefix}.${k} | float(0)`).join(', ')}] | sum }}`;
+      const summed = `[${keys.map(k => `${valuePrefix}.${k} | float(0)`).join(', ')}] | sum`;
+      return transform.scale ? `{{ (${summed}) / ${transform.scale} }}` : `{{ ${summed} }}`;
+    }
 
     case 'min': {
       const scaleExpr = transform.scale ? ` / ${transform.scale}` : '';
@@ -767,6 +803,17 @@ function generateMPPTPVFieldJinja2(
   const index = field === 'voltage' ? 0 : field === 'current' ? 1 : 2;
 
   return `{% set p = ${partsExpr} %}{% if p | length >= 3 %}{{ (p[${index}] | int) / 10 }}{% else %}0{% endif %}`;
+}
+
+function generateVenusPvFieldJinja2(
+  valueExpr: string,
+  field: VenusPvFieldTransform['field'],
+): string {
+  const partsExpr = `${valueExpr}.split('|')`;
+  if (field === 'connected') {
+    return `{% set p = ${partsExpr} %}{% if p | length >= 2 %}{{ p[1] == '1' }}{% else %}false{% endif %}`;
+  }
+  return `{% set p = ${partsExpr} %}{% if p | length >= 1 %}{{ (p[0] | int) / 10 }}{% else %}0{% endif %}`;
 }
 
 // =============================================================================
