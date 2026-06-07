@@ -1,6 +1,9 @@
 # Changelog
 ## [Next]
 
+### Changed
+
+- Home Assistant discovery messages are now only published after the device responds to a `cd=1` request at least once, instead of immediately on connect. This prevents devices that never reply from creating unavailable "ghost" entities in Home Assistant.
 
 ## [1.7.1] - 2026-06-06
 

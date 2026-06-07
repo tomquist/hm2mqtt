@@ -22,6 +22,8 @@ jest.mock('./deviceDefinition', () => ({
   getDeviceDefinition: jest.fn(() => ({
     messages: [
       {
+        refreshDataPayload: 'cd=1',
+        publishPath: 'data',
         getAdditionalDeviceInfo: (state: any) => ({
           firmwareVersion: state?.fw,
         }),
@@ -82,5 +84,48 @@ describe('MqttClient discovery re-publish', () => {
       'homeassistant',
       expect.objectContaining({ fw: '116.6' }),
     );
+  });
+
+  test('only publishes discovery after a cd=1 response, not on non-cd=1 paths', () => {
+    const { publishDiscoveryConfigs } = require('./generateDiscoveryConfigs');
+    publishDiscoveryConfigs.mockClear();
+
+    const device: Device = { deviceType: 'HMJ-2', deviceId: 'abc123' };
+    const topics = {
+      deviceTopicOld: 'hame_energy/HMJ-2/device/abc123/ctrl',
+      deviceTopicNew: 'marstek_energy/HMJ-2/device/abc123/ctrl',
+      publishTopic: 'homeassistant/HMJ-2/device/abc123/data',
+      deviceControlTopicOld: 'hame_energy/HMJ-2/App/abc123/ctrl',
+      deviceControlTopicNew: 'marstek_energy/HMJ-2/App/abc123/ctrl',
+      controlSubscriptionTopic: 'homeassistant/HMJ-2/control/abc123/control',
+      availabilityTopic: 'homeassistant/HMJ-2/availability/abc123',
+    };
+
+    const deviceManager: any = {
+      getDeviceTopics: jest.fn(() => topics),
+      getDeviceState: jest.fn(() => ({})),
+      getDevices: jest.fn(() => []),
+    };
+
+    const config: any = {
+      brokerUrl: 'mqtt://localhost:1883',
+      clientId: 'test-client',
+      topicPrefix: 'homeassistant',
+      autodiscoveryTopicPrefix: 'homeassistant',
+    };
+
+    const mqttClient = new MqttClient(config, deviceManager, jest.fn());
+
+    // A response on a non-cd=1 path (e.g. BMS data) must not announce discovery
+    mqttClient.onDeviceDataReceived(device, 'bms');
+    expect(publishDiscoveryConfigs).not.toHaveBeenCalled();
+
+    // The first cd=1 response unlocks discovery
+    mqttClient.onDeviceDataReceived(device, 'data');
+    expect(publishDiscoveryConfigs).toHaveBeenCalledTimes(1);
+
+    // The previously-seen non-cd=1 path still gets its normal first-data publish
+    mqttClient.onDeviceDataReceived(device, 'bms');
+    expect(publishDiscoveryConfigs).toHaveBeenCalledTimes(2);
   });
 });

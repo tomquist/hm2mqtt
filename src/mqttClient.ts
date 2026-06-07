@@ -13,6 +13,7 @@ export class MqttClient {
   private allowedConsecutiveTimeouts: number;
   private devicePathsWithData: Set<string> = new Set();
   private lastDiscoveryInfoSignatureByDevice: Map<string, string> = new Map();
+  private devicesRespondedToCd1: Set<string> = new Set();
 
   constructor(
     private config: MqttConfig,
@@ -87,7 +88,12 @@ export class MqttClient {
       this.subscribe(topics.deviceTopicNew);
       this.subscribeToControlTopics(device);
       this.publish(topics.availabilityTopic, 'offline', { qos: 1, retain: true });
-      this.publishDiscoveryConfigs(device);
+      // Only (re-)publish discovery for devices that have already responded to a
+      // cd=1 request in this process lifetime. Devices that have never replied are
+      // not announced until their first cd=1 response arrives.
+      if (this.devicesRespondedToCd1.has(this.getDeviceKey(device))) {
+        this.publishDiscoveryConfigs(device);
+      }
     });
 
     // Set up periodic polling to trigger device data
@@ -119,6 +125,23 @@ export class MqttClient {
 
   private getDiscoveryInfoSignature(device: Device): string {
     return this.getDiscoveryInfoSignatureFromInfo(this.getAdditionalDeviceInfo(device));
+  }
+
+  /**
+   * Determine whether the given publish path corresponds to a cd=1 request for
+   * this device, i.e. data received on this path is a response to a cd=1 poll.
+   *
+   * @param device - The device configuration
+   * @param publishPath - The message path that received data
+   */
+  private isCd1Path(device: Device, publishPath: string): boolean {
+    const deviceDefinition = getDeviceDefinition(device.deviceType);
+    if (!deviceDefinition) {
+      return false;
+    }
+    return deviceDefinition.messages.some(
+      message => message.refreshDataPayload === 'cd=1' && message.publishPath === publishPath,
+    );
   }
 
   /**
@@ -207,10 +230,13 @@ export class MqttClient {
       clearInterval(this.discoveryInterval);
     }
 
-    // Republish Home Assistant discovery configurations every hour
+    // Republish Home Assistant discovery configurations every hour, but only for
+    // devices that have responded to a cd=1 request at least once.
     this.discoveryInterval = setInterval(() => {
       this.deviceManager.getDevices().forEach(device => {
-        this.publishDiscoveryConfigs(device);
+        if (this.devicesRespondedToCd1.has(this.getDeviceKey(device))) {
+          this.publishDiscoveryConfigs(device);
+        }
       });
     }, 3600000); // Every hour
     // Prevent tests/process from being kept alive by the interval
@@ -249,6 +275,25 @@ export class MqttClient {
   onDeviceDataReceived(device: Device, publishPath: string): void {
     const devicePathKey = `${device.deviceType}:${device.deviceId}:${publishPath}`;
     const deviceKey = this.getDeviceKey(device);
+
+    // Discovery is only announced after the device has responded to a cd=1 request.
+    if (!this.devicesRespondedToCd1.has(deviceKey)) {
+      // Ignore responses on other paths (e.g. BMS/cell data) until the device has
+      // answered a cd=1 request. We deliberately do not record those paths in
+      // devicePathsWithData yet, so they still get their normal first-data publish
+      // once the device is unlocked below.
+      if (!this.isCd1Path(device, publishPath)) {
+        return;
+      }
+      logger.debug(
+        `First cd=1 response received for ${device.deviceType}:${device.deviceId} on path ${publishPath}, publishing discovery configs`,
+      );
+      this.devicesRespondedToCd1.add(deviceKey);
+      this.devicePathsWithData.add(devicePathKey);
+      this.publishDiscoveryConfigs(device);
+      return;
+    }
+
     const previousSignature = this.lastDiscoveryInfoSignatureByDevice.get(deviceKey);
     const currentSignature = this.getDiscoveryInfoSignature(device);
 
