@@ -587,7 +587,7 @@ homeassistant/{component}/{node_id}/{object_id}/config
 ### B2500 Commands (All Versions)
 - `discharge-depth`: Controls battery discharge depth (0-100%)
 - `restart`: Restarts the device
-- `use-flash-commands`: Toggles flash command mode
+- `use-flash-commands`: Toggles flash command mode. The Home Assistant switch publishes this command as a retained message, so the setting is automatically re-applied after hm2mqtt restarts.
 
 ### B2500 V1 Specific Commands
 - `charging-mode`: Sets charging mode (`pv2PassThrough` or `chargeThenDischarge`)

@@ -33,6 +33,7 @@ export interface HaSwitchComponent extends HaBaseStateComponent {
   payload_off: string | number | boolean;
   state_on: string | number | boolean;
   state_off: string | number | boolean;
+  retain?: boolean;
 }
 
 export interface HaNumberComponent extends Omit<HaSensorComponent, 'type'> {
@@ -96,6 +97,7 @@ export interface HaDiscoveryConfig {
   step?: number;
   payload_press?: string | number | boolean;
   pattern?: string;
+  retain?: boolean;
   icon?: string;
   device: {
     ids: string[];
@@ -240,6 +242,7 @@ export const switchComponent =
   (
     definition: HaBaseStateComponentArgs & {
       command: string;
+      retain?: boolean;
     },
   ): HaStatefulAdvertiseBuilder<boolean> =>
   args => ({
@@ -251,6 +254,7 @@ export const switchComponent =
     payload_off: 'false',
     state_on: true,
     state_off: false,
+    ...(definition.retain != null ? { retain: definition.retain } : {}),
   });
 export const textComponent =
   <T extends string = string>(
