@@ -684,6 +684,10 @@ export function registerBaseMessage({
       icon: 'mdi:flash',
       command: 'use-flash-commands',
       enabled_by_default: false,
+      // Publish the toggle as a retained command so the setting survives a
+      // restart of hm2mqtt: on reconnect the broker re-delivers the retained
+      // command and the flash-commands state is re-applied automatically.
+      retain: true,
     }),
   );
 }

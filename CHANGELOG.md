@@ -3,6 +3,7 @@
 
 ### Changed
 
+- B2500: The *Use Flash Commands* switch now publishes its command as a retained MQTT message. This makes the setting survive a restart of hm2mqtt — on reconnect the broker re-delivers the retained command and the flash-commands mode is re-applied automatically.
 - Home Assistant discovery messages are now only published after the device responds to a `cd=1` request at least once, instead of immediately on connect. This prevents devices that never reply from creating unavailable "ghost" entities in Home Assistant.
 
 ## [1.7.1] - 2026-06-06

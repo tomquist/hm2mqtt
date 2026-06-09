@@ -99,6 +99,8 @@ describe('Home Assistant Discovery', () => {
     expect(flashCommandsSwitch).toBeDefined();
     expect(flashCommandsSwitch?.config!.payload_on).toBe('true');
     expect(flashCommandsSwitch?.config!.payload_off).toBe('false');
+    // The switch publishes a retained command so the setting survives a restart
+    expect(flashCommandsSwitch?.config!.retain).toBe(true);
 
     // Check factory reset button
     const factoryResetButton = configs.find(c => c.topic.includes('factory_reset'));
