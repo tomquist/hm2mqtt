@@ -1,5 +1,26 @@
-import pino from 'pino';
+import pino, { type Logger } from 'pino';
 import { inspect } from 'util';
+
+/**
+ * Loosely-typed log function.
+ *
+ * pino v10 introduced printf-placeholder-aware typings that reject the
+ * `logger.error('message:', value)` call style used throughout this codebase
+ * (extra arguments are only allowed when the message contains matching `%s`/`%d`
+ * placeholders). The `consoleStyleLogMethod` hook below handles these surplus
+ * arguments at runtime, so we relax the log method signatures to keep that
+ * ergonomic style compiling under the stricter types.
+ */
+type LooseLogFn = (...args: any[]) => void;
+
+type LooseLogger = Omit<Logger, 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal'> & {
+  trace: LooseLogFn;
+  debug: LooseLogFn;
+  info: LooseLogFn;
+  warn: LooseLogFn;
+  error: LooseLogFn;
+  fatal: LooseLogFn;
+};
 
 const resolvedLevel = process.env.LOG_LEVEL
   ? process.env.LOG_LEVEL
@@ -38,7 +59,7 @@ export function consoleStyleLogMethod(
   method.apply(this, inputArgs);
 }
 
-const logger = pino({
+const logger: LooseLogger = pino({
   level: resolvedLevel,
   hooks: {
     logMethod: consoleStyleLogMethod,
