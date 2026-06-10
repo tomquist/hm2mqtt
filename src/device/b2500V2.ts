@@ -81,7 +81,7 @@ export const timePeriodSettingHandler = (
           return;
       }
 
-      logger.info(`Current period ${periodNumber} settings:`, newTimePeriodSettings[periodIndex]);
+      logger.debug(`Current period ${periodNumber} settings:`, newTimePeriodSettings[periodIndex]);
 
       // Build time period parameters for all periods
       const params = buildTimePeriodParams(newTimePeriodSettings);
