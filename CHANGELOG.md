@@ -1,6 +1,10 @@
 # Changelog
 ## [Next]
 
+### Fixed
+
+- Log messages no longer drop their trailing values (e.g. `Current period 1 settings:` was logged without the actual settings, and error logs were missing the error details). Pino only interpolates extra arguments into `%s`-style placeholders, so console-style log calls silently lost everything after the message (fixes #326)
+
 ### Changed
 
 - B2500: The *Use Flash Commands* switch now publishes its command as a retained MQTT message. This makes the setting survive a restart of hm2mqtt — on reconnect the broker re-delivers the retained command and the flash-commands mode is re-applied automatically.
