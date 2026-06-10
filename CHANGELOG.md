@@ -4,6 +4,7 @@
 ### Fixed
 
 - Log messages no longer drop their trailing values (e.g. `Current period 1 settings:` was logged without the actual settings, and error logs were missing the error details). Pino only interpolates extra arguments into `%s`-style placeholders, so console-style log calls silently lost everything after the message (fixes #326)
+- B2500: The `Current period X settings:` message logged for every received time-period command is now logged at `debug` level instead of `info`, so automations that frequently update time periods no longer flood the log (fixes #326)
 
 ### Changed
 
