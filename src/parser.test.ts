@@ -771,6 +771,19 @@ describe('MQTT Message Parser', () => {
     expect(result.cells?.voltageAvg).toBe(3334);
   });
 
+  test('scales Venus D (VNSD) BMS cell/MOSFET temperatures like Venus A', () => {
+    const message =
+      'cd=14,b_ver=116,b_chv=468,b_soc=94,b_soh=100,b_cap=5120,b_vol=4328,b_cur=20,b_tem=16,b_chf=3,b_cpc=157,b_err=0,b_war=0,b_ret=0,b_ent=0,b_mot=173,b_tp1=164,b_tp2=166,b_tp3=168,b_tp4=166,b_vo1=3334,b_vo2=3332,b_vo3=3333,b_vo4=3333,b_vo5=3334,b_vo6=3335,b_vo7=3334,b_vo8=3334,b_vo9=3334,b_vo10=3334,b_vo11=3333,b_vo12=3333,b_vo13=3333,b_vo14=0,b_vo15=0,b_vo16=0';
+    const parsed = parseMessage(message, 'VNSD-0', 'venusD123');
+
+    const result = parsed['bms'] as VenusBMSInfo;
+    // Cell/MOSFET temperatures are reported in deci-degrees and scaled to °C.
+    expect(result.bms?.mosfetTemp).toBeCloseTo(17.3);
+    expect(result.cells?.temperatures?.[0]).toBeCloseTo(16.4);
+    // Battery temperature (b_tem) is already in whole degrees and stays unscaled.
+    expect(result.bms?.temperature).toBe(16);
+  });
+
   test('Venus E (VNSE3) BMS scales voltages but keeps raw temperatures', () => {
     const message =
       'cd=14,b_ver=212,b_chv=571,b_soc=65,b_soh=100,b_cap=5120,b_vol=5223,b_cur=-94,b_tem=25,b_chf=192,b_cpc=332,b_err=0,b_war=0,b_ret=0,b_ent=0,b_mot=23,b_tp1=18,b_tp2=19,b_tp3=18,b_tp4=19,b_vo1=3265,b_vo2=3265,b_vo3=3265,b_vo4=3265,b_vo5=3264,b_vo6=3264,b_vo7=3265,b_vo8=3265,b_vo9=3264,b_vo10=3265,b_vo11=3264,b_vo12=3265,b_vo13=3265,b_vo14=3265,b_vo15=3264,b_vo16=3262';

@@ -161,7 +161,7 @@ function isVenusRuntimeInfoMessage(values: Record<string, string>): boolean {
 // there is no need to special-case device types here.
 registerDeviceDefinition(
   {
-    deviceTypes: ['HMG', 'VNSE3', 'VNSD'],
+    deviceTypes: ['HMG', 'VNSE3'],
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
@@ -169,11 +169,11 @@ registerDeviceDefinition(
   },
 );
 
-// Venus A (VNSA) uses a different scaling for the BMS cell/MOSFET temperatures
-// (factor of 10) compared to the other Venus variants.
+// Venus A (VNSA) and Venus D (VNSD) use a different scaling for the BMS
+// cell/MOSFET temperatures (factor of 10) compared to the other Venus variants.
 registerDeviceDefinition(
   {
-    deviceTypes: ['VNSA'],
+    deviceTypes: ['VNSA', 'VNSD'],
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
