@@ -608,27 +608,59 @@ cd=%d,p1=[...],p2=[...],p3=[...],p4=[...],p5=[...],p6=[...],p7=[...]
 
 Raw per‑channel meter samples used when a P1/Shelly meter is configured.
 
+### 19.7 Other request/response payloads
+
+Further `key=value` payloads observed on the device topic. Each is the reply to
+(or echo of) the corresponding command; `cd` echoes the request opcode.
+
+| Payload | Meaning |
+|---------|---------|
+| `cd=%d,ret=%d` | Generic acknowledgement (`ret=1` success, `ret=0` failure). |
+| `cd=%d,err_cmd` / `cd=%d,%s` | Unknown/invalid command response. |
+| `cd=%d,md=%d` | Working‑mode echo (`md` = 0 auto / 1 manual / 2 trading). |
+| `cd=%d,md=%d,nl=%d` | Manual/economy‑mode info (`md` mode, `nl` slot count). |
+| `cd=%d,%d-%d-%d %d:%d:%d` | Device time read‑back (`Y-M-D h:m:s`). |
+| `cd=%d,data:%s` | Generic topic/data passthrough. |
+| `cd=%d,uid=%s` | Device UID. |
+| `cd=%d,boot_v=%d` | Bootloader version. |
+| `cd=%d,http_data_cnt=%d,time_no=%d,time:%d-%d-%d %d:%d:%d` | Cloud/HTTP data status (record count + timestamp). |
+| `cd=%d,ip=%s` | P1/Shelly meter IP address (get/set reply). |
+| `cd=%d,ret=%d,port=%d` | Local‑API enable reply, carrying the active `port`. |
+| `cd=%d,dev_net_info:%s,ct_connect_ip:%s` | Device network info and the CT/meter connection IP. |
+| `cd=%d,state=%d,way=%d,net=%d,type=%d,mod=%d,cnt=%d` | Connection/topic status (link state, connection `way`, `net` interface, server `type`, module, retry `cnt`). |
+| `cd=%d,jp=%d` | Device "jump" control echo (switch server / redirect; `jp`). |
+| `cd=%d,bms_ver=%d\|%d\|%d\|%d\|%d\|%d\|%d\|%d` | Per‑pack BMS versions for up to 8 stacked packs. |
+| `cd=%d,vid=%s,id=%d,flg=%d,crc=%d` | Configured VID record (vendor/config id, flags, CRC). |
+| `cd=%d,selfctl_power=%d` | Self‑control power set‑point echo (see 19.2). |
+
 ## 20 Additional commands
 
 The device recognises a number of commands beyond those documented above. The
-exact `cd=` opcodes for some of them are not yet confirmed and are therefore
-omitted rather than guessed.
+`cd=` opcodes for these are not yet confirmed and are therefore omitted rather
+than guessed; the request/response payloads are given where known.
 
-| Capability | Notes |
-|------------|-------|
+| Capability | Payload / notes |
+|------------|-----------------|
+| Set working mode | Echoes `cd=%d,md=%d` (also `md,nl` for manual/economy). |
 | Set parallel machine | Enables/disables multi‑unit parallel operation (`par`). |
 | Set generator | Enables/disables generator input (`gen`). |
 | Set BLE advertising / SDV | Controls Bluetooth advertising (`ble`). |
-| Set / lock BMS | Locks or unlocks the BMS (`lk`); also `set stack bms`. |
+| Set / lock BMS | Locks/unlocks the BMS (`lk`); also `set stack bms`. |
 | Set LED | Turns the front LED on/off (`led`, `1:OPEN 0:Close`). |
-| Set self‑control power | Sets the self‑consumption power set‑point (`selfctl_power`). |
-| Get / set AI strategy | Reads/writes the AI scheduling strategy (see 19.4). |
+| Set self‑control power | Sets the self‑consumption set‑point; replies `cd=%d,selfctl_power=%d`. |
+| Get / set AI strategy | Reads/writes the AI scheduling strategy; replies `AI%d=…` (see 19.4). |
 | Set economy mode | Enables current‑protection / economy mode (`cur_protect_en`). |
 | Set develop mode | Toggles developer mode. |
 | Set work‑mode auto change | Auto‑switches work mode based on the CT signal (`cts_m`). |
 | Set HTTP server type | Selects the cloud/HTTP server (`htt_p`). |
-| Get / set meter IP | Reads/writes the P1/Shelly meter IP address. |
+| Get / set meter IP | Reads/writes the P1/Shelly meter IP; replies `cd=%d,ip=%s`. |
+| Set device jump control | Server‑switch / redirect; echoes `cd=%d,jp=%d`. |
+| Get device IP / net info | Replies `cd=%d,dev_net_info:%s,ct_connect_ip:%s`. |
+| Get topic / connection status | Replies `cd=%d,state=%d,way=%d,net=%d,type=%d,mod=%d,cnt=%d`. |
 | Get / set EMS control info | Reads/writes the EMS control parameters (`ctrl_r`, `c_ratio`). |
+| Get BMS version (stacked) | Replies `cd=%d,bms_ver=%d\|…` (up to 8 packs). |
+| Get/set VID info | Replies `cd=%d,vid=%s,id=%d,flg=%d,crc=%d`. |
+| Get UID / boot version | Replies `cd=%d,uid=%s` / `cd=%d,boot_v=%d`. |
 | Get event log / err code | Returns the logs in 19.5. |
 | Get MPPT data | Returns the message in 19.3. |
 | Get now‑power data | Returns the current power snapshot. |

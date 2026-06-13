@@ -7,7 +7,7 @@
 
 ### Documentation
 
-- Venus: Document the extended `cd=01` runtime fields emitted by newer firmware (`seq_s`, `ctrl_r`, `par`, `gen`, `ble`, `c_ratio`, `udp`, `api`, `net`, `port`, `inv_v`, `id`, `lk`, `bp`, `ei`, `eb`, `rp`, `gp`, `vp`, `mppt`, `pack`, `pv`, `fu`, `em`, `bl`, `bl_p`, `led`, `as`), the BMS info response (`cd=14`, including `b_rci`/`b_rdi`/`b_slf`), and additional message types and commands (CT meter detail, MPPT data, self-control power, AI strategy, event/error logs). See `docs/venus.md`.
+- Venus: Document the extended `cd=01` runtime fields emitted by newer firmware (`seq_s`, `ctrl_r`, `par`, `gen`, `ble`, `c_ratio`, `udp`, `api`, `net`, `port`, `inv_v`, `id`, `lk`, `bp`, `ei`, `eb`, `rp`, `gp`, `vp`, `mppt`, `pack`, `pv`, `fu`, `em`, `bl`, `bl_p`, `led`, `as`), the BMS info response (`cd=14`, including `b_rci`/`b_rdi`/`b_slf`), and additional message types and commands with their request/response payloads (CT meter detail, MPPT data, self-control power, AI strategy, event/error logs, meter/device IP, connection status, stacked BMS versions, UID/boot version). See `docs/venus.md`.
 
 
 ## [1.8.0] - 2026-06-13
