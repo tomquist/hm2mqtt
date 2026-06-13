@@ -395,6 +395,7 @@ export interface VenusDeviceData extends BaseDeviceData {
   rechargeMode?: VenusRechargeMode;
   bmsVersion?: number;
   communicationModuleVersion?: string;
+  shellyPort?: number;
   wifiName?: string;
   localApiEnabled?: boolean;
   localApiPort?: number;

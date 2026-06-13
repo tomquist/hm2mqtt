@@ -684,14 +684,66 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('totalPvPower', 107.6);
   });
 
-  test('does not expose PV inputs for non-Venus-A variants (VNSE3)', () => {
+  test('exposes PV inputs based on payload presence regardless of device type (VNSE3)', () => {
+    // PV handling is device-type independent: any Venus that reports the pvN
+    // fields exposes the corresponding values.
     const message =
-      'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0,pv1=1076|1';
+      'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0,pv1=1076|1,pv2=0|0,pv3=0|0,pv4=0|0';
     const parsed = parseMessage(message, 'VNSE3-0', 'venus123');
+
+    const result = parsed['data'] as VenusDeviceData;
+    expect(result).toHaveProperty('pv1Power', 107.6);
+    expect(result).toHaveProperty('pv1Connected', true);
+    expect(result).toHaveProperty('totalPvPower', 107.6);
+  });
+
+  test('does not expose PV inputs when the payload omits them', () => {
+    const message =
+      'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0';
+    const parsed = parseMessage(message, 'VNSD-0', 'venusD123');
 
     const result = parsed['data'] as VenusDeviceData;
     expect(result).not.toHaveProperty('pv1Power');
     expect(result).not.toHaveProperty('totalPvPower');
+  });
+
+  test('parses Venus D (VNSD) PV input power and connection status', () => {
+    // Real runtime reading from a Venus D: pv1 connected and producing, pv2-4 idle.
+    const message =
+      'cd=1,tot_i=1,tot_o=212,ele_d=0,ele_m=1,grd_d=212,grd_m=212,inc_d=0,inc_m=0,grd_f=0,grd_o=423,grd_t=3,gct_s=1,cel_s=2,cel_p=483,cel_c=94,err_t=800,err_a=8,dev_n=142,grd_y=0,wor_m=0,inc_a=0,mcp_w=2200,mdp_w=800,pv1=2598|1,pv2=2652|1,pv3=0|1,pv4=0|1,pack=2|3|1|0,pv=697|697,fu=0|0,em=0';
+    const parsed = parseMessage(message, 'VNSD-0', 'venusD123');
+
+    expect(parsed).toHaveProperty('data');
+    const result = parsed['data'] as VenusDeviceData;
+    // PV power is reported in deciwatts: 2598 -> 259.8 W
+    expect(result).toHaveProperty('pv1Power', 259.8);
+    expect(result).toHaveProperty('pv2Power', 265.2);
+    expect(result).toHaveProperty('pv3Power', 0);
+    expect(result).toHaveProperty('pv1Connected', true);
+    expect(result).toHaveProperty('pv2Connected', true);
+    // 2598 + 2652 -> 5250 deciwatts -> 525 W
+    expect(result).toHaveProperty('totalPvPower', 525);
+  });
+
+  test('parses Venus metering, pricing and version fields', () => {
+    // Full Venus D dump exercising the CT/phase/pricing/version sensors.
+    const message =
+      'cd=1,tot_i=1,tot_o=212,ele_d=0,ele_m=1,grd_d=212,grd_m=212,inc_d=0,inc_m=0,grd_f=0,grd_o=423,grd_t=3,gct_s=1,cel_s=2,cel_p=483,cel_c=94,err_t=800,err_a=8,dev_n=142,grd_y=0,wor_m=0,cts_m=0,bac_u=0,tra_a=74,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=3,wif_s=72,inc_a=0,set_v=1,mcp_w=2200,mdp_w=800,ct_t=3,phase_t=1,dchrg_t=1,bms_v=116,fc_v=202409090159,wifi_n=unten,shelly_p=1010';
+    const parsed = parseMessage(message, 'VNSD-0', 'venusD123');
+
+    expect(parsed).toHaveProperty('data');
+    const result = parsed['data'] as VenusDeviceData;
+    // Prices use the same 0.001 € unit as the income fields
+    expect(result).toHaveProperty('chargingPrice', 0);
+    expect(result).toHaveProperty('dischargePrice', 0.003);
+    // WiFi signal strength is negated into a dBm-style value
+    expect(result).toHaveProperty('wifiSignalStrength', -72);
+    expect(result).toHaveProperty('ctType', 'ct3');
+    expect(result).toHaveProperty('phaseType', 'phaseA');
+    expect(result).toHaveProperty('rechargeMode', 'threePhase');
+    expect(result).toHaveProperty('bmsVersion', 116);
+    expect(result).toHaveProperty('communicationModuleVersion', '202409090159');
+    expect(result).toHaveProperty('shellyPort', 1010);
   });
 
   test('scales Venus A (VNSA) BMS voltages and temperatures (issue #218)', () => {
@@ -717,6 +769,19 @@ describe('MQTT Message Parser', () => {
     expect(result.cells?.maxVoltage).toBe(3335);
     expect(result.cells?.voltageDiff).toBe(3);
     expect(result.cells?.voltageAvg).toBe(3334);
+  });
+
+  test('scales Venus D (VNSD) BMS cell/MOSFET temperatures like Venus A', () => {
+    const message =
+      'cd=14,b_ver=116,b_chv=468,b_soc=94,b_soh=100,b_cap=5120,b_vol=4328,b_cur=20,b_tem=16,b_chf=3,b_cpc=157,b_err=0,b_war=0,b_ret=0,b_ent=0,b_mot=173,b_tp1=164,b_tp2=166,b_tp3=168,b_tp4=166,b_vo1=3334,b_vo2=3332,b_vo3=3333,b_vo4=3333,b_vo5=3334,b_vo6=3335,b_vo7=3334,b_vo8=3334,b_vo9=3334,b_vo10=3334,b_vo11=3333,b_vo12=3333,b_vo13=3333,b_vo14=0,b_vo15=0,b_vo16=0';
+    const parsed = parseMessage(message, 'VNSD-0', 'venusD123');
+
+    const result = parsed['bms'] as VenusBMSInfo;
+    // Cell/MOSFET temperatures are reported in deci-degrees and scaled to °C.
+    expect(result.bms?.mosfetTemp).toBeCloseTo(17.3);
+    expect(result.cells?.temperatures?.[0]).toBeCloseTo(16.4);
+    // Battery temperature (b_tem) is already in whole degrees and stays unscaled.
+    expect(result.bms?.temperature).toBe(16);
   });
 
   test('Venus E (VNSE3) BMS scales voltages but keeps raw temperatures', () => {

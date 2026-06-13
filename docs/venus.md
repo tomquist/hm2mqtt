@@ -158,6 +158,11 @@ Description of the above parameters:
 | fc_v | Communication module version number |
 | wifi_n | WIFI Name |
 | dod | Depth of discharge (%) (configurable 30-88% in the Marstek app; the maximum of 88% is encoded as 0) |
+| shelly_p | Shelly UDP port (only meaningful when `ct_t` is a Shelly meter) |
+| pv1 | PV input 1 power (0.1W) \| connection status (0: Not connected; 1: Connected) (only reported by Venus models with PV inputs, e.g. Venus A/D) |
+| pv2 | PV input 2 power (0.1W) \| connection status (only reported by Venus models with PV inputs) |
+| pv3 | PV input 3 power (0.1W) \| connection status (only reported by Venus models with PV inputs) |
+| pv4 | PV input 4 power (0.1W) \| connection status (only reported by Venus models with PV inputs) |
 
 ## 4 Set working status
 

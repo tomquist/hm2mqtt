@@ -6,9 +6,12 @@
 - Venus: Add aggregate cell-voltage sensors (*Min Cell Voltage*, *Max Cell Voltage*, *Cell Voltage Difference* and *Average Cell Voltage*) computed from the individual cell voltages, ignoring unused cells reported as `0`. These match the equivalent sensors already available on the B2500.
 - Jupiter: Add a *Cell Voltage Difference* (drift) sensor per battery, derived from the reported highest/lowest cell voltage. (Jupiter only reports the highest and lowest cell voltage, not individual cells, so a true average cannot be computed.)
 - All new sensors are disabled by default.
+- Venus: Expose per-string PV input power (PV1–PV4), their connection status and a combined Total PV Power sensor on any Venus model that reports them (e.g. Venus A and Venus D). The entities are advertised purely based on the presence of the corresponding `pv1`–`pv4` values in the payload, independent of the device type
+- Venus: Expose additional runtime info sensors: Charging Price (`prc_c`) and Discharge Price (`prc_d`), WiFi Signal Strength (`wif_s`), CT Type (`ct_t`), Phase Type (`phase_t`), Recharge Mode (`dchrg_t`), BMS Version (`bms_v`), Communication Module Version (`fc_v`) and Shelly Port (`shelly_p`)
 
 ### Fixed
 
+- Venus D (VNSD): Scale the BMS cell and MOSFET temperatures to °C (they were previously published 10× too high, e.g. 164 instead of 16.4 °C), matching the existing Venus A behavior
 - Log messages no longer drop their trailing values (e.g. `Current period 1 settings:` was logged without the actual settings, and error logs were missing the error details). Pino only interpolates extra arguments into `%s`-style placeholders, so console-style log calls silently lost everything after the message (fixes #326)
 - B2500: The `Current period X settings:` message logged for every received time-period command is now logged at `debug` level instead of `info`, so automations that frequently update time periods no longer flood the log (fixes #326)
 

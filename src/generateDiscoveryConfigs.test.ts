@@ -365,4 +365,48 @@ describe('Home Assistant Discovery', () => {
     expect(withDod[0].config).not.toBeNull();
     expect(withDod[0].config).toMatchObject({ min: 30, max: 88, step: 1 });
   });
+
+  test('should gate Venus D PV input discovery configs on data presence', () => {
+    const device: Device = { deviceType: 'VNSD-0', deviceId: 'venusD123' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/VNSD-0/device/venusD123/ctrl',
+      deviceTopicNew: 'marstek_energy/VNSD-0/device/venusD123/ctrl',
+      deviceControlTopicOld: 'hame_energy/VNSD-0/App/venusD123/ctrl',
+      deviceControlTopicNew: 'marstek_energy/VNSD-0/App/venusD123/ctrl',
+      availabilityTopic: 'hame_energy/VNSD-0/availability/venusD123',
+      controlSubscriptionTopic: 'hame_energy/VNSD-0/control/venusD123/control',
+      publishTopic: 'hame_energy/VNSD-0/device/venusD123/data',
+    };
+
+    const pvTopics = (state: object) =>
+      generateDiscoveryConfigs(
+        device,
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      )
+        .map(c => c.topic)
+        .filter(t => /pv\d_power|pv\d_connected|total_pv_power/.test(t));
+
+    // No PV data: PV configs are deferred (nothing published)
+    expect(pvTopics({ batterySoc: 94 })).toHaveLength(0);
+
+    // PV data present: power, connected and total PV configs are advertised
+    const withPv = pvTopics({
+      pv1Power: 259.8,
+      pv1Connected: true,
+      pv2Power: 0,
+      pv2Connected: false,
+      totalPvPower: 259.8,
+    });
+    expect(withPv.some(t => t.includes('pv1_power'))).toBe(true);
+    expect(withPv.some(t => t.includes('pv1_connected'))).toBe(true);
+    expect(withPv.some(t => t.includes('pv2_power'))).toBe(true);
+    expect(withPv.some(t => t.includes('total_pv_power'))).toBe(true);
+    // pv3/pv4 have no data, so they remain deferred
+    expect(withPv.some(t => t.includes('pv3_'))).toBe(false);
+    expect(withPv.some(t => t.includes('pv4_'))).toBe(false);
+  });
 });
