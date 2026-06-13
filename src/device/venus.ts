@@ -156,7 +156,7 @@ function isVenusRuntimeInfoMessage(values: Record<string, string>): boolean {
 
 registerDeviceDefinition(
   {
-    deviceTypes: ['HMG', 'VNSE3', 'VNSD'],
+    deviceTypes: ['HMG', 'VNSE3'],
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
@@ -174,6 +174,18 @@ registerDeviceDefinition(
   ({ message }) => {
     registerRuntimeInfoMessage(message, { withPvInputs: true });
     registerBMSInfoMessage(message, { scaleTemperatures: true });
+  },
+);
+
+// Venus D (VNSD) also reports per-string PV input power, but uses the default
+// BMS cell/MOSFET temperature scaling like the other (non-VNSA) variants.
+registerDeviceDefinition(
+  {
+    deviceTypes: ['VNSD'],
+  },
+  ({ message }) => {
+    registerRuntimeInfoMessage(message, { withPvInputs: true });
+    registerBMSInfoMessage(message);
   },
 );
 
@@ -254,6 +266,7 @@ function registerRuntimeInfoMessage(
             unit_of_measurement: 'W',
             state_class: 'measurement',
           }),
+          { enabled: state => (state[pv.power] != null ? true : undefined) },
         );
 
         field({ key: pv.key, path: [pv.connected], transform: venusPvField('connected') });
@@ -266,6 +279,7 @@ function registerRuntimeInfoMessage(
             icon: 'mdi:solar-power',
             enabled_by_default: false,
           }),
+          { enabled: state => (state[pv.connected] != null ? true : undefined) },
         );
       }
 
@@ -286,6 +300,7 @@ function registerRuntimeInfoMessage(
           unit_of_measurement: 'W',
           state_class: 'measurement',
         }),
+        { enabled: state => (state.totalPvPower != null ? true : undefined) },
       );
     }
 

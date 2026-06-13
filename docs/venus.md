@@ -158,6 +158,10 @@ Description of the above parameters:
 | fc_v | Communication module version number |
 | wifi_n | WIFI Name |
 | dod | Depth of discharge (%) (configurable 30-88% in the Marstek app; the maximum of 88% is encoded as 0) |
+| pv1 | PV input 1 power (0.1W) \| connection status (0: Not connected; 1: Connected) (Venus A/D only) |
+| pv2 | PV input 2 power (0.1W) \| connection status (Venus A/D only) |
+| pv3 | PV input 3 power (0.1W) \| connection status (Venus A/D only) |
+| pv4 | PV input 4 power (0.1W) \| connection status (Venus A/D only) |
 
 ## 4 Set working status
 

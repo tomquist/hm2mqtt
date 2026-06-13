@@ -684,7 +684,7 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('totalPvPower', 107.6);
   });
 
-  test('does not expose PV inputs for non-Venus-A variants (VNSE3)', () => {
+  test('does not expose PV inputs for non-PV Venus variants (VNSE3)', () => {
     const message =
       'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0,pv1=1076|1';
     const parsed = parseMessage(message, 'VNSE3-0', 'venus123');
@@ -692,6 +692,24 @@ describe('MQTT Message Parser', () => {
     const result = parsed['data'] as VenusDeviceData;
     expect(result).not.toHaveProperty('pv1Power');
     expect(result).not.toHaveProperty('totalPvPower');
+  });
+
+  test('parses Venus D (VNSD) PV input power and connection status', () => {
+    // Real runtime reading from a Venus D: pv1 connected and producing, pv2-4 idle.
+    const message =
+      'cd=1,tot_i=1,tot_o=212,ele_d=0,ele_m=1,grd_d=212,grd_m=212,inc_d=0,inc_m=0,grd_f=0,grd_o=423,grd_t=3,gct_s=1,cel_s=2,cel_p=483,cel_c=94,err_t=800,err_a=8,dev_n=142,grd_y=0,wor_m=0,inc_a=0,mcp_w=2200,mdp_w=800,pv1=2598|1,pv2=2652|1,pv3=0|1,pv4=0|1,pack=2|3|1|0,pv=697|697,fu=0|0,em=0';
+    const parsed = parseMessage(message, 'VNSD-0', 'venusD123');
+
+    expect(parsed).toHaveProperty('data');
+    const result = parsed['data'] as VenusDeviceData;
+    // PV power is reported in deciwatts: 2598 -> 259.8 W
+    expect(result).toHaveProperty('pv1Power', 259.8);
+    expect(result).toHaveProperty('pv2Power', 265.2);
+    expect(result).toHaveProperty('pv3Power', 0);
+    expect(result).toHaveProperty('pv1Connected', true);
+    expect(result).toHaveProperty('pv2Connected', true);
+    // 2598 + 2652 -> 5250 deciwatts -> 525 W
+    expect(result).toHaveProperty('totalPvPower', 525);
   });
 
   test('scales Venus A (VNSA) BMS voltages and temperatures (issue #218)', () => {
