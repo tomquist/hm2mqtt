@@ -32,6 +32,7 @@ import {
   max,
   diff,
   average,
+  negate,
   venusPvField,
 } from '../transforms';
 
@@ -443,6 +444,38 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
+    // Electricity prices. Reported in the same 0.001 € unit as the income
+    // fields, so the value is divided by 1000 to convert it to euros.
+    field({
+      key: 'prc_c',
+      path: ['chargingPrice'],
+      transform: divide(1000),
+    });
+    advertise(
+      ['chargingPrice'],
+      sensorComponent<number>({
+        id: 'charging_price',
+        name: 'Charging Price',
+        device_class: 'monetary',
+        unit_of_measurement: '€',
+      }),
+    );
+
+    field({
+      key: 'prc_d',
+      path: ['dischargePrice'],
+      transform: divide(1000),
+    });
+    advertise(
+      ['dischargePrice'],
+      sensorComponent<number>({
+        id: 'discharge_price',
+        name: 'Discharge Price',
+        device_class: 'monetary',
+        unit_of_measurement: '€',
+      }),
+    );
+
     // Grid information
     field({
       key: 'grd_f',
@@ -537,6 +570,109 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
+    field({
+      key: 'ct_t',
+      path: ['ctType'],
+      transform: map(
+        {
+          '0': 'none',
+          '1': 'ct1',
+          '2': 'ct2',
+          '3': 'ct3',
+          '4': 'shellyPro',
+          '5': 'p1Meter',
+        },
+        'none',
+      ),
+    });
+    advertise(
+      ['ctType'],
+      sensorComponent<NonNullable<VenusDeviceData['ctType']>>({
+        id: 'ct_type',
+        name: 'CT Type',
+        icon: 'mdi:current-ac',
+        valueMappings: {
+          none: 'No Meter Detected',
+          ct1: 'CT1',
+          ct2: 'CT2',
+          ct3: 'CT3',
+          shellyPro: 'Shelly Pro',
+          p1Meter: 'P1 Meter',
+        },
+      }),
+    );
+
+    // Shelly UDP port, only meaningful when a Shelly meter is configured as the
+    // CT type.
+    field({
+      key: 'shelly_p',
+      path: ['shellyPort'],
+      transform: number(),
+    });
+    advertise(
+      ['shellyPort'],
+      sensorComponent<number>({
+        id: 'shelly_port',
+        name: 'Shelly Port',
+        icon: 'mdi:lan',
+        enabled_by_default: false,
+      }),
+    );
+
+    field({
+      key: 'phase_t',
+      path: ['phaseType'],
+      transform: map(
+        {
+          '0': 'unknown',
+          '1': 'phaseA',
+          '2': 'phaseB',
+          '3': 'phaseC',
+          '4': 'notDetected',
+        },
+        'unknown',
+      ),
+    });
+    advertise(
+      ['phaseType'],
+      sensorComponent<NonNullable<VenusDeviceData['phaseType']>>({
+        id: 'phase_type',
+        name: 'Phase Type',
+        icon: 'mdi:sine-wave',
+        valueMappings: {
+          unknown: 'Unknown',
+          phaseA: 'Phase A',
+          phaseB: 'Phase B',
+          phaseC: 'Phase C',
+          notDetected: 'Not Detected',
+        },
+      }),
+    );
+
+    field({
+      key: 'dchrg_t',
+      path: ['rechargeMode'],
+      transform: map(
+        {
+          '0': 'singlePhase',
+          '1': 'threePhase',
+        },
+        'singlePhase',
+      ),
+    });
+    advertise(
+      ['rechargeMode'],
+      sensorComponent<NonNullable<VenusDeviceData['rechargeMode']>>({
+        id: 'recharge_mode',
+        name: 'Recharge Mode',
+        icon: 'mdi:flash',
+        valueMappings: {
+          singlePhase: 'Single Phase',
+          threePhase: 'Three Phase',
+        },
+      }),
+    );
+
     // Battery status
     field({
       key: 'cel_s',
@@ -606,6 +742,52 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         id: 'device_version',
         name: 'Device Version',
         icon: 'mdi:information',
+      }),
+    );
+
+    field({
+      key: 'bms_v',
+      path: ['bmsVersion'],
+      transform: number(),
+    });
+    advertise(
+      ['bmsVersion'],
+      sensorComponent<number>({
+        id: 'bms_version',
+        name: 'BMS Version',
+        icon: 'mdi:information',
+        enabled_by_default: false,
+      }),
+    );
+
+    field({
+      key: 'fc_v',
+      path: ['communicationModuleVersion'],
+      transform: identity(),
+    });
+    advertise(
+      ['communicationModuleVersion'],
+      sensorComponent<string>({
+        id: 'communication_module_version',
+        name: 'Communication Module Version',
+        icon: 'mdi:information',
+        enabled_by_default: false,
+      }),
+    );
+
+    field({
+      key: 'wif_s',
+      path: ['wifiSignalStrength'],
+      transform: negate(),
+    });
+    advertise(
+      ['wifiSignalStrength'],
+      sensorComponent<number>({
+        id: 'wifi_signal_strength',
+        name: 'WiFi Signal Strength',
+        device_class: 'signal_strength',
+        unit_of_measurement: 'dBm',
+        state_class: 'measurement',
       }),
     );
 

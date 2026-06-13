@@ -7,6 +7,7 @@
 - Jupiter: Add a *Cell Voltage Difference* (drift) sensor per battery, derived from the reported highest/lowest cell voltage. (Jupiter only reports the highest and lowest cell voltage, not individual cells, so a true average cannot be computed.)
 - All new sensors are disabled by default.
 - Venus: Expose per-string PV input power (PV1–PV4), their connection status and a combined Total PV Power sensor on any Venus model that reports them (e.g. Venus A and Venus D). The entities are advertised purely based on the presence of the corresponding `pv1`–`pv4` values in the payload, independent of the device type
+- Venus: Expose additional runtime info sensors: Charging Price (`prc_c`) and Discharge Price (`prc_d`), WiFi Signal Strength (`wif_s`), CT Type (`ct_t`), Phase Type (`phase_t`), Recharge Mode (`dchrg_t`), BMS Version (`bms_v`), Communication Module Version (`fc_v`) and Shelly Port (`shelly_p`)
 
 ### Fixed
 

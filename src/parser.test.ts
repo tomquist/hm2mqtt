@@ -725,6 +725,27 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('totalPvPower', 525);
   });
 
+  test('parses Venus metering, pricing and version fields', () => {
+    // Full Venus D dump exercising the CT/phase/pricing/version sensors.
+    const message =
+      'cd=1,tot_i=1,tot_o=212,ele_d=0,ele_m=1,grd_d=212,grd_m=212,inc_d=0,inc_m=0,grd_f=0,grd_o=423,grd_t=3,gct_s=1,cel_s=2,cel_p=483,cel_c=94,err_t=800,err_a=8,dev_n=142,grd_y=0,wor_m=0,cts_m=0,bac_u=0,tra_a=74,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=3,wif_s=72,inc_a=0,set_v=1,mcp_w=2200,mdp_w=800,ct_t=3,phase_t=1,dchrg_t=1,bms_v=116,fc_v=202409090159,wifi_n=unten,shelly_p=1010';
+    const parsed = parseMessage(message, 'VNSD-0', 'venusD123');
+
+    expect(parsed).toHaveProperty('data');
+    const result = parsed['data'] as VenusDeviceData;
+    // Prices use the same 0.001 € unit as the income fields
+    expect(result).toHaveProperty('chargingPrice', 0);
+    expect(result).toHaveProperty('dischargePrice', 0.003);
+    // WiFi signal strength is negated into a dBm-style value
+    expect(result).toHaveProperty('wifiSignalStrength', -72);
+    expect(result).toHaveProperty('ctType', 'ct3');
+    expect(result).toHaveProperty('phaseType', 'phaseA');
+    expect(result).toHaveProperty('rechargeMode', 'threePhase');
+    expect(result).toHaveProperty('bmsVersion', 116);
+    expect(result).toHaveProperty('communicationModuleVersion', '202409090159');
+    expect(result).toHaveProperty('shellyPort', 1010);
+  });
+
   test('scales Venus A (VNSA) BMS voltages and temperatures (issue #218)', () => {
     // Real BMS reading from a Venus A. Battery voltage is in centivolts,
     // charge voltage in decivolts, cell/MOSFET temperatures in deci-degrees.
