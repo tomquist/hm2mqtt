@@ -760,6 +760,24 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
+    // Inverter (micro-inverter) firmware version, reported as `inv_v` by newer
+    // firmware. Only advertised when the device actually reports it.
+    field({
+      key: 'inv_v',
+      path: ['inverterVersion'],
+      transform: number(),
+    });
+    advertise(
+      ['inverterVersion'],
+      sensorComponent<number>({
+        id: 'inverter_version',
+        name: 'Inverter Version',
+        icon: 'mdi:information',
+        enabled_by_default: false,
+      }),
+      { enabled: state => (state.inverterVersion != null ? true : undefined) },
+    );
+
     field({
       key: 'fc_v',
       path: ['communicationModuleVersion'],

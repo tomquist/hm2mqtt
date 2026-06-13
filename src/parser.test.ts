@@ -682,6 +682,8 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('pv1Connected', true);
     expect(result).toHaveProperty('pv2Connected', false);
     expect(result).toHaveProperty('totalPvPower', 107.6);
+    // Inverter firmware version (inv_v) is exposed on firmware that reports it.
+    expect(result).toHaveProperty('inverterVersion', 113);
   });
 
   test('exposes PV inputs based on payload presence regardless of device type (VNSE3)', () => {

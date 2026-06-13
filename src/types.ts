@@ -394,6 +394,7 @@ export interface VenusDeviceData extends BaseDeviceData {
   phaseType?: VenusPhaseType;
   rechargeMode?: VenusRechargeMode;
   bmsVersion?: number;
+  inverterVersion?: number; // inv_v
   communicationModuleVersion?: string;
   shellyPort?: number;
   wifiName?: string;

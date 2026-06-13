@@ -10,6 +10,7 @@
 3. [Read device information](#3-read-device-information)
     1. [Public](#31-public)
     2. [Receive](#32-receive)
+    3. [Extended runtime fields (newer firmware)](#33-extended-runtime-fields-newer-firmware)
 4. [Set working status](#4-set-working-status)
     1. [Public](#41-public)
 5. [Set automatic discharge time period](#5-set-automatic-discharge-time-period)
@@ -44,6 +45,9 @@
     2. [Receive](#162-receive)
 17. [Set depth of discharge](#17-set-depth-of-discharge)
     1. [Public](#171-public)
+18. [Read BMS information](#18-read-bms-information)
+19. [Additional message types](#19-additional-message-types)
+20. [Additional commands](#20-additional-commands)
 
 ## 1 MQTT Core Concepts
 
@@ -163,6 +167,49 @@ Description of the above parameters:
 | pv2 | PV input 2 power (0.1W) \| connection status (only reported by Venus models with PV inputs) |
 | pv3 | PV input 3 power (0.1W) \| connection status (only reported by Venus models with PV inputs) |
 | pv4 | PV input 4 power (0.1W) \| connection status (only reported by Venus models with PV inputs) |
+
+### 3.3 Extended runtime fields (newer firmware)
+
+Newer Venus firmware (e.g. Venus D, communication module `fc_v=202409090159`)
+appends a number of additional fields to the `cd=01` response. They are emitted
+in the order below, immediately after `c_ratio`. Not every variant emits every
+field; clients should treat each field as optional and key on its name rather
+than its position.
+
+Fields are marked **(confirmed)** where the meaning is well established, and
+**(inferred)** where the field name strongly implies the meaning but it has not
+been fully verified.
+
+| Key | Description |
+|-----|-------------|
+| seq_s | Status/self‑test sequence indicator. **(inferred)** |
+| ctrl_r | EMS control rate; governs how the device tracks the CT/meter reading. Pairs with `c_ratio`. **(confirmed)** |
+| par | Parallel‑machine (multi‑unit) enable/status. `255` = feature not configured/unavailable. Written by the *set parallel machine* command. **(confirmed)** |
+| gen | Generator‑input enable/status. `255` = feature not configured/unavailable. Written by the *set generator* command. **(confirmed)** |
+| ble | Bluetooth‑LE advertising / SDV state. Written by the *set BLE adv/SDV* command. **(confirmed)** |
+| c_ratio | EMS control ratio in percent (e.g. `90` = 90%). Pairs with `ctrl_r`. **(confirmed)** |
+| udp | Local UDP service enabled (0: off; 1: on). **(confirmed)** |
+| api | Local HTTP API enabled (0: off; 1: on). Only present when the firmware supports the local API (`dev_n` ≥ 153). **(confirmed)** |
+| net | Active network interface/mode (observed `1`; the device can run over Wi‑Fi or, on Ethernet‑equipped units, a wired interface). **(inferred)** |
+| port | Local HTTP API TCP port (e.g. `48977`). **(confirmed)** |
+| inv_v | Inverter (micro‑inverter) firmware version number, analogous to `bms_v`/`dev_n`. **(confirmed)** |
+| id | Battery‑pack / stacked‑unit identifiers `id0\|id1\|id2\|id3\|id4` (up to 5 packs; the first value is the connected‑pack count, e.g. `2\|0\|0\|0\|0`). **(inferred)** |
+| lk | BMS lock state (0: unlocked; 1: locked). Written by the *lock BMS* command. **(confirmed)** |
+| bp | Backup reserved State of Charge in percent (battery level held in reserve for EPS/backup; observed `99`). **(inferred)** |
+| ei | Event‑log identifier bitmask, 64‑bit hexadecimal (`0` = no events). **(confirmed)** |
+| eb | Error/warning bitmask, 32‑bit hexadecimal (`0` = none). **(confirmed)** |
+| rp | Real (output) power in W (tracks the combined inverter output; observed `107` alongside `pv1=1076` ≙ 107.6 W). **(inferred)** |
+| gp | Grid power in W. **(inferred)** |
+| vp | Auxiliary power reading in W. **(inferred)** |
+| mppt | Total MPPT / solar‑charger input power (W) on models with a built‑in charger. **(inferred)** |
+| pack | Battery‑pack status vector `%d\|%d\|%d\|%d` (pack count / per‑pack present flags, e.g. `1\|1\|1\|0`). **(inferred)** |
+| pv | PV summary pair `%d\|%d` (e.g. `41\|57`). **(inferred)** |
+| fu | Full‑charge / firmware‑update state pair `%d\|%d` (e.g. `1\|0`). **(inferred)** |
+| em | Economy‑mode / energy‑management state (0: off). **(inferred)** |
+| bl | Cell‑balancing state. **(inferred)** |
+| bl_p | Companion value to `bl`. **(inferred)** |
+| led | Front LED indicator state (1: on; 0: off). Written by the *set LED* command. **(confirmed)** |
+| as | Auto‑/AI‑strategy enable. **(inferred)** |
 
 ## 4 Set working status
 
@@ -442,3 +489,150 @@ Description of the above parameters:
 | dod | Depth of discharge (%) (configurable 30-88% in the Marstek app; the maximum of 88% is encoded as 0) |
 
 The current depth of discharge is reported as the `dod` field in the device information (see [Read device information](#3-read-device-information)).
+
+## 18 Read BMS information
+
+### 18.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+```
+cd=14
+```
+
+### 18.2 Receive
+
+You will receive a message, such as:
+
+```
+b_ver=212,b_chv=571,b_rci=1000,b_rdi=1000,b_soc=65,b_soh=100,b_cap=5120,b_vol=5223,b_cur=-94,b_tem=250,b_chf=192,b_slf=0,b_cpc=332,b_err=0,b_war=0,b_ret=102482070,b_ent=0,b_mot=23,b_tp1=18,b_tp2=19,b_tp3=18,b_tp4=19,b_vo1=3265,...,b_vo16=3262
+```
+
+Description of the above parameters:
+
+| Key | Description |
+|-----|-------------|
+| b_ver | BMS firmware version number |
+| b_chv | Charge voltage limit (0.1V, e.g. `571` = 57.1V) |
+| b_rci | Rated/limit charge current (mA, e.g. `1000`). **(inferred)** |
+| b_rdi | Rated/limit discharge current (mA, e.g. `1000`). **(inferred)** |
+| b_soc | State of charge (%) |
+| b_soh | State of health (%) |
+| b_cap | Battery capacity (Wh) |
+| b_vol | Battery pack voltage (0.01V, e.g. `5223` = 52.23V) |
+| b_cur | Battery current (mA, signed; positive = charge) |
+| b_tem | Battery temperature (0.1°C on VNSA/VNSD, 1°C on other variants) |
+| b_chf | Full‑charge capacity flag/value |
+| b_slf | Self‑check / state‑of‑life flag (observed `0`). **(inferred)** |
+| b_cpc | Cell cycle count |
+| b_err | Error code |
+| b_war | Warning code |
+| b_ret | Total runtime (s) |
+| b_ent | Energy throughput |
+| b_mot | MOSFET temperature (0.1°C on VNSA/VNSD, 1°C on other variants) |
+| b_tp1…b_tp4 | Cell‑group temperatures (0.1°C on VNSA/VNSD, 1°C otherwise) |
+| b_vo1…b_vo16 | Per‑cell voltages (mV); unused cells report `0` |
+
+> Note: `b_rci`, `b_rdi` and `b_slf` are reported by the device but are not yet
+> parsed by hm2mqtt.
+
+## 19 Additional message types
+
+Newer Venus firmware emits several further response messages. Each is a
+comma‑separated `key=value` payload published on the device topic, the same way
+as the messages above.
+
+### 19.1 CT / meter power (`cd=19`)
+
+In addition to the documented `get_power=%d|%d|%d|%d|%d` reply, the device also
+emits a detailed meter reading:
+
+```
+cd=19, meter: type=%d,real_tol_power=%d,real_power1=%d,real_power2=%d,real_power3=%d,err_flag=%d
+```
+
+| Key | Description |
+|-----|-------------|
+| type | Meter type (matches `ct_t`) |
+| real_tol_power | Total real power across all phases (W) |
+| real_power1..3 | Per‑phase real power, A/B/C (W) |
+| err_flag | Meter error flag |
+
+### 19.2 Self‑control power
+
+```
+cd=%d,selfctl_power=%d
+```
+
+Echoes the self‑consumption control set‑point (W) written by the *set selfctl
+power* command.
+
+### 19.3 MPPT data
+
+```
+cd=%d, vns: pow=%d,time=%d; mppt: vol=%d,pow=%d,time=%d
+```
+
+Reports the inverter (`vns`) and solar‑charger (`mppt`) instantaneous
+power/voltage and the timestamp of each reading. (`vol` in 0.1V, `pow` in W.)
+
+### 19.4 AI strategy
+
+```
+AI%d=%d|%d|%d|%d|%d.
+```
+
+One line per strategy slot: `AI<index>=<enabled>|<v1>|<v2>|<v3>|<v4>`, returned in
+response to the *get AI strategy* command.
+
+### 19.5 Event and error logs
+
+```
+event%d=%d|%d|%d|%d|%d|%d|%d.
+err%d=%d|%d|%d|%d|%d|%lld.
+```
+
+Up to 20 entries each, returned for the *get event log info* / *get err code
+info* commands. The aggregated event identifiers/bitmasks are also surfaced in
+the runtime info as `ei` (64‑bit) and `eb` (32‑bit).
+
+### 19.6 P1 / multi‑meter snapshot
+
+```
+cd=%d,p1=[...],p2=[...],p3=[...],p4=[...],p5=[...],p6=[...],p7=[...]
+```
+
+Raw per‑channel meter samples used when a P1/Shelly meter is configured.
+
+## 20 Additional commands
+
+The device recognises a number of commands beyond those documented above. The
+exact `cd=` opcodes for some of them are not yet confirmed and are therefore
+omitted rather than guessed.
+
+| Capability | Notes |
+|------------|-------|
+| Set parallel machine | Enables/disables multi‑unit parallel operation (`par`). |
+| Set generator | Enables/disables generator input (`gen`). |
+| Set BLE advertising / SDV | Controls Bluetooth advertising (`ble`). |
+| Set / lock BMS | Locks or unlocks the BMS (`lk`); also `set stack bms`. |
+| Set LED | Turns the front LED on/off (`led`, `1:OPEN 0:Close`). |
+| Set self‑control power | Sets the self‑consumption power set‑point (`selfctl_power`). |
+| Get / set AI strategy | Reads/writes the AI scheduling strategy (see 19.4). |
+| Set economy mode | Enables current‑protection / economy mode (`cur_protect_en`). |
+| Set develop mode | Toggles developer mode. |
+| Set work‑mode auto change | Auto‑switches work mode based on the CT signal (`cts_m`). |
+| Set HTTP server type | Selects the cloud/HTTP server (`htt_p`). |
+| Get / set meter IP | Reads/writes the P1/Shelly meter IP address. |
+| Get / set EMS control info | Reads/writes the EMS control parameters (`ctrl_r`, `c_ratio`). |
+| Get event log / err code | Returns the logs in 19.5. |
+| Get MPPT data | Returns the message in 19.3. |
+| Get now‑power data | Returns the current power snapshot. |
+| FC4 / MPPT OTA | `set ota url/start`, `get ota state/info` for module firmware updates. |
+
+> These are recorded here for completeness; only a subset is currently
+> implemented by hm2mqtt.
