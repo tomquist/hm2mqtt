@@ -477,6 +477,9 @@ describe('MQTT Message Parser', () => {
     expect(result.batteries?.[0]?.cellVoltages?.maxVoltageCell).toBe(208);
     // High byte: 0x0C = 12
     expect(result.batteries?.[0]?.cellVoltages?.minVoltageCell).toBe(12);
+    // Drift and average derived from highest/lowest cell voltage
+    expect(result.batteries?.[0]?.cellVoltages?.voltageDiff).toBe(2);
+    expect(result.batteries?.[0]?.cellVoltages?.voltageAvg).toBe(3282);
 
     // Battery 1 (external 1): vol4=3283 (0x0CD3), vol5=3283, vol6=3280, vol7=3284
     expect(result.batteries?.[1]).toHaveProperty('cellVoltages');
@@ -709,6 +712,12 @@ describe('MQTT Message Parser', () => {
     expect(result.bms?.temperature).toBe(16);
     // Cell voltages are already reported in mV and stay unscaled.
     expect(result.cells?.voltages?.[0]).toBe(3334);
+    // Aggregate cell voltage statistics ignore unused cells reported as 0
+    // (b_vo14-b_vo16 are 0 on this battery).
+    expect(result.cells?.minVoltage).toBe(3332);
+    expect(result.cells?.maxVoltage).toBe(3335);
+    expect(result.cells?.voltageDiff).toBe(3);
+    expect(result.cells?.voltageAvg).toBe(3334);
   });
 
   test('Venus E (VNSE3) BMS scales voltages but keeps raw temperatures', () => {
@@ -722,5 +731,10 @@ describe('MQTT Message Parser', () => {
     // Other Venus variants already report temperatures in whole degrees.
     expect(result.bms?.mosfetTemp).toBe(23);
     expect(result.cells?.temperatures?.[0]).toBe(18);
+    // Aggregate cell voltage statistics across all 16 cells.
+    expect(result.cells?.minVoltage).toBe(3262);
+    expect(result.cells?.maxVoltage).toBe(3265);
+    expect(result.cells?.voltageDiff).toBe(3);
+    expect(result.cells?.voltageAvg).toBe(3265);
   });
 });

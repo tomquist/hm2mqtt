@@ -28,6 +28,10 @@ import {
   chain,
   inRange,
   sum,
+  min,
+  max,
+  diff,
+  average,
   venusPvField,
 } from '../transforms';
 
@@ -1374,6 +1378,74 @@ function registerBMSInfoMessage(
           }),
         );
       }
+
+      // Aggregate cell voltage statistics across all cells (b_vo1-b_vo16).
+      // Unused cells on smaller batteries report 0, so they are ignored.
+      const cellVoltageKeys = Array.from({ length: 16 }, (_, i) => `b_vo${i + 1}`);
+      field({
+        key: cellVoltageKeys,
+        path: ['cells', 'minVoltage'],
+        transform: min(undefined, true),
+      });
+      advertise(
+        ['cells', 'minVoltage'],
+        sensorComponent<number>({
+          id: 'min_cell_voltage',
+          name: 'Min Cell Voltage',
+          unit_of_measurement: 'mV',
+          device_class: 'voltage',
+          state_class: 'measurement',
+          enabled_by_default: false,
+        }),
+      );
+      field({
+        key: cellVoltageKeys,
+        path: ['cells', 'maxVoltage'],
+        transform: max(undefined, true),
+      });
+      advertise(
+        ['cells', 'maxVoltage'],
+        sensorComponent<number>({
+          id: 'max_cell_voltage',
+          name: 'Max Cell Voltage',
+          unit_of_measurement: 'mV',
+          device_class: 'voltage',
+          state_class: 'measurement',
+          enabled_by_default: false,
+        }),
+      );
+      field({
+        key: cellVoltageKeys,
+        path: ['cells', 'voltageDiff'],
+        transform: diff(undefined, true),
+      });
+      advertise(
+        ['cells', 'voltageDiff'],
+        sensorComponent<number>({
+          id: 'diff_cell_voltage',
+          name: 'Cell Voltage Difference',
+          unit_of_measurement: 'mV',
+          device_class: 'voltage',
+          state_class: 'measurement',
+          enabled_by_default: false,
+        }),
+      );
+      field({
+        key: cellVoltageKeys,
+        path: ['cells', 'voltageAvg'],
+        transform: average(undefined, true, true),
+      });
+      advertise(
+        ['cells', 'voltageAvg'],
+        sensorComponent<number>({
+          id: 'avg_cell_voltage',
+          name: 'Average Cell Voltage',
+          unit_of_measurement: 'mV',
+          device_class: 'voltage',
+          state_class: 'measurement',
+          enabled_by_default: false,
+        }),
+      );
 
       for (let i = 1; i <= 4; i++) {
         const key = `b_tp${i}`;
