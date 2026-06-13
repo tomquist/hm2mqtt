@@ -477,9 +477,8 @@ describe('MQTT Message Parser', () => {
     expect(result.batteries?.[0]?.cellVoltages?.maxVoltageCell).toBe(208);
     // High byte: 0x0C = 12
     expect(result.batteries?.[0]?.cellVoltages?.minVoltageCell).toBe(12);
-    // Drift and average derived from highest/lowest cell voltage
+    // Drift (difference) between highest and lowest cell voltage
     expect(result.batteries?.[0]?.cellVoltages?.voltageDiff).toBe(2);
-    expect(result.batteries?.[0]?.cellVoltages?.voltageAvg).toBe(3282);
 
     // Battery 1 (external 1): vol4=3283 (0x0CD3), vol5=3283, vol6=3280, vol7=3284
     expect(result.batteries?.[1]).toHaveProperty('cellVoltages');

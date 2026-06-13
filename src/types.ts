@@ -580,7 +580,6 @@ export interface JupiterBMSInfo extends BaseDeviceData {
       maxVoltage?: number; // vol_[x*i+1]
       maxVoltageCell?: number; // vol_[x*i], low byte
       voltageDiff?: number; // maxVoltage - minVoltage (drift)
-      voltageAvg?: number; // (maxVoltage + minVoltage) / 2
     };
   }[];
   mppt?: {

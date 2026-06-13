@@ -3,7 +3,9 @@
 
 ### Added
 
-- Venus & Jupiter: Add aggregate cell-voltage sensors so all devices that expose cell voltages now provide *Min Cell Voltage*, *Max Cell Voltage*, *Cell Voltage Difference* (drift) and *Average Cell Voltage*. Venus computes these from its individual cell voltages (ignoring unused cells reported as `0`), and Jupiter derives drift and average from its reported highest/lowest cell voltage per battery. These match the equivalent sensors already available on the B2500. All sensors are disabled by default.
+- Venus: Add aggregate cell-voltage sensors (*Min Cell Voltage*, *Max Cell Voltage*, *Cell Voltage Difference* and *Average Cell Voltage*) computed from the individual cell voltages, ignoring unused cells reported as `0`. These match the equivalent sensors already available on the B2500.
+- Jupiter: Add a *Cell Voltage Difference* (drift) sensor per battery, derived from the reported highest/lowest cell voltage. (Jupiter only reports the highest and lowest cell voltage, not individual cells, so a true average cannot be computed.)
+- All new sensors are disabled by default.
 
 ### Fixed
 

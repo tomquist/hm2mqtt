@@ -33,7 +33,6 @@ import {
   highByte,
   lowByte,
   diff,
-  average,
 } from '../transforms';
 
 /**
@@ -1039,24 +1038,6 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
           sensorComponent<number>({
             id: `battery_${batteryIndex}_cell_voltage_diff`,
             name: `${batteryLabel} Cell Voltage Difference`,
-            unit_of_measurement: 'mV',
-            device_class: 'voltage',
-            state_class: 'measurement',
-            enabled_by_default: false,
-          }),
-        );
-
-        // Average cell voltage (midpoint of highest and lowest cell)
-        field({
-          key: [maxVoltageKey, minVoltageKey],
-          path: [...pathPrefix, 'voltageAvg'],
-          transform: average(undefined, true),
-        });
-        advertise(
-          [...pathPrefix, 'voltageAvg'],
-          sensorComponent<number>({
-            id: `battery_${batteryIndex}_cell_voltage_avg`,
-            name: `${batteryLabel} Average Cell Voltage`,
             unit_of_measurement: 'mV',
             device_class: 'voltage',
             state_class: 'measurement',
