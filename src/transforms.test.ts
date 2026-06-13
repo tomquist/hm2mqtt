@@ -445,6 +445,22 @@ describe('transforms', () => {
       it('should apply scale', () => {
         expect(executeMultiKeyTransform(min(1000), { a: '3000', b: '2000' })).toBe(2);
       });
+
+      it('should ignore zero values when ignoreZero is set', () => {
+        expect(
+          executeMultiKeyTransform(min(undefined, true), { a: '3334', b: '3332', c: '0', d: '0' }),
+        ).toBe(3332);
+      });
+
+      it('should include zero values by default', () => {
+        expect(executeMultiKeyTransform(min(), { a: '3334', b: '3332', c: '0' })).toBe(0);
+      });
+
+      it('should generate Jinja2 that filters zeros when ignoreZero is set', () => {
+        expect(multiKeyTransformToJinja2(min(undefined, true), ['a', 'b'], 'value_json')).toContain(
+          "reject('equalto', 0)",
+        );
+      });
     });
 
     describe('max transform', () => {
@@ -455,6 +471,12 @@ describe('transforms', () => {
       it('should apply scale', () => {
         expect(executeMultiKeyTransform(max(1000), { a: '3000', b: '2000' })).toBe(3);
       });
+
+      it('should ignore zero values when ignoreZero is set', () => {
+        expect(
+          executeMultiKeyTransform(max(undefined, true), { a: '3334', b: '3332', c: '0' }),
+        ).toBe(3334);
+      });
     });
 
     describe('diff transform', () => {
@@ -464,6 +486,13 @@ describe('transforms', () => {
 
       it('should apply scale', () => {
         expect(executeMultiKeyTransform(diff(1000), { a: '3000', b: '1000' })).toBe(2);
+      });
+
+      it('should ignore zero values when ignoreZero is set', () => {
+        // Without ignoreZero the diff would be 3334 - 0 = 3334
+        expect(
+          executeMultiKeyTransform(diff(undefined, true), { a: '3334', b: '3332', c: '0' }),
+        ).toBe(2);
       });
     });
 
@@ -480,6 +509,13 @@ describe('transforms', () => {
         expect(
           executeMultiKeyTransform(average(undefined, true), { a: '10', b: '20', c: '25' }),
         ).toBe(18);
+      });
+
+      it('should ignore zero values when ignoreZero is set', () => {
+        // Without ignoreZero the average would be (30 + 0) / 2 = 15
+        expect(
+          executeMultiKeyTransform(average(undefined, true, true), { a: '20', b: '40', c: '0' }),
+        ).toBe(30);
       });
     });
   });

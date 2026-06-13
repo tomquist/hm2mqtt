@@ -1,6 +1,12 @@
 # Changelog
 ## [Next]
 
+### Added
+
+- Venus: Add aggregate cell-voltage sensors (*Min Cell Voltage*, *Max Cell Voltage*, *Cell Voltage Difference* and *Average Cell Voltage*) computed from the individual cell voltages, ignoring unused cells reported as `0`. These match the equivalent sensors already available on the B2500.
+- Jupiter: Add a *Cell Voltage Difference* (drift) sensor per battery, derived from the reported highest/lowest cell voltage. (Jupiter only reports the highest and lowest cell voltage, not individual cells, so a true average cannot be computed.)
+- All new sensors are disabled by default.
+
 ### Fixed
 
 - Log messages no longer drop their trailing values (e.g. `Current period 1 settings:` was logged without the actual settings, and error logs were missing the error details). Pino only interpolates extra arguments into `%s`-style placeholders, so console-style log calls silently lost everything after the message (fixes #326)
