@@ -395,6 +395,7 @@ export interface VenusDeviceData extends BaseDeviceData {
   rechargeMode?: VenusRechargeMode;
   bmsVersion?: number;
   communicationModuleVersion?: string;
+  shellyPort?: number;
   wifiName?: string;
   localApiEnabled?: boolean;
   localApiPort?: number;
@@ -405,6 +406,10 @@ export interface VenusBMSInfo extends BaseDeviceData {
   cells?: {
     voltages?: number[];
     temperatures?: number[];
+    minVoltage?: number;
+    maxVoltage?: number;
+    voltageDiff?: number;
+    voltageAvg?: number;
   };
   bms?: {
     version?: number;
@@ -575,6 +580,7 @@ export interface JupiterBMSInfo extends BaseDeviceData {
       minVoltageCell?: number; // vol_[x*i], high byte
       maxVoltage?: number; // vol_[x*i+1]
       maxVoltageCell?: number; // vol_[x*i], low byte
+      voltageDiff?: number; // maxVoltage - minVoltage (drift)
     };
   }[];
   mppt?: {

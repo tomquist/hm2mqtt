@@ -198,18 +198,24 @@ export interface SumTransform {
 export interface MinTransform {
   type: 'min';
   scale?: number;
+  /** Ignore values that are exactly 0 (e.g. unused battery cells) */
+  ignoreZero?: boolean;
 }
 
 /** Get maximum value */
 export interface MaxTransform {
   type: 'max';
   scale?: number;
+  /** Ignore values that are exactly 0 (e.g. unused battery cells) */
+  ignoreZero?: boolean;
 }
 
 /** Get difference between max and min */
 export interface DiffTransform {
   type: 'diff';
   scale?: number;
+  /** Ignore values that are exactly 0 (e.g. unused battery cells) */
+  ignoreZero?: boolean;
 }
 
 /** Get average of all values */
@@ -217,6 +223,8 @@ export interface AverageTransform {
   type: 'average';
   scale?: number;
   round?: boolean;
+  /** Ignore values that are exactly 0 (e.g. unused battery cells) */
+  ignoreZero?: boolean;
 }
 
 // =============================================================================
@@ -335,19 +343,36 @@ export const bitMaskToWeekday = (): BitMaskToWeekdayTransform => ({ type: 'bitMa
 export const sum = (scale?: number): SumTransform => ({ type: 'sum', scale });
 
 /** Create a min transform */
-export const min = (scale?: number): MinTransform => ({ type: 'min', scale });
+export const min = (scale?: number, ignoreZero?: boolean): MinTransform => ({
+  type: 'min',
+  scale,
+  ignoreZero,
+});
 
 /** Create a max transform */
-export const max = (scale?: number): MaxTransform => ({ type: 'max', scale });
+export const max = (scale?: number, ignoreZero?: boolean): MaxTransform => ({
+  type: 'max',
+  scale,
+  ignoreZero,
+});
 
 /** Create a diff transform */
-export const diff = (scale?: number): DiffTransform => ({ type: 'diff', scale });
+export const diff = (scale?: number, ignoreZero?: boolean): DiffTransform => ({
+  type: 'diff',
+  scale,
+  ignoreZero,
+});
 
 /** Create an average transform */
-export const average = (scale?: number, roundResult?: boolean): AverageTransform => ({
+export const average = (
+  scale?: number,
+  roundResult?: boolean,
+  ignoreZero?: boolean,
+): AverageTransform => ({
   type: 'average',
   scale,
   round: roundResult,
+  ignoreZero,
 });
 
 // =============================================================================
@@ -490,28 +515,36 @@ export function executeMultiKeyTransform(
     }
 
     case 'min': {
-      const validValues = numericValues.filter(v => !isNaN(v));
+      const validValues = numericValues.filter(
+        v => !isNaN(v) && (!transform.ignoreZero || v !== 0),
+      );
       if (validValues.length === 0) return 0;
       const result = Math.min(...validValues);
       return transform.scale ? result / transform.scale : result;
     }
 
     case 'max': {
-      const validValues = numericValues.filter(v => !isNaN(v));
+      const validValues = numericValues.filter(
+        v => !isNaN(v) && (!transform.ignoreZero || v !== 0),
+      );
       if (validValues.length === 0) return 0;
       const result = Math.max(...validValues);
       return transform.scale ? result / transform.scale : result;
     }
 
     case 'diff': {
-      const validValues = numericValues.filter(v => !isNaN(v));
+      const validValues = numericValues.filter(
+        v => !isNaN(v) && (!transform.ignoreZero || v !== 0),
+      );
       if (validValues.length === 0) return 0;
       const result = Math.max(...validValues) - Math.min(...validValues);
       return transform.scale ? result / transform.scale : result;
     }
 
     case 'average': {
-      const validValues = numericValues.filter(v => !isNaN(v));
+      const validValues = numericValues.filter(
+        v => !isNaN(v) && (!transform.ignoreZero || v !== 0),
+      );
       if (validValues.length === 0) return 0;
       let result = validValues.reduce((acc, v) => acc + v, 0) / validValues.length;
       if (transform.round) result = Math.round(result);
@@ -740,8 +773,11 @@ export function multiKeyTransformToJinja2(
   // Use float(none) so invalid values become None instead of 0
   const values = keys.map(k => `${valuePrefix}.${k} | float(none)`);
   const rawListExpr = `[${values.join(', ')}]`;
-  // Filter out None values
-  const filteredListExpr = `${rawListExpr} | reject('equalto', none) | list`;
+  // Filter out None values, and optionally values that are exactly 0
+  const ignoreZero = transform.type !== 'sum' && transform.ignoreZero;
+  const filteredListExpr = ignoreZero
+    ? `${rawListExpr} | reject('equalto', none) | reject('equalto', 0) | list`
+    : `${rawListExpr} | reject('equalto', none) | list`;
 
   switch (transform.type) {
     case 'sum': {

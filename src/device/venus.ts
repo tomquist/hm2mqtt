@@ -28,6 +28,11 @@ import {
   chain,
   inRange,
   sum,
+  min,
+  max,
+  diff,
+  average,
+  negate,
   venusPvField,
 } from '../transforms';
 
@@ -150,9 +155,13 @@ function isVenusRuntimeInfoMessage(values: Record<string, string>): boolean {
   return requiredRuntimeInfoKeys.every(key => key in values);
 }
 
+// Per-string PV input power (PV1–PV4) is reported by Venus models that have PV
+// inputs (e.g. Venus A/D). The corresponding entities are advertised purely
+// based on whether the device reports the `pv1`–`pv4` fields in its payload, so
+// there is no need to special-case device types here.
 registerDeviceDefinition(
   {
-    deviceTypes: ['HMG', 'VNSE3', 'VNSD'],
+    deviceTypes: ['HMG', 'VNSE3'],
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
@@ -160,23 +169,19 @@ registerDeviceDefinition(
   },
 );
 
-// Venus A (VNSA) reports additional per-string PV input power and uses a
-// different scaling for the BMS cell/MOSFET temperatures (factor of 10)
-// compared to the other Venus variants.
+// Venus A (VNSA) and Venus D (VNSD) use a different scaling for the BMS
+// cell/MOSFET temperatures (factor of 10) compared to the other Venus variants.
 registerDeviceDefinition(
   {
-    deviceTypes: ['VNSA'],
+    deviceTypes: ['VNSA', 'VNSD'],
   },
   ({ message }) => {
-    registerRuntimeInfoMessage(message, { withPvInputs: true });
+    registerRuntimeInfoMessage(message);
     registerBMSInfoMessage(message, { scaleTemperatures: true });
   },
 );
 
-function registerRuntimeInfoMessage(
-  message: BuildMessageFn,
-  { withPvInputs = false }: { withPvInputs?: boolean } = {},
-) {
+function registerRuntimeInfoMessage(message: BuildMessageFn) {
   let options = {
     refreshDataPayload: 'cd=1',
     isMessage: isVenusRuntimeInfoMessage,
@@ -230,60 +235,63 @@ function registerRuntimeInfoMessage(
       }),
     );
 
-    // PV / solar input information
-    if (withPvInputs) {
-      // Per-string PV input power and connection status (pvN = "<power>|<connected>")
-      const pvInputs = [
-        { key: 'pv1', power: 'pv1Power', connected: 'pv1Connected', label: 'PV1' },
-        { key: 'pv2', power: 'pv2Power', connected: 'pv2Connected', label: 'PV2' },
-        { key: 'pv3', power: 'pv3Power', connected: 'pv3Connected', label: 'PV3' },
-        { key: 'pv4', power: 'pv4Power', connected: 'pv4Connected', label: 'PV4' },
-      ] as const;
-      for (const pv of pvInputs) {
-        field({ key: pv.key, path: [pv.power], transform: venusPvField('power') });
-        advertise(
-          [pv.power],
-          sensorComponent<number>({
-            id: `${pv.key}_power`,
-            name: `${pv.label} Power`,
-            device_class: 'power',
-            unit_of_measurement: 'W',
-            state_class: 'measurement',
-          }),
-        );
-
-        field({ key: pv.key, path: [pv.connected], transform: venusPvField('connected') });
-        advertise(
-          [pv.connected],
-          binarySensorComponent({
-            id: `${pv.key}_connected`,
-            name: `${pv.label} Connected`,
-            device_class: 'connectivity',
-            icon: 'mdi:solar-power',
-            enabled_by_default: false,
-          }),
-        );
-      }
-
-      // Total PV power across all inputs. Each value is "<power>|<connected>"
-      // with power in deciwatts; sum() reads the leading number from each and
-      // the scale converts the deciwatt total to watts.
-      field({
-        key: ['pv1', 'pv2', 'pv3', 'pv4'],
-        path: ['totalPvPower'],
-        transform: sum(10),
-      });
+    // PV / solar input information. Only Venus models with PV inputs (e.g.
+    // Venus A/D) report the pvN fields; the entities below are advertised purely
+    // based on their presence in the payload, so they apply to any device type.
+    // Per-string PV input power and connection status (pvN = "<power>|<connected>")
+    const pvInputs = [
+      { key: 'pv1', power: 'pv1Power', connected: 'pv1Connected', label: 'PV1' },
+      { key: 'pv2', power: 'pv2Power', connected: 'pv2Connected', label: 'PV2' },
+      { key: 'pv3', power: 'pv3Power', connected: 'pv3Connected', label: 'PV3' },
+      { key: 'pv4', power: 'pv4Power', connected: 'pv4Connected', label: 'PV4' },
+    ] as const;
+    for (const pv of pvInputs) {
+      field({ key: pv.key, path: [pv.power], transform: venusPvField('power') });
       advertise(
-        ['totalPvPower'],
+        [pv.power],
         sensorComponent<number>({
-          id: 'total_pv_power',
-          name: 'Total PV Power',
+          id: `${pv.key}_power`,
+          name: `${pv.label} Power`,
           device_class: 'power',
           unit_of_measurement: 'W',
           state_class: 'measurement',
         }),
+        { enabled: state => (state[pv.power] != null ? true : undefined) },
+      );
+
+      field({ key: pv.key, path: [pv.connected], transform: venusPvField('connected') });
+      advertise(
+        [pv.connected],
+        binarySensorComponent({
+          id: `${pv.key}_connected`,
+          name: `${pv.label} Connected`,
+          device_class: 'connectivity',
+          icon: 'mdi:solar-power',
+          enabled_by_default: false,
+        }),
+        { enabled: state => (state[pv.connected] != null ? true : undefined) },
       );
     }
+
+    // Total PV power across all inputs. Each value is "<power>|<connected>"
+    // with power in deciwatts; sum() reads the leading number from each and
+    // the scale converts the deciwatt total to watts.
+    field({
+      key: ['pv1', 'pv2', 'pv3', 'pv4'],
+      path: ['totalPvPower'],
+      transform: sum(10),
+    });
+    advertise(
+      ['totalPvPower'],
+      sensorComponent<number>({
+        id: 'total_pv_power',
+        name: 'Total PV Power',
+        device_class: 'power',
+        unit_of_measurement: 'W',
+        state_class: 'measurement',
+      }),
+      { enabled: state => (state.totalPvPower != null ? true : undefined) },
+    );
 
     // Power information
     field({
@@ -436,6 +444,38 @@ function registerRuntimeInfoMessage(
       }),
     );
 
+    // Electricity prices. Reported in the same 0.001 € unit as the income
+    // fields, so the value is divided by 1000 to convert it to euros.
+    field({
+      key: 'prc_c',
+      path: ['chargingPrice'],
+      transform: divide(1000),
+    });
+    advertise(
+      ['chargingPrice'],
+      sensorComponent<number>({
+        id: 'charging_price',
+        name: 'Charging Price',
+        device_class: 'monetary',
+        unit_of_measurement: '€',
+      }),
+    );
+
+    field({
+      key: 'prc_d',
+      path: ['dischargePrice'],
+      transform: divide(1000),
+    });
+    advertise(
+      ['dischargePrice'],
+      sensorComponent<number>({
+        id: 'discharge_price',
+        name: 'Discharge Price',
+        device_class: 'monetary',
+        unit_of_measurement: '€',
+      }),
+    );
+
     // Grid information
     field({
       key: 'grd_f',
@@ -530,6 +570,109 @@ function registerRuntimeInfoMessage(
       }),
     );
 
+    field({
+      key: 'ct_t',
+      path: ['ctType'],
+      transform: map(
+        {
+          '0': 'none',
+          '1': 'ct1',
+          '2': 'ct2',
+          '3': 'ct3',
+          '4': 'shellyPro',
+          '5': 'p1Meter',
+        },
+        'none',
+      ),
+    });
+    advertise(
+      ['ctType'],
+      sensorComponent<NonNullable<VenusDeviceData['ctType']>>({
+        id: 'ct_type',
+        name: 'CT Type',
+        icon: 'mdi:current-ac',
+        valueMappings: {
+          none: 'No Meter Detected',
+          ct1: 'CT1',
+          ct2: 'CT2',
+          ct3: 'CT3',
+          shellyPro: 'Shelly Pro',
+          p1Meter: 'P1 Meter',
+        },
+      }),
+    );
+
+    // Shelly UDP port, only meaningful when a Shelly meter is configured as the
+    // CT type.
+    field({
+      key: 'shelly_p',
+      path: ['shellyPort'],
+      transform: number(),
+    });
+    advertise(
+      ['shellyPort'],
+      sensorComponent<number>({
+        id: 'shelly_port',
+        name: 'Shelly Port',
+        icon: 'mdi:lan',
+        enabled_by_default: false,
+      }),
+    );
+
+    field({
+      key: 'phase_t',
+      path: ['phaseType'],
+      transform: map(
+        {
+          '0': 'unknown',
+          '1': 'phaseA',
+          '2': 'phaseB',
+          '3': 'phaseC',
+          '4': 'notDetected',
+        },
+        'unknown',
+      ),
+    });
+    advertise(
+      ['phaseType'],
+      sensorComponent<NonNullable<VenusDeviceData['phaseType']>>({
+        id: 'phase_type',
+        name: 'Phase Type',
+        icon: 'mdi:sine-wave',
+        valueMappings: {
+          unknown: 'Unknown',
+          phaseA: 'Phase A',
+          phaseB: 'Phase B',
+          phaseC: 'Phase C',
+          notDetected: 'Not Detected',
+        },
+      }),
+    );
+
+    field({
+      key: 'dchrg_t',
+      path: ['rechargeMode'],
+      transform: map(
+        {
+          '0': 'singlePhase',
+          '1': 'threePhase',
+        },
+        'singlePhase',
+      ),
+    });
+    advertise(
+      ['rechargeMode'],
+      sensorComponent<NonNullable<VenusDeviceData['rechargeMode']>>({
+        id: 'recharge_mode',
+        name: 'Recharge Mode',
+        icon: 'mdi:flash',
+        valueMappings: {
+          singlePhase: 'Single Phase',
+          threePhase: 'Three Phase',
+        },
+      }),
+    );
+
     // Battery status
     field({
       key: 'cel_s',
@@ -599,6 +742,52 @@ function registerRuntimeInfoMessage(
         id: 'device_version',
         name: 'Device Version',
         icon: 'mdi:information',
+      }),
+    );
+
+    field({
+      key: 'bms_v',
+      path: ['bmsVersion'],
+      transform: number(),
+    });
+    advertise(
+      ['bmsVersion'],
+      sensorComponent<number>({
+        id: 'bms_version',
+        name: 'BMS Version',
+        icon: 'mdi:information',
+        enabled_by_default: false,
+      }),
+    );
+
+    field({
+      key: 'fc_v',
+      path: ['communicationModuleVersion'],
+      transform: identity(),
+    });
+    advertise(
+      ['communicationModuleVersion'],
+      sensorComponent<string>({
+        id: 'communication_module_version',
+        name: 'Communication Module Version',
+        icon: 'mdi:information',
+        enabled_by_default: false,
+      }),
+    );
+
+    field({
+      key: 'wif_s',
+      path: ['wifiSignalStrength'],
+      transform: negate(),
+    });
+    advertise(
+      ['wifiSignalStrength'],
+      sensorComponent<number>({
+        id: 'wifi_signal_strength',
+        name: 'WiFi Signal Strength',
+        device_class: 'signal_strength',
+        unit_of_measurement: 'dBm',
+        state_class: 'measurement',
       }),
     );
 
@@ -1374,6 +1563,74 @@ function registerBMSInfoMessage(
           }),
         );
       }
+
+      // Aggregate cell voltage statistics across all cells (b_vo1-b_vo16).
+      // Unused cells on smaller batteries report 0, so they are ignored.
+      const cellVoltageKeys = Array.from({ length: 16 }, (_, i) => `b_vo${i + 1}`);
+      field({
+        key: cellVoltageKeys,
+        path: ['cells', 'minVoltage'],
+        transform: min(undefined, true),
+      });
+      advertise(
+        ['cells', 'minVoltage'],
+        sensorComponent<number>({
+          id: 'min_cell_voltage',
+          name: 'Min Cell Voltage',
+          unit_of_measurement: 'mV',
+          device_class: 'voltage',
+          state_class: 'measurement',
+          enabled_by_default: false,
+        }),
+      );
+      field({
+        key: cellVoltageKeys,
+        path: ['cells', 'maxVoltage'],
+        transform: max(undefined, true),
+      });
+      advertise(
+        ['cells', 'maxVoltage'],
+        sensorComponent<number>({
+          id: 'max_cell_voltage',
+          name: 'Max Cell Voltage',
+          unit_of_measurement: 'mV',
+          device_class: 'voltage',
+          state_class: 'measurement',
+          enabled_by_default: false,
+        }),
+      );
+      field({
+        key: cellVoltageKeys,
+        path: ['cells', 'voltageDiff'],
+        transform: diff(undefined, true),
+      });
+      advertise(
+        ['cells', 'voltageDiff'],
+        sensorComponent<number>({
+          id: 'diff_cell_voltage',
+          name: 'Cell Voltage Difference',
+          unit_of_measurement: 'mV',
+          device_class: 'voltage',
+          state_class: 'measurement',
+          enabled_by_default: false,
+        }),
+      );
+      field({
+        key: cellVoltageKeys,
+        path: ['cells', 'voltageAvg'],
+        transform: average(undefined, true, true),
+      });
+      advertise(
+        ['cells', 'voltageAvg'],
+        sensorComponent<number>({
+          id: 'avg_cell_voltage',
+          name: 'Average Cell Voltage',
+          unit_of_measurement: 'mV',
+          device_class: 'voltage',
+          state_class: 'measurement',
+          enabled_by_default: false,
+        }),
+      );
 
       for (let i = 1; i <= 4; i++) {
         const key = `b_tp${i}`;

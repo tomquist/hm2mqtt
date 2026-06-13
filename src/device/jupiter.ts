@@ -32,6 +32,7 @@ import {
   temperature,
   highByte,
   lowByte,
+  diff,
 } from '../transforms';
 
 /**
@@ -1019,6 +1020,24 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
           sensorComponent<number>({
             id: `battery_${batteryIndex}_cell_voltage_min`,
             name: `${batteryLabel} Lowest Cell Voltage`,
+            unit_of_measurement: 'mV',
+            device_class: 'voltage',
+            state_class: 'measurement',
+            enabled_by_default: false,
+          }),
+        );
+
+        // Cell voltage difference (drift) between highest and lowest cell
+        field({
+          key: [maxVoltageKey, minVoltageKey],
+          path: [...pathPrefix, 'voltageDiff'],
+          transform: diff(),
+        });
+        advertise(
+          [...pathPrefix, 'voltageDiff'],
+          sensorComponent<number>({
+            id: `battery_${batteryIndex}_cell_voltage_diff`,
+            name: `${batteryLabel} Cell Voltage Difference`,
             unit_of_measurement: 'mV',
             device_class: 'voltage',
             state_class: 'measurement',
