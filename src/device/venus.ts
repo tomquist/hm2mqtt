@@ -154,9 +154,13 @@ function isVenusRuntimeInfoMessage(values: Record<string, string>): boolean {
   return requiredRuntimeInfoKeys.every(key => key in values);
 }
 
+// Per-string PV input power (PV1–PV4) is reported by Venus models that have PV
+// inputs (e.g. Venus A/D). The corresponding entities are advertised purely
+// based on whether the device reports the `pv1`–`pv4` fields in its payload, so
+// there is no need to special-case device types here.
 registerDeviceDefinition(
   {
-    deviceTypes: ['HMG', 'VNSE3'],
+    deviceTypes: ['HMG', 'VNSE3', 'VNSD'],
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
@@ -164,35 +168,19 @@ registerDeviceDefinition(
   },
 );
 
-// Venus A (VNSA) reports additional per-string PV input power and uses a
-// different scaling for the BMS cell/MOSFET temperatures (factor of 10)
-// compared to the other Venus variants.
+// Venus A (VNSA) uses a different scaling for the BMS cell/MOSFET temperatures
+// (factor of 10) compared to the other Venus variants.
 registerDeviceDefinition(
   {
     deviceTypes: ['VNSA'],
   },
   ({ message }) => {
-    registerRuntimeInfoMessage(message, { withPvInputs: true });
+    registerRuntimeInfoMessage(message);
     registerBMSInfoMessage(message, { scaleTemperatures: true });
   },
 );
 
-// Venus D (VNSD) also reports per-string PV input power, but uses the default
-// BMS cell/MOSFET temperature scaling like the other (non-VNSA) variants.
-registerDeviceDefinition(
-  {
-    deviceTypes: ['VNSD'],
-  },
-  ({ message }) => {
-    registerRuntimeInfoMessage(message, { withPvInputs: true });
-    registerBMSInfoMessage(message);
-  },
-);
-
-function registerRuntimeInfoMessage(
-  message: BuildMessageFn,
-  { withPvInputs = false }: { withPvInputs?: boolean } = {},
-) {
+function registerRuntimeInfoMessage(message: BuildMessageFn) {
   let options = {
     refreshDataPayload: 'cd=1',
     isMessage: isVenusRuntimeInfoMessage,
@@ -246,63 +234,63 @@ function registerRuntimeInfoMessage(
       }),
     );
 
-    // PV / solar input information
-    if (withPvInputs) {
-      // Per-string PV input power and connection status (pvN = "<power>|<connected>")
-      const pvInputs = [
-        { key: 'pv1', power: 'pv1Power', connected: 'pv1Connected', label: 'PV1' },
-        { key: 'pv2', power: 'pv2Power', connected: 'pv2Connected', label: 'PV2' },
-        { key: 'pv3', power: 'pv3Power', connected: 'pv3Connected', label: 'PV3' },
-        { key: 'pv4', power: 'pv4Power', connected: 'pv4Connected', label: 'PV4' },
-      ] as const;
-      for (const pv of pvInputs) {
-        field({ key: pv.key, path: [pv.power], transform: venusPvField('power') });
-        advertise(
-          [pv.power],
-          sensorComponent<number>({
-            id: `${pv.key}_power`,
-            name: `${pv.label} Power`,
-            device_class: 'power',
-            unit_of_measurement: 'W',
-            state_class: 'measurement',
-          }),
-          { enabled: state => (state[pv.power] != null ? true : undefined) },
-        );
-
-        field({ key: pv.key, path: [pv.connected], transform: venusPvField('connected') });
-        advertise(
-          [pv.connected],
-          binarySensorComponent({
-            id: `${pv.key}_connected`,
-            name: `${pv.label} Connected`,
-            device_class: 'connectivity',
-            icon: 'mdi:solar-power',
-            enabled_by_default: false,
-          }),
-          { enabled: state => (state[pv.connected] != null ? true : undefined) },
-        );
-      }
-
-      // Total PV power across all inputs. Each value is "<power>|<connected>"
-      // with power in deciwatts; sum() reads the leading number from each and
-      // the scale converts the deciwatt total to watts.
-      field({
-        key: ['pv1', 'pv2', 'pv3', 'pv4'],
-        path: ['totalPvPower'],
-        transform: sum(10),
-      });
+    // PV / solar input information. Only Venus models with PV inputs (e.g.
+    // Venus A/D) report the pvN fields; the entities below are advertised purely
+    // based on their presence in the payload, so they apply to any device type.
+    // Per-string PV input power and connection status (pvN = "<power>|<connected>")
+    const pvInputs = [
+      { key: 'pv1', power: 'pv1Power', connected: 'pv1Connected', label: 'PV1' },
+      { key: 'pv2', power: 'pv2Power', connected: 'pv2Connected', label: 'PV2' },
+      { key: 'pv3', power: 'pv3Power', connected: 'pv3Connected', label: 'PV3' },
+      { key: 'pv4', power: 'pv4Power', connected: 'pv4Connected', label: 'PV4' },
+    ] as const;
+    for (const pv of pvInputs) {
+      field({ key: pv.key, path: [pv.power], transform: venusPvField('power') });
       advertise(
-        ['totalPvPower'],
+        [pv.power],
         sensorComponent<number>({
-          id: 'total_pv_power',
-          name: 'Total PV Power',
+          id: `${pv.key}_power`,
+          name: `${pv.label} Power`,
           device_class: 'power',
           unit_of_measurement: 'W',
           state_class: 'measurement',
         }),
-        { enabled: state => (state.totalPvPower != null ? true : undefined) },
+        { enabled: state => (state[pv.power] != null ? true : undefined) },
+      );
+
+      field({ key: pv.key, path: [pv.connected], transform: venusPvField('connected') });
+      advertise(
+        [pv.connected],
+        binarySensorComponent({
+          id: `${pv.key}_connected`,
+          name: `${pv.label} Connected`,
+          device_class: 'connectivity',
+          icon: 'mdi:solar-power',
+          enabled_by_default: false,
+        }),
+        { enabled: state => (state[pv.connected] != null ? true : undefined) },
       );
     }
+
+    // Total PV power across all inputs. Each value is "<power>|<connected>"
+    // with power in deciwatts; sum() reads the leading number from each and
+    // the scale converts the deciwatt total to watts.
+    field({
+      key: ['pv1', 'pv2', 'pv3', 'pv4'],
+      path: ['totalPvPower'],
+      transform: sum(10),
+    });
+    advertise(
+      ['totalPvPower'],
+      sensorComponent<number>({
+        id: 'total_pv_power',
+        name: 'Total PV Power',
+        device_class: 'power',
+        unit_of_measurement: 'W',
+        state_class: 'measurement',
+      }),
+      { enabled: state => (state.totalPvPower != null ? true : undefined) },
+    );
 
     // Power information
     field({

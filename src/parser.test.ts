@@ -684,10 +684,23 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('totalPvPower', 107.6);
   });
 
-  test('does not expose PV inputs for non-PV Venus variants (VNSE3)', () => {
+  test('exposes PV inputs based on payload presence regardless of device type (VNSE3)', () => {
+    // PV handling is device-type independent: any Venus that reports the pvN
+    // fields exposes the corresponding values.
     const message =
-      'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0,pv1=1076|1';
+      'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0,pv1=1076|1,pv2=0|0,pv3=0|0,pv4=0|0';
     const parsed = parseMessage(message, 'VNSE3-0', 'venus123');
+
+    const result = parsed['data'] as VenusDeviceData;
+    expect(result).toHaveProperty('pv1Power', 107.6);
+    expect(result).toHaveProperty('pv1Connected', true);
+    expect(result).toHaveProperty('totalPvPower', 107.6);
+  });
+
+  test('does not expose PV inputs when the payload omits them', () => {
+    const message =
+      'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0';
+    const parsed = parseMessage(message, 'VNSD-0', 'venusD123');
 
     const result = parsed['data'] as VenusDeviceData;
     expect(result).not.toHaveProperty('pv1Power');

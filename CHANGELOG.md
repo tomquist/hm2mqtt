@@ -6,7 +6,7 @@
 - Venus: Add aggregate cell-voltage sensors (*Min Cell Voltage*, *Max Cell Voltage*, *Cell Voltage Difference* and *Average Cell Voltage*) computed from the individual cell voltages, ignoring unused cells reported as `0`. These match the equivalent sensors already available on the B2500.
 - Jupiter: Add a *Cell Voltage Difference* (drift) sensor per battery, derived from the reported highest/lowest cell voltage. (Jupiter only reports the highest and lowest cell voltage, not individual cells, so a true average cannot be computed.)
 - All new sensors are disabled by default.
-- Venus D (VNSD): Expose per-string PV input power (PV1–PV4), their connection status and a combined Total PV Power sensor. The entities are only advertised when the device actually reports the corresponding `pv1`–`pv4` values in its payload
+- Venus: Expose per-string PV input power (PV1–PV4), their connection status and a combined Total PV Power sensor on any Venus model that reports them (e.g. Venus A and Venus D). The entities are advertised purely based on the presence of the corresponding `pv1`–`pv4` values in the payload, independent of the device type
 
 ### Fixed
 
