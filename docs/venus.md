@@ -54,6 +54,9 @@
 21. [Pre-update check](#21-pre-update-check)
     1. [Public](#211-public)
     2. [Receive](#212-receive)
+22. [Start an OTA update](#22-start-an-ota-update)
+    1. [Public](#221-public)
+    2. [Receive](#222-receive)
 
 ## 1 MQTT Core Concepts
 
@@ -594,3 +597,91 @@ The exact meaning of the fields has not been confirmed. Based on the context
 | type | Update or device type |
 | mod | Module to update / module flag |
 | cnt | Counter (e.g. retries or available updates; 0 observed) |
+
+## 22 Start an OTA update
+
+Triggers a firmware OTA update over MQTT. This is a two-step sequence: first
+push the image metadata for each module with `cd=53`, then start the actual
+update with `cd=54`.
+
+### 22.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+**Step 1 — push image metadata (`cd=53`):**
+
+```
+cd=53,num=2,type2=VNSD,mod2=2,size2=372736,crc2=42516,ver2=147,len2=83,url2=http://static-eu.marstekenergy.com/uploads/ota/20260128/202601281721320b2053125.bin,type1=VNSD,mod1=1,size1=115712,crc1=9636,ver1=115,len1=83,url1=http://static-eu.marstekenergy.com/uploads/ota/20260123/202601230921310c0e30687.bin
+```
+
+`num` is the number of images included; the remaining parameters are repeated
+per image with a 1-based index suffix (`type1`/`mod1`/... for image 1,
+`type2`/`mod2`/... for image 2, etc.):
+
+| Key | Description |
+|-----|-------------|
+| num | Number of images included |
+| type*N* | Device type prefix (e.g. `VNSD`) |
+| mod*N* | Target module (observed: `1` = micro/inverter, `2` = control/MCU) |
+| size*N* | Image size in bytes |
+| crc*N* | Image CRC checksum |
+| ver*N* | Firmware version contained in the image |
+| len*N* | Length of the URL string |
+| url*N* | Download URL of the firmware image |
+
+The image metadata matches the firmware OTA API (the `data.control` and
+`data.micro` objects map to the `mod=2` and `mod=1` images respectively):
+
+```json
+{
+  "code": 1,
+  "msg": "success",
+  "data": {
+    "control": {
+      "mcu_type": "control",
+      "type": "VNSD-0",
+      "url": "https://static-eu.marstekenergy.com/uploads/ota/20260128/202601281721320b2053125.bin",
+      "version": 147,
+      "crc": "42516",
+      "size": 372736,
+      "force_update": "N"
+    },
+    "micro": {
+      "mcu_type": "micro",
+      "type": "VNSD-0",
+      "url": "https://static-eu.marstekenergy.com/uploads/ota/20260123/202601230921310c0e30687.bin",
+      "version": 115,
+      "crc": "9636",
+      "size": 115712,
+      "force_update": "N"
+    }
+  }
+}
+```
+
+**Step 2 — start the update (`cd=54`):** send immediately after `cd=53`.
+
+```
+cd=54,start
+```
+
+### 22.2 Receive
+
+After `cd=53` the device acknowledges with the number of images accepted:
+```
+cd=53,ret=2
+```
+(`ret` matches the `num` value when all images are accepted.)
+
+After `cd=54` the device confirms the update has started:
+```
+cd=54,ret=1
+```
+1. `ret=0` - Failed to start
+2. `ret=1` - Update started
+
+> Warning: this initiates a real firmware flash. Use known-good image URLs,
+> CRCs and sizes (e.g. from the official OTA API) for the correct device type.
