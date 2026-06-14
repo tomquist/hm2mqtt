@@ -1039,9 +1039,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       },
     });
 
-    // Bluetooth advertising / "lock" (cd=55). The polarity (adv=1 = advertising
-    // enabled) is inferred and not fully confirmed, so the switch is disabled by
-    // default and tracked optimistically.
+    // Bluetooth advertising / "lock" (cd=55, adv=1 enables advertising, adv=0
+    // disables it). Venus does not report the state in cd=1, so it is tracked
+    // optimistically based on the last command.
     advertise(
       ['bluetoothAdvertisingEnabled'],
       switchComponent({
@@ -1049,7 +1049,6 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Bluetooth Advertising',
         icon: 'mdi:bluetooth',
         command: 'bluetooth-advertising',
-        enabled_by_default: false,
       }),
     );
     command('bluetooth-advertising', {

@@ -9,7 +9,7 @@
 - Venus: Add a *Backup Power* switch to toggle the backup/EPS ("UPS") function (`cd=11`, reported as `bac_u`).
 - Venus: Add a *Status LED* switch (`cd=59`, reported as `led`) on firmware that reports the LED state.
 - Venus: Add a *Surplus Feed-in* switch (`cd=43`) on models with PV inputs (Venus A/D). The device does not report the state back, so it is tracked optimistically.
-- Venus: Add a *Bluetooth Advertising* switch (`cd=55`). Disabled by default because the polarity is not fully confirmed; tracked optimistically.
+- Venus: Add a *Bluetooth Advertising* switch (`cd=55`; `adv=1` enables advertising, `adv=0` disables it). The device does not report the state back, so it is tracked optimistically.
 - Venus: Add a *Phase Diagnosis* button (`cd=18,seq_check`) plus a *Phase Diagnosis Status* sensor (`seq_s`).
 - Venus: Expose *Inverter Version* (`inv_v`) and *MPPT Version* (`mppt`) sensors on firmware that reports them.
 - Venus: Add *Network* sensors (IP Address, Gateway, Subnet Mask, DNS Server, CT Connect IP) parsed from the `cd=26` response. Only the IP Address is enabled by default.

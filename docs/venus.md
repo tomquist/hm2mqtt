@@ -884,9 +884,8 @@ Payload:
 ### 27.2 Receive
 
 The device echoes the resulting state:
-1. `cd=55,ret=1` - Advertising enabled
-2. `cd=55,ret=0` - Advertising disabled
+1. `cd=55,ret=1` - Advertising enabled (discoverable; Bluetooth lock off)
+2. `cd=55,ret=0` - Advertising disabled (Bluetooth lock on)
 
-> Note: the exact polarity (`adv=1` = enabled vs. disabled) is inferred and not
-> fully confirmed. The related Bluetooth state is also reflected in the `ble`
-> field of the `cd=1` response.
+The related Bluetooth state is also reflected in the `ble` field of the `cd=1`
+response.
