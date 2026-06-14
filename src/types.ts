@@ -264,7 +264,7 @@ export type VenusCTStatus = 'notConnected' | 'connected' | 'weakSignal';
  */
 export type VenusBatteryWorkingStatus = 'notWorking' | 'charging' | 'discharging' | 'unknown';
 
-const validVenusWorkingModes = ['automatic', 'manual', 'trading'] as const;
+const validVenusWorkingModes = ['automatic', 'manual', 'trading', 'ai'] as const;
 /**
  * Venus device working mode types
  */
@@ -440,7 +440,7 @@ export interface JupiterTimePeriod {
 
 export type JupiterBatteryWorkingStatus = 'keep' | 'charging' | 'discharging' | 'unknown';
 
-const validJupiterWorkingModes = ['automatic', 'manual'] as const;
+const validJupiterWorkingModes = ['automatic', 'manual', 'ai'] as const;
 export type JupiterWorkingMode = (typeof validJupiterWorkingModes)[number];
 
 export function isValidJupiterWorkingMode(mode: string): mode is JupiterWorkingMode {

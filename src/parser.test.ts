@@ -668,6 +668,26 @@ describe('MQTT Message Parser', () => {
     expect(result.depthOfDischarge).toBeUndefined();
   });
 
+  test('parses Venus AI working mode (wor_m=5)', () => {
+    const message =
+      'cd=1,tot_i=8848,tot_o=7097,ele_d=537,ele_m=8848,grd_d=328,grd_m=7097,inc_d=0,inc_m=0,grd_f=0,grd_o=613,grd_t=3,gct_s=1,cel_s=3,cel_p=327,cel_c=64,err_t=0,err_a=0,dev_n=158,grd_y=0,wor_m=5,tim_0=0|0|0|0|0|0|0,cts_m=0,bac_u=0,tra_a=1,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=1,wif_s=33,inc_a=0,set_v=0,mcp_w=2500,mdp_w=2500,ct_t=4,phase_t=1,dchrg_t=1,bms_v=212,fc_v=202409090159,wifi_n=XXX,seq_s=0,ctrl_r=1,par=255,gen=255,ble=3,shelly_p=1010,c_ratio=90,dod=88';
+    const parsed = parseMessage(message, 'VNSE3-0', 'venus123');
+
+    expect(parsed).toHaveProperty('data');
+    const result = parsed['data'] as VenusDeviceData;
+    expect(result).toHaveProperty('workingMode', 'ai');
+  });
+
+  test('parses Jupiter AI working mode (wor_m=5)', () => {
+    const message =
+      'ele_d=349,ele_m=2193,ele_y=0,pv1_p=94,pv1_s=1,pv2_p=77,pv2_s=1,pv3_p=41,pv3_s=1,pv4_p=60,pv4_s=1,grd_o=250,grd_t=1,gct_s=1,cel_s=0,cel_p=424,cel_c=83,err_t=0,wor_m=5,tim_0=12|0|23|59|127|800|1,tim_1=0|0|12|0|127|150|1,tim_2=0|0|0|0|255|0|0,tim_3=0|0|0|0|255|0|0,tim_4=0|0|0|0|255|0|0,cts_m=0,grd_d=285,grd_m=2018,dev_n=134,dev_i=106,dev_m=206,dev_b=209,dev_t=110,wif_s=75,ala_c=0,ful_d=1,ssid=xxxx,stop_s=10,htt_p=0,ct_t=4,phase_t=1,dchrg=1,seq_s=3,ctrl_r=0,shelly_p=1010,c_ratio=100,b_lck=0,dod=88,total_b=1,online_b=1';
+    const parsed = parseMessage(message, 'JPLS-1', 'jupiter123');
+
+    expect(parsed).toHaveProperty('data');
+    const result = parsed['data'] as JupiterDeviceData;
+    expect(result).toHaveProperty('workingMode', 'ai');
+  });
+
   test('parses Venus A (VNSA) PV input power and connection status (issue #218)', () => {
     // Real runtime reading from a Venus A: pv1 connected and producing, pv2-4 idle.
     const message =

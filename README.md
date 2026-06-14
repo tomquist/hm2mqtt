@@ -608,7 +608,7 @@ homeassistant/{component}/{node_id}/{object_id}/config
 - `surplus-feed-in`: Toggles Surplus Feed-in mode (`on` or `off`). When enabled, surplus PV power is fed into the home grid when the battery is nearly full.
 
 ### Venus Device Commands
-- `working-mode`: Sets working mode (`automatic`, `manual`, or `trading`)
+- `working-mode`: Sets working mode (`automatic`, `manual`, `trading`, or `ai`)
 - `auto-switch-working-mode`: Toggles automatic mode switching (`on` or `off`)
 - `time-period/[0-9]/enabled`: Enables/disables time period (`on` or `off`)
 - `time-period/[0-9]/start-time`: Sets start time for period (HH:MM format)
@@ -626,7 +626,7 @@ The following commands are supported by both Jupiter C, Jupiter E and Jupiter Pl
 - `refresh`: Refreshes the device data
 - `factory-reset`: Resets the device to factory settings
 - `sync-time`: Synchronizes device time with server
-- `working-mode`: Sets working mode (`automatic` or `manual`)
+- `working-mode`: Sets working mode (`automatic`, `manual`, or `ai`)
 - `time-period/[0-4]/enabled`: Enables/disables time period (`on` or `off`)
 - `time-period/[0-4]/start-time`: Sets start time for period (HH:MM format)
 - `time-period/[0-4]/end-time`: Sets end time for period (HH:MM format)

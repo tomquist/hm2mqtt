@@ -366,6 +366,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         {
           '1': 'automatic',
           '2': 'manual',
+          '5': 'ai',
         },
         'automatic',
       ),
@@ -380,6 +381,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         valueMappings: {
           automatic: 'Automatic',
           manual: 'Manual',
+          ai: 'AI',
         },
       }),
     );
@@ -582,6 +584,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             break;
           case 'manual':
             mode = 2;
+            break;
+          case 'ai':
+            mode = 5;
             break;
           default:
             mode = 1;

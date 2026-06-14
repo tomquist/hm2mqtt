@@ -839,6 +839,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           '0': 'automatic',
           '1': 'manual',
           '2': 'trading',
+          '5': 'ai',
         },
         'automatic',
       ),
@@ -854,6 +855,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           automatic: 'Automatic',
           manual: 'Manual',
           trading: 'Trading',
+          ai: 'AI',
         },
       }),
     );
@@ -1406,6 +1408,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             break;
           case 'trading':
             mode = 2;
+            break;
+          case 'ai':
+            mode = 5;
             break;
           default:
             mode = 0;

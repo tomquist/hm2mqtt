@@ -1,4 +1,11 @@
 # Changelog
+
+## [Next]
+
+### Added
+
+- Venus & Jupiter: Add support for the *AI* working mode (`wor_m=5`). It is now decoded as a working mode value and can be selected via the *Working Mode* entity.
+
 ## [1.8.0] - 2026-06-13
 
 ### Added

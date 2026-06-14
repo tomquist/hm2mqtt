@@ -127,7 +127,7 @@ Description of the above parameters:
 | err_a | Error code (warning code) |
 | dev_n | Device version number |
 | grd_y | Grid type (0: Adaptive (220-240) (50-60hz) AUTO; 1: EN50549 EN50549; 2: Netherlands; 3: Germany; 4: Austria; 5: United Kingdom; 6: Spain; 7: Poland; 8: Italy; 9: China) |
-| wor_m | Working mode (0: Automatic; 1: Manual operation; 2: Trading) |
+| wor_m | Working mode (0: Automatic; 1: Manual operation; 2: Trading; 5: AI) |
 | tim_0 | Start time (hour \| minute) \| End time (hour \| minute) \| Cycle \| Power \| Enable |
 | tim_1 | ditto |
 | tim_2 | ditto |
@@ -197,7 +197,7 @@ Description of the above parameters:
 | Key | Description |
 |-----|-------------|
 | cd | Instruction identification |
-| md | Working mode (0: Automatic; 1: Manual operation; 2: Trading) |
+| md | Working mode (0: Automatic; 1: Manual operation; 2: Trading; 5: AI) |
 | nm | [0-9] |
 | bt | Start Time |
 | et | End Time |
@@ -224,7 +224,7 @@ Description of the above parameters:
 | Key | Description |
 |-----|-------------|
 | cd | Instruction identification |
-| md | Working mode (0: Automatic; 1: Manual operation; 2: Trading) |
+| md | Working mode (0: Automatic; 1: Manual operation; 2: Trading; 5: AI) |
 | id | Region code |
 | in | Electricity price during charging |
 | on | Electricity price during discharge |
