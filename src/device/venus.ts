@@ -33,6 +33,7 @@ import {
   identity,
   number,
   equalsBoolean,
+  bitBoolean,
   chain,
   inRange,
   sum,
@@ -1017,9 +1018,15 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       },
     });
 
-    // Surplus feed-in (cd=43, feeding excess PV power into the grid). Venus does
-    // not report the state back, so it is tracked optimistically based on the
-    // last command. Only advertised on models with PV inputs (Venus A/D).
+    // Surplus feed-in (cd=43, feeding excess PV power into the grid). The current
+    // state is reported in the first component of the `fu` field ("1|0" = on,
+    // "0|0" = off). The optimistic update in the command handler gives immediate
+    // feedback until the next cd=1 poll reconciles with the device.
+    field({
+      key: 'fu',
+      path: ['surplusFeedInEnabled'],
+      transform: value => value.split('|')[0] === '1',
+    });
     advertise(
       ['surplusFeedInEnabled'],
       switchComponent({
@@ -1028,7 +1035,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:transmission-tower-export',
         command: 'surplus-feed-in',
       }),
-      { enabled: state => (state.pv1Power != null ? true : undefined) },
+      { enabled: state => (state.surplusFeedInEnabled != null ? true : undefined) },
     );
     command('surplus-feed-in', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
@@ -1040,8 +1047,15 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     });
 
     // Bluetooth advertising / "lock" (cd=55, adv=1 enables advertising, adv=0
-    // disables it). Venus does not report the state in cd=1, so it is tracked
-    // optimistically based on the last command.
+    // disables it). The state is reported in the `ble` field as a bitmask where
+    // bit 2 (value 4) is set when advertising is enabled (Bluetooth lock off).
+    // The optimistic update in the command handler gives immediate feedback
+    // until the next cd=1 poll reconciles with the device.
+    field({
+      key: 'ble',
+      path: ['bluetoothAdvertisingEnabled'],
+      transform: bitBoolean(2),
+    });
     advertise(
       ['bluetoothAdvertisingEnabled'],
       switchComponent({
@@ -1050,6 +1064,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:bluetooth',
         command: 'bluetooth-advertising',
       }),
+      { enabled: state => (state.bluetoothAdvertisingEnabled != null ? true : undefined) },
     );
     command('bluetooth-advertising', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
