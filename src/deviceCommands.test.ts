@@ -679,6 +679,29 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
 
+  // recharge-mode command (single-/three-phase)
+  {
+    description: 'Venus recharge-mode single phase',
+    deviceType: 'HMG-1',
+    command: 'recharge-mode',
+    input: 'singlePhase',
+    expectedOutput: 'cd=18,dchrg=0',
+  },
+  {
+    description: 'Venus recharge-mode three phase',
+    deviceType: 'HMG-1',
+    command: 'recharge-mode',
+    input: 'threePhase',
+    expectedOutput: 'cd=18,dchrg=1',
+  },
+  {
+    description: 'Venus recharge-mode invalid',
+    deviceType: 'HMG-1',
+    command: 'recharge-mode',
+    input: 'invalid',
+    expectedOutput: null,
+  },
+
   // version-set command
   {
     description: 'Venus version-set 800W',
@@ -993,6 +1016,22 @@ const commandTestCases: CommandTestCase[] = [
     command: 'working-mode',
     input: 'trading', // Not valid for Jupiter
     expectedOutput: null,
+  },
+
+  // recharge-mode command (single-/three-phase)
+  {
+    description: 'Jupiter recharge-mode single phase',
+    deviceType: 'HMN-1',
+    command: 'recharge-mode',
+    input: 'singlePhase',
+    expectedOutput: 'cd=18,dchrg=0',
+  },
+  {
+    description: 'Jupiter recharge-mode three phase',
+    deviceType: 'HMN-1',
+    command: 'recharge-mode',
+    input: 'threePhase',
+    expectedOutput: 'cd=18,dchrg=1',
   },
 
   // surplus-feed-in command

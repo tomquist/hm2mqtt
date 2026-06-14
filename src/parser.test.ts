@@ -403,7 +403,7 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('wifiSignalStrength', -75);
     expect(result).toHaveProperty('ctType', 4);
     expect(result).toHaveProperty('phaseType', 1);
-    expect(result).toHaveProperty('rechargeMode', 1);
+    expect(result).toHaveProperty('rechargeMode', 'threePhase');
     expect(result).toHaveProperty('deviceVersion', 134);
     expect(result).toHaveProperty('bmsVersion', 209);
     expect(result).toHaveProperty('mpptVersion', 206);

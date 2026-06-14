@@ -1,6 +1,7 @@
 import { BuildMessageFn, globalPollInterval, registerDeviceDefinition } from '../deviceDefinition';
 import {
   CommandParams,
+  isValidVenusRechargeMode,
   isValidVenusVersionSet,
   isValidVenusWorkingMode,
   VenusBMSInfo,
@@ -662,10 +663,11 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     });
     advertise(
       ['rechargeMode'],
-      sensorComponent<NonNullable<VenusDeviceData['rechargeMode']>>({
+      selectComponent<NonNullable<VenusDeviceData['rechargeMode']>>({
         id: 'recharge_mode',
         name: 'Recharge Mode',
         icon: 'mdi:flash',
+        command: 'recharge-mode',
         valueMappings: {
           singlePhase: 'Single Phase',
           threePhase: 'Three Phase',
@@ -1422,6 +1424,25 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           params.nl = 1;
         }
         publishCallback(processCommand(CommandType.SET_WORKING_MODE, params));
+      },
+    });
+
+    command('recharge-mode', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        if (!isValidVenusRechargeMode(message)) {
+          logger.warn('Invalid recharge mode value:', message);
+          return;
+        }
+
+        updateDeviceState(() => ({
+          rechargeMode: message,
+        }));
+
+        publishCallback(
+          processCommand(CommandType.SET_METER_TYPE, {
+            dchrg: message === 'threePhase' ? 1 : 0,
+          }),
+        );
       },
     });
 

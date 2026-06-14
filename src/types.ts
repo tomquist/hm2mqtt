@@ -302,7 +302,12 @@ export type VenusPhaseType = 'unknown' | 'phaseA' | 'phaseB' | 'phaseC' | 'notDe
 /**
  * Venus device recharge mode
  */
-export type VenusRechargeMode = 'singlePhase' | 'threePhase';
+const validVenusRechargeModes = ['singlePhase', 'threePhase'] as const;
+export type VenusRechargeMode = (typeof validVenusRechargeModes)[number];
+
+export function isValidVenusRechargeMode(mode: string): mode is VenusRechargeMode {
+  return validVenusRechargeModes.includes(mode as VenusRechargeMode);
+}
 
 export type WeekdaySet = `${0 | ''}${1 | ''}${2 | ''}${3 | ''}${4 | ''}${5 | ''}${6 | ''}`;
 
@@ -447,6 +452,13 @@ export function isValidJupiterWorkingMode(mode: string): mode is JupiterWorkingM
   return validJupiterWorkingModes.includes(mode as JupiterWorkingMode);
 }
 
+const validJupiterRechargeModes = ['singlePhase', 'threePhase'] as const;
+export type JupiterRechargeMode = (typeof validJupiterRechargeModes)[number];
+
+export function isValidJupiterRechargeMode(mode: string): mode is JupiterRechargeMode {
+  return validJupiterRechargeModes.includes(mode as JupiterRechargeMode);
+}
+
 export interface JupiterDeviceData extends BaseDeviceData {
   dailyChargingCapacity?: number; // ele_d
   monthlyChargingCapacity?: number; // ele_m
@@ -470,7 +482,7 @@ export interface JupiterDeviceData extends BaseDeviceData {
   wifiSignalStrength?: number; // wif_s
   ctType?: number; // ct_t
   phaseType?: number; // phase_t
-  rechargeMode?: number; // dchrg
+  rechargeMode?: JupiterRechargeMode; // dchrg
   wifiName?: string; // ssid
   deviceVersion?: number; // dev_n
   bmsVersion?: number; // dev_b

@@ -6,6 +6,10 @@
 
 - Venus & Jupiter: Add support for the *AI* working mode (`wor_m=5`). It is now decoded as a working mode value and can be selected via the *Working Mode* entity.
 
+### Changed
+
+- Venus & Jupiter: The *Recharge Mode* entity is now a settable select (Single Phase / Three Phase) instead of a read-only sensor, so the grid recharge mode can be switched from Home Assistant (`cd=18,dchrg=0|1`).
+
 ## [1.8.0] - 2026-06-13
 
 ### Added
