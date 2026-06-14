@@ -5,6 +5,7 @@
 ### Added
 
 - Venus & Jupiter: Add support for the *AI* working mode (`wor_m=5`). It is now decoded as a working mode value and can be selected via the *Working Mode* entity.
+- Venus & Jupiter: Add a *Meter Type* select and *Meter MAC* text entity to configure the external meter (CT001, Shelly Pro 3EM, CT002, CT003, Shelly EM Gen3, Shelly Pro EM50) via `cd=18,meter=…,mac=…`. CT002/CT003 and the Shelly EM Gen3/Pro EM50 require the MAC to be set first; Shelly Pro 3EM uses a fixed all-zero MAC. Both entities are disabled by default.
 
 ### Changed
 

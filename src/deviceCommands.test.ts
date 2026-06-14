@@ -702,6 +702,69 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
 
+  // meter-mac + meter-type commands
+  {
+    description: 'Venus meter-mac normalizes separators and case',
+    deviceType: 'HMG-1',
+    command: 'meter-mac',
+    input: 'AA:BB:CC:DD:EE:FF',
+    expectedOutput: null,
+    expectedStateChanges: { meterMac: 'aabbccddeeff' },
+  },
+  {
+    description: 'Venus meter-mac invalid',
+    deviceType: 'HMG-1',
+    command: 'meter-mac',
+    input: 'not-a-mac',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus meter-type CT002 with configured MAC',
+    deviceType: 'HMG-1',
+    initialState: { meterMac: 'aabbccddeeff' },
+    command: 'meter-type',
+    input: 'ct002',
+    expectedOutput: 'cd=18,meter=3,mac=aabbccddeeff',
+    expectedStateChanges: { meterType: 'ct002' },
+  },
+  {
+    description: 'Venus meter-type CT003 with configured MAC',
+    deviceType: 'HMG-1',
+    initialState: { meterMac: '112233445566' },
+    command: 'meter-type',
+    input: 'ct003',
+    expectedOutput: 'cd=18,meter=4,mac=112233445566',
+  },
+  {
+    description: 'Venus meter-type Shelly Pro 3EM forces all-zero MAC',
+    deviceType: 'HMG-1',
+    initialState: { meterMac: 'aabbccddeeff' },
+    command: 'meter-type',
+    input: 'shellyPro3em',
+    expectedOutput: 'cd=18,meter=1,mac=000000000000',
+  },
+  {
+    description: 'Venus meter-type CT001 without MAC uses all-zero MAC',
+    deviceType: 'HMG-1',
+    command: 'meter-type',
+    input: 'ct001',
+    expectedOutput: 'cd=18,meter=0,mac=000000000000',
+  },
+  {
+    description: 'Venus meter-type CT002 without MAC is rejected',
+    deviceType: 'HMG-1',
+    command: 'meter-type',
+    input: 'ct002',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus meter-type invalid',
+    deviceType: 'HMG-1',
+    command: 'meter-type',
+    input: 'invalid',
+    expectedOutput: null,
+  },
+
   // version-set command
   {
     description: 'Venus version-set 800W',
@@ -1032,6 +1095,22 @@ const commandTestCases: CommandTestCase[] = [
     command: 'recharge-mode',
     input: 'threePhase',
     expectedOutput: 'cd=18,dchrg=1',
+  },
+  {
+    description: 'Jupiter meter-type CT002 with configured MAC',
+    deviceType: 'HMN-1',
+    initialState: { meterMac: 'aabbccddeeff' },
+    command: 'meter-type',
+    input: 'ct002',
+    expectedOutput: 'cd=18,meter=3,mac=aabbccddeeff',
+    expectedStateChanges: { meterType: 'ct002' },
+  },
+  {
+    description: 'Jupiter meter-type Shelly Pro 3EM forces all-zero MAC',
+    deviceType: 'HMN-1',
+    command: 'meter-type',
+    input: 'shellyPro3em',
+    expectedOutput: 'cd=18,meter=1,mac=000000000000',
   },
 
   // surplus-feed-in command

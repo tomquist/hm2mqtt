@@ -373,6 +373,19 @@ Payload:
 4. `cd=15,dchrg=0` - single-phase
 5. `cd=15,dchrg=1` - three-phase
 
+Newer firmware uses `cd=18` for the same purpose. Set the recharge phase with
+`cd=18,dchrg=0` (single-phase) or `cd=18,dchrg=1` (three-phase), and set the
+external meter type with `cd=18,meter=<code>,mac=<mac>`:
+
+| meter code | Meter type | MAC |
+| --- | --- | --- |
+| 0 | CT001 | not required (`000000000000`) |
+| 1 | Shelly Pro 3EM | fixed `000000000000` |
+| 3 | CT002 | required |
+| 4 | CT003 | required |
+| 5 | Shelly EM Gen3 | required |
+| 6 | Shelly Pro EM50 | required |
+
 ## 15 Obtain CT power
 
 ### 15.1 Public

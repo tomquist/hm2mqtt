@@ -12,6 +12,11 @@ import {
   JupiterMPPTPVInfo,
   isValidJupiterWorkingMode,
   isValidJupiterRechargeMode,
+  isValidMeterType,
+  meterTypeCommandCodes,
+  meterTypeLabels,
+  normalizeMeterMac,
+  resolveMeterMac,
   WeekdaySet,
   JupiterTimePeriod,
 } from '../types';
@@ -638,6 +643,66 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         );
       },
     });
+
+    // MAC address used when configuring an external meter (CT002/CT003/Shelly).
+    command('meter-mac', {
+      handler: ({ message, updateDeviceState }) => {
+        const mac = normalizeMeterMac(message);
+        if (!mac) {
+          logger.warn('Invalid meter MAC (expected 12 hex digits):', message);
+          return;
+        }
+        updateDeviceState(() => ({ meterMac: mac }));
+      },
+    });
+    advertise(
+      ['meterMac'],
+      textComponent({
+        id: 'meter_mac',
+        name: 'Meter MAC',
+        icon: 'mdi:identifier',
+        command: 'meter-mac',
+        pattern: '^([0-9A-Fa-f]{2}[:-]?){5}[0-9A-Fa-f]{2}$',
+        enabled_by_default: false,
+      }),
+    );
+
+    // Configure the external meter type (cd=18,meter=...,mac=...).
+    command('meter-type', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        if (!isValidMeterType(message)) {
+          logger.warn('Invalid meter type value:', message);
+          return;
+        }
+        updateDeviceState(state => {
+          const mac = resolveMeterMac(message, state.meterMac);
+          if (mac === null) {
+            logger.warn(
+              `Meter type ${message} requires a MAC; set the "Meter MAC" entity before selecting it`,
+            );
+            return;
+          }
+          publishCallback(
+            processCommand(CommandType.SET_METER_TYPE, {
+              meter: meterTypeCommandCodes[message],
+              mac,
+            }),
+          );
+          return { meterType: message };
+        });
+      },
+    });
+    advertise(
+      ['meterType'],
+      selectComponent<NonNullable<JupiterDeviceData['meterType']>>({
+        id: 'meter_type',
+        name: 'Meter Type',
+        icon: 'mdi:meter-electric',
+        command: 'meter-type',
+        valueMappings: meterTypeLabels,
+        enabled_by_default: false,
+      }),
+    );
 
     // Factory reset
     command('factory-reset', {
