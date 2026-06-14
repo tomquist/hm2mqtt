@@ -614,7 +614,7 @@ hame_energy/{type}/App/{uid or mac}/ctrl
 **Step 1 — push image metadata (`cd=53`):**
 
 ```
-cd=53,num=2,type2=VNSD,mod2=2,size2=372736,crc2=42516,ver2=147,len2=83,url2=http://static-eu.marstekenergy.com/uploads/ota/20260128/202601281721320b2053125.bin,type1=VNSD,mod1=1,size1=115712,crc1=9636,ver1=115,len1=83,url1=http://static-eu.marstekenergy.com/uploads/ota/20260123/202601230921310c0e30687.bin
+cd=53,num=2,type2=VNSD,mod2=2,size2=372736,crc2=42516,ver2=147,len2=<url length>,url2=<control image URL>,type1=VNSD,mod1=1,size1=115712,crc1=9636,ver1=115,len1=<url length>,url1=<micro image URL>
 ```
 
 `num` is the number of images included; the remaining parameters are repeated
@@ -643,7 +643,7 @@ The image metadata matches the firmware OTA API (the `data.control` and
     "control": {
       "mcu_type": "control",
       "type": "VNSD-0",
-      "url": "https://static-eu.marstekenergy.com/uploads/ota/20260128/202601281721320b2053125.bin",
+      "url": "<control image URL>",
       "version": 147,
       "crc": "42516",
       "size": 372736,
@@ -652,7 +652,7 @@ The image metadata matches the firmware OTA API (the `data.control` and
     "micro": {
       "mcu_type": "micro",
       "type": "VNSD-0",
-      "url": "https://static-eu.marstekenergy.com/uploads/ota/20260123/202601230921310c0e30687.bin",
+      "url": "<micro image URL>",
       "version": 115,
       "crc": "9636",
       "size": 115712,
