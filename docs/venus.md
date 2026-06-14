@@ -240,6 +240,7 @@ Payload:
 1. `cd=2,md=0` - Automatic mode
 2. `cd=2,md=1` - Manual mode
 3. `cd=2,md=2` - Trading mode
+4. `cd=2,md=5,nl=1` - AI mode (the `nl=1` flag is required to enable AI mode)
 
 ## 5 Set automatic discharge time period
 

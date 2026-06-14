@@ -712,6 +712,15 @@ const commandTestCases: CommandTestCase[] = [
     expectedStateChanges: { meterMac: 'aabbccddeeff' },
   },
   {
+    description: 'Venus meter-mac re-applies configured meter type with new MAC',
+    deviceType: 'HMG-1',
+    initialState: { meterType: 'ct002' },
+    command: 'meter-mac',
+    input: 'aabbccddeeff',
+    expectedOutput: 'cd=18,meter=3,mac=aabbccddeeff',
+    expectedStateChanges: { meterMac: 'aabbccddeeff' },
+  },
+  {
     description: 'Venus meter-mac invalid',
     deviceType: 'HMG-1',
     command: 'meter-mac',
@@ -1185,6 +1194,23 @@ const commandTestCases: CommandTestCase[] = [
     input: 'shellyPro3em',
     expectedOutput: 'cd=18,meter=1,mac=000000000000',
   },
+  {
+    description: 'Jupiter meter-mac re-applies configured meter type with new MAC',
+    deviceType: 'HMN-1',
+    initialState: { meterType: 'ct003' },
+    command: 'meter-mac',
+    input: 'aabbccddeeff',
+    expectedOutput: 'cd=18,meter=4,mac=aabbccddeeff',
+    expectedStateChanges: { meterMac: 'aabbccddeeff' },
+  },
+  {
+    description: 'Jupiter meter-mac without configured meter type does not publish',
+    deviceType: 'HMN-1',
+    command: 'meter-mac',
+    input: 'aabbccddeeff',
+    expectedOutput: null,
+    expectedStateChanges: { meterMac: 'aabbccddeeff' },
+  },
 
   // surplus-feed-in command
   {
@@ -1283,6 +1309,19 @@ const commandTestCases: CommandTestCase[] = [
     command: 'time-period/0/enabled',
     input: 'true',
     expectedOutput: 'cd=3,md=2,nm=0,bt=8:00,et=20:00,wk=127,vv=500,as=1',
+  },
+  {
+    description: 'Jupiter time-period/0/enabled true (ai mode preserves md=5)',
+    deviceType: 'HMN-1',
+    initialState: {
+      workingMode: 'ai',
+      timePeriods: [
+        { enabled: false, startTime: '8:00', endTime: '20:00', weekday: '0123456', power: 500 },
+      ],
+    },
+    command: 'time-period/0/enabled',
+    input: 'true',
+    expectedOutput: 'cd=3,md=5,nm=0,bt=8:00,et=20:00,wk=127,vv=500,as=1',
   },
   {
     description: 'Jupiter time-period/0/power valid',

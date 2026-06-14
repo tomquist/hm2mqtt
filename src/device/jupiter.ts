@@ -67,6 +67,22 @@ function processCommand(command: CommandType, params: CommandParams = {}): strin
   return `cd=${command}${entries.length > 0 ? ',' : ''}${entries.map(([key, value]) => `${key}=${value}`).join(',')}`;
 }
 
+/**
+ * Map the current working mode to the `md` value sent with a time-period update.
+ * This must match the encoding used by the working-mode command (automatic=1,
+ * manual=2, ai=5) so editing a time period does not change the working mode.
+ */
+function workingModeToMd(workingMode: JupiterDeviceData['workingMode']): number {
+  switch (workingMode) {
+    case 'manual':
+      return 2;
+    case 'ai':
+      return 5;
+    default:
+      return 1;
+  }
+}
+
 const requiredRuntimeInfoKeys = [
   'ele_d',
   'ele_m',
@@ -646,13 +662,28 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
     // MAC address used when configuring an external meter (CT002/CT003/Shelly).
     command('meter-mac', {
-      handler: ({ message, updateDeviceState }) => {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
         const mac = normalizeMeterMac(message);
         if (!mac) {
           logger.warn('Invalid meter MAC (expected 12 hex digits):', message);
           return;
         }
-        updateDeviceState(() => ({ meterMac: mac }));
+        updateDeviceState(state => {
+          // If a meter type is already configured, re-apply it with the new MAC
+          // so the device stays in sync when the MAC is edited afterwards.
+          if (state.meterType) {
+            const resolved = resolveMeterMac(state.meterType, mac);
+            if (resolved !== null) {
+              publishCallback(
+                processCommand(CommandType.SET_METER_TYPE, {
+                  meter: meterTypeCommandCodes[state.meterType],
+                  mac: resolved,
+                }),
+              );
+            }
+          }
+          return { meterMac: mac };
+        });
       },
     });
     advertise(
@@ -795,7 +826,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             };
 
             // Build the command parameters
-            const md = state.workingMode === 'manual' ? 2 : 1;
+            const md = workingModeToMd(state.workingMode);
             const params: CommandParams = { md, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
@@ -849,7 +880,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             };
 
             // Build the command parameters
-            const md = state.workingMode === 'manual' ? 2 : 1;
+            const md = workingModeToMd(state.workingMode);
             const params: CommandParams = { md, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
@@ -897,7 +928,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             };
 
             // Build the command parameters
-            const md = state.workingMode === 'manual' ? 2 : 1;
+            const md = workingModeToMd(state.workingMode);
             const params: CommandParams = { md, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
@@ -953,7 +984,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             };
 
             // Build the command parameters
-            const md = state.workingMode === 'manual' ? 2 : 1;
+            const md = workingModeToMd(state.workingMode);
             const params: CommandParams = { md, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
@@ -1008,7 +1039,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             };
 
             // Build the command parameters
-            const md = state.workingMode === 'manual' ? 2 : 1;
+            const md = workingModeToMd(state.workingMode);
             const params: CommandParams = { md, nm: periodIndex };
             const period = timePeriods[periodIndex];
 

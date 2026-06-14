@@ -1626,13 +1626,28 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
     // MAC address used when configuring an external meter (CT002/CT003/Shelly).
     command('meter-mac', {
-      handler: ({ message, updateDeviceState }) => {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
         const mac = normalizeMeterMac(message);
         if (!mac) {
           logger.warn('Invalid meter MAC (expected 12 hex digits):', message);
           return;
         }
-        updateDeviceState(() => ({ meterMac: mac }));
+        updateDeviceState(state => {
+          // If a meter type is already configured, re-apply it with the new MAC
+          // so the device stays in sync when the MAC is edited afterwards.
+          if (state.meterType) {
+            const resolved = resolveMeterMac(state.meterType, mac);
+            if (resolved !== null) {
+              publishCallback(
+                processCommand(CommandType.SET_METER_TYPE, {
+                  meter: meterTypeCommandCodes[state.meterType],
+                  mac: resolved,
+                }),
+              );
+            }
+          }
+          return { meterMac: mac };
+        });
       },
     });
     advertise(
