@@ -57,6 +57,21 @@
 22. [Start an OTA update](#22-start-an-ota-update)
     1. [Public](#221-public)
     2. [Receive](#222-receive)
+23. [Read network information](#23-read-network-information)
+    1. [Public](#231-public)
+    2. [Receive](#232-receive)
+24. [Read BMS pack details](#24-read-bms-pack-details)
+    1. [Public](#241-public)
+    2. [Receive](#242-receive)
+25. [Read power history](#25-read-power-history)
+    1. [Public](#251-public)
+    2. [Receive](#252-receive)
+26. [Enable/disable the status LED](#26-enabledisable-the-status-led)
+    1. [Public](#261-public)
+    2. [Receive](#262-receive)
+27. [Configure Bluetooth advertising](#27-configure-bluetooth-advertising)
+    1. [Public](#271-public)
+    2. [Receive](#272-receive)
 
 ## 1 MQTT Core Concepts
 
@@ -176,6 +191,41 @@ Description of the above parameters:
 | pv2 | PV input 2 power (0.1W) \| connection status (only reported by Venus models with PV inputs) |
 | pv3 | PV input 3 power (0.1W) \| connection status (only reported by Venus models with PV inputs) |
 | pv4 | PV input 4 power (0.1W) \| connection status (only reported by Venus models with PV inputs) |
+
+The following additional fields have been observed on newer firmware (e.g.
+Venus D control firmware v147). Meanings marked *(unconfirmed)* are educated
+guesses based on context and cross-referencing other commands:
+
+| Key | Description |
+|-----|-------------|
+| seq_s | Phase-diagnosis status *(unconfirmed)* — changes after running `cd=18,seq_check` |
+| ctrl_r | *(unconfirmed)* |
+| par | Parallel-operation flag *(unconfirmed)* |
+| gen | Generator flag *(unconfirmed)* |
+| ble | Bluetooth state *(unconfirmed)* (see `cd=55`) |
+| c_ratio | CT ratio (%) *(unconfirmed)* |
+| udp | UDP enabled *(unconfirmed)* |
+| api | Local API enabled (0: disabled; 1: enabled) (see `cd=30`) |
+| net | *(unconfirmed)* |
+| port | Local API port (see `cd=30`) |
+| inv_v | Inverter / micro module version number (matches the `micro` OTA image version) |
+| id | *(unconfirmed)*, pipe-separated list |
+| lk | Lock flag *(unconfirmed)* |
+| bp | Battery power (W) *(unconfirmed)* |
+| ei | *(unconfirmed)* |
+| eb | *(unconfirmed)* |
+| rp | *(unconfirmed)* power (W) |
+| gp | Grid power (W) *(unconfirmed)* |
+| vp | *(unconfirmed)* power (W) |
+| bl | *(unconfirmed)* |
+| bl_p | *(unconfirmed)* |
+| led | Status LED state (0: off; 1: on) (see `cd=59`) |
+| as | *(unconfirmed)* |
+| mppt | MPPT module version number *(unconfirmed)* |
+| pack | Battery pack summary `num\|mask\|idx\|?` — matches the `cd=42` BMS response (number of packs \| present-pack bitmask \| index) |
+| pv | Total PV power `value\|value` (0.1W) *(unconfirmed)* |
+| fu | *(unconfirmed)*, pipe-separated |
+| em | *(unconfirmed)* |
 
 ## 4 Set working status
 
@@ -483,6 +533,10 @@ Description of the above parameters:
 | cd | Instruction identification |
 | dod | Depth of discharge (%) (configurable 30-88% in the Marstek app; the maximum of 88% is encoded as 0) |
 
+This command does not produce a response. On newer firmware (e.g. Venus D
+v147) the value is reported back as-is, e.g. `cd=56,dod=84` sets the depth of
+discharge to 84%.
+
 The current depth of discharge is reported as the `dod` field in the device information (see [Read device information](#3-read-device-information)).
 
 ## 18 Enable surplus feed-in
@@ -685,3 +739,154 @@ cd=54,ret=1
 
 > Warning: this initiates a real firmware flash. Use known-good image URLs,
 > CRCs and sizes (e.g. from the official OTA API) for the correct device type.
+
+## 23 Read network information
+
+Returns the device's current network configuration. Observed on Venus D v147.
+
+### 23.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+```
+cd=26
+```
+
+### 23.2 Receive
+
+```
+cd=26,dev_net_info:ip:192.168.178.134,gate:192.168.178.1,mask:255.255.255.0,dns:192.168.178.1,ct_connect_ip:192.168.178.255
+```
+
+Note the unusual format: after `cd=26,` the payload is a `dev_net_info:`
+prefix followed by colon-separated `key:value` pairs (comma-separated).
+
+| Key | Description |
+|-----|-------------|
+| ip | Device IP address |
+| gate | Gateway address |
+| mask | Subnet mask |
+| dns | DNS server address |
+| ct_connect_ip | Address used to reach the CT/meter (a broadcast address in the example) |
+
+## 24 Read BMS pack details
+
+Returns per-pack details for the connected battery packs. Observed on Venus D
+v147.
+
+### 24.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+```
+cd=42,bms_idx=255
+```
+
+`bms_idx=255` appears to request all packs.
+
+### 24.2 Receive
+
+```
+cd=42, BMS: num=2,mask=3,idx=2,charge_pow=2643,discharge_pow=2643,soc1=424,state1=0,temp1=278,soc2=482,state2=2,temp2=254,soc3=0,state3=0,temp3=0,soc4=0,state4=0,temp4=0,soc5=0,state5=0,temp5=0,soc6=0,state6=0,temp6=0
+```
+
+| Key | Description |
+|-----|-------------|
+| num | Number of battery packs present |
+| mask | Bitmask of present packs (bit 0 = pack 1, bit 1 = pack 2, ...; `3` = packs 1 & 2) |
+| idx | *(unconfirmed)* pack index / count |
+| charge_pow | Allowed charge power (W) |
+| discharge_pow | Allowed discharge power (W) |
+| soc*N* | Pack *N* state of charge (0.1%; `424` = 42.4%) |
+| state*N* | Pack *N* working state *(unconfirmed: 0 = idle, 2 = charging, mirrors `cel_s`)* |
+| temp*N* | Pack *N* temperature (0.1 °C; `278` = 27.8 °C) |
+
+Fields are reported for up to 6 packs (`*1` … `*6`); unused packs report zeros.
+The `num`/`mask`/`idx` values match the `pack` field in the `cd=1` response.
+
+## 25 Read power history
+
+Returns recent power-curve samples. Observed on Venus D v147.
+
+### 25.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+```
+cd=29,num=15
+```
+
+`num` is the number of samples to return.
+
+### 25.2 Receive
+
+```
+cd=29,p1=[801,...],p2=[0,...],p3=[686,...],p4=[694,...],p5=[803,...],p6=[809,...],p7=[-502,...]
+```
+
+The response contains seven series (`p1` … `p7`), each an array of `num`
+values. The exact meaning of each series has **not been confirmed**; from
+context they appear to be a recent history of the various power readings (PV
+inputs, battery, grid and output power), with the most recent sample first.
+
+## 26 Enable/disable the status LED
+
+Turns the device's status LED on or off. Observed on Venus D v147.
+
+### 26.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+1. `cd=59,led=0` - Turn the LED off
+2. `cd=59,led=1` - Turn the LED on
+
+### 26.2 Receive
+
+The device echoes the resulting state:
+1. `cd=59,ret=0` - LED is now off
+2. `cd=59,ret=1` - LED is now on
+
+The current LED state is reported as the `led` field in the `cd=1` response.
+
+## 27 Configure Bluetooth advertising
+
+Enables or disables the device's Bluetooth (BLE) advertising. When advertising
+is disabled the device is no longer discoverable over Bluetooth (a "Bluetooth
+lock"). Observed on Venus D v147.
+
+### 27.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+1. `cd=55,adv=1` - Enable Bluetooth advertising (discoverable)
+2. `cd=55,adv=0` - Disable Bluetooth advertising (lock)
+
+### 27.2 Receive
+
+The device echoes the resulting state:
+1. `cd=55,ret=1` - Advertising enabled
+2. `cd=55,ret=0` - Advertising disabled
+
+> Note: the exact polarity (`adv=1` = enabled vs. disabled) is inferred and not
+> fully confirmed. The related Bluetooth state is also reflected in the `ble`
+> field of the `cd=1` response.
