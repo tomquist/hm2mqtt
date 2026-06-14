@@ -480,6 +480,12 @@ export interface VenusDeviceData extends BaseDeviceData {
   localApiEnabled?: boolean;
   localApiPort?: number;
   depthOfDischarge?: number; // dod
+  ledEnabled?: boolean; // led
+  surplusFeedInEnabled?: boolean; // set via cd=43 (no status field; tracked optimistically)
+  bluetoothAdvertisingEnabled?: boolean; // set via cd=55 (tracked optimistically)
+  phaseDiagnosisStatus?: number; // seq_s
+  inverterVersion?: number; // inv_v
+  mpptVersion?: number; // mppt
 }
 
 export interface VenusBMSInfo extends BaseDeviceData {
@@ -508,6 +514,31 @@ export interface VenusBMSInfo extends BaseDeviceData {
     energyThroughput?: number;
     mosfetTemp?: number;
   };
+}
+
+/**
+ * Per-pack BMS details reported by the cd=42 response on newer Venus firmware.
+ */
+export interface VenusBMSPackInfo extends BaseDeviceData {
+  packMask?: number; // bitmask of present packs (bit 0 = pack 1, ...)
+  chargePower?: number; // allowed charge power (W)
+  dischargePower?: number; // allowed discharge power (W)
+  packs?: {
+    soc?: number; // state of charge (%)
+    state?: number; // working state (raw; meaning unconfirmed)
+    temperature?: number; // °C
+  }[];
+}
+
+/**
+ * Network configuration reported by the cd=26 response on newer Venus firmware.
+ */
+export interface VenusNetworkInfo extends BaseDeviceData {
+  ipAddress?: string;
+  gateway?: string;
+  subnetMask?: string;
+  dns?: string;
+  ctConnectIp?: string;
 }
 
 export interface JupiterTimePeriod {

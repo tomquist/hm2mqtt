@@ -985,6 +985,79 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: 'cd=19',
   },
 
+  // backup-enabled command (cd=11)
+  {
+    description: 'Venus backup-enabled enable',
+    deviceType: 'HMG-1',
+    command: 'backup-enabled',
+    input: 'true',
+    expectedOutput: 'cd=11,bc=1',
+  },
+  {
+    description: 'Venus backup-enabled disable',
+    deviceType: 'HMG-1',
+    command: 'backup-enabled',
+    input: 'false',
+    expectedOutput: 'cd=11,bc=0',
+  },
+
+  // led-enabled command (cd=59)
+  {
+    description: 'Venus led-enabled enable',
+    deviceType: 'HMG-1',
+    command: 'led-enabled',
+    input: 'true',
+    expectedOutput: 'cd=59,led=1',
+  },
+  {
+    description: 'Venus led-enabled disable',
+    deviceType: 'HMG-1',
+    command: 'led-enabled',
+    input: 'false',
+    expectedOutput: 'cd=59,led=0',
+  },
+
+  // surplus-feed-in command (cd=43)
+  {
+    description: 'Venus surplus-feed-in enable',
+    deviceType: 'HMG-1',
+    command: 'surplus-feed-in',
+    input: 'true',
+    expectedOutput: 'cd=43,full_d=1',
+  },
+  {
+    description: 'Venus surplus-feed-in disable',
+    deviceType: 'HMG-1',
+    command: 'surplus-feed-in',
+    input: 'false',
+    expectedOutput: 'cd=43,full_d=0',
+  },
+
+  // bluetooth-advertising command (cd=55)
+  {
+    description: 'Venus bluetooth-advertising enable',
+    deviceType: 'HMG-1',
+    command: 'bluetooth-advertising',
+    input: 'true',
+    expectedOutput: 'cd=55,adv=1',
+  },
+  {
+    description: 'Venus bluetooth-advertising disable',
+    deviceType: 'HMG-1',
+    command: 'bluetooth-advertising',
+    input: 'false',
+    expectedOutput: 'cd=55,adv=0',
+  },
+
+  // phase-diagnosis command (cd=18,seq_check)
+  {
+    description: 'Venus phase-diagnosis with PRESS',
+    deviceType: 'HMG-1',
+    command: 'phase-diagnosis',
+    input: 'PRESS',
+    expectedOutput: 'cd=18,seq_check',
+  },
+
   // Venus time-period commands
   {
     description: 'Venus time-period/0/enabled true',

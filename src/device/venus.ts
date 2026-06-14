@@ -10,7 +10,9 @@ import {
   normalizeMeterMac,
   resolveMeterMac,
   VenusBMSInfo,
+  VenusBMSPackInfo,
   VenusDeviceData,
+  VenusNetworkInfo,
   VenusTimePeriod,
   WeekdaySet,
 } from '../types';
@@ -58,11 +60,16 @@ enum CommandType {
   SET_DISCHARGE_POWER = 15,
   SET_MAX_CHARGING_POWER = 16,
   SET_MAX_DISCHARGE_POWER = 17,
-  SET_METER_TYPE = 18,
+  SET_METER_TYPE = 18, // also used for phase diagnosis via `cd=18,seq_check`
   GET_CT_POWER = 19,
   UPGRADE_FC4_MODULE = 20,
+  GET_NETWORK_INFO = 26,
   SET_LOCAL_API = 30,
+  GET_BMS_PACK_INFO = 42,
+  SURPLUS_FEED_IN = 43,
+  BLUETOOTH_ADVERTISING = 55,
   DEPTH_OF_DISCHARGE = 56,
+  SET_LED = 59,
 }
 
 // Minimum and maximum Depth of Discharge values based on Marstek app limits (30-88%).
@@ -172,6 +179,8 @@ registerDeviceDefinition(
   ({ message }) => {
     registerRuntimeInfoMessage(message);
     registerBMSInfoMessage(message);
+    registerBMSPackMessage(message);
+    registerNetworkInfoMessage(message);
   },
 );
 
@@ -184,6 +193,8 @@ registerDeviceDefinition(
   ({ message }) => {
     registerRuntimeInfoMessage(message);
     registerBMSInfoMessage(message, { scaleTemperatures: true });
+    registerBMSPackMessage(message, { scaleTemperatures: true });
+    registerNetworkInfoMessage(message);
   },
 );
 
@@ -957,6 +968,169 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         publishCallback(processCommand(CommandType.SET_LOCAL_API, params));
       },
     });
+
+    // Backup / EPS ("UPS mode") function (cd=11). The current state is reported
+    // as the bac_u field.
+    field({
+      key: 'bac_u',
+      path: ['backupEnabled'],
+      transform: equalsBoolean('1'),
+    });
+    advertise(
+      ['backupEnabled'],
+      switchComponent({
+        id: 'backup_enabled',
+        name: 'Backup Power',
+        icon: 'mdi:home-battery',
+        command: 'backup-enabled',
+      }),
+    );
+    command('backup-enabled', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const enabled = message.toLowerCase() === 'true' || message === '1' || message === 'ON';
+        updateDeviceState(() => ({ backupEnabled: enabled }));
+        publishCallback(processCommand(CommandType.ENABLE_BACKUP, { bc: enabled ? 1 : 0 }));
+      },
+    });
+
+    // Status LED (cd=59). Reported as the led field on newer firmware (e.g. v147).
+    field({
+      key: 'led',
+      path: ['ledEnabled'],
+      transform: equalsBoolean('1'),
+    });
+    advertise(
+      ['ledEnabled'],
+      switchComponent({
+        id: 'led_enabled',
+        name: 'Status LED',
+        icon: 'mdi:led-on',
+        command: 'led-enabled',
+      }),
+      { enabled: state => (state.ledEnabled != null ? true : undefined) },
+    );
+    command('led-enabled', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const enabled = message.toLowerCase() === 'true' || message === '1' || message === 'ON';
+        updateDeviceState(() => ({ ledEnabled: enabled }));
+        publishCallback(processCommand(CommandType.SET_LED, { led: enabled ? 1 : 0 }));
+      },
+    });
+
+    // Surplus feed-in (cd=43, feeding excess PV power into the grid). Venus does
+    // not report the state back, so it is tracked optimistically based on the
+    // last command. Only advertised on models with PV inputs (Venus A/D).
+    advertise(
+      ['surplusFeedInEnabled'],
+      switchComponent({
+        id: 'surplus_feed_in',
+        name: 'Surplus Feed-in',
+        icon: 'mdi:transmission-tower-export',
+        command: 'surplus-feed-in',
+      }),
+      { enabled: state => (state.pv1Power != null ? true : undefined) },
+    );
+    command('surplus-feed-in', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const enable =
+          message.toLowerCase() === 'true' || message.toLowerCase() === 'on' || message === '1';
+        updateDeviceState(() => ({ surplusFeedInEnabled: enable }));
+        publishCallback(processCommand(CommandType.SURPLUS_FEED_IN, { full_d: enable ? 1 : 0 }));
+      },
+    });
+
+    // Bluetooth advertising / "lock" (cd=55). The polarity (adv=1 = advertising
+    // enabled) is inferred and not fully confirmed, so the switch is disabled by
+    // default and tracked optimistically.
+    advertise(
+      ['bluetoothAdvertisingEnabled'],
+      switchComponent({
+        id: 'bluetooth_advertising',
+        name: 'Bluetooth Advertising',
+        icon: 'mdi:bluetooth',
+        command: 'bluetooth-advertising',
+        enabled_by_default: false,
+      }),
+    );
+    command('bluetooth-advertising', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const enable =
+          message.toLowerCase() === 'true' || message.toLowerCase() === 'on' || message === '1';
+        updateDeviceState(() => ({ bluetoothAdvertisingEnabled: enable }));
+        publishCallback(processCommand(CommandType.BLUETOOTH_ADVERTISING, { adv: enable ? 1 : 0 }));
+      },
+    });
+
+    // Inverter / micro module version (inv_v), reported on newer firmware.
+    field({
+      key: 'inv_v',
+      path: ['inverterVersion'],
+      transform: number(),
+    });
+    advertise(
+      ['inverterVersion'],
+      sensorComponent<number>({
+        id: 'inverter_version',
+        name: 'Inverter Version',
+        icon: 'mdi:information',
+        enabled_by_default: false,
+      }),
+      { enabled: state => (state.inverterVersion != null ? true : undefined) },
+    );
+
+    // MPPT module version (mppt), reported on newer firmware.
+    field({
+      key: 'mppt',
+      path: ['mpptVersion'],
+      transform: number(),
+    });
+    advertise(
+      ['mpptVersion'],
+      sensorComponent<number>({
+        id: 'mppt_version',
+        name: 'MPPT Version',
+        icon: 'mdi:information',
+        enabled_by_default: false,
+      }),
+      { enabled: state => (state.mpptVersion != null ? true : undefined) },
+    );
+
+    // Phase-diagnosis status (seq_s) and the button that starts the diagnosis
+    // (cd=18,seq_check). The meaning of the status value is unconfirmed.
+    field({
+      key: 'seq_s',
+      path: ['phaseDiagnosisStatus'],
+      transform: number(),
+    });
+    advertise(
+      ['phaseDiagnosisStatus'],
+      sensorComponent<number>({
+        id: 'phase_diagnosis_status',
+        name: 'Phase Diagnosis Status',
+        icon: 'mdi:sine-wave',
+        enabled_by_default: false,
+      }),
+      { enabled: state => (state.phaseDiagnosisStatus != null ? true : undefined) },
+    );
+    command('phase-diagnosis', {
+      handler: ({ message, publishCallback }) => {
+        if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
+          // The seq_check flag is sent without a value, i.e. `cd=18,seq_check`.
+          publishCallback(`cd=${CommandType.SET_METER_TYPE},seq_check`);
+        }
+      },
+    });
+    advertise(
+      [],
+      buttonComponent({
+        id: 'phase_diagnosis',
+        name: 'Phase Diagnosis',
+        icon: 'mdi:sine-wave',
+        command: 'phase-diagnosis',
+        payload_press: 'PRESS',
+        enabled_by_default: false,
+      }),
+    );
 
     // Time periods
     for (let i = 0; i < 10; i++) {
@@ -1827,6 +2001,159 @@ function registerBMSInfoMessage(
             state_class: 'stateClass' in info ? info.stateClass : undefined,
             enabled_by_default: false,
           }),
+        );
+      }
+    },
+  );
+}
+
+// The cd=42 response carries per-pack BMS details. It is parsed from the
+// standard key=value pairs (charge_pow, discharge_pow, mask, socN/stateN/tempN);
+// only the leading "BMS: num" token uses a non-standard format and is ignored.
+function isVenusBmsPackMessage(values: Record<string, string>): boolean {
+  return 'charge_pow' in values && 'soc1' in values;
+}
+
+function registerBMSPackMessage(
+  message: BuildMessageFn,
+  { scaleTemperatures = false }: { scaleTemperatures?: boolean } = {},
+) {
+  message<VenusBMSPackInfo>(
+    {
+      refreshDataPayload: `cd=${CommandType.GET_BMS_PACK_INFO},bms_idx=255`,
+      isMessage: isVenusBmsPackMessage,
+      publishPath: 'bmsPacks',
+      defaultState: {},
+      getAdditionalDeviceInfo: () => ({}),
+      pollInterval: 60000,
+      controlsDeviceAvailability: false,
+      // Gated behind the same flag as the detailed BMS data to avoid extra
+      // polling traffic by default.
+      enabled: process.env.POLL_CELL_DATA === 'true',
+    },
+    ({ field, advertise }) => {
+      field({ key: 'mask', path: ['packMask'], transform: number() });
+
+      field({ key: 'charge_pow', path: ['chargePower'], transform: number() });
+      advertise(
+        ['chargePower'],
+        sensorComponent<number>({
+          id: 'pack_charge_power',
+          name: 'Pack Charge Power',
+          device_class: 'power',
+          unit_of_measurement: 'W',
+          state_class: 'measurement',
+          enabled_by_default: false,
+        }),
+      );
+
+      field({ key: 'discharge_pow', path: ['dischargePower'], transform: number() });
+      advertise(
+        ['dischargePower'],
+        sensorComponent<number>({
+          id: 'pack_discharge_power',
+          name: 'Pack Discharge Power',
+          device_class: 'power',
+          unit_of_measurement: 'W',
+          state_class: 'measurement',
+          enabled_by_default: false,
+        }),
+      );
+
+      // Per-pack details (up to 6 packs). Each pack is only advertised when its
+      // bit is set in the present-pack bitmask. SoC and temperature are reported
+      // in 0.1 units; the temperature scaling mirrors the detailed BMS message.
+      for (let i = 1; i <= 6; i++) {
+        const packEnabled = (state: VenusBMSPackInfo) =>
+          state.packMask == null ? undefined : (state.packMask & (1 << (i - 1))) !== 0;
+
+        field({ key: `soc${i}`, path: ['packs', i - 1, 'soc'], transform: divide(10) });
+        advertise(
+          ['packs', i - 1, 'soc'],
+          sensorComponent<number>({
+            id: `pack_${i}_soc`,
+            name: `Pack ${i} State of Charge`,
+            device_class: 'battery',
+            unit_of_measurement: '%',
+            state_class: 'measurement',
+            enabled_by_default: false,
+          }),
+          { enabled: packEnabled },
+        );
+
+        field({ key: `state${i}`, path: ['packs', i - 1, 'state'], transform: number() });
+        advertise(
+          ['packs', i - 1, 'state'],
+          sensorComponent<number>({
+            id: `pack_${i}_state`,
+            name: `Pack ${i} State`,
+            icon: 'mdi:battery',
+            enabled_by_default: false,
+          }),
+          { enabled: packEnabled },
+        );
+
+        field({
+          key: `temp${i}`,
+          path: ['packs', i - 1, 'temperature'],
+          transform: scaleTemperatures ? divide(10) : number(),
+        });
+        advertise(
+          ['packs', i - 1, 'temperature'],
+          sensorComponent<number>({
+            id: `pack_${i}_temperature`,
+            name: `Pack ${i} Temperature`,
+            device_class: 'temperature',
+            unit_of_measurement: '°C',
+            state_class: 'measurement',
+            enabled_by_default: false,
+          }),
+          { enabled: packEnabled },
+        );
+      }
+    },
+  );
+}
+
+// The cd=26 response reports the device's network configuration. Its
+// non-standard colon-delimited format is normalized into ip/gate/mask/dns/
+// ct_connect_ip keys by the message parser before it reaches these fields.
+function isVenusNetworkInfoMessage(values: Record<string, string>): boolean {
+  return 'ip' in values && 'gate' in values && 'ct_connect_ip' in values;
+}
+
+function registerNetworkInfoMessage(message: BuildMessageFn) {
+  message<VenusNetworkInfo>(
+    {
+      refreshDataPayload: `cd=${CommandType.GET_NETWORK_INFO}`,
+      isMessage: isVenusNetworkInfoMessage,
+      publishPath: 'network',
+      defaultState: {},
+      getAdditionalDeviceInfo: () => ({}),
+      // Network configuration changes rarely, so poll it infrequently.
+      pollInterval: Math.max(globalPollInterval, 300000),
+      controlsDeviceAvailability: false,
+    },
+    ({ field, advertise }) => {
+      const networkFields = [
+        ['ip', 'ipAddress', 'IP Address', 'mdi:ip-network'],
+        ['gate', 'gateway', 'Gateway', 'mdi:router-network'],
+        ['mask', 'subnetMask', 'Subnet Mask', 'mdi:ip-network-outline'],
+        ['dns', 'dns', 'DNS Server', 'mdi:dns'],
+        ['ct_connect_ip', 'ctConnectIp', 'CT Connect IP', 'mdi:current-ac'],
+      ] as const;
+
+      for (const [key, path, name, icon] of networkFields) {
+        field({ key, path: [path], transform: identity() });
+        advertise(
+          [path],
+          sensorComponent<string>({
+            id: `network_${path.replace(/([A-Z])/g, '_$1').toLowerCase()}`,
+            name,
+            icon,
+            enabled_by_default: key === 'ip',
+          }),
+          { enabled: state => (state[path] != null ? true : undefined) },
         );
       }
     },

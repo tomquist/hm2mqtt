@@ -621,6 +621,11 @@ homeassistant/{component}/{node_id}/{object_id}/config
 - `get-ct-power`: Gets current transformer power readings
 - `transaction-mode`: Sets transaction mode parameters
 - `discharge-depth`: Sets the battery depth of discharge (30-88%). Only available on devices that report it.
+- `backup-enabled`: Toggles the backup/EPS ("UPS") power function (`on` or `off`)
+- `led-enabled`: Toggles the status LED (`on` or `off`). Only available on firmware that reports the LED state.
+- `surplus-feed-in`: Toggles surplus feed-in into the grid (`on` or `off`). Only available on Venus models with PV inputs (Venus A/D).
+- `bluetooth-advertising`: Toggles Bluetooth advertising (`on` or `off`). Disabled by default.
+- `phase-diagnosis`: Starts the grid-phase detection routine
 
 ### Jupiter Device Commands
 

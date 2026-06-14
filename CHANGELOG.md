@@ -6,6 +6,14 @@
 
 - Venus & Jupiter: Add support for the *AI* working mode (`wor_m=5`). It is now decoded as a working mode value and can be selected via the *Working Mode* entity.
 - Venus & Jupiter: Add a *Meter Type* select and *Meter MAC* text entity to configure the external meter (CT001, Shelly Pro 3EM, CT002, CT003, Shelly EM Gen3, Shelly Pro EM50) via `cd=18,meter=…,mac=…`. CT002/CT003 and the Shelly EM Gen3/Pro EM50 require the MAC to be set first; Shelly Pro 3EM uses a fixed all-zero MAC. Both entities are disabled by default.
+- Venus: Add a *Backup Power* switch to toggle the backup/EPS ("UPS") function (`cd=11`, reported as `bac_u`).
+- Venus: Add a *Status LED* switch (`cd=59`, reported as `led`) on firmware that reports the LED state.
+- Venus: Add a *Surplus Feed-in* switch (`cd=43`) on models with PV inputs (Venus A/D). The device does not report the state back, so it is tracked optimistically.
+- Venus: Add a *Bluetooth Advertising* switch (`cd=55`). Disabled by default because the polarity is not fully confirmed; tracked optimistically.
+- Venus: Add a *Phase Diagnosis* button (`cd=18,seq_check`) plus a *Phase Diagnosis Status* sensor (`seq_s`).
+- Venus: Expose *Inverter Version* (`inv_v`) and *MPPT Version* (`mppt`) sensors on firmware that reports them.
+- Venus: Add *Network* sensors (IP Address, Gateway, Subnet Mask, DNS Server, CT Connect IP) parsed from the `cd=26` response. Only the IP Address is enabled by default.
+- Venus: Add per-pack BMS sensors (per-pack State of Charge, State and Temperature, plus Pack Charge/Discharge Power) parsed from the `cd=42` response. Like the detailed BMS data, these are only polled when `POLL_CELL_DATA=true` and are disabled by default.
 
 ### Changed
 

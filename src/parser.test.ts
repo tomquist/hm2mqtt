@@ -5,7 +5,9 @@ import {
   JupiterBMSInfo,
   JupiterDeviceData,
   VenusBMSInfo,
+  VenusBMSPackInfo,
   VenusDeviceData,
+  VenusNetworkInfo,
 } from './types';
 
 describe('MQTT Message Parser', () => {
@@ -764,6 +766,51 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('bmsVersion', 116);
     expect(result).toHaveProperty('communicationModuleVersion', '202409090159');
     expect(result).toHaveProperty('shellyPort', 1010);
+  });
+
+  test('parses Venus v147 LED, backup, inverter/MPPT version and phase-diagnosis fields', () => {
+    // Real Venus D v147 dump including the newer led/inv_v/mppt/seq_s fields.
+    const message =
+      'cd=1,tot_i=6,tot_o=1109,ele_d=0,ele_m=0,grd_d=27,grd_m=27,inc_d=0,inc_m=0,grd_f=0,grd_o=801,grd_t=3,gct_s=1,cel_s=2,cel_p=233,cel_c=45,err_t=800,err_a=4,dev_n=147,grd_y=0,wor_m=5,tim_0=0|0|23|59|127|250|0,cts_m=0,bac_u=0,tra_a=74,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=3,wif_s=72,inc_a=0,set_v=1,mcp_w=2200,mdp_w=800,ct_t=3,phase_t=1,dchrg_t=0,bms_v=116,fc_v=202409090159,wifi_n=unten,seq_s=3,ctrl_r=0,par=0,gen=0,ble=3,shelly_p=1010,c_ratio=100,udp=0,api=0,net=0,port=30000,inv_v=115,id=2|0|0|0|0,lk=0,bp=291,ei=0,eb=0,rp=347,gp=801,vp=801,bl=1,dod=88,bl_p=-1,led=1,as=3,mppt=104,pv1=2584|1,pv2=2638|1,pv3=3180|1,pv4=3080|1,pack=2|3|2|0,pv=24|24,fu=0|0,em=0';
+    const parsed = parseMessage(message, 'VNSD-0', 'venusD123');
+
+    expect(parsed).toHaveProperty('data');
+    const result = parsed['data'] as VenusDeviceData;
+    expect(result).toHaveProperty('ledEnabled', true);
+    expect(result).toHaveProperty('backupEnabled', false);
+    expect(result).toHaveProperty('inverterVersion', 115);
+    expect(result).toHaveProperty('mpptVersion', 104);
+    expect(result).toHaveProperty('phaseDiagnosisStatus', 3);
+  });
+
+  test('parses Venus cd=42 per-pack BMS details', () => {
+    // Real Venus D v147 response to cd=42,bms_idx=255 (two packs present).
+    const message =
+      'cd=42, BMS: num=2,mask=3,idx=2,charge_pow=2643,discharge_pow=2643,soc1=424,state1=0,temp1=278,soc2=482,state2=2,temp2=254,soc3=0,state3=0,temp3=0,soc4=0,state4=0,temp4=0,soc5=0,state5=0,temp5=0,soc6=0,state6=0,temp6=0';
+    const parsed = parseMessage(message, 'VNSD-0', 'venusD123');
+
+    expect(parsed).toHaveProperty('bmsPacks');
+    const result = parsed['bmsPacks'] as VenusBMSPackInfo;
+    expect(result).toHaveProperty('packMask', 3);
+    expect(result).toHaveProperty('chargePower', 2643);
+    expect(result).toHaveProperty('dischargePower', 2643);
+    // SoC and temperature are reported in 0.1 units; VNSD scales temperatures by 10.
+    expect(result.packs?.[0]).toEqual({ soc: 42.4, state: 0, temperature: 27.8 });
+    expect(result.packs?.[1]).toEqual({ soc: 48.2, state: 2, temperature: 25.4 });
+  });
+
+  test('parses Venus cd=26 network info (colon-delimited format)', () => {
+    const message =
+      'cd=26,dev_net_info:ip:192.168.178.134,gate:192.168.178.1,mask:255.255.255.0,dns:192.168.178.1,ct_connect_ip:192.168.178.255';
+    const parsed = parseMessage(message, 'VNSD-0', 'venusD123');
+
+    expect(parsed).toHaveProperty('network');
+    const result = parsed['network'] as VenusNetworkInfo;
+    expect(result).toHaveProperty('ipAddress', '192.168.178.134');
+    expect(result).toHaveProperty('gateway', '192.168.178.1');
+    expect(result).toHaveProperty('subnetMask', '255.255.255.0');
+    expect(result).toHaveProperty('dns', '192.168.178.1');
+    expect(result).toHaveProperty('ctConnectIp', '192.168.178.255');
   });
 
   test('scales Venus A (VNSA) BMS voltages and temperatures (issue #218)', () => {
