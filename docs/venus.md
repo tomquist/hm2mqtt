@@ -44,6 +44,34 @@
     2. [Receive](#162-receive)
 17. [Set depth of discharge](#17-set-depth-of-discharge)
     1. [Public](#171-public)
+18. [Enable surplus feed-in](#18-enable-surplus-feed-in)
+    1. [Public](#181-public)
+    2. [Receive](#182-receive)
+19. [Configure the local API](#19-configure-the-local-api)
+    1. [Public](#191-public)
+20. [Start phase diagnosis](#20-start-phase-diagnosis)
+    1. [Public](#201-public)
+21. [Pre-update check](#21-pre-update-check)
+    1. [Public](#211-public)
+    2. [Receive](#212-receive)
+22. [Start an OTA update](#22-start-an-ota-update)
+    1. [Public](#221-public)
+    2. [Receive](#222-receive)
+23. [Read network information](#23-read-network-information)
+    1. [Public](#231-public)
+    2. [Receive](#232-receive)
+24. [Read BMS pack details](#24-read-bms-pack-details)
+    1. [Public](#241-public)
+    2. [Receive](#242-receive)
+25. [Read power history](#25-read-power-history)
+    1. [Public](#251-public)
+    2. [Receive](#252-receive)
+26. [Enable/disable the status LED](#26-enabledisable-the-status-led)
+    1. [Public](#261-public)
+    2. [Receive](#262-receive)
+27. [Configure Bluetooth advertising](#27-configure-bluetooth-advertising)
+    1. [Public](#271-public)
+    2. [Receive](#272-receive)
 
 ## 1 MQTT Core Concepts
 
@@ -127,7 +155,7 @@ Description of the above parameters:
 | err_a | Error code (warning code) |
 | dev_n | Device version number |
 | grd_y | Grid type (0: Adaptive (220-240) (50-60hz) AUTO; 1: EN50549 EN50549; 2: Netherlands; 3: Germany; 4: Austria; 5: United Kingdom; 6: Spain; 7: Poland; 8: Italy; 9: China) |
-| wor_m | Working mode (0: Automatic; 1: Manual operation; 2: Trading) |
+| wor_m | Working mode (0: Automatic; 1: Manual operation; 2: Trading; 5: AI) |
 | tim_0 | Start time (hour \| minute) \| End time (hour \| minute) \| Cycle \| Power \| Enable |
 | tim_1 | ditto |
 | tim_2 | ditto |
@@ -164,6 +192,41 @@ Description of the above parameters:
 | pv3 | PV input 3 power (0.1W) \| connection status (only reported by Venus models with PV inputs) |
 | pv4 | PV input 4 power (0.1W) \| connection status (only reported by Venus models with PV inputs) |
 
+The following additional fields have been observed on newer firmware (e.g.
+Venus D control firmware v147). Meanings marked *(unconfirmed)* are educated
+guesses based on context and cross-referencing other commands:
+
+| Key | Description |
+|-----|-------------|
+| seq_s | Phase-diagnosis status *(unconfirmed)* — changes after running `cd=18,seq_check` |
+| ctrl_r | *(unconfirmed)* |
+| par | Parallel-operation flag *(unconfirmed)* |
+| gen | Generator flag *(unconfirmed)* |
+| ble | Bluetooth state *(unconfirmed)* (see `cd=55`) |
+| c_ratio | CT ratio (%) *(unconfirmed)* |
+| udp | UDP enabled *(unconfirmed)* |
+| api | Local API enabled (0: disabled; 1: enabled) (see `cd=30`) |
+| net | *(unconfirmed)* |
+| port | Local API port (see `cd=30`) |
+| inv_v | Inverter / micro module version number (matches the `micro` OTA image version) |
+| id | *(unconfirmed)*, pipe-separated list |
+| lk | Lock flag *(unconfirmed)* |
+| bp | Battery power (W) *(unconfirmed)* |
+| ei | *(unconfirmed)* |
+| eb | *(unconfirmed)* |
+| rp | *(unconfirmed)* power (W) |
+| gp | Grid power (W) *(unconfirmed)* |
+| vp | *(unconfirmed)* power (W) |
+| bl | *(unconfirmed)* |
+| bl_p | *(unconfirmed)* |
+| led | Status LED state (0: off; 1: on) (see `cd=59`) |
+| as | *(unconfirmed)* |
+| mppt | MPPT module version number *(unconfirmed)* |
+| pack | Battery pack summary `num\|mask\|idx\|?` — matches the `cd=42` BMS response (number of packs \| present-pack bitmask \| index) |
+| pv | Total PV power `value\|value` (0.1W) *(unconfirmed)* |
+| fu | *(unconfirmed)*, pipe-separated |
+| em | *(unconfirmed)* |
+
 ## 4 Set working status
 
 ### 4.1 Public
@@ -177,6 +240,7 @@ Payload:
 1. `cd=2,md=0` - Automatic mode
 2. `cd=2,md=1` - Manual mode
 3. `cd=2,md=2` - Trading mode
+4. `cd=2,md=5,nl=1` - AI mode (the `nl=1` flag is required to enable AI mode)
 
 ## 5 Set automatic discharge time period
 
@@ -197,7 +261,7 @@ Description of the above parameters:
 | Key | Description |
 |-----|-------------|
 | cd | Instruction identification |
-| md | Working mode (0: Automatic; 1: Manual operation; 2: Trading) |
+| md | Working mode (0: Automatic; 1: Manual operation; 2: Trading; 5: AI) |
 | nm | [0-9] |
 | bt | Start Time |
 | et | End Time |
@@ -224,7 +288,7 @@ Description of the above parameters:
 | Key | Description |
 |-----|-------------|
 | cd | Instruction identification |
-| md | Working mode (0: Automatic; 1: Manual operation; 2: Trading) |
+| md | Working mode (0: Automatic; 1: Manual operation; 2: Trading; 5: AI) |
 | id | Region code |
 | in | Electricity price during charging |
 | on | Electricity price during discharge |
@@ -253,6 +317,18 @@ Description of the above parameters:
 | rr | Day [1,31] |
 | hh | Hour [0,23] |
 | mn | Minute [0,59] |
+
+### 7.2 Receive
+
+The device echoes the time it applied, e.g.:
+
+```
+cd=4,2026-5-14 16:55:0
+```
+
+Note that the month is echoed as the raw value that was sent, i.e. it is
+0-indexed (`mm=5` is June and is echoed back as `5`). The time is the device's
+configured local time.
 
 ## 8 Restore factory settings
 
@@ -292,6 +368,10 @@ hame_energy/{type}/App/{uid or mac}/ctrl
 Payload:
 1. `cd=11,bc=0` - Disable the back up function
 2. `cd=11,bc=1` - Enable the back up function
+
+This is the same setting exposed in the Marstek app as "UPS mode" / the backup
+power supply toggle (German: "Backup-Stromversorgung aktivieren"). The current
+state is reported as the `bac_u` field in the device information.
 
 ### 10.2 Receive
 
@@ -373,6 +453,19 @@ Payload:
 4. `cd=15,dchrg=0` - single-phase
 5. `cd=15,dchrg=1` - three-phase
 
+Newer firmware uses `cd=18` for the same purpose. Set the recharge phase with
+`cd=18,dchrg=0` (single-phase) or `cd=18,dchrg=1` (three-phase), and set the
+external meter type with `cd=18,meter=<code>,mac=<mac>`:
+
+| meter code | Meter type | MAC |
+| --- | --- | --- |
+| 0 | CT001 | not required (`000000000000`) |
+| 1 | Shelly Pro 3EM | fixed `000000000000` |
+| 3 | CT002 | required |
+| 4 | CT003 | required |
+| 5 | Shelly EM Gen3 | required |
+| 6 | Shelly Pro EM50 | required |
+
 ## 15 Obtain CT power
 
 ### 15.1 Public
@@ -441,4 +534,359 @@ Description of the above parameters:
 | cd | Instruction identification |
 | dod | Depth of discharge (%) (configurable 30-88% in the Marstek app; the maximum of 88% is encoded as 0) |
 
+This command does not produce a response. On newer firmware (e.g. Venus D
+v147) the value is reported back as-is, e.g. `cd=56,dod=84` sets the depth of
+discharge to 84%.
+
 The current depth of discharge is reported as the `dod` field in the device information (see [Read device information](#3-read-device-information)).
+
+## 18 Enable surplus feed-in
+
+Enables/disables surplus feed-in (feeding excess PV power into the grid) on
+Venus A and Venus D.
+
+### 18.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+1. `cd=43,full_d=1` - Enable surplus feed-in
+2. `cd=43,full_d=0` - Disable surplus feed-in
+
+### 18.2 Receive
+
+You will receive a message echoing the resulting state:
+1. `cd=43,ret=1` - Surplus feed-in is now enabled
+2. `cd=43,ret=0` - Surplus feed-in is now disabled
+
+> Note: unlike most other commands (where `ret=1` means "success" and `ret=0`
+> means "failure"), here `ret` echoes the new state of the setting.
+
+## 19 Configure the local API
+
+Enables/disables the device's local API (used by tools such as the Marstek
+local Modbus/UDP integrations) and configures its port.
+
+### 19.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+1. `cd=30,api=1,port=30000` - Enable the local API on the given port
+2. `cd=30,api=0,port=30000` - Disable the local API
+
+Description of the above parameters:
+
+| Key | Description |
+|-----|-------------|
+| cd | Instruction identification |
+| api | Local API enabled (0: disabled; 1: enabled) |
+| port | Local API port (e.g. 30000) |
+
+The current local API state and port are reported as the `api` and `port`
+fields in the device information.
+
+> Note: this command does not produce a response.
+
+## 20 Start phase diagnosis
+
+Triggers the phase-detection ("Phase Diagnose") routine, which determines which
+grid phase the device is connected to (reported as `phase_t`). This behaves like
+a button: it has no parameters and produces no response.
+
+### 20.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+```
+cd=18,seq_check
+```
+
+> Note: `cd=18` is also used to set the meter type and recharge phase (see
+> [Set the meter type and supplementary power type](#14-set-the-meter-type-and-supplementary-power-type)). The `seq_check` sub-command starts phase diagnosis instead.
+
+## 21 Pre-update check
+
+Observed on a Venus D when pressing the firmware "update" button, before
+confirming the update dialog. It appears to be a pre-check that reports whether
+an update can be performed.
+
+### 21.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+```
+cd=51
+```
+
+### 21.2 Receive
+
+Example response observed on a Venus D:
+```
+cd=51,state=0,way=0,net=1,type=0,mod=1,cnt=0
+```
+
+The exact meaning of the fields has not been confirmed. Based on the context
+(an OTA pre-check) the following is an educated guess and should be treated as
+**speculative**:
+
+| Key | Likely meaning (unconfirmed) |
+|-----|-------------|
+| state | Update/check state (0: idle/ready) |
+| way | Update method/channel |
+| net | Network reachability for OTA (1: online/reachable) |
+| type | Update or device type |
+| mod | Module to update / module flag |
+| cnt | Counter (e.g. retries or available updates; 0 observed) |
+
+## 22 Start an OTA update
+
+Triggers a firmware OTA update over MQTT. This is a two-step sequence: first
+push the image metadata for each module with `cd=53`, then start the actual
+update with `cd=54`.
+
+### 22.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+**Step 1 — push image metadata (`cd=53`):**
+
+```
+cd=53,num=2,type2=VNSD,mod2=2,size2=372736,crc2=42516,ver2=147,len2=<url length>,url2=<control image URL>,type1=VNSD,mod1=1,size1=115712,crc1=9636,ver1=115,len1=<url length>,url1=<micro image URL>
+```
+
+`num` is the number of images included; the remaining parameters are repeated
+per image with a 1-based index suffix (`type1`/`mod1`/... for image 1,
+`type2`/`mod2`/... for image 2, etc.):
+
+| Key | Description |
+|-----|-------------|
+| num | Number of images included |
+| type*N* | Device type prefix (e.g. `VNSD`) |
+| mod*N* | Target module (observed: `1` = micro/inverter, `2` = control/MCU) |
+| size*N* | Image size in bytes |
+| crc*N* | Image CRC checksum |
+| ver*N* | Firmware version contained in the image |
+| len*N* | Length of the URL string |
+| url*N* | Download URL of the firmware image |
+
+The image metadata matches the firmware OTA API (the `data.control` and
+`data.micro` objects map to the `mod=2` and `mod=1` images respectively):
+
+```json
+{
+  "code": 1,
+  "msg": "success",
+  "data": {
+    "control": {
+      "mcu_type": "control",
+      "type": "VNSD-0",
+      "url": "<control image URL>",
+      "version": 147,
+      "crc": "42516",
+      "size": 372736,
+      "force_update": "N"
+    },
+    "micro": {
+      "mcu_type": "micro",
+      "type": "VNSD-0",
+      "url": "<micro image URL>",
+      "version": 115,
+      "crc": "9636",
+      "size": 115712,
+      "force_update": "N"
+    }
+  }
+}
+```
+
+**Step 2 — start the update (`cd=54`):** send immediately after `cd=53`.
+
+```
+cd=54,start
+```
+
+### 22.2 Receive
+
+After `cd=53` the device acknowledges with the number of images accepted:
+```
+cd=53,ret=2
+```
+(`ret` matches the `num` value when all images are accepted.)
+
+After `cd=54` the device confirms the update has started:
+```
+cd=54,ret=1
+```
+1. `ret=0` - Failed to start
+2. `ret=1` - Update started
+
+> Warning: this initiates a real firmware flash. Use known-good image URLs,
+> CRCs and sizes (e.g. from the official OTA API) for the correct device type.
+
+## 23 Read network information
+
+Returns the device's current network configuration. Observed on Venus D v147.
+
+### 23.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+```
+cd=26
+```
+
+### 23.2 Receive
+
+```
+cd=26,dev_net_info:ip:192.168.178.134,gate:192.168.178.1,mask:255.255.255.0,dns:192.168.178.1,ct_connect_ip:192.168.178.255
+```
+
+Note the unusual format: after `cd=26,` the payload is a `dev_net_info:`
+prefix followed by colon-separated `key:value` pairs (comma-separated).
+
+| Key | Description |
+|-----|-------------|
+| ip | Device IP address |
+| gate | Gateway address |
+| mask | Subnet mask |
+| dns | DNS server address |
+| ct_connect_ip | Address used to reach the CT/meter (a broadcast address in the example) |
+
+## 24 Read BMS pack details
+
+Returns per-pack details for the connected battery packs. Observed on Venus D
+v147.
+
+### 24.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+```
+cd=42,bms_idx=255
+```
+
+`bms_idx=255` appears to request all packs.
+
+### 24.2 Receive
+
+```
+cd=42, BMS: num=2,mask=3,idx=2,charge_pow=2643,discharge_pow=2643,soc1=424,state1=0,temp1=278,soc2=482,state2=2,temp2=254,soc3=0,state3=0,temp3=0,soc4=0,state4=0,temp4=0,soc5=0,state5=0,temp5=0,soc6=0,state6=0,temp6=0
+```
+
+| Key | Description |
+|-----|-------------|
+| num | Number of battery packs present |
+| mask | Bitmask of present packs (bit 0 = pack 1, bit 1 = pack 2, ...; `3` = packs 1 & 2) |
+| idx | *(unconfirmed)* pack index / count |
+| charge_pow | Allowed charge power (W) |
+| discharge_pow | Allowed discharge power (W) |
+| soc*N* | Pack *N* state of charge (0.1%; `424` = 42.4%) |
+| state*N* | Pack *N* working state *(unconfirmed: 0 = idle, 2 = charging, mirrors `cel_s`)* |
+| temp*N* | Pack *N* temperature (0.1 °C; `278` = 27.8 °C) |
+
+Fields are reported for up to 6 packs (`*1` … `*6`); unused packs report zeros.
+The `num`/`mask`/`idx` values match the `pack` field in the `cd=1` response.
+
+## 25 Read power history
+
+Returns recent power-curve samples. Observed on Venus D v147.
+
+### 25.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+```
+cd=29,num=15
+```
+
+`num` is the number of samples to return.
+
+### 25.2 Receive
+
+```
+cd=29,p1=[801,...],p2=[0,...],p3=[686,...],p4=[694,...],p5=[803,...],p6=[809,...],p7=[-502,...]
+```
+
+The response contains seven series (`p1` … `p7`), each an array of `num`
+values. The exact meaning of each series has **not been confirmed**; from
+context they appear to be a recent history of the various power readings (PV
+inputs, battery, grid and output power), with the most recent sample first.
+
+## 26 Enable/disable the status LED
+
+Turns the device's status LED on or off. Observed on Venus D v147.
+
+### 26.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+1. `cd=59,led=0` - Turn the LED off
+2. `cd=59,led=1` - Turn the LED on
+
+### 26.2 Receive
+
+The device echoes the resulting state:
+1. `cd=59,ret=0` - LED is now off
+2. `cd=59,ret=1` - LED is now on
+
+The current LED state is reported as the `led` field in the `cd=1` response.
+
+## 27 Configure Bluetooth advertising
+
+Enables or disables the device's Bluetooth (BLE) advertising. When advertising
+is disabled the device is no longer discoverable over Bluetooth (a "Bluetooth
+lock"). Observed on Venus D v147.
+
+### 27.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+1. `cd=55,adv=1` - Enable Bluetooth advertising (discoverable)
+2. `cd=55,adv=0` - Disable Bluetooth advertising (lock)
+
+### 27.2 Receive
+
+The device echoes the resulting state:
+1. `cd=55,ret=1` - Advertising enabled (discoverable; Bluetooth lock off)
+2. `cd=55,ret=0` - Advertising disabled (Bluetooth lock on)
+
+The related Bluetooth state is also reflected in the `ble` field of the `cd=1`
+response.

@@ -264,7 +264,7 @@ export type VenusCTStatus = 'notConnected' | 'connected' | 'weakSignal';
  */
 export type VenusBatteryWorkingStatus = 'notWorking' | 'charging' | 'discharging' | 'unknown';
 
-const validVenusWorkingModes = ['automatic', 'manual', 'trading'] as const;
+const validVenusWorkingModes = ['automatic', 'manual', 'trading', 'ai'] as const;
 /**
  * Venus device working mode types
  */
@@ -302,7 +302,85 @@ export type VenusPhaseType = 'unknown' | 'phaseA' | 'phaseB' | 'phaseC' | 'notDe
 /**
  * Venus device recharge mode
  */
-export type VenusRechargeMode = 'singlePhase' | 'threePhase';
+const validVenusRechargeModes = ['singlePhase', 'threePhase'] as const;
+export type VenusRechargeMode = (typeof validVenusRechargeModes)[number];
+
+export function isValidVenusRechargeMode(mode: string): mode is VenusRechargeMode {
+  return validVenusRechargeModes.includes(mode as VenusRechargeMode);
+}
+
+/**
+ * External meter type that can be configured via the SET_METER_TYPE (cd=18) command.
+ * Shared by Venus and Jupiter. The numeric command code differs from the internal
+ * key and from the reported `ct_t` value, so it is kept in a dedicated map.
+ */
+const validMeterTypes = [
+  'ct001',
+  'shellyPro3em',
+  'ct002',
+  'ct003',
+  'shellyEmGen3',
+  'shellyProEm50',
+] as const;
+export type MeterType = (typeof validMeterTypes)[number];
+
+export function isValidMeterType(type: string): type is MeterType {
+  return validMeterTypes.includes(type as MeterType);
+}
+
+/**
+ * Maps a meter type to the numeric `meter` value sent with the cd=18 command.
+ */
+export const meterTypeCommandCodes: Record<MeterType, number> = {
+  ct001: 0,
+  shellyPro3em: 1,
+  ct002: 3,
+  ct003: 4,
+  shellyEmGen3: 5,
+  shellyProEm50: 6,
+};
+
+/**
+ * Human-readable labels for each meter type, used for Home Assistant discovery.
+ */
+export const meterTypeLabels: Record<MeterType, string> = {
+  ct001: 'CT001',
+  shellyPro3em: 'Shelly Pro 3EM',
+  ct002: 'CT002',
+  ct003: 'CT003',
+  shellyEmGen3: 'Shelly EM Gen3',
+  shellyProEm50: 'Shelly Pro EM50',
+};
+
+/**
+ * Normalize a user-supplied MAC address to the 12 lowercase hex digits expected
+ * by the cd=18 command (separators such as ':' or '-' are stripped). Returns
+ * null when the input is not a valid MAC.
+ */
+export function normalizeMeterMac(input: string): string | null {
+  const cleaned = input.replace(/[\s:.-]/g, '').toLowerCase();
+  return /^[0-9a-f]{12}$/.test(cleaned) ? cleaned : null;
+}
+
+/**
+ * Determine the MAC to send for a given meter type, applying the special rules:
+ * - Shelly Pro 3EM always uses the fixed all-zero MAC.
+ * - The built-in CT001 does not need a MAC and falls back to all-zeros.
+ * - CT002/CT003/Shelly EM Gen3/Shelly Pro EM50 require an explicit MAC; when none
+ *   has been configured this returns null so the caller can abort.
+ */
+export function resolveMeterMac(meterType: MeterType, configuredMac?: string): string | null {
+  if (meterType === 'shellyPro3em') {
+    return '000000000000';
+  }
+  if (configuredMac) {
+    return configuredMac;
+  }
+  if (meterType === 'ct001') {
+    return '000000000000';
+  }
+  return null;
+}
 
 export type WeekdaySet = `${0 | ''}${1 | ''}${2 | ''}${3 | ''}${4 | ''}${5 | ''}${6 | ''}`;
 
@@ -393,6 +471,8 @@ export interface VenusDeviceData extends BaseDeviceData {
   ctType?: VenusCTType;
   phaseType?: VenusPhaseType;
   rechargeMode?: VenusRechargeMode;
+  meterType?: MeterType; // last configured via cd=18
+  meterMac?: string; // MAC used when configuring the meter type
   bmsVersion?: number;
   communicationModuleVersion?: string;
   shellyPort?: number;
@@ -400,6 +480,12 @@ export interface VenusDeviceData extends BaseDeviceData {
   localApiEnabled?: boolean;
   localApiPort?: number;
   depthOfDischarge?: number; // dod
+  ledEnabled?: boolean; // led
+  surplusFeedInEnabled?: boolean; // set via cd=43 (no status field; tracked optimistically)
+  bluetoothAdvertisingEnabled?: boolean; // set via cd=55 (tracked optimistically)
+  phaseDiagnosisStatus?: number; // seq_s
+  inverterVersion?: number; // inv_v
+  mpptVersion?: number; // mppt
 }
 
 export interface VenusBMSInfo extends BaseDeviceData {
@@ -430,6 +516,31 @@ export interface VenusBMSInfo extends BaseDeviceData {
   };
 }
 
+/**
+ * Per-pack BMS details reported by the cd=42 response on newer Venus firmware.
+ */
+export interface VenusBMSPackInfo extends BaseDeviceData {
+  packMask?: number; // bitmask of present packs (bit 0 = pack 1, ...)
+  chargePower?: number; // allowed charge power (W)
+  dischargePower?: number; // allowed discharge power (W)
+  packs?: {
+    soc?: number; // state of charge (%)
+    state?: number; // working state (raw; meaning unconfirmed)
+    temperature?: number; // °C
+  }[];
+}
+
+/**
+ * Network configuration reported by the cd=26 response on newer Venus firmware.
+ */
+export interface VenusNetworkInfo extends BaseDeviceData {
+  ipAddress?: string;
+  gateway?: string;
+  subnetMask?: string;
+  dns?: string;
+  ctConnectIp?: string;
+}
+
 export interface JupiterTimePeriod {
   startTime: string;
   endTime: string;
@@ -440,11 +551,18 @@ export interface JupiterTimePeriod {
 
 export type JupiterBatteryWorkingStatus = 'keep' | 'charging' | 'discharging' | 'unknown';
 
-const validJupiterWorkingModes = ['automatic', 'manual'] as const;
+const validJupiterWorkingModes = ['automatic', 'manual', 'ai'] as const;
 export type JupiterWorkingMode = (typeof validJupiterWorkingModes)[number];
 
 export function isValidJupiterWorkingMode(mode: string): mode is JupiterWorkingMode {
   return validJupiterWorkingModes.includes(mode as JupiterWorkingMode);
+}
+
+const validJupiterRechargeModes = ['singlePhase', 'threePhase'] as const;
+export type JupiterRechargeMode = (typeof validJupiterRechargeModes)[number];
+
+export function isValidJupiterRechargeMode(mode: string): mode is JupiterRechargeMode {
+  return validJupiterRechargeModes.includes(mode as JupiterRechargeMode);
 }
 
 export interface JupiterDeviceData extends BaseDeviceData {
@@ -470,7 +588,9 @@ export interface JupiterDeviceData extends BaseDeviceData {
   wifiSignalStrength?: number; // wif_s
   ctType?: number; // ct_t
   phaseType?: number; // phase_t
-  rechargeMode?: number; // dchrg
+  rechargeMode?: JupiterRechargeMode; // dchrg
+  meterType?: MeterType; // last configured via cd=18
+  meterMac?: string; // MAC used when configuring the meter type
   wifiName?: string; // ssid
   deviceVersion?: number; // dev_n
   bmsVersion?: number; // dev_b

@@ -665,9 +665,111 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: 'cd=2,md=2',
   },
   {
+    description: 'Venus working-mode ai',
+    deviceType: 'HMG-1',
+    command: 'working-mode',
+    input: 'ai',
+    expectedOutput: 'cd=2,md=5,nl=1',
+  },
+  {
     description: 'Venus working-mode invalid',
     deviceType: 'HMG-1',
     command: 'working-mode',
+    input: 'invalid',
+    expectedOutput: null,
+  },
+
+  // recharge-mode command (single-/three-phase)
+  {
+    description: 'Venus recharge-mode single phase',
+    deviceType: 'HMG-1',
+    command: 'recharge-mode',
+    input: 'singlePhase',
+    expectedOutput: 'cd=18,dchrg=0',
+  },
+  {
+    description: 'Venus recharge-mode three phase',
+    deviceType: 'HMG-1',
+    command: 'recharge-mode',
+    input: 'threePhase',
+    expectedOutput: 'cd=18,dchrg=1',
+  },
+  {
+    description: 'Venus recharge-mode invalid',
+    deviceType: 'HMG-1',
+    command: 'recharge-mode',
+    input: 'invalid',
+    expectedOutput: null,
+  },
+
+  // meter-mac + meter-type commands
+  {
+    description: 'Venus meter-mac normalizes separators and case',
+    deviceType: 'HMG-1',
+    command: 'meter-mac',
+    input: 'AA:BB:CC:DD:EE:FF',
+    expectedOutput: null,
+    expectedStateChanges: { meterMac: 'aabbccddeeff' },
+  },
+  {
+    description: 'Venus meter-mac re-applies configured meter type with new MAC',
+    deviceType: 'HMG-1',
+    initialState: { meterType: 'ct002' },
+    command: 'meter-mac',
+    input: 'aabbccddeeff',
+    expectedOutput: 'cd=18,meter=3,mac=aabbccddeeff',
+    expectedStateChanges: { meterMac: 'aabbccddeeff' },
+  },
+  {
+    description: 'Venus meter-mac invalid',
+    deviceType: 'HMG-1',
+    command: 'meter-mac',
+    input: 'not-a-mac',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus meter-type CT002 with configured MAC',
+    deviceType: 'HMG-1',
+    initialState: { meterMac: 'aabbccddeeff' },
+    command: 'meter-type',
+    input: 'ct002',
+    expectedOutput: 'cd=18,meter=3,mac=aabbccddeeff',
+    expectedStateChanges: { meterType: 'ct002' },
+  },
+  {
+    description: 'Venus meter-type CT003 with configured MAC',
+    deviceType: 'HMG-1',
+    initialState: { meterMac: '112233445566' },
+    command: 'meter-type',
+    input: 'ct003',
+    expectedOutput: 'cd=18,meter=4,mac=112233445566',
+  },
+  {
+    description: 'Venus meter-type Shelly Pro 3EM forces all-zero MAC',
+    deviceType: 'HMG-1',
+    initialState: { meterMac: 'aabbccddeeff' },
+    command: 'meter-type',
+    input: 'shellyPro3em',
+    expectedOutput: 'cd=18,meter=1,mac=000000000000',
+  },
+  {
+    description: 'Venus meter-type CT001 without MAC uses all-zero MAC',
+    deviceType: 'HMG-1',
+    command: 'meter-type',
+    input: 'ct001',
+    expectedOutput: 'cd=18,meter=0,mac=000000000000',
+  },
+  {
+    description: 'Venus meter-type CT002 without MAC is rejected',
+    deviceType: 'HMG-1',
+    command: 'meter-type',
+    input: 'ct002',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus meter-type invalid',
+    deviceType: 'HMG-1',
+    command: 'meter-type',
     input: 'invalid',
     expectedOutput: null,
   },
@@ -892,6 +994,79 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: 'cd=19',
   },
 
+  // backup-enabled command (cd=11)
+  {
+    description: 'Venus backup-enabled enable',
+    deviceType: 'HMG-1',
+    command: 'backup-enabled',
+    input: 'true',
+    expectedOutput: 'cd=11,bc=1',
+  },
+  {
+    description: 'Venus backup-enabled disable',
+    deviceType: 'HMG-1',
+    command: 'backup-enabled',
+    input: 'false',
+    expectedOutput: 'cd=11,bc=0',
+  },
+
+  // led-enabled command (cd=59)
+  {
+    description: 'Venus led-enabled enable',
+    deviceType: 'HMG-1',
+    command: 'led-enabled',
+    input: 'true',
+    expectedOutput: 'cd=59,led=1',
+  },
+  {
+    description: 'Venus led-enabled disable',
+    deviceType: 'HMG-1',
+    command: 'led-enabled',
+    input: 'false',
+    expectedOutput: 'cd=59,led=0',
+  },
+
+  // surplus-feed-in command (cd=43)
+  {
+    description: 'Venus surplus-feed-in enable',
+    deviceType: 'HMG-1',
+    command: 'surplus-feed-in',
+    input: 'true',
+    expectedOutput: 'cd=43,full_d=1',
+  },
+  {
+    description: 'Venus surplus-feed-in disable',
+    deviceType: 'HMG-1',
+    command: 'surplus-feed-in',
+    input: 'false',
+    expectedOutput: 'cd=43,full_d=0',
+  },
+
+  // bluetooth-advertising command (cd=55)
+  {
+    description: 'Venus bluetooth-advertising enable',
+    deviceType: 'HMG-1',
+    command: 'bluetooth-advertising',
+    input: 'true',
+    expectedOutput: 'cd=55,adv=1',
+  },
+  {
+    description: 'Venus bluetooth-advertising disable',
+    deviceType: 'HMG-1',
+    command: 'bluetooth-advertising',
+    input: 'false',
+    expectedOutput: 'cd=55,adv=0',
+  },
+
+  // phase-diagnosis command (cd=18,seq_check)
+  {
+    description: 'Venus phase-diagnosis with PRESS',
+    deviceType: 'HMG-1',
+    command: 'phase-diagnosis',
+    input: 'PRESS',
+    expectedOutput: 'cd=18,seq_check',
+  },
+
   // Venus time-period commands
   {
     description: 'Venus time-period/0/enabled true',
@@ -974,11 +1149,67 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: 'cd=2,md=2',
   },
   {
+    description: 'Jupiter working-mode ai',
+    deviceType: 'HMN-1',
+    command: 'working-mode',
+    input: 'ai',
+    expectedOutput: 'cd=2,md=5,nl=1',
+  },
+  {
     description: 'Jupiter working-mode invalid',
     deviceType: 'HMN-1',
     command: 'working-mode',
     input: 'trading', // Not valid for Jupiter
     expectedOutput: null,
+  },
+
+  // recharge-mode command (single-/three-phase)
+  {
+    description: 'Jupiter recharge-mode single phase',
+    deviceType: 'HMN-1',
+    command: 'recharge-mode',
+    input: 'singlePhase',
+    expectedOutput: 'cd=18,dchrg=0',
+  },
+  {
+    description: 'Jupiter recharge-mode three phase',
+    deviceType: 'HMN-1',
+    command: 'recharge-mode',
+    input: 'threePhase',
+    expectedOutput: 'cd=18,dchrg=1',
+  },
+  {
+    description: 'Jupiter meter-type CT002 with configured MAC',
+    deviceType: 'HMN-1',
+    initialState: { meterMac: 'aabbccddeeff' },
+    command: 'meter-type',
+    input: 'ct002',
+    expectedOutput: 'cd=18,meter=3,mac=aabbccddeeff',
+    expectedStateChanges: { meterType: 'ct002' },
+  },
+  {
+    description: 'Jupiter meter-type Shelly Pro 3EM forces all-zero MAC',
+    deviceType: 'HMN-1',
+    command: 'meter-type',
+    input: 'shellyPro3em',
+    expectedOutput: 'cd=18,meter=1,mac=000000000000',
+  },
+  {
+    description: 'Jupiter meter-mac re-applies configured meter type with new MAC',
+    deviceType: 'HMN-1',
+    initialState: { meterType: 'ct003' },
+    command: 'meter-mac',
+    input: 'aabbccddeeff',
+    expectedOutput: 'cd=18,meter=4,mac=aabbccddeeff',
+    expectedStateChanges: { meterMac: 'aabbccddeeff' },
+  },
+  {
+    description: 'Jupiter meter-mac without configured meter type does not publish',
+    deviceType: 'HMN-1',
+    command: 'meter-mac',
+    input: 'aabbccddeeff',
+    expectedOutput: null,
+    expectedStateChanges: { meterMac: 'aabbccddeeff' },
   },
 
   // surplus-feed-in command
@@ -1078,6 +1309,19 @@ const commandTestCases: CommandTestCase[] = [
     command: 'time-period/0/enabled',
     input: 'true',
     expectedOutput: 'cd=3,md=2,nm=0,bt=8:00,et=20:00,wk=127,vv=500,as=1',
+  },
+  {
+    description: 'Jupiter time-period/0/enabled true (ai mode preserves md=5)',
+    deviceType: 'HMN-1',
+    initialState: {
+      workingMode: 'ai',
+      timePeriods: [
+        { enabled: false, startTime: '8:00', endTime: '20:00', weekday: '0123456', power: 500 },
+      ],
+    },
+    command: 'time-period/0/enabled',
+    input: 'true',
+    expectedOutput: 'cd=3,md=5,nm=0,bt=8:00,et=20:00,wk=127,vv=500,as=1',
   },
   {
     description: 'Jupiter time-period/0/power valid',
