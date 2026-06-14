@@ -783,6 +783,30 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('phaseDiagnosisStatus', 3);
   });
 
+  test('parses Venus surplus feed-in state from the fu field', () => {
+    const base =
+      'cd=1,tot_i=6,tot_o=1109,ele_d=0,ele_m=0,grd_d=27,grd_m=27,inc_d=0,inc_m=0,grd_f=0,grd_o=801,grd_t=3,gct_s=1,cel_s=2,cel_p=233,cel_c=45,err_t=800,err_a=4,dev_n=147,grd_y=0,wor_m=5,inc_a=0,pv1=2584|1,pv2=2638|1,pv3=3180|1,pv4=3080|1';
+
+    const off = parseMessage(`${base},fu=0|0,em=0`, 'VNSD-0', 'venusD123');
+    expect((off['data'] as VenusDeviceData).surplusFeedInEnabled).toBe(false);
+
+    const on = parseMessage(`${base},fu=1|0,em=0`, 'VNSD-0', 'venusD123');
+    expect((on['data'] as VenusDeviceData).surplusFeedInEnabled).toBe(true);
+  });
+
+  test('parses Venus Bluetooth advertising state from the ble field', () => {
+    const base =
+      'cd=1,tot_i=6,tot_o=1109,ele_d=0,ele_m=0,grd_d=27,grd_m=27,inc_d=0,inc_m=0,grd_f=0,grd_o=801,grd_t=3,gct_s=1,cel_s=2,cel_p=233,cel_c=45,err_t=800,err_a=4,dev_n=147,grd_y=0,wor_m=5,inc_a=0';
+
+    // ble=4 -> advertising enabled (Bluetooth lock off)
+    const on = parseMessage(`${base},ble=4`, 'VNSD-0', 'venusD123');
+    expect((on['data'] as VenusDeviceData).bluetoothAdvertisingEnabled).toBe(true);
+
+    // ble=1 -> advertising disabled (Bluetooth lock on)
+    const off = parseMessage(`${base},ble=1`, 'VNSD-0', 'venusD123');
+    expect((off['data'] as VenusDeviceData).bluetoothAdvertisingEnabled).toBe(false);
+  });
+
   test('parses Venus cd=42 per-pack BMS details', () => {
     // Real Venus D v147 response to cd=42,bms_idx=255 (two packs present).
     const message =

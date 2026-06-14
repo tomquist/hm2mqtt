@@ -202,7 +202,7 @@ guesses based on context and cross-referencing other commands:
 | ctrl_r | *(unconfirmed)* |
 | par | Parallel-operation flag *(unconfirmed)* |
 | gen | Generator flag *(unconfirmed)* |
-| ble | Bluetooth state *(unconfirmed)* (see `cd=55`) |
+| ble | Bluetooth state bitmask; bit 2 (value `4`) is set when advertising is enabled (Bluetooth lock off), `1` when the lock is enabled (see `cd=55`) |
 | c_ratio | CT ratio (%) *(unconfirmed)* |
 | udp | UDP enabled *(unconfirmed)* |
 | api | Local API enabled (0: disabled; 1: enabled) (see `cd=30`) |
@@ -224,7 +224,7 @@ guesses based on context and cross-referencing other commands:
 | mppt | MPPT module version number *(unconfirmed)* |
 | pack | Battery pack summary `num\|mask\|idx\|?` — matches the `cd=42` BMS response (number of packs \| present-pack bitmask \| index) |
 | pv | Total PV power `value\|value` (0.1W) *(unconfirmed)* |
-| fu | *(unconfirmed)*, pipe-separated |
+| fu | Surplus feed-in state `enabled\|?` — first component is `1` when surplus feed-in is enabled, `0` when disabled (see `cd=43`) |
 | em | *(unconfirmed)* |
 
 ## 4 Set working status
@@ -565,6 +565,9 @@ You will receive a message echoing the resulting state:
 > Note: unlike most other commands (where `ret=1` means "success" and `ret=0`
 > means "failure"), here `ret` echoes the new state of the setting.
 
+The current surplus feed-in state is also reported in the first component of the
+`fu` field of the `cd=1` response (`fu=1|0` when enabled, `fu=0|0` when disabled).
+
 ## 19 Configure the local API
 
 Enables/disables the device's local API (used by tools such as the Marstek
@@ -888,5 +891,6 @@ The device echoes the resulting state:
 1. `cd=55,ret=1` - Advertising enabled (discoverable; Bluetooth lock off)
 2. `cd=55,ret=0` - Advertising disabled (Bluetooth lock on)
 
-The related Bluetooth state is also reflected in the `ble` field of the `cd=1`
-response.
+The current state is also reflected in the `ble` field of the `cd=1` response: it
+is a bitmask where bit 2 (value `4`) is set when advertising is enabled
+(Bluetooth lock off), and `1` when the lock is enabled.
