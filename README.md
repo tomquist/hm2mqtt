@@ -610,7 +610,7 @@ homeassistant/{component}/{node_id}/{object_id}/config
 ### Venus Device Commands
 - `working-mode`: Sets working mode (`automatic`, `manual`, `trading`, or `ai`)
 - `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`)
-- `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, separators optional)
+- `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped)
 - `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `ct002`, `ct003`, `shellyEmGen3`, or `shellyProEm50`). For CT002/CT003 and the Shelly EM Gen3/Pro EM50, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC.
 - `auto-switch-working-mode`: Toggles automatic mode switching (`on` or `off`)
 - `time-period/[0-9]/enabled`: Enables/disables time period (`on` or `off`)
@@ -636,7 +636,7 @@ The following commands are supported by both Jupiter C, Jupiter E and Jupiter Pl
 - `sync-time`: Synchronizes device time with server
 - `working-mode`: Sets working mode (`automatic`, `manual`, or `ai`)
 - `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`)
-- `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, separators optional)
+- `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped)
 - `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `ct002`, `ct003`, `shellyEmGen3`, or `shellyProEm50`). For CT002/CT003 and the Shelly EM Gen3/Pro EM50, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC.
 - `time-period/[0-4]/enabled`: Enables/disables time period (`on` or `off`)
 - `time-period/[0-4]/start-time`: Sets start time for period (HH:MM format)

@@ -662,7 +662,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Meter MAC',
         icon: 'mdi:identifier',
         command: 'meter-mac',
-        pattern: '^([0-9A-Fa-f]{2}[:-]?){5}[0-9A-Fa-f]{2}$',
+        // The device uses a plain 12 hex digit MAC without ':'/'-' separators.
+        pattern: '^[0-9A-Fa-f]{12}$',
         enabled_by_default: false,
       }),
     );
