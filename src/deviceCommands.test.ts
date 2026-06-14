@@ -665,6 +665,13 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: 'cd=2,md=2',
   },
   {
+    description: 'Venus working-mode ai',
+    deviceType: 'HMG-1',
+    command: 'working-mode',
+    input: 'ai',
+    expectedOutput: 'cd=2,md=5,nl=1',
+  },
+  {
     description: 'Venus working-mode invalid',
     deviceType: 'HMG-1',
     command: 'working-mode',
@@ -972,6 +979,13 @@ const commandTestCases: CommandTestCase[] = [
     command: 'working-mode',
     input: 'manual',
     expectedOutput: 'cd=2,md=2',
+  },
+  {
+    description: 'Jupiter working-mode ai',
+    deviceType: 'HMN-1',
+    command: 'working-mode',
+    input: 'ai',
+    expectedOutput: 'cd=2,md=5,nl=1',
   },
   {
     description: 'Jupiter working-mode invalid',

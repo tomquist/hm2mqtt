@@ -1416,7 +1416,12 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             mode = 0;
         }
 
-        publishCallback(processCommand(CommandType.SET_WORKING_MODE, { md: mode }));
+        const params: CommandParams = { md: mode };
+        // AI mode additionally requires the nl flag to be enabled
+        if (message === 'ai') {
+          params.nl = 1;
+        }
+        publishCallback(processCommand(CommandType.SET_WORKING_MODE, params));
       },
     });
 
