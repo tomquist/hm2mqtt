@@ -44,6 +44,16 @@
     2. [Receive](#162-receive)
 17. [Set depth of discharge](#17-set-depth-of-discharge)
     1. [Public](#171-public)
+18. [Enable surplus feed-in](#18-enable-surplus-feed-in)
+    1. [Public](#181-public)
+    2. [Receive](#182-receive)
+19. [Configure the local API](#19-configure-the-local-api)
+    1. [Public](#191-public)
+20. [Start phase diagnosis](#20-start-phase-diagnosis)
+    1. [Public](#201-public)
+21. [Pre-update check](#21-pre-update-check)
+    1. [Public](#211-public)
+    2. [Receive](#212-receive)
 
 ## 1 MQTT Core Concepts
 
@@ -254,6 +264,18 @@ Description of the above parameters:
 | hh | Hour [0,23] |
 | mn | Minute [0,59] |
 
+### 7.2 Receive
+
+The device echoes the time it applied, e.g.:
+
+```
+cd=4,2026-5-14 16:55:0
+```
+
+Note that the month is echoed as the raw value that was sent, i.e. it is
+0-indexed (`mm=5` is June and is echoed back as `5`). The time is the device's
+configured local time.
+
 ## 8 Restore factory settings
 
 ### 8.1 Public
@@ -292,6 +314,10 @@ hame_energy/{type}/App/{uid or mac}/ctrl
 Payload:
 1. `cd=11,bc=0` - Disable the back up function
 2. `cd=11,bc=1` - Enable the back up function
+
+This is the same setting exposed in the Marstek app as "UPS mode" / the backup
+power supply toggle (German: "Backup-Stromversorgung aktivieren"). The current
+state is reported as the `bac_u` field in the device information.
 
 ### 10.2 Receive
 
@@ -455,3 +481,116 @@ Description of the above parameters:
 | dod | Depth of discharge (%) (configurable 30-88% in the Marstek app; the maximum of 88% is encoded as 0) |
 
 The current depth of discharge is reported as the `dod` field in the device information (see [Read device information](#3-read-device-information)).
+
+## 18 Enable surplus feed-in
+
+Enables/disables surplus feed-in (feeding excess PV power into the grid) on
+Venus A and Venus D.
+
+### 18.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+1. `cd=43,full_d=1` - Enable surplus feed-in
+2. `cd=43,full_d=0` - Disable surplus feed-in
+
+### 18.2 Receive
+
+You will receive a message echoing the resulting state:
+1. `cd=43,ret=1` - Surplus feed-in is now enabled
+2. `cd=43,ret=0` - Surplus feed-in is now disabled
+
+> Note: unlike most other commands (where `ret=1` means "success" and `ret=0`
+> means "failure"), here `ret` echoes the new state of the setting.
+
+## 19 Configure the local API
+
+Enables/disables the device's local API (used by tools such as the Marstek
+local Modbus/UDP integrations) and configures its port.
+
+### 19.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+1. `cd=30,api=1,port=30000` - Enable the local API on the given port
+2. `cd=30,api=0,port=30000` - Disable the local API
+
+Description of the above parameters:
+
+| Key | Description |
+|-----|-------------|
+| cd | Instruction identification |
+| api | Local API enabled (0: disabled; 1: enabled) |
+| port | Local API port (e.g. 30000) |
+
+The current local API state and port are reported as the `api` and `port`
+fields in the device information.
+
+> Note: this command does not produce a response.
+
+## 20 Start phase diagnosis
+
+Triggers the phase-detection ("Phase Diagnose") routine, which determines which
+grid phase the device is connected to (reported as `phase_t`). This behaves like
+a button: it has no parameters and produces no response.
+
+### 20.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+```
+cd=18,seq_check
+```
+
+> Note: `cd=18` is also used to set the meter type and recharge phase (see
+> [Set the meter type and supplementary power type](#14-set-the-meter-type-and-supplementary-power-type)). The `seq_check` sub-command starts phase diagnosis instead.
+
+## 21 Pre-update check
+
+Observed on a Venus D when pressing the firmware "update" button, before
+confirming the update dialog. It appears to be a pre-check that reports whether
+an update can be performed.
+
+### 21.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+```
+cd=51
+```
+
+### 21.2 Receive
+
+Example response observed on a Venus D:
+```
+cd=51,state=0,way=0,net=1,type=0,mod=1,cnt=0
+```
+
+The exact meaning of the fields has not been confirmed. Based on the context
+(an OTA pre-check) the following is an educated guess and should be treated as
+**speculative**:
+
+| Key | Likely meaning (unconfirmed) |
+|-----|-------------|
+| state | Update/check state (0: idle/ready) |
+| way | Update method/channel |
+| net | Network reachability for OTA (1: online/reachable) |
+| type | Update or device type |
+| mod | Module to update / module flag |
+| cnt | Counter (e.g. retries or available updates; 0 observed) |
