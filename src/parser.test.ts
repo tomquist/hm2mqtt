@@ -747,6 +747,28 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('totalPvPower', 525);
   });
 
+  test('parses Venus PV energy from the pv field (today|total in Wh)', () => {
+    const message =
+      'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0,pv1=1076|1,pv=41|57';
+    const parsed = parseMessage(message, 'VNSA-0', 'venusA123');
+
+    const result = parsed['data'] as VenusDeviceData;
+    expect(result).toHaveProperty('pvEnergyToday', 41);
+    expect(result).toHaveProperty('pvEnergyTotal', 57);
+  });
+
+  test('reads Venus PV total from the last pv component (future-proofing)', () => {
+    // The total is read from the last component, so extra values inserted before
+    // it (e.g. monthly/yearly) do not break the mapping.
+    const message =
+      'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0,pv1=1076|1,pv=41|120|900|57';
+    const parsed = parseMessage(message, 'VNSA-0', 'venusA123');
+
+    const result = parsed['data'] as VenusDeviceData;
+    expect(result).toHaveProperty('pvEnergyToday', 41);
+    expect(result).toHaveProperty('pvEnergyTotal', 57);
+  });
+
   test('parses Venus metering, pricing and version fields', () => {
     // Full Venus D dump exercising the CT/phase/pricing/version sensors.
     const message =

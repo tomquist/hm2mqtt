@@ -46,6 +46,7 @@ export type Transform =
   | TimePeriodFieldTransform
   | MPPTPVFieldTransform
   | VenusPvFieldTransform
+  | PipeValueTransform
   | BitMaskToWeekdayTransform
   | ChainTransform;
 
@@ -177,6 +178,16 @@ export interface MPPTPVFieldTransform {
 export interface VenusPvFieldTransform {
   type: 'venusPvField';
   field: 'power' | 'connected';
+}
+
+/**
+ * Extract a single numeric component from a pipe-separated value (e.g.
+ * "today|total"). A negative index counts from the end, so `-1` selects the
+ * last component (robust against extra components being inserted before it).
+ */
+export interface PipeValueTransform {
+  type: 'pipeValue';
+  index: number;
 }
 
 /** Convert weekday bitmask to weekday set string */
@@ -331,6 +342,8 @@ export const mpptPvField = (field: MPPTPVFieldTransform['field']): MPPTPVFieldTr
 });
 
 /** Create a Venus PV input field transform */
+export const pipeValue = (index: number): PipeValueTransform => ({ type: 'pipeValue', index });
+
 export const venusPvField = (field: VenusPvFieldTransform['field']): VenusPvFieldTransform => ({
   type: 'venusPvField',
   field,
@@ -488,6 +501,12 @@ export function executeTransform(
 
     case 'venusPvField':
       return executeVenusPvField(value, transform.field);
+
+    case 'pipeValue': {
+      const parts = value.split('|');
+      const idx = transform.index < 0 ? parts.length + transform.index : transform.index;
+      return safeParseInt(parts[idx]);
+    }
 
     case 'bitMaskToWeekday': {
       const bitmask = parseInt(value, 10);
@@ -750,6 +769,10 @@ export function transformToJinja2(
 
     case 'venusPvField':
       return generateVenusPvFieldJinja2(valueExpr, transform.field);
+
+    case 'pipeValue':
+      // Negative indices use Python-style indexing in Jinja2 (parts[-1]).
+      return `{% set parts = ${valueExpr}.split('|') %}{{ parts[${transform.index}] | int(0) }}`;
 
     case 'bitMaskToWeekday':
       // Convert bitmask to weekday set string - only mutate inside loop, output once at end
