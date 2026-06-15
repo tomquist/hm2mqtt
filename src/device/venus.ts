@@ -337,6 +337,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       key: 'pv',
       path: ['pvEnergyTotal'],
       transform: pipeValue(-1),
+      monotonic: true,
     });
     advertise(
       ['pvEnergyTotal'],
