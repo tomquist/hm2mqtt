@@ -882,6 +882,7 @@ export enum CommandType {
   SOFTWARE_RESTART = 10,
   FACTORY_RESET = 11,
   SET_CONNECTED_PHASE = 22,
+  SET_SMART_METER_TYPE = 27,
   SURPLUS_FEED_IN = 31,
 }
 
@@ -897,6 +898,7 @@ const noFlashCommands: Record<CommandType, number> = {
   [CommandType.BATTERY_OUTPUT_THRESHOLD]: CommandType.BATTERY_OUTPUT_THRESHOLD,
   [CommandType.TIMED_DISCHARGE]: 20,
   [CommandType.SET_CONNECTED_PHASE]: CommandType.SET_CONNECTED_PHASE,
+  [CommandType.SET_SMART_METER_TYPE]: CommandType.SET_SMART_METER_TYPE,
   [CommandType.SYNC_TIME]: CommandType.SYNC_TIME,
   [CommandType.TIME_ZONE]: CommandType.TIME_ZONE,
   [CommandType.SOFTWARE_RESTART]: CommandType.SOFTWARE_RESTART,
