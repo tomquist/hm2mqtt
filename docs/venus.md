@@ -827,6 +827,10 @@ and the master pack's individual cells are instead reported by the `cd=14`
 BMS-info response. A pack only returns data when its present-pack bit is set in
 the `mask` above (`bms_idx=N` ↔ bit `N`); absent indices report all zeros.
 
+A Venus A supports up to 5 battery packs and a Venus D up to 6. With the master
+at `bms_idx=0`, the slave packs therefore occupy `bms_idx=1..4` (Venus A) or
+`bms_idx=1..5` (Venus D).
+
 Payload:
 ```
 cd=42,bms_idx=1

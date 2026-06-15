@@ -145,8 +145,11 @@ function extractAdditionalDeviceInfo(state: VenusDeviceData) {
   };
 }
 
-// Max number of detailed slave packs polled via cd=42,bms_idx=N (packs 2..6 at
-// bms_idx 1..5; pack 1 = master, whose cells come from cd=14).
+// Max number of detailed slave packs polled via cd=42,bms_idx=N. A Venus A
+// supports up to 5 battery packs and a Venus D up to 6; pack 1 is the master
+// (bms_idx=0, cells via cd=14), so the slaves occupy bms_idx=1..5 at most. Packs
+// whose present-pack bit is unset are never polled, so this upper bound is safe
+// for both models.
 const MAX_BMS_PACK_DETAILS = 5;
 
 const requiredRuntimeInfoKeys = [
