@@ -20,6 +20,7 @@ import {
   timePeriodField,
   mpptPvField,
   venusPvField,
+  pipeValue,
   bitMaskToWeekday,
   sum,
   min,
@@ -394,6 +395,31 @@ describe('transforms', () => {
       );
       expect(transformToJinja2(venusPvField('connected'), 'value')).toBe(
         "{% set p = value.split('|') %}{% if p | length >= 2 %}{{ p[1] == '1' }}{% else %}false{% endif %}",
+      );
+    });
+  });
+
+  describe('pipeValue transform', () => {
+    it('should extract a numeric component by index', () => {
+      expect(executeTransform(pipeValue(0), '41|57')).toBe(41);
+      expect(executeTransform(pipeValue(1), '41|57')).toBe(57);
+    });
+
+    it('should support negative indices (from the end)', () => {
+      expect(executeTransform(pipeValue(-1), '41|57')).toBe(57);
+      expect(executeTransform(pipeValue(-1), '41|120|900|57')).toBe(57);
+    });
+
+    it('should return 0 for missing components', () => {
+      expect(executeTransform(pipeValue(5), '41|57')).toBe(0);
+    });
+
+    it('should generate correct Jinja2 templates', () => {
+      expect(transformToJinja2(pipeValue(0), 'value')).toBe(
+        "{% set parts = value.split('|') %}{{ parts[0] | int(0) }}",
+      );
+      expect(transformToJinja2(pipeValue(-1), 'value')).toBe(
+        "{% set parts = value.split('|') %}{{ parts[-1] | int(0) }}",
       );
     });
   });

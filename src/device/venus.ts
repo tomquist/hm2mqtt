@@ -43,6 +43,7 @@ import {
   average,
   negate,
   venusPvField,
+  pipeValue,
 } from '../transforms';
 
 /**
@@ -309,6 +310,44 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'measurement',
       }),
       { enabled: state => (state.totalPvPower != null ? true : undefined) },
+    );
+
+    // PV energy. The `pv` field holds pipe-separated values in Wh: today's
+    // collected PV energy first and the cumulative total last. The total is read
+    // from the last component so additional values (e.g. monthly/yearly) being
+    // inserted before it would not break the mapping.
+    field({
+      key: 'pv',
+      path: ['pvEnergyToday'],
+      transform: pipeValue(0),
+    });
+    advertise(
+      ['pvEnergyToday'],
+      sensorComponent<number>({
+        id: 'pv_energy_today',
+        name: 'PV Energy Today',
+        device_class: 'energy',
+        unit_of_measurement: 'Wh',
+        state_class: 'total_increasing',
+      }),
+      { enabled: state => (state.pvEnergyToday != null ? true : undefined) },
+    );
+
+    field({
+      key: 'pv',
+      path: ['pvEnergyTotal'],
+      transform: pipeValue(-1),
+    });
+    advertise(
+      ['pvEnergyTotal'],
+      sensorComponent<number>({
+        id: 'pv_energy_total',
+        name: 'PV Energy Total',
+        device_class: 'energy',
+        unit_of_measurement: 'Wh',
+        state_class: 'total_increasing',
+      }),
+      { enabled: state => (state.pvEnergyTotal != null ? true : undefined) },
     );
 
     // Power information
@@ -1025,7 +1064,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'fu',
       path: ['surplusFeedInEnabled'],
-      transform: value => value.split('|')[0] === '1',
+      transform: chain(pipeValue(0), equalsBoolean('1')),
     });
     advertise(
       ['surplusFeedInEnabled'],
