@@ -533,6 +533,25 @@ export interface VenusBMSPackInfo extends BaseDeviceData {
 }
 
 /**
+ * Detailed per-pack BMS data reported by the cd=42,bms_idx=N response (N >= 1)
+ * on newer Venus firmware. Each present pack reports its individual cell
+ * voltages and temperature sensors.
+ */
+export interface VenusBMSPackDetail extends BaseDeviceData {
+  voltage?: number; // vol (pack voltage, V)
+  soc?: number; // soc (%)
+  version?: number; // ver
+  maxCellVoltage?: number; // max_v (mV)
+  minCellVoltage?: number; // min_v (mV)
+  maxTemperature?: number; // max_t (°C)
+  minTemperature?: number; // min_t (°C)
+  ambientTemperature?: number; // env (°C)
+  mosfetTemperature?: number; // mos (°C)
+  cellVoltages?: number[]; // b_vol (mV per cell)
+  temperatures?: number[]; // temp (°C per sensor)
+}
+
+/**
  * Network configuration reported by the cd=26 response on newer Venus firmware.
  */
 export interface VenusNetworkInfo extends BaseDeviceData {

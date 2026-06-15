@@ -816,6 +816,42 @@ cd=42, BMS: num=2,mask=3,idx=2,charge_pow=2643,discharge_pow=2643,soc1=424,state
 Fields are reported for up to 6 packs (`*1` … `*6`); unused packs report zeros.
 The `num`/`mask`/`idx` values match the `pack` field in the `cd=1` response.
 
+### 24.3 Per-pack detail (`bms_idx=N`)
+
+Requesting a specific index (`bms_idx=N`, `N >= 1`) returns detailed data for a
+single pack, including individual cell voltages and temperature sensors.
+
+`bms_idx=N` maps to **pack `N+1`**: `bms_idx=1` is the first *slave* pack (i.e.
+"Pack 2"). `bms_idx=0` returns a master/aggregate overview without per-cell data,
+and the master pack's individual cells are instead reported by the `cd=14`
+BMS-info response. A pack only returns data when its present-pack bit is set in
+the `mask` above (`bms_idx=N` ↔ bit `N`); absent indices report all zeros.
+
+Payload:
+```
+cd=42,bms_idx=1
+```
+
+Receive (real Venus D v147 response):
+```
+cd=42, BMS(1): num=2,vol=5327,cur=0,soc=708,c_vol=576,c_cur=500,d_cur=500,mos=0,ver=116,max_v=3331,min_v=3329,max_t=258,min_t=254,b_err1=0,b_err2=0,b_war1=0,b_vol=3330|3330|3330|3330|-|3330|3331|3329|3330|-|3329|3329|3329|3330|-|3329|3330|3329|3329,temp=258|257|254|255|256,env=314,mos=259
+```
+
+| Key | Description |
+|-----|-------------|
+| vol | Pack voltage (centivolts; `5327` = 53.27 V) |
+| soc | Pack state of charge (0.1%; `708` = 70.8%) |
+| ver | BMS firmware version |
+| max_v / min_v | Highest / lowest cell voltage (mV) |
+| max_t / min_t | Highest / lowest temperature (0.1 °C on Venus A/D) |
+| b_vol | Individual cell voltages (mV), pipe-separated; cells are grouped in fours separated by `-` |
+| temp | Temperature sensors (0.1 °C on Venus A/D), pipe-separated |
+| env | Ambient temperature (0.1 °C on Venus A/D) |
+| mos | MOSFET temperature (0.1 °C on Venus A/D) |
+
+Other observed keys (`cur`, `c_vol`, `c_cur`, `d_cur`, `b_err*`, `b_war*`) are
+not yet decoded.
+
 ## 25 Read power history
 
 Returns recent power-curve samples. Observed on Venus D v147.

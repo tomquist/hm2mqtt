@@ -6,6 +6,7 @@ import {
   JupiterDeviceData,
   VenusBMSInfo,
   VenusBMSPackInfo,
+  VenusBMSPackDetail,
   VenusDeviceData,
   VenusNetworkInfo,
 } from './types';
@@ -843,6 +844,47 @@ describe('MQTT Message Parser', () => {
     // SoC and temperature are reported in 0.1 units; VNSD scales temperatures by 10.
     expect(result.packs?.[0]).toEqual({ soc: 42.4, state: 0, temperature: 27.8 });
     expect(result.packs?.[1]).toEqual({ soc: 48.2, state: 2, temperature: 25.4 });
+  });
+
+  test('parses Venus cd=42 detailed per-pack BMS data (bms_idx=1)', () => {
+    // Real Venus D v147 response to cd=42,bms_idx=1 (the first slave pack, "Pack 2").
+    const message =
+      'cd=42, BMS(1): num=2,vol=5327,cur=0,soc=708,c_vol=576,c_cur=500,d_cur=500,mos=0,ver=116,max_v=3331,min_v=3329,max_t=258,min_t=254,b_err1=0,b_err2=0,b_war1=0,b_vol=3330|3330|3330|3330|-|3330|3331|3329|3330|-|3329|3329|3329|3330|-|3329|3330|3329|3329,temp=258|257|254|255|256,env=314,mos=259';
+    const parsed = parseMessage(message, 'VNSD-0', 'venusD123');
+
+    expect(parsed).toHaveProperty('bmsPack1');
+    const result = parsed['bmsPack1'] as VenusBMSPackDetail;
+
+    // 16 cell voltages (mV), with the "-" group separators dropped.
+    expect(result.cellVoltages).toEqual([
+      3330, 3330, 3330, 3330, 3330, 3331, 3329, 3330, 3329, 3329, 3329, 3330, 3329, 3330, 3329,
+      3329,
+    ]);
+    // 5 temperature sensors (deci-degrees -> °C on VNSD).
+    expect(result.temperatures).toEqual([25.8, 25.7, 25.4, 25.5, 25.6]);
+    // Scalars: pack voltage (centivolts), SoC (deci-%), cell-voltage extremes (mV),
+    // temperature extremes / ambient / MOSFET (deci-degrees on VNSD).
+    expect(result.voltage).toBeCloseTo(53.27);
+    expect(result.soc).toBeCloseTo(70.8);
+    expect(result.maxCellVoltage).toBe(3331);
+    expect(result.minCellVoltage).toBe(3329);
+    expect(result.maxTemperature).toBeCloseTo(25.8);
+    expect(result.minTemperature).toBeCloseTo(25.4);
+    expect(result.ambientTemperature).toBeCloseTo(31.4);
+    // `mos` appears twice; the later MOSFET-temperature value wins (25.9 °C).
+    expect(result.mosfetTemperature).toBeCloseTo(25.9);
+  });
+
+  test('does not parse an absent Venus pack (bms_idx=2, all zeros) as another pack', () => {
+    // bms_idx=2 maps to "Pack 3"; on a two-pack device it reports all zeros.
+    const message =
+      'cd=42, BMS(2): num=2,vol=0,cur=0,soc=0,c_vol=0,c_cur=0,d_cur=0,mos=0,ver=0,max_v=0,min_v=0,max_t=0,min_t=0,b_err1=0,b_err2=0,b_war1=0,b_vol=0|0|0|0|-|0|0|0|0|-|0|0|0|0|-|0|0|0|0,temp=0|0|0|0|0,env=0,mos=0';
+    const parsed = parseMessage(message, 'VNSD-0', 'venusD123');
+
+    // The bms_idx=2 response only matches the bmsPack2 definition, not bmsPack1.
+    expect(parsed).toHaveProperty('bmsPack2');
+    expect(parsed).not.toHaveProperty('bmsPack1');
+    expect(parsed).not.toHaveProperty('bmsPacks');
   });
 
   test('parses Venus cd=26 network info (colon-delimited format)', () => {

@@ -129,3 +129,98 @@ describe('MqttClient discovery re-publish', () => {
     expect(publishDiscoveryConfigs).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('MqttClient shouldPoll gating', () => {
+  const topics = {
+    deviceTopicOld: 'hame_energy/VNSD-0/device/venus1/ctrl',
+    deviceTopicNew: 'marstek_energy/VNSD-0/device/venus1/ctrl',
+    publishTopic: 'homeassistant/VNSD-0/device/venus1/data',
+    deviceControlTopicOld: 'hame_energy/VNSD-0/App/venus1/ctrl',
+    deviceControlTopicNew: 'marstek_energy/VNSD-0/App/venus1/ctrl',
+    controlSubscriptionTopic: 'homeassistant/VNSD-0/control/venus1/control',
+    availabilityTopic: 'homeassistant/VNSD-0/availability/venus1',
+  };
+
+  function makeMessage(overrides: any) {
+    return {
+      isMessage: () => true,
+      getAdditionalDeviceInfo: () => ({}),
+      pollInterval: 1000,
+      controlsDeviceAvailability: false,
+      enabled: true,
+      ...overrides,
+    };
+  }
+
+  function pollPayloads(packMask: number | undefined): string[] {
+    jest.useFakeTimers();
+    try {
+      const { getDeviceDefinition } = require('./deviceDefinition');
+      (getDeviceDefinition as jest.Mock).mockReturnValue({
+        messages: [
+          makeMessage({
+            refreshDataPayload: 'cd=1',
+            publishPath: 'data',
+            controlsDeviceAvailability: true,
+          }),
+          // bms_idx=1 -> pack 2 -> present iff mask bit 1 set
+          makeMessage({
+            refreshDataPayload: 'cd=42,bms_idx=1',
+            publishPath: 'bmsPack1',
+            shouldPoll: (state: any) =>
+              state?.packMask != null && (state.packMask & (1 << 1)) !== 0,
+          }),
+          // bms_idx=2 -> pack 3 -> present iff mask bit 2 set
+          makeMessage({
+            refreshDataPayload: 'cd=42,bms_idx=2',
+            publishPath: 'bmsPack2',
+            shouldPoll: (state: any) =>
+              state?.packMask != null && (state.packMask & (1 << 2)) !== 0,
+          }),
+        ],
+      });
+
+      const mqtt = require('mqtt');
+      const client = mqtt.connect();
+      client.publish.mockClear();
+
+      const device: Device = { deviceType: 'VNSD-0', deviceId: 'venus1' };
+      const deviceManager: any = {
+        getDeviceTopics: () => topics,
+        getDeviceState: () => (packMask != null ? { packMask } : undefined),
+        getDevices: () => [],
+        getResponseTimeout: () => 5000,
+        setResponseTimeout: jest.fn(),
+        clearResponseTimeout: jest.fn(),
+      };
+      const config: any = {
+        brokerUrl: 'mqtt://localhost:1883',
+        clientId: 'test-client',
+        topicPrefix: 'homeassistant',
+        autodiscoveryTopicPrefix: 'homeassistant',
+      };
+
+      const mqttClient = new MqttClient(config, deviceManager, jest.fn());
+      mqttClient.requestDeviceData(device);
+      jest.advanceTimersByTime(1000);
+
+      return client.publish.mock.calls.map((c: any[]) => c[1]);
+    } finally {
+      jest.useRealTimers();
+    }
+  }
+
+  test('polls only present packs (mask=3 -> pack 2 present, pack 3 absent)', () => {
+    const payloads = pollPayloads(3);
+    expect(payloads).toContain('cd=1');
+    expect(payloads).toContain('cd=42,bms_idx=1');
+    expect(payloads).not.toContain('cd=42,bms_idx=2');
+  });
+
+  test('polls no pack details until the pack mask is known', () => {
+    const payloads = pollPayloads(undefined);
+    expect(payloads).toContain('cd=1');
+    expect(payloads).not.toContain('cd=42,bms_idx=1');
+    expect(payloads).not.toContain('cd=42,bms_idx=2');
+  });
+});
