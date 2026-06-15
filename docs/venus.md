@@ -821,14 +821,17 @@ The `num`/`mask`/`idx` values match the `pack` field in the `cd=1` response.
 Requesting a specific index (`bms_idx=N`, `N >= 1`) returns detailed data for a
 single pack, including individual cell voltages and temperature sensors.
 
-`bms_idx=N` maps to **pack `N+1`**: `bms_idx=1` is the first *slave* pack (i.e.
-"Pack 2"). `bms_idx=0` returns a master/aggregate overview without per-cell data,
-and the master pack's individual cells are instead reported by the `cd=14`
-BMS-info response. A pack only returns data when its present-pack bit is set in
-the `mask` above (`bms_idx=N` ↔ bit `N`); absent indices report all zeros.
+The Venus unit is only a controller and has no battery of its own; all packs are
+identical. `bms_idx=0` returns a whole-system aggregate (no per-cell data; it
+reports system-wide fields such as `num`/`mask`). `bms_idx=N` (`N >= 1`) returns
+the per-cell detail for one pack and maps to **pack `N+1`**: `bms_idx=1` is the
+second pack ("Pack 2"). The first pack's individual cells are reported by the
+`cd=14` BMS-info response instead. A pack only returns data when its present-pack
+bit is set in the `mask` above (`bms_idx=N` ↔ bit `N`); absent indices report all
+zeros.
 
-A Venus A supports up to 5 battery packs and a Venus D up to 6. With the master
-at `bms_idx=0`, the slave packs therefore occupy `bms_idx=1..4` (Venus A) or
+A Venus A supports up to 5 battery packs and a Venus D up to 6. Since the first
+pack is read via `cd=14`, the remaining packs occupy `bms_idx=1..4` (Venus A) or
 `bms_idx=1..5` (Venus D).
 
 Payload:

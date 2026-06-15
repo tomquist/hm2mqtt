@@ -145,11 +145,12 @@ function extractAdditionalDeviceInfo(state: VenusDeviceData) {
   };
 }
 
-// Max number of detailed slave packs polled via cd=42,bms_idx=N. A Venus A
-// supports up to 5 battery packs and a Venus D up to 6; pack 1 is the master
-// (bms_idx=0, cells via cd=14), so the slaves occupy bms_idx=1..5 at most. Packs
-// whose present-pack bit is unset are never polled, so this upper bound is safe
-// for both models.
+// Max number of additional packs polled via cd=42,bms_idx=N. A Venus A supports
+// up to 5 battery packs and a Venus D up to 6 (the Venus unit is only a
+// controller and has no battery of its own; all packs are identical). The first
+// pack's cells are reported by cd=14, so the remaining packs occupy bms_idx=1..5
+// at most (bms_idx=N -> pack N+1). Packs whose present-pack bit is unset are
+// never polled, so this upper bound is safe for both models.
 const MAX_BMS_PACK_DETAILS = 5;
 
 const requiredRuntimeInfoKeys = [
@@ -2198,10 +2199,10 @@ function registerBMSPackMessage(
 
 // The cd=42,bms_idx=N response (N >= 1) carries detailed per-pack BMS data,
 // including individual cell voltages and temperature sensors. bms_idx=N maps to
-// pack N+1 (bms_idx=1 is the first slave pack, i.e. "Pack 2"); the master pack's
-// cells are reported via the cd=14 BMS-info message instead. Each pack is only
-// polled when its present-pack bit is set in the cd=42 summary's packMask, so no
-// requests are wasted on absent packs.
+// pack N+1 (bms_idx=1 is the second pack, i.e. "Pack 2"); the first pack's cells
+// are reported via the cd=14 BMS-info message, and bms_idx=0 is a whole-system
+// aggregate. Each pack is only polled when its present-pack bit is set in the
+// cd=42 summary's packMask, so no requests are wasted on absent packs.
 
 // The leading "BMS(N): num" token is tokenized by the parser into the key
 // " BMS(N): num"; combined with the pipe-separated b_vol array this uniquely
