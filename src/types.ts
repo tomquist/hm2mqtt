@@ -174,6 +174,10 @@ export interface B2500V2DeviceData extends B2500BaseDeviceData {
 
   // Surplus Feed-in state
   surplusFeedInEnabled?: boolean;
+
+  // Smart meter configuration (cd=27)
+  meterType?: MeterType;
+  meterMac?: string;
 }
 
 type SolarSocketData = {

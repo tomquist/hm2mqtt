@@ -4,6 +4,11 @@ import {
   B2500V2DeviceData,
   B2500V2SmartMeterStatus,
   CommandParams,
+  meterTypeCommandCodes,
+  meterTypeLabels,
+  normalizeMeterMac,
+  resolveMeterMac,
+  isValidMeterType,
 } from '../types';
 import logger from '../logger';
 import {
@@ -742,6 +747,81 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         );
       },
     });
+
+    // MAC address used when configuring an external meter (CT002/CT003/Shelly).
+    command('meter-mac', {
+      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
+        const mac = normalizeMeterMac(message);
+        if (!mac) {
+          logger.warn('Invalid meter MAC (expected 12 hex digits):', message);
+          return;
+        }
+        updateDeviceState(state => {
+          if (state.meterType) {
+            const resolved = resolveMeterMac(state.meterType, mac);
+            if (resolved !== null) {
+              publishCallback(
+                processCommand(
+                  CommandType.SET_SMART_METER_TYPE,
+                  { meter: meterTypeCommandCodes[state.meterType], mac: resolved },
+                  deviceState.useFlashCommands,
+                ),
+              );
+            }
+          }
+          return { meterMac: mac };
+        });
+      },
+    });
+    advertise(
+      ['meterMac'],
+      textComponent({
+        id: 'meter_mac',
+        name: 'Meter MAC',
+        icon: 'mdi:identifier',
+        command: 'meter-mac',
+        pattern: '^[0-9A-Fa-f]{12}$',
+        enabled_by_default: false,
+      }),
+    );
+
+    // Configure the external meter type (cd=27,meter=...,mac=...).
+    command('meter-type', {
+      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
+        if (!isValidMeterType(message)) {
+          logger.warn('Invalid meter type value:', message);
+          return;
+        }
+        updateDeviceState(state => {
+          const mac = resolveMeterMac(message, state.meterMac);
+          if (mac === null) {
+            logger.warn(
+              `Meter type ${message} requires a MAC; set the "Meter MAC" entity before selecting it`,
+            );
+            return;
+          }
+          publishCallback(
+            processCommand(
+              CommandType.SET_SMART_METER_TYPE,
+              { meter: meterTypeCommandCodes[message], mac },
+              deviceState.useFlashCommands,
+            ),
+          );
+          return { meterType: message };
+        });
+      },
+    });
+    advertise(
+      ['meterType'],
+      selectComponent<NonNullable<B2500V2DeviceData['meterType']>>({
+        id: 'meter_type',
+        name: 'Meter Type',
+        icon: 'mdi:meter-electric',
+        command: 'meter-type',
+        valueMappings: meterTypeLabels,
+        enabled_by_default: false,
+      }),
+    );
   });
 }
 
