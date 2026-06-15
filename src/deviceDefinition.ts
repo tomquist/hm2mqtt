@@ -113,6 +113,12 @@ export interface MessageDefinition<T extends BaseDeviceData> {
   pollInterval: number;
   controlsDeviceAvailability: boolean;
   enabled?: boolean;
+  /**
+   * Optional state-aware poll predicate. When provided, the message is only
+   * polled if this returns true for the current (merged) device state. Used to
+   * dynamically poll per-pack BMS details only for packs that are present.
+   */
+  shouldPoll?: (state: BaseDeviceData) => boolean;
 }
 
 export type BaseDeviceData = {
@@ -163,6 +169,7 @@ export type BuildMessageFn = <T extends BaseDeviceData>(
     pollInterval: number;
     controlsDeviceAvailability: boolean;
     enabled?: boolean;
+    shouldPoll?: (state: BaseDeviceData) => boolean;
   },
   args: BuildMessageDefinitionFn<T>,
 ) => void;

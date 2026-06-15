@@ -11,6 +11,7 @@ import {
   resolveMeterMac,
   VenusBMSInfo,
   VenusBMSPackInfo,
+  VenusBMSPackDetail,
   VenusDeviceData,
   VenusNetworkInfo,
   VenusTimePeriod,
@@ -44,6 +45,7 @@ import {
   negate,
   venusPvField,
   pipeValue,
+  pipeArray,
 } from '../transforms';
 
 /**
@@ -143,6 +145,14 @@ function extractAdditionalDeviceInfo(state: VenusDeviceData) {
   };
 }
 
+// Max number of additional packs polled via cd=42,bms_idx=N. A Venus A supports
+// up to 5 battery packs and a Venus D up to 6 (the Venus unit is only a
+// controller and has no battery of its own; all packs are identical). The first
+// pack's cells are reported by cd=14, so the remaining packs occupy bms_idx=1..5
+// at most (bms_idx=N -> pack N+1). Packs whose present-pack bit is unset are
+// never polled, so this upper bound is safe for both models.
+const MAX_BMS_PACK_DETAILS = 5;
+
 const requiredRuntimeInfoKeys = [
   'cel_p',
   'cel_c',
@@ -182,6 +192,7 @@ registerDeviceDefinition(
     registerRuntimeInfoMessage(message);
     registerBMSInfoMessage(message);
     registerBMSPackMessage(message);
+    registerBMSPackDetailMessages(message);
     registerNetworkInfoMessage(message);
   },
 );
@@ -196,6 +207,7 @@ registerDeviceDefinition(
     registerRuntimeInfoMessage(message);
     registerBMSInfoMessage(message, { scaleTemperatures: true });
     registerBMSPackMessage(message, { scaleTemperatures: true });
+    registerBMSPackDetailMessages(message, { scaleTemperatures: true });
     registerNetworkInfoMessage(message);
   },
 );
@@ -2179,6 +2191,124 @@ function registerBMSPackMessage(
             enabled_by_default: false,
           }),
           { enabled: packEnabled },
+        );
+      }
+    },
+  );
+}
+
+// The cd=42,bms_idx=N response (N >= 1) carries detailed per-pack BMS data,
+// including individual cell voltages and temperature sensors. bms_idx=N maps to
+// pack N+1 (bms_idx=1 is the second pack, i.e. "Pack 2"); the first pack's cells
+// are reported via the cd=14 BMS-info message, and bms_idx=0 is a whole-system
+// aggregate. Each pack is only polled when its present-pack bit is set in the
+// cd=42 summary's packMask, so no requests are wasted on absent packs.
+
+// The leading "BMS(N): num" token is tokenized by the parser into the key
+// " BMS(N): num"; combined with the pipe-separated b_vol array this uniquely
+// identifies a detailed per-pack response.
+function isVenusBmsPackDetailMessage(bmsIdx: number) {
+  const marker = ` BMS(${bmsIdx}): num`;
+  return (values: Record<string, string>): boolean => marker in values && 'b_vol' in values;
+}
+
+function registerBMSPackDetailMessages(
+  message: BuildMessageFn,
+  { scaleTemperatures = false }: { scaleTemperatures?: boolean } = {},
+) {
+  for (let bmsIdx = 1; bmsIdx <= MAX_BMS_PACK_DETAILS; bmsIdx++) {
+    registerBMSPackDetailMessage(message, bmsIdx, { scaleTemperatures });
+  }
+}
+
+function registerBMSPackDetailMessage(
+  message: BuildMessageFn,
+  bmsIdx: number,
+  { scaleTemperatures = false }: { scaleTemperatures?: boolean } = {},
+) {
+  const packNumber = bmsIdx + 1;
+  // Temperatures are reported in 0.1 units on Venus A/D, like the other messages.
+  const tempScalar = scaleTemperatures ? divide(10) : number();
+  const tempArray = scaleTemperatures ? pipeArray(10) : pipeArray();
+
+  message<VenusBMSPackDetail>(
+    {
+      refreshDataPayload: `cd=${CommandType.GET_BMS_PACK_INFO},bms_idx=${bmsIdx}`,
+      isMessage: isVenusBmsPackDetailMessage(bmsIdx),
+      publishPath: `bmsPack${bmsIdx}`,
+      defaultState: {},
+      getAdditionalDeviceInfo: () => ({}),
+      pollInterval: 60000,
+      controlsDeviceAvailability: false,
+      // Gated behind the same flag as the other detailed BMS data.
+      enabled: process.env.POLL_CELL_DATA === 'true',
+      // Only poll this pack when its present-pack bit is set in the summary's
+      // packMask (bms_idx=N -> pack N+1 -> bit N). Avoids polling absent packs.
+      shouldPoll: state => {
+        const mask = (state as VenusBMSPackInfo).packMask;
+        return mask != null && (mask & (1 << bmsIdx)) !== 0;
+      },
+    },
+    ({ field, advertise }) => {
+      // 16 individual cell voltages (mV). The wire format groups cells in fours
+      // separated by "-", e.g. "3330|3330|3330|3330|-|3330|...".
+      field({ key: 'b_vol', path: ['cellVoltages'], transform: pipeArray() });
+      for (let i = 0; i < 16; i++) {
+        advertise(
+          ['cellVoltages', i],
+          sensorComponent<number>({
+            id: `pack_${packNumber}_cell_voltage_${i + 1}`,
+            name: `Pack ${packNumber} Cell Voltage ${i + 1}`,
+            unit_of_measurement: 'mV',
+            device_class: 'voltage',
+            state_class: 'measurement',
+            enabled_by_default: false,
+          }),
+          { enabled: state => (state.cellVoltages?.[i] != null ? true : undefined) },
+        );
+      }
+
+      // Up to 5 temperature sensors (°C).
+      field({ key: 'temp', path: ['temperatures'], transform: tempArray });
+      for (let i = 0; i < 5; i++) {
+        advertise(
+          ['temperatures', i],
+          sensorComponent<number>({
+            id: `pack_${packNumber}_temperature_${i + 1}`,
+            name: `Pack ${packNumber} Temperature ${i + 1}`,
+            unit_of_measurement: '°C',
+            device_class: 'temperature',
+            state_class: 'measurement',
+            enabled_by_default: false,
+          }),
+          { enabled: state => (state.temperatures?.[i] != null ? true : undefined) },
+        );
+      }
+
+      const scalarFields = [
+        ['vol', 'voltage', 'Voltage', 'voltage', 'V', divide(100)],
+        ['soc', 'soc', 'State of Charge', 'battery', '%', divide(10)],
+        ['max_v', 'maxCellVoltage', 'Max Cell Voltage', 'voltage', 'mV', number()],
+        ['min_v', 'minCellVoltage', 'Min Cell Voltage', 'voltage', 'mV', number()],
+        ['max_t', 'maxTemperature', 'Max Temperature', 'temperature', '°C', tempScalar],
+        ['min_t', 'minTemperature', 'Min Temperature', 'temperature', '°C', tempScalar],
+        ['env', 'ambientTemperature', 'Ambient Temperature', 'temperature', '°C', tempScalar],
+        ['mos', 'mosfetTemperature', 'MOSFET Temperature', 'temperature', '°C', tempScalar],
+      ] as const;
+
+      for (const [key, destPath, label, deviceClass, unit, transform] of scalarFields) {
+        field({ key, path: [destPath], transform });
+        advertise(
+          [destPath],
+          sensorComponent<number>({
+            id: `pack_${packNumber}_${destPath.replace(/([A-Z])/g, '_$1').toLowerCase()}`,
+            name: `Pack ${packNumber} ${label}`,
+            device_class: deviceClass,
+            unit_of_measurement: unit,
+            state_class: 'measurement',
+            enabled_by_default: false,
+          }),
+          { enabled: state => (state[destPath] != null ? true : undefined) },
         );
       }
     },

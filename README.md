@@ -267,7 +267,7 @@ services:
 | `MQTT_PASSWORD` | MQTT password | -                       |
 | `MQTT_POLLING_INTERVAL` | Interval between device polls in seconds | `60`                 |
 | `MQTT_RESPONSE_TIMEOUT` | Timeout for device responses in seconds | `15`                 |
-| `POLL_CELL_DATA` | Enable cell voltage (only available on B2500 devices) | false |
+| `POLL_CELL_DATA` | Enable cell-level battery data (individual cell voltages, temperatures and, on Venus, detailed per-pack BMS data) | false |
 | `POLL_EXTRA_BATTERY_DATA` | Enable extra battery data reporting (only available on B2500 devices) | false |
 | `POLL_CALIBRATION_DATA` | Enable calibration data reporting (only available on B2500 devices) | false |
 | `DEVICE_n` | Device configuration in format `{type}:{mac}` | -                       |

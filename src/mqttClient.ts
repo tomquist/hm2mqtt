@@ -343,11 +343,18 @@ export class MqttClient {
     const controlTopicNew = topics.deviceControlTopicNew;
     const availabilityTopic = topics.availabilityTopic;
 
+    // Merged device state, used to evaluate state-aware poll predicates
+    // (e.g. only polling per-pack BMS details for packs that are present).
+    const pollState = (this.deviceManager.getDeviceState(device) ?? {}) as BaseDeviceData;
+
     // Find the first message that needs to be refreshed
     let now = Date.now();
     let needsRefresh = false;
     let shouldStartTimeout = false;
     for (const [idx, message] of deviseDefinition.messages.entries()) {
+      if (message.shouldPoll && !message.shouldPoll(pollState)) {
+        continue;
+      }
       let lastRequestTimeKey = `${device.deviceId}:${idx}`;
       const lastRequestTime = this.lastRequestTime.get(lastRequestTimeKey);
       if (lastRequestTime == null || now > lastRequestTime + message.pollInterval) {
@@ -384,6 +391,11 @@ export class MqttClient {
     for (const [idx, message] of deviseDefinition.messages.entries()) {
       // Skip polling for disabled messages
       if (!message.enabled) {
+        continue;
+      }
+
+      // Skip messages whose state-aware poll predicate is not satisfied
+      if (message.shouldPoll && !message.shouldPoll(pollState)) {
         continue;
       }
 

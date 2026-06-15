@@ -21,6 +21,7 @@ import {
   mpptPvField,
   venusPvField,
   pipeValue,
+  pipeArray,
   bitMaskToWeekday,
   sum,
   min,
@@ -420,6 +421,43 @@ describe('transforms', () => {
       );
       expect(transformToJinja2(pipeValue(-1), 'value')).toBe(
         "{% set parts = value.split('|') %}{{ parts[-1] | int(0) }}",
+      );
+    });
+  });
+
+  describe('pipeArray transform', () => {
+    it('should parse a pipe-separated list into an array', () => {
+      expect(executeTransform(pipeArray(), '41|57|12')).toEqual([41, 57, 12]);
+    });
+
+    it('should drop "-" group separators (Venus cell voltages)', () => {
+      expect(
+        executeTransform(
+          pipeArray(),
+          '3330|3330|3330|3330|-|3330|3331|3329|3330|-|3329|3329|3329|3330|-|3329|3330|3329|3329',
+        ),
+      ).toEqual([
+        3330, 3330, 3330, 3330, 3330, 3331, 3329, 3330, 3329, 3329, 3329, 3330, 3329, 3330, 3329,
+        3329,
+      ]);
+    });
+
+    it('should scale each element by the divisor (deci-degrees)', () => {
+      expect(executeTransform(pipeArray(10), '258|257|254|255|256')).toEqual([
+        25.8, 25.7, 25.4, 25.5, 25.6,
+      ]);
+    });
+
+    it('should treat non-numeric elements as 0', () => {
+      expect(executeTransform(pipeArray(), '41|foo|12')).toEqual([41, 0, 12]);
+    });
+
+    it('should generate correct Jinja2 templates', () => {
+      expect(transformToJinja2(pipeArray(), 'value')).toBe(
+        "{{ value.split('|') | reject('equalto', '-') | reject('equalto', '') | map('float', 0) | list }}",
+      );
+      expect(transformToJinja2(pipeArray(10), 'value')).toBe(
+        "{{ value.split('|') | reject('equalto', '-') | reject('equalto', '') | map('float', 0) | map('multiply', 0.1) | list }}",
       );
     });
   });
