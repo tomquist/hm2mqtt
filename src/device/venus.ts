@@ -324,14 +324,15 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       { enabled: state => (state.totalPvPower != null ? true : undefined) },
     );
 
-    // PV energy. The `pv` field holds pipe-separated values in Wh: today's
-    // collected PV energy first and the cumulative total last. The total is read
-    // from the last component so additional values (e.g. monthly/yearly) being
-    // inserted before it would not break the mapping.
+    // PV energy. The `pv` field holds pipe-separated values in units of 10 Wh:
+    // today's collected PV energy first and the cumulative total last. Each
+    // component is scaled by 10 to convert to Wh. The total is read from the
+    // last component so additional values (e.g. monthly/yearly) being inserted
+    // before it would not break the mapping.
     field({
       key: 'pv',
       path: ['pvEnergyToday'],
-      transform: pipeValue(0),
+      transform: chain(pipeValue(0), multiply(10)),
     });
     advertise(
       ['pvEnergyToday'],
@@ -348,7 +349,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'pv',
       path: ['pvEnergyTotal'],
-      transform: pipeValue(-1),
+      transform: chain(pipeValue(-1), multiply(10)),
       monotonic: true,
     });
     advertise(
