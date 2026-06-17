@@ -22,10 +22,6 @@
 
 - Venus & Jupiter: The *Recharge Mode* entity is now a settable select (Single Phase / Three Phase) instead of a read-only sensor, so the grid recharge mode can be switched from Home Assistant.
 
-### Fixed
-
-- Venus: *PV Energy Today* and *PV Energy Total* were reported a factor of 10 too low. The device reports these values in units of 10 Wh, so they are now scaled to Wh.
-
 ## [1.8.0] - 2026-06-13
 
 ### Added
