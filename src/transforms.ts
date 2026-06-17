@@ -49,6 +49,7 @@ export type Transform =
   | PipeValueTransform
   | PipeArrayTransform
   | BitMaskToWeekdayTransform
+  | CombineTransform
   | ChainTransform;
 
 /**
@@ -59,7 +60,8 @@ export type MultiKeyTransform =
   | MinTransform
   | MaxTransform
   | DiffTransform
-  | AverageTransform;
+  | AverageTransform
+  | CombineTransform;
 
 // =============================================================================
 // Single-Value Transforms
@@ -250,6 +252,37 @@ export interface AverageTransform {
   ignoreZero?: boolean;
 }
 
+/**
+ * A single term of a {@link CombineTransform}. Each term corresponds, by
+ * position, to one key of the multi-key field.
+ */
+export interface CombineTerm {
+  /** Multiply the extracted value by this factor (default `1`). */
+  scale?: number;
+  /**
+   * Extract a single component from a pipe-separated value (e.g. `today|total`)
+   * before scaling. A negative index counts from the end (`-1` = last). When
+   * omitted the whole value is parsed as a number.
+   */
+  index?: number;
+  /**
+   * Clamp the scaled value to be at least this much (e.g. `0` to ignore the
+   * discharge half of a signed power reading).
+   */
+  min?: number;
+}
+
+/**
+ * Sum several values that need individual scaling, pipe-component extraction or
+ * clamping before being added together (which the uniform-scale {@link
+ * SumTransform} cannot express). Each term in `terms` is applied to the key at
+ * the same position in the field's key list.
+ */
+export interface CombineTransform {
+  type: 'combine';
+  terms: CombineTerm[];
+}
+
 // =============================================================================
 // Transform Factory Functions
 // =============================================================================
@@ -406,6 +439,9 @@ export const average = (
   ignoreZero,
 });
 
+/** Create a combine transform (per-key scaling/pipe-extraction/clamping, then sum) */
+export const combine = (terms: CombineTerm[]): CombineTransform => ({ type: 'combine', terms });
+
 // =============================================================================
 // Runtime Execution
 // =============================================================================
@@ -554,7 +590,28 @@ export function executeMultiKeyTransform(
   transform: MultiKeyTransform,
   values: Record<string, string>,
 ): unknown {
-  const numericValues = Object.values(values).map(v => parseFloat(v));
+  const rawValues = Object.values(values);
+
+  if (transform.type === 'combine') {
+    return transform.terms.reduce((total, term, i) => {
+      const raw = rawValues[i];
+      if (raw == null) return total;
+      let value: number;
+      if (term.index != null) {
+        const parts = raw.split('|');
+        const idx = term.index < 0 ? parts.length + term.index : term.index;
+        value = parseFloat(parts[idx]);
+      } else {
+        value = parseFloat(raw);
+      }
+      if (Number.isNaN(value)) value = 0;
+      value *= term.scale ?? 1;
+      if (term.min != null) value = Math.max(term.min, value);
+      return total + value;
+    }, 0);
+  }
+
+  const numericValues = rawValues.map(v => parseFloat(v));
 
   switch (transform.type) {
     case 'sum': {
@@ -830,6 +887,24 @@ export function multiKeyTransformToJinja2(
   keys: string[],
   valuePrefix: string = 'value_json',
 ): string {
+  if (transform.type === 'combine') {
+    const termExprs = keys.map((k, i) => {
+      const term = transform.terms[i] ?? {};
+      let expr =
+        term.index != null
+          ? `(${valuePrefix}.${k}.split('|')[${term.index}] | float(0))`
+          : `(${valuePrefix}.${k} | float(0))`;
+      if (term.scale != null && term.scale !== 1) {
+        expr = `(${expr} * ${term.scale})`;
+      }
+      if (term.min != null) {
+        expr = `([${expr}, ${term.min}] | max)`;
+      }
+      return expr;
+    });
+    return `{{ ${termExprs.join(' + ')} }}`;
+  }
+
   // Use float(none) so invalid values become None instead of 0
   const values = keys.map(k => `${valuePrefix}.${k} | float(none)`);
   const rawListExpr = `[${values.join(', ')}]`;
@@ -918,7 +993,7 @@ function generateVenusPvFieldJinja2(
 
 /** Check if a transform is a multi-key transform */
 export function isMultiKeyTransform(transform: Transform): transform is MultiKeyTransform {
-  return ['sum', 'min', 'max', 'diff', 'average'].includes(transform.type);
+  return ['sum', 'min', 'max', 'diff', 'average', 'combine'].includes(transform.type);
 }
 
 // =============================================================================

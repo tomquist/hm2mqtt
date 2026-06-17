@@ -17,6 +17,7 @@
 - Venus: Add per-battery-pack sensors (State of Charge, State, Temperature and Charge/Discharge Power). These require cell-data polling to be enabled and are disabled by default.
 - Venus: Add detailed per-pack cell sensors (individual cell voltages, temperature sensors, min/max cell voltage, min/max/ambient/MOSFET temperature, pack voltage and state of charge) for additional battery packs, decoded from the `cd=42,bms_idx=N` response. Each pack is only polled when it is reported as present, so absent packs add no traffic. These require cell-data polling (`POLL_CELL_DATA`) to be enabled and are disabled by default.
 - Venus: Add *PV Energy Today* and *PV Energy Total* sensors on models with PV inputs (Venus A/D).
+- Venus: Add *Combined Charging Power* and *Combined Charging Energy Today*/*Total* sensors on models with PV inputs (Venus A/D). These combine the solar (PV) and AC/grid charging into a single power and energy figure, so you can see how much is going into the battery from both sources at once. They are only published on devices that report PV power or PV input energy.
 
 ### Changed
 

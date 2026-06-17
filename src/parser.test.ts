@@ -770,6 +770,44 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('pvEnergyTotal', 57);
   });
 
+  test('combines PV and AC charging into combined power/energy on PV models', () => {
+    // pv1-4 producing (deciwatts), charging from AC (grd_o negative), and PV
+    // energy + charging capacity present.
+    const message =
+      'cd=1,tot_i=3,tot_o=0,ele_d=2,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=-800,grd_t=2,gct_s=1,cel_s=2,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0,pv1=1076|1,pv2=500|1,pv3=0|0,pv4=0|0,pv=41|57';
+    const parsed = parseMessage(message, 'VNSA-0', 'venusA123');
+
+    const result = parsed['data'] as VenusDeviceData;
+    // Total PV power 107.6 + 50 = 157.6 W, plus 800 W AC charging
+    expect(result.combinedChargingPower).toBeCloseTo(157.6 + 800, 5);
+    // Today: PV 41 Wh + daily charging 2 * 10 = 20 Wh
+    expect(result).toHaveProperty('combinedChargingEnergyToday', 61);
+    // Total: PV 57 Wh + total charging 3 * 10 = 30 Wh
+    expect(result).toHaveProperty('combinedChargingEnergyTotal', 87);
+  });
+
+  test('combined charging power ignores AC discharge (only counts charging)', () => {
+    // grd_o positive -> discharging, so only PV power contributes to the
+    // "into the battery" combined charging power.
+    const message =
+      'cd=1,tot_i=3,tot_o=0,ele_d=2,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=423,grd_t=3,gct_s=1,cel_s=3,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0,pv1=1076|1,pv2=0|0,pv3=0|0,pv4=0|0,pv=41|57';
+    const parsed = parseMessage(message, 'VNSA-0', 'venusA123');
+
+    const result = parsed['data'] as VenusDeviceData;
+    expect(result.combinedChargingPower).toBeCloseTo(107.6, 5);
+  });
+
+  test('does not expose combined charging sensors without PV data', () => {
+    const message =
+      'cd=1,tot_i=3,tot_o=0,ele_d=2,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=-800,grd_t=2,gct_s=1,cel_s=2,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0';
+    const parsed = parseMessage(message, 'VNSD-0', 'venusD123');
+
+    const result = parsed['data'] as VenusDeviceData;
+    expect(result).not.toHaveProperty('combinedChargingPower');
+    expect(result).not.toHaveProperty('combinedChargingEnergyToday');
+    expect(result).not.toHaveProperty('combinedChargingEnergyTotal');
+  });
+
   test('parses Venus metering, pricing and version fields', () => {
     // Full Venus D dump exercising the CT/phase/pricing/version sensors.
     const message =

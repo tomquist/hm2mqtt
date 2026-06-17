@@ -409,4 +409,42 @@ describe('Home Assistant Discovery', () => {
     expect(withPv.some(t => t.includes('pv3_'))).toBe(false);
     expect(withPv.some(t => t.includes('pv4_'))).toBe(false);
   });
+
+  test('should gate Venus combined charging discovery configs on PV data presence', () => {
+    const device: Device = { deviceType: 'VNSD-0', deviceId: 'venusD123' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/VNSD-0/device/venusD123/ctrl',
+      deviceTopicNew: 'marstek_energy/VNSD-0/device/venusD123/ctrl',
+      deviceControlTopicOld: 'hame_energy/VNSD-0/App/venusD123/ctrl',
+      deviceControlTopicNew: 'marstek_energy/VNSD-0/App/venusD123/ctrl',
+      availabilityTopic: 'hame_energy/VNSD-0/availability/venusD123',
+      controlSubscriptionTopic: 'hame_energy/VNSD-0/control/venusD123/control',
+      publishTopic: 'hame_energy/VNSD-0/device/venusD123/data',
+    };
+
+    const combinedTopics = (state: object) =>
+      generateDiscoveryConfigs(
+        device,
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      )
+        .map(c => c.topic)
+        .filter(t => /combined_charging_/.test(t));
+
+    // No PV data: the combined charging configs are deferred (nothing published)
+    expect(combinedTopics({ batterySoc: 94 })).toHaveLength(0);
+
+    // PV data present: the combined charging configs are advertised
+    const withPv = combinedTopics({
+      combinedChargingPower: 957.6,
+      combinedChargingEnergyToday: 61,
+      combinedChargingEnergyTotal: 87,
+    });
+    expect(withPv.some(t => t.includes('combined_charging_power'))).toBe(true);
+    expect(withPv.some(t => t.includes('combined_charging_energy_today'))).toBe(true);
+    expect(withPv.some(t => t.includes('combined_charging_energy_total'))).toBe(true);
+  });
 });

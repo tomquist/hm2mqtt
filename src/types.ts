@@ -440,6 +440,11 @@ export interface VenusDeviceData extends BaseDeviceData {
   pvEnergyToday?: number;
   pvEnergyTotal?: number;
 
+  // Combined charging (PV + AC) — only present on models that report PV data
+  combinedChargingPower?: number;
+  combinedChargingEnergyToday?: number;
+  combinedChargingEnergyTotal?: number;
+
   // Grid information
   offGridPower?: number;
   combinedPower?: number;

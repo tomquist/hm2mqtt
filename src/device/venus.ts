@@ -46,6 +46,7 @@ import {
   venusPvField,
   pipeValue,
   pipeArray,
+  combine,
 } from '../transforms';
 
 /**
@@ -361,6 +362,79 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'total_increasing',
       }),
       { enabled: state => (state.pvEnergyTotal != null ? true : undefined) },
+    );
+
+    // Combined charging (PV + AC) sensors. These let you see how much power and
+    // energy is going into the battery from both solar (PV) and AC/grid charging
+    // at once. They are only computed (and advertised) on models that report PV
+    // data; on devices without PV inputs the source fields are absent and the
+    // combine transforms produce no value.
+
+    // Combined charging power = total PV power + AC charging power. PV power is
+    // read from pv1–pv4 (deciwatts -> W). The AC charging power is the charging
+    // half of the combined power `grd_o` (negative = charging): the scale of -1
+    // flips the sign and the min of 0 ignores the discharge half, so only power
+    // flowing into the battery is counted.
+    field({
+      key: ['pv1', 'pv2', 'pv3', 'pv4', 'grd_o'],
+      path: ['combinedChargingPower'],
+      transform: combine([
+        { scale: 1 / 10 },
+        { scale: 1 / 10 },
+        { scale: 1 / 10 },
+        { scale: 1 / 10 },
+        { scale: -1, min: 0 },
+      ]),
+    });
+    advertise(
+      ['combinedChargingPower'],
+      sensorComponent<number>({
+        id: 'combined_charging_power',
+        name: 'Combined Charging Power',
+        device_class: 'power',
+        unit_of_measurement: 'W',
+        state_class: 'measurement',
+      }),
+      { enabled: state => (state.combinedChargingPower != null ? true : undefined) },
+    );
+
+    // Combined charging energy today = today's PV energy (first `pv` component,
+    // Wh) + daily AC charging capacity (`ele_d`, 0.01 kWh -> Wh).
+    field({
+      key: ['pv', 'ele_d'],
+      path: ['combinedChargingEnergyToday'],
+      transform: combine([{ index: 0 }, { scale: 10 }]),
+    });
+    advertise(
+      ['combinedChargingEnergyToday'],
+      sensorComponent<number>({
+        id: 'combined_charging_energy_today',
+        name: 'Combined Charging Energy Today',
+        device_class: 'energy',
+        unit_of_measurement: 'Wh',
+        state_class: 'total_increasing',
+      }),
+      { enabled: state => (state.combinedChargingEnergyToday != null ? true : undefined) },
+    );
+
+    // Combined charging energy total = cumulative PV energy (last `pv`
+    // component, Wh) + total AC charging capacity (`tot_i`, 0.01 kWh -> Wh).
+    field({
+      key: ['pv', 'tot_i'],
+      path: ['combinedChargingEnergyTotal'],
+      transform: combine([{ index: -1 }, { scale: 10 }]),
+      monotonic: true,
+    });
+    advertise(
+      ['combinedChargingEnergyTotal'],
+      sensorComponent<number>({
+        id: 'combined_charging_energy_total',
+        name: 'Combined Charging Energy Total',
+        device_class: 'energy',
+        unit_of_measurement: 'Wh',
+        state_class: 'total_increasing',
+      }),
+      { enabled: state => (state.combinedChargingEnergyTotal != null ? true : undefined) },
     );
 
     // Power information

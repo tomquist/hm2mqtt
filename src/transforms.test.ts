@@ -28,6 +28,7 @@ import {
   max,
   diff,
   average,
+  combine,
   // Execution functions
   executeTransform,
   executeMultiKeyTransform,
@@ -582,6 +583,78 @@ describe('transforms', () => {
         ).toBe(30);
       });
     });
+
+    describe('combine transform', () => {
+      it('should scale each term and sum them', () => {
+        // PV power (deciwatts -> W) plus AC charging power
+        expect(
+          executeMultiKeyTransform(
+            combine([{ scale: 1 / 10 }, { scale: 1 / 10 }, { scale: -1, min: 0 }]),
+            { pv1: '1076|1', pv2: '500|1', grd_o: '-800' },
+          ),
+        ).toBeCloseTo(107.6 + 50 + 800, 5);
+      });
+
+      it('should clamp the discharge half of a signed reading to zero', () => {
+        // grd_o positive means discharging, so the AC charging term is 0
+        expect(
+          executeMultiKeyTransform(combine([{ scale: 1 / 10 }, { scale: -1, min: 0 }]), {
+            pv1: '1076|1',
+            grd_o: '423',
+          }),
+        ).toBeCloseTo(107.6, 5);
+      });
+
+      it('should extract a pipe component by index before scaling', () => {
+        // PV energy total (last component, Wh) + total charging capacity (0.01 kWh -> Wh)
+        expect(
+          executeMultiKeyTransform(combine([{ index: -1 }, { scale: 10 }]), {
+            pv: '41|57',
+            tot_i: '3',
+          }),
+        ).toBe(57 + 30);
+        // First component (today)
+        expect(
+          executeMultiKeyTransform(combine([{ index: 0 }, { scale: 10 }]), {
+            pv: '41|57',
+            ele_d: '2',
+          }),
+        ).toBe(41 + 20);
+      });
+
+      it('should treat invalid values as 0', () => {
+        expect(
+          executeMultiKeyTransform(combine([{ index: -1 }, { scale: 10 }]), {
+            pv: 'invalid',
+            tot_i: '5',
+          }),
+        ).toBe(50);
+      });
+
+      it('should generate a correct Jinja2 template', () => {
+        expect(
+          multiKeyTransformToJinja2(
+            combine([{ index: -1 }, { scale: 10 }]),
+            ['pv', 'tot_i'],
+            'value_json',
+          ),
+        ).toBe(
+          "{{ (value_json.pv.split('|')[-1] | float(0)) + ((value_json.tot_i | float(0)) * 10) }}",
+        );
+      });
+
+      it('should generate a Jinja2 template with sign flip and clamp', () => {
+        expect(
+          multiKeyTransformToJinja2(
+            combine([{ scale: 1 / 10 }, { scale: -1, min: 0 }]),
+            ['pv1', 'grd_o'],
+            'value_json',
+          ),
+        ).toBe(
+          `{{ ((value_json.pv1 | float(0)) * ${1 / 10}) + ([((value_json.grd_o | float(0)) * -1), 0] | max) }}`,
+        );
+      });
+    });
   });
 
   describe('isMultiKeyTransform', () => {
@@ -591,6 +664,7 @@ describe('transforms', () => {
       expect(isMultiKeyTransform(max())).toBe(true);
       expect(isMultiKeyTransform(diff())).toBe(true);
       expect(isMultiKeyTransform(average())).toBe(true);
+      expect(isMultiKeyTransform(combine([]))).toBe(true);
     });
 
     it('should return false for single-key transforms', () => {
