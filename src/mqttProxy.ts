@@ -44,7 +44,11 @@ export class MqttProxy {
 
   private async initAedes(): Promise<void> {
     this.aedesServer = await Aedes.createBroker({
-      preConnect: (client: AedesClient, packet: ConnectPacket, callback: (error: Error | null, success: boolean) => void) => {
+      preConnect: (
+        client: AedesClient,
+        packet: ConnectPacket,
+        callback: (error: Error | null, success: boolean) => void,
+      ) => {
         const originalClientId = packet.clientId || '';
 
         if (
