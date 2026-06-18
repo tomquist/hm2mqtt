@@ -1,5 +1,6 @@
-import logger from './logger';
-import { DEFAULT_TOPIC_PREFIX } from './constants';
+import { jest } from '@jest/globals';
+import logger from './logger.js';
+import { DEFAULT_TOPIC_PREFIX } from './constants.js';
 
 beforeAll(() => {
   jest.clearAllMocks();
@@ -54,9 +55,9 @@ jest.mock('mqtt', () => {
 });
 
 // Make sure the mock is reset before each test
-beforeEach(() => {
+beforeEach(async () => {
   jest.clearAllMocks();
-  const mqttMock = require('mqtt');
+  const mqttMock = (await import('mqtt')) as any;
   mqttMock.connect.mockClear();
   mqttMock.__mockClient.on.mockClear();
   mqttMock.__mockClient.publish.mockClear();
@@ -92,12 +93,12 @@ describe('MQTT Client', () => {
     process.env.MQTT_TOPIC_PREFIX = DEFAULT_TOPIC_PREFIX;
   });
 
-  test('should initialize MQTT client with correct options', () => {
+  test('should initialize MQTT client with correct options', async () => {
     // Import the module to trigger the initialization code
-    require('./index');
+    await import('./index.js');
 
     // Get the mock mqtt module
-    const mqttMock = require('mqtt');
+    const mqttMock = (await import('mqtt')) as any;
 
     // Check that mqtt.connect was called with the right options
     expect(mqttMock.connect).toHaveBeenCalledWith(
@@ -111,10 +112,10 @@ describe('MQTT Client', () => {
     );
   });
 
-  test('should subscribe to device topics on connect', () => {
+  test('should subscribe to device topics on connect', async () => {
     // Import the module
-    require('./index');
-    const mqttMock = require('mqtt');
+    await import('./index.js');
+    const mqttMock = (await import('mqtt')) as any;
     const mockClient = mqttMock.__mockClient;
 
     // Trigger connect event
@@ -127,10 +128,10 @@ describe('MQTT Client', () => {
     );
   });
 
-  test('should handle device data messages', () => {
+  test('should handle device data messages', async () => {
     // Import the module
-    require('./index');
-    const mqttMock = require('mqtt');
+    await import('./index.js');
+    const mqttMock = (await import('mqtt')) as any;
     const mockClient = mqttMock.__mockClient;
 
     // Trigger connect event
@@ -170,10 +171,10 @@ describe('MQTT Client', () => {
     }
   });
 
-  test('should handle control topic messages', () => {
+  test('should handle control topic messages', async () => {
     // Import the module
-    require('./index');
-    const mockClient = require('mqtt').__mockClient;
+    await import('./index.js');
+    const mockClient = ((await import('mqtt')) as any).__mockClient;
 
     // Trigger connect event
     mockClient.triggerEvent('connect');
@@ -195,10 +196,10 @@ describe('MQTT Client', () => {
     );
   });
 
-  test('should handle time period settings correctly', () => {
+  test('should handle time period settings correctly', async () => {
     // Import the module
-    require('./index');
-    const mockClient = require('mqtt').__mockClient;
+    await import('./index.js');
+    const mockClient = ((await import('mqtt')) as any).__mockClient;
 
     // Trigger connect event to initialize
     mockClient.triggerEvent('connect');
@@ -243,12 +244,12 @@ describe('MQTT Client', () => {
     );
   });
 
-  test('should handle periodic polling', () => {
+  test('should handle periodic polling', async () => {
     jest.useFakeTimers();
 
     // Import the module
-    const indexModule = require('./index');
-    const mqttMock = require('mqtt');
+    await import('./index.js');
+    const mqttMock = (await import('mqtt')) as any;
     const mockClient = mqttMock.__mockClient;
 
     // Reset the publish mock to clear previous calls
@@ -276,7 +277,7 @@ describe('MQTT Client', () => {
   });
 });
 
-afterAll(() => {
+afterAll(async () => {
   // Clean up any timers or event listeners
   jest.useRealTimers();
   jest.restoreAllMocks();
@@ -289,11 +290,11 @@ afterAll(() => {
 
   // If there's an index module with a cleanup method, call it
   try {
-    const indexModule = require('./index');
-    if (indexModule && typeof indexModule.cleanup === 'function') {
-      indexModule.cleanup();
+    const indexModule = await import('./index.js');
+    if (indexModule && typeof (indexModule as any).cleanup === 'function') {
+      (indexModule as any).cleanup();
     }
   } catch (e) {
-    // Ignore errors if module can't be required
+    // Ignore errors if module can't be imported
   }
 });

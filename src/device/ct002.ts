@@ -1,7 +1,11 @@
-import { BuildMessageFn, globalPollInterval, registerDeviceDefinition } from '../deviceDefinition';
-import { CT002DeviceData } from '../types';
-import { sensorComponent } from '../homeAssistantDiscovery';
-import { number, identity } from '../transforms';
+import {
+  BuildMessageFn,
+  globalPollInterval,
+  registerDeviceDefinition,
+} from '../deviceDefinition.js';
+import { CT002DeviceData } from '../types.js';
+import { sensorComponent } from '../homeAssistantDiscovery.js';
+import { number, identity } from '../transforms.js';
 
 const requiredRuntimeInfoKeys = ['pwr_a', 'pwr_b', 'pwr_c', 'pwr_t'];
 

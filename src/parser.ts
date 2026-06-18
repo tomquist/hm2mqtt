@@ -1,20 +1,20 @@
-import { B2500V2DeviceData } from './types';
+import { B2500V2DeviceData } from './types.js';
 import {
   KeyPath,
   BaseDeviceData,
   getDeviceDefinition,
   FieldDefinition,
   TypeAtPath,
-} from './deviceDefinition';
-import { transformNumber } from './device/helpers';
-import logger from './logger';
+} from './deviceDefinition.js';
+import { transformNumber } from './device/helpers.js';
+import logger from './logger.js';
 import {
   Transform,
   MultiKeyTransform,
   isMultiKeyTransform,
   executeTransform,
   executeMultiKeyTransform,
-} from './transforms';
+} from './transforms.js';
 
 /**
  * Check if a transform spec is a declarative Transform object

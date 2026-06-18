@@ -1,9 +1,9 @@
 import * as mqtt from 'mqtt';
-import { Device, MqttConfig } from './types';
-import { DeviceManager } from './deviceManager';
-import { publishDiscoveryConfigs } from './generateDiscoveryConfigs';
-import { AdditionalDeviceInfo, BaseDeviceData, getDeviceDefinition } from './deviceDefinition';
-import logger from './logger';
+import { Device, MqttConfig } from './types.js';
+import { DeviceManager } from './deviceManager.js';
+import { publishDiscoveryConfigs } from './generateDiscoveryConfigs.js';
+import { AdditionalDeviceInfo, BaseDeviceData, getDeviceDefinition } from './deviceDefinition.js';
+import logger from './logger.js';
 
 export class MqttClient {
   private client: mqtt.MqttClient;

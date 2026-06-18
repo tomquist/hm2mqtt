@@ -1,4 +1,5 @@
-import { parseMessage } from './parser';
+import './device/registry.js';
+import { parseMessage } from './parser.js';
 import {
   B2500V2DeviceData,
   HmiInverterDeviceData,
@@ -9,7 +10,7 @@ import {
   VenusBMSPackDetail,
   VenusDeviceData,
   VenusNetworkInfo,
-} from './types';
+} from './types.js';
 
 describe('MQTT Message Parser', () => {
   test('should parse comma-separated key-value pairs correctly', () => {

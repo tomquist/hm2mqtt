@@ -1,14 +1,16 @@
-import logger from './logger';
-import { ControlHandler } from './controlHandler';
-import { DeviceManager, DeviceStateData } from './deviceManager';
+import { jest } from '@jest/globals';
+import './device/registry.js';
+import logger from './logger.js';
+import { ControlHandler } from './controlHandler.js';
+import { DeviceManager, DeviceStateData } from './deviceManager.js';
 import {
   MqttConfig,
   Device,
   B2500V2DeviceData,
   B2500BaseDeviceData,
   B2500V1DeviceData,
-} from './types';
-import { DEFAULT_TOPIC_PREFIX } from './constants';
+} from './types.js';
+import { DEFAULT_TOPIC_PREFIX } from './constants.js';
 
 describe('ControlHandler', () => {
   let controlHandler: ControlHandler;

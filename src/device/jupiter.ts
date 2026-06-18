@@ -3,7 +3,7 @@ import {
   globalPollInterval,
   KeyPath,
   registerDeviceDefinition,
-} from '../deviceDefinition';
+} from '../deviceDefinition.js';
 import {
   CommandParams,
   JupiterBatteryWorkingStatus,
@@ -19,8 +19,8 @@ import {
   resolveMeterMac,
   WeekdaySet,
   JupiterTimePeriod,
-} from '../types';
-import logger from '../logger';
+} from '../types.js';
+import logger from '../logger.js';
 import {
   sensorComponent,
   switchComponent,
@@ -28,7 +28,7 @@ import {
   selectComponent,
   textComponent,
   numberComponent,
-} from '../homeAssistantDiscovery';
+} from '../homeAssistantDiscovery.js';
 import {
   divide,
   map,
@@ -39,7 +39,7 @@ import {
   highByte,
   lowByte,
   diff,
-} from '../transforms';
+} from '../transforms.js';
 
 /**
  * Command types supported by the Jupiter device (subset of Venus)

@@ -1,5 +1,5 @@
 import pino from 'pino';
-import { consoleStyleLogMethod } from './logger';
+import { consoleStyleLogMethod } from './logger.js';
 
 // pino v10's printf-placeholder-aware typings reject console.log-style calls
 // (a trailing object/string with no matching `%s`/`%d`). consoleStyleLogMethod

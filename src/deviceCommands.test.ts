@@ -1,7 +1,9 @@
-import { ControlHandler } from './controlHandler';
-import { DeviceManager, DeviceStateData } from './deviceManager';
-import { MqttConfig, Device } from './types';
-import { DEFAULT_TOPIC_PREFIX } from './constants';
+import { jest } from '@jest/globals';
+import './device/registry.js';
+import { ControlHandler } from './controlHandler.js';
+import { DeviceManager, DeviceStateData } from './deviceManager.js';
+import { MqttConfig, Device } from './types.js';
+import { DEFAULT_TOPIC_PREFIX } from './constants.js';
 
 /**
  * Device command test case definition

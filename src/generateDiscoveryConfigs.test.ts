@@ -1,8 +1,10 @@
-import { generateDiscoveryConfigs } from './generateDiscoveryConfigs';
-import { Device } from './types';
-import { DeviceTopics } from './deviceManager';
-import { AdditionalDeviceInfo } from './deviceDefinition';
-import { DEFAULT_TOPIC_PREFIX } from './constants';
+import { jest } from '@jest/globals';
+import './device/registry.js';
+import { generateDiscoveryConfigs, publishDiscoveryConfigs } from './generateDiscoveryConfigs.js';
+import { Device } from './types.js';
+import { DeviceTopics } from './deviceManager.js';
+import { AdditionalDeviceInfo } from './deviceDefinition.js';
+import { DEFAULT_TOPIC_PREFIX } from './constants.js';
 
 describe('Home Assistant Discovery', () => {
   test('should generate discovery configs for a device', () => {
@@ -254,9 +256,6 @@ describe('Home Assistant Discovery', () => {
       controlSubscriptionTopic,
       publishTopic,
     };
-
-    // Import the function
-    const { publishDiscoveryConfigs } = require('./generateDiscoveryConfigs');
 
     // Call the function with the mock client
     publishDiscoveryConfigs(

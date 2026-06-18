@@ -1,14 +1,15 @@
 {
   "name": "hm2mqtt",
   "version": "1.8.0",
+  "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
     "test:addon": "cd ha_addon && ./test_env.sh",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
@@ -18,7 +19,7 @@
     "release": "./release.sh"
   },
   "dependencies": {
-    "aedes": "^0.51.3",
+    "aedes": "^1.0.2",
     "dotenv": "^17.4.2",
     "mqtt": "^5.15.1",
     "pino": "^10.3.1",
