@@ -1,4 +1,4 @@
-import { ControlHandlerDefinition } from '../controlHandler';
+import { ControlHandlerDefinition } from '../controlHandler.js';
 import {
   B2500V2CD16Data,
   B2500V2DeviceData,
@@ -9,8 +9,8 @@ import {
   normalizeMeterMac,
   resolveMeterMac,
   isValidMeterType,
-} from '../types';
-import logger from '../logger';
+} from '../types.js';
+import logger from '../logger.js';
 import {
   CommandType,
   extractAdditionalDeviceInfo,
@@ -19,8 +19,12 @@ import {
   registerBaseMessage,
   registerCalibrationDataMessage,
   registerCellDataMessage,
-} from './b2500Base';
-import { BuildMessageFn, globalPollInterval, registerDeviceDefinition } from '../deviceDefinition';
+} from './b2500Base.js';
+import {
+  BuildMessageFn,
+  globalPollInterval,
+  registerDeviceDefinition,
+} from '../deviceDefinition.js';
 import {
   binarySensorComponent,
   buttonComponent,
@@ -29,8 +33,8 @@ import {
   sensorComponent,
   switchComponent,
   textComponent,
-} from '../homeAssistantDiscovery';
-import { number, boolean, map, timeString, equalsBoolean, divide } from '../transforms';
+} from '../homeAssistantDiscovery.js';
+import { number, boolean, map, timeString, equalsBoolean, divide } from '../transforms.js';
 
 /**
  * Create a time period handler for a specific setting

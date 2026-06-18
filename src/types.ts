@@ -1,4 +1,4 @@
-import { BaseDeviceData } from './deviceDefinition';
+import { BaseDeviceData } from './deviceDefinition.js';
 
 type BatteryStatus = {
   // Host battery sign position (bit3:undervoltage, bit2:dod, bit1:charge, bit0:discharge)

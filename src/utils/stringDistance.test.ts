@@ -1,4 +1,4 @@
-import { levenshteinDistance } from './stringDistance';
+import { levenshteinDistance } from './stringDistance.js';
 
 describe('levenshteinDistance', () => {
   it('should return 0 for identical strings', () => {

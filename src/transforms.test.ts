@@ -38,7 +38,7 @@ import {
   isMultiKeyTransform,
   toTransformFunction,
   toMultiKeyTransformFunction,
-} from './transforms';
+} from './transforms.js';
 
 describe('transforms', () => {
   describe('number transform', () => {

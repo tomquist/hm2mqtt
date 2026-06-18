@@ -2,16 +2,21 @@ import {
   AdditionalDeviceInfo,
   BuildMessageDefinitionArgs,
   BuildMessageFn,
-} from '../deviceDefinition';
-import logger from '../logger';
-import { B2500BaseDeviceData, B2500CalibrationData, B2500CellData, CommandParams } from '../types';
+} from '../deviceDefinition.js';
+import logger from '../logger.js';
+import {
+  B2500BaseDeviceData,
+  B2500CalibrationData,
+  B2500CellData,
+  CommandParams,
+} from '../types.js';
 import {
   binarySensorComponent,
   buttonComponent,
   numberComponent,
   sensorComponent,
   switchComponent,
-} from '../homeAssistantDiscovery';
+} from '../homeAssistantDiscovery.js';
 import {
   number,
   boolean,
@@ -24,7 +29,7 @@ import {
   diff,
   average,
   divide,
-} from '../transforms';
+} from '../transforms.js';
 
 export function extractAdditionalDeviceInfo(state: B2500BaseDeviceData): AdditionalDeviceInfo {
   let firmwareVersion: string | undefined;

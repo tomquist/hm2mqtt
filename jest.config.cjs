@@ -1,8 +1,16 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
-  preset: 'ts-jest',
+  extensionsToTreatAsEsm: ['.ts'],
   testEnvironment: 'node',
   testMatch: ['**/*.test.ts'],
+  testPathIgnorePatterns: ['/node_modules/', '/.claude/'],
+  injectGlobals: true,
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', { useESM: true, isolatedModules: true }],
+  },
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+  },
   collectCoverage: true,
   coverageDirectory: 'coverage',
   collectCoverageFrom: [
@@ -17,10 +25,7 @@ module.exports = {
       outputName: 'junit.xml',
     }]
   ],
-  // Add a timeout to ensure tests don't hang
   testTimeout: 10000,
-  // Force exit after tests complete
   forceExit: true,
-  // Detect open handles (like timers, sockets) that might prevent Jest from exiting
   detectOpenHandles: true,
 };

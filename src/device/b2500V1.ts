@@ -1,5 +1,9 @@
-import { BuildMessageFn, globalPollInterval, registerDeviceDefinition } from '../deviceDefinition';
-import { B2500V1CD16Data, B2500V1DeviceData } from '../types';
+import {
+  BuildMessageFn,
+  globalPollInterval,
+  registerDeviceDefinition,
+} from '../deviceDefinition.js';
+import { B2500V1CD16Data, B2500V1DeviceData } from '../types.js';
 import {
   CommandType,
   extractAdditionalDeviceInfo,
@@ -8,15 +12,15 @@ import {
   registerBaseMessage,
   registerCalibrationDataMessage,
   registerCellDataMessage,
-} from './b2500Base';
-import logger from '../logger';
+} from './b2500Base.js';
+import logger from '../logger.js';
 import {
   numberComponent,
   selectComponent,
   sensorComponent,
   switchComponent,
-} from '../homeAssistantDiscovery';
-import { number, bitBoolean, map } from '../transforms';
+} from '../homeAssistantDiscovery.js';
+import { number, bitBoolean, map } from '../transforms.js';
 
 registerDeviceDefinition(
   {

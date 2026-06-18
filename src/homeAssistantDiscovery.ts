@@ -1,5 +1,5 @@
-import { AdvertiseBuilderArgs, HaStatefulAdvertiseBuilder } from './deviceDefinition';
-import { HaNonStatefulComponentAdvertiseBuilder } from './controlHandler';
+import { AdvertiseBuilderArgs, HaStatefulAdvertiseBuilder } from './deviceDefinition.js';
+import { HaNonStatefulComponentAdvertiseBuilder } from './controlHandler.js';
 
 export interface HaBaseComponent {
   name: string;

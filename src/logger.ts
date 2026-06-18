@@ -67,7 +67,7 @@ const logger: LooseLogger = pino({
   transport: {
     targets: [
       {
-        target: require.resolve('pino-pretty'),
+        target: 'pino-pretty',
         options: {
           colorize: false,
           translateTime: 'HH:MM:ss',

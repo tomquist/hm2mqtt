@@ -1,4 +1,8 @@
-import { BuildMessageFn, globalPollInterval, registerDeviceDefinition } from '../deviceDefinition';
+import {
+  BuildMessageFn,
+  globalPollInterval,
+  registerDeviceDefinition,
+} from '../deviceDefinition.js';
 import {
   CommandParams,
   isValidMeterType,
@@ -16,8 +20,8 @@ import {
   VenusNetworkInfo,
   VenusTimePeriod,
   WeekdaySet,
-} from '../types';
-import logger from '../logger';
+} from '../types.js';
+import logger from '../logger.js';
 import {
   buttonComponent,
   numberComponent,
@@ -26,7 +30,7 @@ import {
   switchComponent,
   textComponent,
   binarySensorComponent,
-} from '../homeAssistantDiscovery';
+} from '../homeAssistantDiscovery.js';
 import {
   multiply,
   divide,
@@ -46,7 +50,7 @@ import {
   venusPvField,
   pipeValue,
   pipeArray,
-} from '../transforms';
+} from '../transforms.js';
 
 /**
  * Command types supported by the Venus device
