@@ -67,11 +67,7 @@ function subscribe(client: mqtt.MqttClient, topic: string): Promise<void> {
   );
 }
 
-function waitForMessage(
-  client: mqtt.MqttClient,
-  topic: string,
-  timeoutMs = 3000,
-): Promise<string> {
+function waitForMessage(client: mqtt.MqttClient, topic: string, timeoutMs = 3000): Promise<string> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error(`Timeout waiting for message on "${topic}"`)),
