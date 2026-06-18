@@ -1,5 +1,5 @@
 import * as mqtt from 'mqtt';
-import Aedes from 'aedes';
+import { Aedes, Client as AedesClient, ConnectPacket } from 'aedes';
 import * as net from 'net';
 import { DeviceManager } from './deviceManager';
 import logger from './logger';
@@ -28,8 +28,8 @@ export interface MqttProxyConfig {
  * 3. Forwards messages from proxy clients to the main broker
  */
 export class MqttProxy {
-  private aedesServer: Aedes;
-  private tcpServer: net.Server;
+  private aedesServer!: Aedes;
+  private tcpServer!: net.Server;
   private mainBrokerClient: mqtt.MqttClient;
   private isRunning: boolean = false;
   private connectedClients: Set<string> = new Set();
@@ -39,17 +39,18 @@ export class MqttProxy {
     private config: MqttProxyConfig,
     private deviceManager: DeviceManager,
   ) {
-    this.aedesServer = new Aedes({
-      // Handle client ID conflicts by ensuring unique client IDs
-      preConnect: (client, packet, callback) => {
+    this.mainBrokerClient = this.setupMainBrokerConnection();
+  }
+
+  private async initAedes(): Promise<void> {
+    this.aedesServer = await Aedes.createBroker({
+      preConnect: (client: AedesClient, packet: ConnectPacket, callback: (error: Error | null, success: boolean) => void) => {
         const originalClientId = packet.clientId || '';
 
-        // If auto-resolve is enabled and the client ID is already in use
         if (
           this.config.autoResolveClientIdConflicts !== false &&
           this.usedClientIds.has(originalClientId)
         ) {
-          // Generate unique client ID by appending timestamp and random suffix
           let uniqueId: string;
           let attempts = 0;
           const maxAttempts = 10;
@@ -73,13 +74,11 @@ export class MqttProxy {
           );
         }
 
-        // Add the client ID to our tracking set
         this.usedClientIds.add(packet.clientId);
         callback(null, true);
       },
     });
-    this.tcpServer = net.createServer(this.aedesServer.handle);
-    this.mainBrokerClient = this.setupMainBrokerConnection();
+    this.tcpServer = net.createServer(this.aedesServer.handle.bind(this.aedesServer));
     this.setupAedesEventHandlers();
   }
 
@@ -242,6 +241,8 @@ export class MqttProxy {
       logger.warn('MQTT Proxy is already running');
       return;
     }
+
+    await this.initAedes();
 
     return new Promise((resolve, reject) => {
       this.tcpServer.listen(this.config.port, (err?: Error) => {
