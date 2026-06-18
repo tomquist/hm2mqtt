@@ -18,7 +18,7 @@
     "release": "./release.sh"
   },
   "dependencies": {
-    "aedes": "^0.51.3",
+    "aedes": "^1.0.2",
     "dotenv": "^17.4.2",
     "mqtt": "^5.15.1",
     "pino": "^10.3.1",
