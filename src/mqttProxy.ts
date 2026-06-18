@@ -30,7 +30,7 @@ export interface MqttProxyConfig {
 export class MqttProxy {
   private aedesServer!: Aedes;
   private tcpServer!: net.Server;
-  private mainBrokerClient: mqtt.MqttClient;
+  private mainBrokerClient!: mqtt.MqttClient;
   private isRunning: boolean = false;
   private connectedClients: Set<string> = new Set();
   private usedClientIds: Set<string> = new Set();
@@ -38,9 +38,7 @@ export class MqttProxy {
   constructor(
     private config: MqttProxyConfig,
     private deviceManager: DeviceManager,
-  ) {
-    this.mainBrokerClient = this.setupMainBrokerConnection();
-  }
+  ) {}
 
   private async initAedes(): Promise<void> {
     this.aedesServer = await Aedes.createBroker({
@@ -247,6 +245,7 @@ export class MqttProxy {
     }
 
     await this.initAedes();
+    this.mainBrokerClient = this.setupMainBrokerConnection();
 
     return new Promise((resolve, reject) => {
       this.tcpServer.listen(this.config.port, (err?: Error) => {
