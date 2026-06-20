@@ -21,7 +21,7 @@
 ### Changed
 
 - Venus & Jupiter: The *Recharge Mode* entity is now a settable select (Single Phase / Three Phase) instead of a read-only sensor, so the grid recharge mode can be switched from Home Assistant.
-- Docs: List Marstek Venus A and Venus D (and the HMI micro inverters) in the supported device lists in the README and the GitHub issue templates.
+- Docs: List Marstek Venus A, Venus D, the HMF-X B2500 v2 device type, and the HMI micro inverters in the supported device lists in the README and the GitHub issue templates.
 
 ## [1.8.0] - 2026-06-13
 
