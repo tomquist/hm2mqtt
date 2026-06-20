@@ -13,6 +13,8 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
   - Second and third generation with timer support
 - Marstek Venus C
 - Marstek Venus E
+- Marstek Venus A
+- Marstek Venus D
 - Marstek Jupiter C
 - Marstek Jupiter E
 - Marstek Jupiter Plus
@@ -475,6 +477,7 @@ This is typically stale MQTT Discovery state in Home Assistant.
 The device type can be one of the following:
 - **HMB-X**: (e.g. HMB-1, HMB-2, ...) B2500 storage v1
 - **HMA-X**: (e.g. HMA-1, HMA-2, ...) B2500 storage v2
+- **HMF-X**: (e.g. HMF-1, ...) B2500 storage v2
 - **HMJ-X**: (e.g. HMJ-2, ...) B2500 storage v2
 - **HMK-X**: (e.g. HMK-1, HMK-2, ...) Greensolar storage v3
 - **HMG-X**: (e.g. HMG-50) Marstek Venus
