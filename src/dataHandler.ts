@@ -1,8 +1,8 @@
-import { Device } from './types';
-import { DeviceManager } from './deviceManager';
-import { parseMessage } from './parser';
+import { Device } from './types.js';
+import { DeviceManager } from './deviceManager.js';
+import { parseMessage } from './parser.js';
 
-import logger from './logger';
+import logger from './logger.js';
 /**
  * Data Handler class
  */

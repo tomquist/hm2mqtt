@@ -1,8 +1,10 @@
-import { DeviceManager } from './deviceManager';
-import { MqttConfig } from './types';
-import { DEFAULT_TOPIC_PREFIX } from './constants';
-import { calculateNewVersionTopicId } from './utils/crypt';
-import logger from './logger';
+import { jest } from '@jest/globals';
+import './device/registry.js';
+import { DeviceManager } from './deviceManager.js';
+import { MqttConfig } from './types.js';
+import { DEFAULT_TOPIC_PREFIX } from './constants.js';
+import { calculateNewVersionTopicId } from './utils/crypt.js';
+import logger from './logger.js';
 
 describe('DeviceManager', () => {
   const mockConfig: MqttConfig = {

@@ -1,4 +1,4 @@
-import { calculateNewVersionTopicId, decryptNewVersionTopicId } from './crypt';
+import { calculateNewVersionTopicId, decryptNewVersionTopicId } from './crypt.js';
 
 describe('crypt', () => {
   it.each`

@@ -1,4 +1,4 @@
-import { transformTemperature } from './helpers';
+import { transformTemperature } from './helpers.js';
 
 describe('transformTemperature()', () => {
   it('should convert positive temperatures correctly', () => {

@@ -1,15 +1,15 @@
-import { DeviceTopics } from './deviceManager';
-import { HaDiscoveryConfig } from './homeAssistantDiscovery';
+import { DeviceTopics } from './deviceManager.js';
+import { HaDiscoveryConfig } from './homeAssistantDiscovery.js';
 import { MqttClient } from 'mqtt';
-import logger from './logger';
+import logger from './logger.js';
 import {
   AdditionalDeviceInfo,
   getDeviceDefinition,
   HaStatefulAdvertiseBuilder,
   KeyPath,
   TypeAtPath,
-} from './deviceDefinition';
-import { Device } from './types';
+} from './deviceDefinition.js';
+import { Device } from './types.js';
 
 const MAC_REGEX = /^[0-9a-fA-F]{12}$/;
 

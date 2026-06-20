@@ -1,6 +1,6 @@
-import './b2500V1';
-import './b2500V2';
-import './venus';
-import './jupiter';
-import './ct002';
-import './hmiInverter';
+import './b2500V1.js';
+import './b2500V2.js';
+import './venus.js';
+import './jupiter.js';
+import './ct002.js';
+import './hmiInverter.js';

@@ -1,40 +1,47 @@
-import { MqttClient } from './mqttClient';
-import { Device } from './types';
+import { jest } from '@jest/globals';
+import './device/registry.js';
 
-jest.mock('mqtt', () => {
-  const mockClient = {
-    on: jest.fn(),
-    publish: jest.fn(),
-    subscribe: jest.fn(),
-    end: jest.fn(),
-  };
+const mockPublish = jest.fn();
+const mockOn = jest.fn();
+const mockSubscribe = jest.fn();
+const mockEnd = jest.fn();
+const mockClient = {
+  on: mockOn,
+  publish: mockPublish,
+  subscribe: mockSubscribe,
+  end: mockEnd,
+};
 
-  return {
-    connect: jest.fn(() => mockClient),
-  };
-});
-
-jest.mock('./generateDiscoveryConfigs', () => ({
-  publishDiscoveryConfigs: jest.fn(),
+jest.unstable_mockModule('mqtt', () => ({
+  connect: jest.fn(() => mockClient),
 }));
 
-jest.mock('./deviceDefinition', () => ({
-  getDeviceDefinition: jest.fn(() => ({
-    messages: [
-      {
-        refreshDataPayload: 'cd=1',
-        publishPath: 'data',
-        getAdditionalDeviceInfo: (state: any) => ({
-          firmwareVersion: state?.fw,
-        }),
-      },
-    ],
-  })),
+const mockPublishDiscoveryConfigs = jest.fn();
+jest.unstable_mockModule('./generateDiscoveryConfigs.js', () => ({
+  publishDiscoveryConfigs: mockPublishDiscoveryConfigs,
 }));
+
+const mockGetDeviceDefinition = jest.fn(() => ({
+  messages: [
+    {
+      refreshDataPayload: 'cd=1',
+      publishPath: 'data',
+      getAdditionalDeviceInfo: (state: any) => ({
+        firmwareVersion: state?.fw,
+      }),
+    },
+  ],
+}));
+jest.unstable_mockModule('./deviceDefinition.js', () => ({
+  getDeviceDefinition: mockGetDeviceDefinition,
+}));
+
+const { MqttClient } = await import('./mqttClient.js');
+import type { Device } from './types.js';
 
 describe('MqttClient discovery re-publish', () => {
   test('re-publishes discovery when additional device info changes after first data on same path (regression #235)', () => {
-    const { publishDiscoveryConfigs } = require('./generateDiscoveryConfigs');
+    mockPublishDiscoveryConfigs.mockClear();
 
     const device: Device = { deviceType: 'HMJ-2', deviceId: 'abc123' };
     const topics = {
@@ -71,10 +78,10 @@ describe('MqttClient discovery re-publish', () => {
     mqttClient.onDeviceDataReceived(device, 'data');
 
     // We expect discovery to be re-published again so newly enabled entities appear
-    expect(publishDiscoveryConfigs).toHaveBeenCalledTimes(2);
+    expect(mockPublishDiscoveryConfigs).toHaveBeenCalledTimes(2);
 
     // Verify the second publish carries firmware info
-    expect(publishDiscoveryConfigs).toHaveBeenNthCalledWith(
+    expect(mockPublishDiscoveryConfigs).toHaveBeenNthCalledWith(
       2,
       expect.anything(),
       device,
@@ -87,8 +94,7 @@ describe('MqttClient discovery re-publish', () => {
   });
 
   test('only publishes discovery after a cd=1 response, not on non-cd=1 paths', () => {
-    const { publishDiscoveryConfigs } = require('./generateDiscoveryConfigs');
-    publishDiscoveryConfigs.mockClear();
+    mockPublishDiscoveryConfigs.mockClear();
 
     const device: Device = { deviceType: 'HMJ-2', deviceId: 'abc123' };
     const topics = {
@@ -118,14 +124,106 @@ describe('MqttClient discovery re-publish', () => {
 
     // A response on a non-cd=1 path (e.g. BMS data) must not announce discovery
     mqttClient.onDeviceDataReceived(device, 'bms');
-    expect(publishDiscoveryConfigs).not.toHaveBeenCalled();
+    expect(mockPublishDiscoveryConfigs).not.toHaveBeenCalled();
 
     // The first cd=1 response unlocks discovery
     mqttClient.onDeviceDataReceived(device, 'data');
-    expect(publishDiscoveryConfigs).toHaveBeenCalledTimes(1);
+    expect(mockPublishDiscoveryConfigs).toHaveBeenCalledTimes(1);
 
     // The previously-seen non-cd=1 path still gets its normal first-data publish
     mqttClient.onDeviceDataReceived(device, 'bms');
-    expect(publishDiscoveryConfigs).toHaveBeenCalledTimes(2);
+    expect(mockPublishDiscoveryConfigs).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('MqttClient shouldPoll gating', () => {
+  const topics = {
+    deviceTopicOld: 'hame_energy/VNSD-0/device/venus1/ctrl',
+    deviceTopicNew: 'marstek_energy/VNSD-0/device/venus1/ctrl',
+    publishTopic: 'homeassistant/VNSD-0/device/venus1/data',
+    deviceControlTopicOld: 'hame_energy/VNSD-0/App/venus1/ctrl',
+    deviceControlTopicNew: 'marstek_energy/VNSD-0/App/venus1/ctrl',
+    controlSubscriptionTopic: 'homeassistant/VNSD-0/control/venus1/control',
+    availabilityTopic: 'homeassistant/VNSD-0/availability/venus1',
+  };
+
+  function makeMessage(overrides: any) {
+    return {
+      isMessage: () => true,
+      getAdditionalDeviceInfo: () => ({}),
+      pollInterval: 1000,
+      controlsDeviceAvailability: false,
+      enabled: true,
+      ...overrides,
+    };
+  }
+
+  function pollPayloads(packMask: number | undefined): string[] {
+    jest.useFakeTimers();
+    try {
+      mockGetDeviceDefinition.mockReturnValue({
+        messages: [
+          makeMessage({
+            refreshDataPayload: 'cd=1',
+            publishPath: 'data',
+            controlsDeviceAvailability: true,
+          }),
+          // bms_idx=1 -> pack 2 -> present iff mask bit 1 set
+          makeMessage({
+            refreshDataPayload: 'cd=42,bms_idx=1',
+            publishPath: 'bmsPack1',
+            shouldPoll: (state: any) =>
+              state?.packMask != null && (state.packMask & (1 << 1)) !== 0,
+          }),
+          // bms_idx=2 -> pack 3 -> present iff mask bit 2 set
+          makeMessage({
+            refreshDataPayload: 'cd=42,bms_idx=2',
+            publishPath: 'bmsPack2',
+            shouldPoll: (state: any) =>
+              state?.packMask != null && (state.packMask & (1 << 2)) !== 0,
+          }),
+        ],
+      } as any);
+
+      mockPublish.mockClear();
+
+      const device: Device = { deviceType: 'VNSD-0', deviceId: 'venus1' };
+      const deviceManager: any = {
+        getDeviceTopics: () => topics,
+        getDeviceState: () => (packMask != null ? { packMask } : undefined),
+        getDevices: () => [],
+        getResponseTimeout: () => 5000,
+        setResponseTimeout: jest.fn(),
+        clearResponseTimeout: jest.fn(),
+      };
+      const config: any = {
+        brokerUrl: 'mqtt://localhost:1883',
+        clientId: 'test-client',
+        topicPrefix: 'homeassistant',
+        autodiscoveryTopicPrefix: 'homeassistant',
+      };
+
+      const mqttClient = new MqttClient(config, deviceManager, jest.fn());
+      mqttClient.requestDeviceData(device);
+      jest.advanceTimersByTime(1000);
+
+      return mockPublish.mock.calls.map((c: any[]) => c[1]);
+    } finally {
+      jest.useRealTimers();
+    }
+  }
+
+  test('polls only present packs (mask=3 -> pack 2 present, pack 3 absent)', () => {
+    const payloads = pollPayloads(3);
+    expect(payloads).toContain('cd=1');
+    expect(payloads).toContain('cd=42,bms_idx=1');
+    expect(payloads).not.toContain('cd=42,bms_idx=2');
+  });
+
+  test('polls no pack details until the pack mask is known', () => {
+    const payloads = pollPayloads(undefined);
+    expect(payloads).toContain('cd=1');
+    expect(payloads).not.toContain('cd=42,bms_idx=1');
+    expect(payloads).not.toContain('cd=42,bms_idx=2');
   });
 });

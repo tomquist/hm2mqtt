@@ -13,6 +13,8 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
   - Second and third generation with timer support
 - Marstek Venus C
 - Marstek Venus E
+- Marstek Venus A
+- Marstek Venus D
 - Marstek Jupiter C
 - Marstek Jupiter E
 - Marstek Jupiter Plus
@@ -267,7 +269,7 @@ services:
 | `MQTT_PASSWORD` | MQTT password | -                       |
 | `MQTT_POLLING_INTERVAL` | Interval between device polls in seconds | `60`                 |
 | `MQTT_RESPONSE_TIMEOUT` | Timeout for device responses in seconds | `15`                 |
-| `POLL_CELL_DATA` | Enable cell voltage (only available on B2500 devices) | false |
+| `POLL_CELL_DATA` | Enable cell-level battery data (individual cell voltages, temperatures and, on Venus, detailed per-pack BMS data) | false |
 | `POLL_EXTRA_BATTERY_DATA` | Enable extra battery data reporting (only available on B2500 devices) | false |
 | `POLL_CALIBRATION_DATA` | Enable calibration data reporting (only available on B2500 devices) | false |
 | `DEVICE_n` | Device configuration in format `{type}:{mac}` | -                       |
@@ -475,6 +477,7 @@ This is typically stale MQTT Discovery state in Home Assistant.
 The device type can be one of the following:
 - **HMB-X**: (e.g. HMB-1, HMB-2, ...) B2500 storage v1
 - **HMA-X**: (e.g. HMA-1, HMA-2, ...) B2500 storage v2
+- **HMF-X**: (e.g. HMF-1, ...) B2500 storage v2
 - **HMJ-X**: (e.g. HMJ-2, ...) B2500 storage v2
 - **HMK-X**: (e.g. HMK-1, HMK-2, ...) Greensolar storage v3
 - **HMG-X**: (e.g. HMG-50) Marstek Venus
@@ -608,7 +611,10 @@ homeassistant/{component}/{node_id}/{object_id}/config
 - `surplus-feed-in`: Toggles Surplus Feed-in mode (`on` or `off`). When enabled, surplus PV power is fed into the home grid when the battery is nearly full.
 
 ### Venus Device Commands
-- `working-mode`: Sets working mode (`automatic`, `manual`, or `trading`)
+- `working-mode`: Sets working mode (`automatic`, `manual`, `trading`, or `ai`). The `ai` value expands to `cd=2,md=5,nl=1` (AI mode requires both `md=5` and `nl=1`).
+- `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`)
+- `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped)
+- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `ct002`, `ct003`, `shellyEmGen3`, or `shellyProEm50`). For CT002/CT003 and the Shelly EM Gen3/Pro EM50, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC.
 - `auto-switch-working-mode`: Toggles automatic mode switching (`on` or `off`)
 - `time-period/[0-9]/enabled`: Enables/disables time period (`on` or `off`)
 - `time-period/[0-9]/start-time`: Sets start time for period (HH:MM format)
@@ -618,6 +624,11 @@ homeassistant/{component}/{node_id}/{object_id}/config
 - `get-ct-power`: Gets current transformer power readings
 - `transaction-mode`: Sets transaction mode parameters
 - `discharge-depth`: Sets the battery depth of discharge (30-88%). Only available on devices that report it.
+- `backup-enabled`: Toggles the backup/EPS ("UPS") power function (`on` or `off`)
+- `led-enabled`: Toggles the status LED (`on` or `off`). Only available on firmware that reports the LED state.
+- `surplus-feed-in`: Toggles surplus feed-in into the grid (`on` or `off`). Only available on Venus models with PV inputs (Venus A/D).
+- `bluetooth-advertising`: Toggles Bluetooth advertising (`on` enables advertising, `off` disables it / "Bluetooth lock")
+- `phase-diagnosis`: Starts the grid-phase detection routine
 
 ### Jupiter Device Commands
 
@@ -626,7 +637,10 @@ The following commands are supported by both Jupiter C, Jupiter E and Jupiter Pl
 - `refresh`: Refreshes the device data
 - `factory-reset`: Resets the device to factory settings
 - `sync-time`: Synchronizes device time with server
-- `working-mode`: Sets working mode (`automatic` or `manual`)
+- `working-mode`: Sets working mode (`automatic`, `manual`, or `ai`). The `ai` value expands to `cd=2,md=5,nl=1` (AI mode requires both `md=5` and `nl=1`).
+- `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`)
+- `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped)
+- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `ct002`, `ct003`, `shellyEmGen3`, or `shellyProEm50`). For CT002/CT003 and the Shelly EM Gen3/Pro EM50, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC.
 - `time-period/[0-4]/enabled`: Enables/disables time period (`on` or `off`)
 - `time-period/[0-4]/start-time`: Sets start time for period (HH:MM format)
 - `time-period/[0-4]/end-time`: Sets end time for period (HH:MM format)

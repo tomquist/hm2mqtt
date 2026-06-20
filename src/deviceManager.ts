@@ -1,13 +1,13 @@
-import { Device, MqttConfig } from './types';
+import { Device, MqttConfig } from './types.js';
 import {
   getDeviceDefinition,
   extractBaseType,
   getSuggestedDeviceType,
   FieldDefinition,
   KeyPath,
-} from './deviceDefinition';
-import { calculateNewVersionTopicId, decryptNewVersionTopicId } from './utils/crypt';
-import logger from './logger';
+} from './deviceDefinition.js';
+import { calculateNewVersionTopicId, decryptNewVersionTopicId } from './utils/crypt.js';
+import logger from './logger.js';
 
 /**
  * Number of confirming readings (beyond the first drop) required before a

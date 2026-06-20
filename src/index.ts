@@ -2,14 +2,15 @@ import * as dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 
-import { Device, MqttConfig } from './types';
-import { DEFAULT_AUTODISCOVERY_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX } from './constants';
-import { DeviceManager, DeviceStateData } from './deviceManager';
-import { MqttClient } from './mqttClient';
-import { ControlHandler } from './controlHandler';
-import logger from './logger';
-import { DataHandler } from './dataHandler';
-import { MqttProxy, MqttProxyConfig } from './mqttProxy';
+import './device/registry.js';
+import { Device, MqttConfig } from './types.js';
+import { DEFAULT_AUTODISCOVERY_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX } from './constants.js';
+import { DeviceManager, DeviceStateData } from './deviceManager.js';
+import { MqttClient } from './mqttClient.js';
+import { ControlHandler } from './controlHandler.js';
+import logger from './logger.js';
+import { DataHandler } from './dataHandler.js';
+import { MqttProxy, MqttProxyConfig } from './mqttProxy.js';
 
 // MQTT Proxy configuration
 const MQTT_PROXY_ENABLED = process.env.MQTT_PROXY_ENABLED === 'true';
@@ -313,16 +314,6 @@ async function main() {
       await mqttClient.close();
       process.exit();
     });
-
-    // Export for testing
-    if (process.env.NODE_ENV === 'test') {
-      module.exports.__test__ = {
-        deviceManager,
-        mqttClient,
-        controlHandler,
-        dataHandler,
-      };
-    }
 
     logger.debug('Application initialized successfully');
   } catch (error) {

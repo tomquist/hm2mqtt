@@ -1,12 +1,16 @@
-import { parseMessage } from './parser';
+import './device/registry.js';
+import { parseMessage } from './parser.js';
 import {
   B2500V2DeviceData,
   HmiInverterDeviceData,
   JupiterBMSInfo,
   JupiterDeviceData,
   VenusBMSInfo,
+  VenusBMSPackInfo,
+  VenusBMSPackDetail,
   VenusDeviceData,
-} from './types';
+  VenusNetworkInfo,
+} from './types.js';
 
 describe('MQTT Message Parser', () => {
   test('should parse comma-separated key-value pairs correctly', () => {
@@ -403,7 +407,7 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('wifiSignalStrength', -75);
     expect(result).toHaveProperty('ctType', 4);
     expect(result).toHaveProperty('phaseType', 1);
-    expect(result).toHaveProperty('rechargeMode', 1);
+    expect(result).toHaveProperty('rechargeMode', 'threePhase');
     expect(result).toHaveProperty('deviceVersion', 134);
     expect(result).toHaveProperty('bmsVersion', 209);
     expect(result).toHaveProperty('mpptVersion', 206);
@@ -668,6 +672,26 @@ describe('MQTT Message Parser', () => {
     expect(result.depthOfDischarge).toBeUndefined();
   });
 
+  test('parses Venus AI working mode (wor_m=5)', () => {
+    const message =
+      'cd=1,tot_i=8848,tot_o=7097,ele_d=537,ele_m=8848,grd_d=328,grd_m=7097,inc_d=0,inc_m=0,grd_f=0,grd_o=613,grd_t=3,gct_s=1,cel_s=3,cel_p=327,cel_c=64,err_t=0,err_a=0,dev_n=158,grd_y=0,wor_m=5,tim_0=0|0|0|0|0|0|0,cts_m=0,bac_u=0,tra_a=1,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=1,wif_s=33,inc_a=0,set_v=0,mcp_w=2500,mdp_w=2500,ct_t=4,phase_t=1,dchrg_t=1,bms_v=212,fc_v=202409090159,wifi_n=XXX,seq_s=0,ctrl_r=1,par=255,gen=255,ble=3,shelly_p=1010,c_ratio=90,dod=88';
+    const parsed = parseMessage(message, 'VNSE3-0', 'venus123');
+
+    expect(parsed).toHaveProperty('data');
+    const result = parsed['data'] as VenusDeviceData;
+    expect(result).toHaveProperty('workingMode', 'ai');
+  });
+
+  test('parses Jupiter AI working mode (wor_m=5)', () => {
+    const message =
+      'ele_d=349,ele_m=2193,ele_y=0,pv1_p=94,pv1_s=1,pv2_p=77,pv2_s=1,pv3_p=41,pv3_s=1,pv4_p=60,pv4_s=1,grd_o=250,grd_t=1,gct_s=1,cel_s=0,cel_p=424,cel_c=83,err_t=0,wor_m=5,tim_0=12|0|23|59|127|800|1,tim_1=0|0|12|0|127|150|1,tim_2=0|0|0|0|255|0|0,tim_3=0|0|0|0|255|0|0,tim_4=0|0|0|0|255|0|0,cts_m=0,grd_d=285,grd_m=2018,dev_n=134,dev_i=106,dev_m=206,dev_b=209,dev_t=110,wif_s=75,ala_c=0,ful_d=1,ssid=xxxx,stop_s=10,htt_p=0,ct_t=4,phase_t=1,dchrg=1,seq_s=3,ctrl_r=0,shelly_p=1010,c_ratio=100,b_lck=0,dod=88,total_b=1,online_b=1';
+    const parsed = parseMessage(message, 'JPLS-1', 'jupiter123');
+
+    expect(parsed).toHaveProperty('data');
+    const result = parsed['data'] as JupiterDeviceData;
+    expect(result).toHaveProperty('workingMode', 'ai');
+  });
+
   test('parses Venus A (VNSA) PV input power and connection status (issue #218)', () => {
     // Real runtime reading from a Venus A: pv1 connected and producing, pv2-4 idle.
     const message =
@@ -725,6 +749,30 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('totalPvPower', 525);
   });
 
+  test('parses Venus PV energy from the pv field (today|total in 10 Wh units)', () => {
+    const message =
+      'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0,pv1=1076|1,pv=41|57';
+    const parsed = parseMessage(message, 'VNSA-0', 'venusA123');
+
+    const result = parsed['data'] as VenusDeviceData;
+    // Raw values are in units of 10 Wh, so they are scaled to Wh.
+    expect(result).toHaveProperty('pvEnergyToday', 410);
+    expect(result).toHaveProperty('pvEnergyTotal', 570);
+  });
+
+  test('reads Venus PV total from the last pv component (future-proofing)', () => {
+    // The total is read from the last component, so extra values inserted before
+    // it (e.g. monthly/yearly) do not break the mapping.
+    const message =
+      'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0,pv1=1076|1,pv=41|120|900|57';
+    const parsed = parseMessage(message, 'VNSA-0', 'venusA123');
+
+    const result = parsed['data'] as VenusDeviceData;
+    // Raw values are in units of 10 Wh, so they are scaled to Wh.
+    expect(result).toHaveProperty('pvEnergyToday', 410);
+    expect(result).toHaveProperty('pvEnergyTotal', 570);
+  });
+
   test('parses Venus metering, pricing and version fields', () => {
     // Full Venus D dump exercising the CT/phase/pricing/version sensors.
     const message =
@@ -744,6 +792,116 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('bmsVersion', 116);
     expect(result).toHaveProperty('communicationModuleVersion', '202409090159');
     expect(result).toHaveProperty('shellyPort', 1010);
+  });
+
+  test('parses Venus v147 LED, backup, inverter/MPPT version and phase-diagnosis fields', () => {
+    // Real Venus D v147 dump including the newer led/inv_v/mppt/seq_s fields.
+    const message =
+      'cd=1,tot_i=6,tot_o=1109,ele_d=0,ele_m=0,grd_d=27,grd_m=27,inc_d=0,inc_m=0,grd_f=0,grd_o=801,grd_t=3,gct_s=1,cel_s=2,cel_p=233,cel_c=45,err_t=800,err_a=4,dev_n=147,grd_y=0,wor_m=5,tim_0=0|0|23|59|127|250|0,cts_m=0,bac_u=0,tra_a=74,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=3,wif_s=72,inc_a=0,set_v=1,mcp_w=2200,mdp_w=800,ct_t=3,phase_t=1,dchrg_t=0,bms_v=116,fc_v=202409090159,wifi_n=unten,seq_s=3,ctrl_r=0,par=0,gen=0,ble=3,shelly_p=1010,c_ratio=100,udp=0,api=0,net=0,port=30000,inv_v=115,id=2|0|0|0|0,lk=0,bp=291,ei=0,eb=0,rp=347,gp=801,vp=801,bl=1,dod=88,bl_p=-1,led=1,as=3,mppt=104,pv1=2584|1,pv2=2638|1,pv3=3180|1,pv4=3080|1,pack=2|3|2|0,pv=24|24,fu=0|0,em=0';
+    const parsed = parseMessage(message, 'VNSD-0', 'venusD123');
+
+    expect(parsed).toHaveProperty('data');
+    const result = parsed['data'] as VenusDeviceData;
+    expect(result).toHaveProperty('ledEnabled', true);
+    expect(result).toHaveProperty('backupEnabled', false);
+    expect(result).toHaveProperty('inverterVersion', 115);
+    expect(result).toHaveProperty('mpptVersion', 104);
+    expect(result).toHaveProperty('phaseDiagnosisStatus', 3);
+  });
+
+  test('parses Venus surplus feed-in state from the fu field', () => {
+    const base =
+      'cd=1,tot_i=6,tot_o=1109,ele_d=0,ele_m=0,grd_d=27,grd_m=27,inc_d=0,inc_m=0,grd_f=0,grd_o=801,grd_t=3,gct_s=1,cel_s=2,cel_p=233,cel_c=45,err_t=800,err_a=4,dev_n=147,grd_y=0,wor_m=5,inc_a=0,pv1=2584|1,pv2=2638|1,pv3=3180|1,pv4=3080|1';
+
+    const off = parseMessage(`${base},fu=0|0,em=0`, 'VNSD-0', 'venusD123');
+    expect((off['data'] as VenusDeviceData).surplusFeedInEnabled).toBe(false);
+
+    const on = parseMessage(`${base},fu=1|0,em=0`, 'VNSD-0', 'venusD123');
+    expect((on['data'] as VenusDeviceData).surplusFeedInEnabled).toBe(true);
+  });
+
+  test('parses Venus Bluetooth advertising state from the ble field', () => {
+    const base =
+      'cd=1,tot_i=6,tot_o=1109,ele_d=0,ele_m=0,grd_d=27,grd_m=27,inc_d=0,inc_m=0,grd_f=0,grd_o=801,grd_t=3,gct_s=1,cel_s=2,cel_p=233,cel_c=45,err_t=800,err_a=4,dev_n=147,grd_y=0,wor_m=5,inc_a=0';
+
+    // ble=4 -> advertising enabled (Bluetooth lock off)
+    const on = parseMessage(`${base},ble=4`, 'VNSD-0', 'venusD123');
+    expect((on['data'] as VenusDeviceData).bluetoothAdvertisingEnabled).toBe(true);
+
+    // ble=1 -> advertising disabled (Bluetooth lock on)
+    const off = parseMessage(`${base},ble=1`, 'VNSD-0', 'venusD123');
+    expect((off['data'] as VenusDeviceData).bluetoothAdvertisingEnabled).toBe(false);
+  });
+
+  test('parses Venus cd=42 per-pack BMS details', () => {
+    // Real Venus D v147 response to cd=42,bms_idx=255 (two packs present).
+    const message =
+      'cd=42, BMS: num=2,mask=3,idx=2,charge_pow=2643,discharge_pow=2643,soc1=424,state1=0,temp1=278,soc2=482,state2=2,temp2=254,soc3=0,state3=0,temp3=0,soc4=0,state4=0,temp4=0,soc5=0,state5=0,temp5=0,soc6=0,state6=0,temp6=0';
+    const parsed = parseMessage(message, 'VNSD-0', 'venusD123');
+
+    expect(parsed).toHaveProperty('bmsPacks');
+    const result = parsed['bmsPacks'] as VenusBMSPackInfo;
+    expect(result).toHaveProperty('packMask', 3);
+    expect(result).toHaveProperty('chargePower', 2643);
+    expect(result).toHaveProperty('dischargePower', 2643);
+    // SoC and temperature are reported in 0.1 units; VNSD scales temperatures by 10.
+    expect(result.packs?.[0]).toEqual({ soc: 42.4, state: 0, temperature: 27.8 });
+    expect(result.packs?.[1]).toEqual({ soc: 48.2, state: 2, temperature: 25.4 });
+  });
+
+  test('parses Venus cd=42 detailed per-pack BMS data (bms_idx=1)', () => {
+    // Real Venus D v147 response to cd=42,bms_idx=1 (the first slave pack, "Pack 2").
+    const message =
+      'cd=42, BMS(1): num=2,vol=5327,cur=0,soc=708,c_vol=576,c_cur=500,d_cur=500,mos=0,ver=116,max_v=3331,min_v=3329,max_t=258,min_t=254,b_err1=0,b_err2=0,b_war1=0,b_vol=3330|3330|3330|3330|-|3330|3331|3329|3330|-|3329|3329|3329|3330|-|3329|3330|3329|3329,temp=258|257|254|255|256,env=314,mos=259';
+    const parsed = parseMessage(message, 'VNSD-0', 'venusD123');
+
+    expect(parsed).toHaveProperty('bmsPack1');
+    const result = parsed['bmsPack1'] as VenusBMSPackDetail;
+
+    // 16 cell voltages (mV), with the "-" group separators dropped.
+    expect(result.cellVoltages).toEqual([
+      3330, 3330, 3330, 3330, 3330, 3331, 3329, 3330, 3329, 3329, 3329, 3330, 3329, 3330, 3329,
+      3329,
+    ]);
+    // 5 temperature sensors (deci-degrees -> °C on VNSD).
+    expect(result.temperatures).toEqual([25.8, 25.7, 25.4, 25.5, 25.6]);
+    // Scalars: pack voltage (centivolts), SoC (deci-%), cell-voltage extremes (mV),
+    // temperature extremes / ambient / MOSFET (deci-degrees on VNSD).
+    expect(result.voltage).toBeCloseTo(53.27);
+    expect(result.soc).toBeCloseTo(70.8);
+    expect(result.maxCellVoltage).toBe(3331);
+    expect(result.minCellVoltage).toBe(3329);
+    expect(result.maxTemperature).toBeCloseTo(25.8);
+    expect(result.minTemperature).toBeCloseTo(25.4);
+    expect(result.ambientTemperature).toBeCloseTo(31.4);
+    // `mos` appears twice; the later MOSFET-temperature value wins (25.9 °C).
+    expect(result.mosfetTemperature).toBeCloseTo(25.9);
+  });
+
+  test('does not parse an absent Venus pack (bms_idx=2, all zeros) as another pack', () => {
+    // bms_idx=2 maps to "Pack 3"; on a two-pack device it reports all zeros.
+    const message =
+      'cd=42, BMS(2): num=2,vol=0,cur=0,soc=0,c_vol=0,c_cur=0,d_cur=0,mos=0,ver=0,max_v=0,min_v=0,max_t=0,min_t=0,b_err1=0,b_err2=0,b_war1=0,b_vol=0|0|0|0|-|0|0|0|0|-|0|0|0|0|-|0|0|0|0,temp=0|0|0|0|0,env=0,mos=0';
+    const parsed = parseMessage(message, 'VNSD-0', 'venusD123');
+
+    // The bms_idx=2 response only matches the bmsPack2 definition, not bmsPack1.
+    expect(parsed).toHaveProperty('bmsPack2');
+    expect(parsed).not.toHaveProperty('bmsPack1');
+    expect(parsed).not.toHaveProperty('bmsPacks');
+  });
+
+  test('parses Venus cd=26 network info (colon-delimited format)', () => {
+    const message =
+      'cd=26,dev_net_info:ip:192.168.178.134,gate:192.168.178.1,mask:255.255.255.0,dns:192.168.178.1,ct_connect_ip:192.168.178.255';
+    const parsed = parseMessage(message, 'VNSD-0', 'venusD123');
+
+    expect(parsed).toHaveProperty('network');
+    const result = parsed['network'] as VenusNetworkInfo;
+    expect(result).toHaveProperty('ipAddress', '192.168.178.134');
+    expect(result).toHaveProperty('gateway', '192.168.178.1');
+    expect(result).toHaveProperty('subnetMask', '255.255.255.0');
+    expect(result).toHaveProperty('dns', '192.168.178.1');
+    expect(result).toHaveProperty('ctConnectIp', '192.168.178.255');
   });
 
   test('scales Venus A (VNSA) BMS voltages and temperatures (issue #218)', () => {

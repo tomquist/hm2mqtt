@@ -1,20 +1,20 @@
-import { B2500V2DeviceData } from './types';
+import { B2500V2DeviceData } from './types.js';
 import {
   KeyPath,
   BaseDeviceData,
   getDeviceDefinition,
   FieldDefinition,
   TypeAtPath,
-} from './deviceDefinition';
-import { transformNumber } from './device/helpers';
-import logger from './logger';
+} from './deviceDefinition.js';
+import { transformNumber } from './device/helpers.js';
+import logger from './logger.js';
 import {
   Transform,
   MultiKeyTransform,
   isMultiKeyTransform,
   executeTransform,
   executeMultiKeyTransform,
-} from './transforms';
+} from './transforms.js';
 
 /**
  * Check if a transform spec is a declarative Transform object
@@ -38,8 +38,21 @@ export function parseMessage(
 ): Record<string, BaseDeviceData> {
   const deviceDefinition = getDeviceDefinition(deviceType);
   try {
+    // The Venus cd=26 network-info response uses a non-standard colon-delimited
+    // format instead of key=value pairs, e.g.:
+    //   cd=26,dev_net_info:ip:1.2.3.4,gate:1.2.3.1,mask:255.255.255.0,dns:1.2.3.1,ct_connect_ip:1.2.3.255
+    // Normalize it to standard key=value pairs (ip=…, gate=…, …) so the generic
+    // parser below can handle it like any other message.
+    const normalizedMessage = message.startsWith('cd=26,')
+      ? message
+          .replace('dev_net_info:', '')
+          .split(',')
+          .map(pair => (pair.includes('=') ? pair : pair.replace(':', '=')))
+          .join(',')
+      : message;
+
     // Parse the comma-separated key-value pairs
-    const pairs = message.split(',');
+    const pairs = normalizedMessage.split(',');
     const values: Record<string, string> = {};
 
     // Process each key-value pair

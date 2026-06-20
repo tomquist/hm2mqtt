@@ -1,4 +1,28 @@
 # Changelog
+
+## [1.8.1] - 2026-06-20
+
+### Added
+
+- Venus & Jupiter: Add support for the *AI* working mode, selectable via the *Working Mode* entity.
+- Venus & Jupiter: Add a *Meter Type* select and *Meter MAC* text entity to configure the external meter (CT001, Shelly Pro 3EM, CT002, CT003, Shelly EM Gen3, Shelly Pro EM50). CT002/CT003 and the Shelly EM Gen3/Pro EM50 require the MAC to be set first; Shelly Pro 3EM does not need a MAC. Both entities are disabled by default.
+- B2500 V2: Add a *Meter Type* select and *Meter MAC* text entity to configure the smart meter type (CT001, Shelly Pro 3EM, CT002, CT003, Shelly EM Gen3, Shelly Pro EM50) via the `cd=27` command. Same MAC rules apply as Venus/Jupiter. Both entities are disabled by default.
+- Venus: Add a *Backup Power* switch to toggle the backup/EPS ("UPS") function.
+- Venus: Add a *Status LED* switch on devices that support it.
+- Venus: Add a *Surplus Feed-in* switch on models with PV inputs (Venus A/D), letting you feed excess solar power into the grid.
+- Venus: Add a *Bluetooth Advertising* switch to turn Bluetooth discovery on or off (the "Bluetooth lock").
+- Venus: Add a *Phase Diagnosis* button to start grid-phase detection, plus a *Phase Diagnosis Status* sensor.
+- Venus: Add *Inverter Version* and *MPPT Version* sensors on devices that report them.
+- Venus: Add *Network* sensors (IP Address, Gateway, Subnet Mask, DNS Server, CT Connect IP). Only the IP Address is enabled by default.
+- Venus: Add per-battery-pack sensors (State of Charge, State, Temperature and Charge/Discharge Power). These require cell-data polling to be enabled and are disabled by default.
+- Venus: Add detailed per-pack cell sensors (individual cell voltages, temperature sensors, min/max cell voltage, min/max/ambient/MOSFET temperature, pack voltage and state of charge) for additional battery packs, decoded from the `cd=42,bms_idx=N` response. Each pack is only polled when it is reported as present, so absent packs add no traffic. These require cell-data polling (`POLL_CELL_DATA`) to be enabled and are disabled by default.
+- Venus: Add *PV Energy Today* and *PV Energy Total* sensors on models with PV inputs (Venus A/D).
+
+### Changed
+
+- Venus & Jupiter: The *Recharge Mode* entity is now a settable select (Single Phase / Three Phase) instead of a read-only sensor, so the grid recharge mode can be switched from Home Assistant.
+- Docs: List Marstek Venus A, Venus D, the HMF-X B2500 v2 device type, and the HMI micro inverters in the supported device lists in the README and the GitHub issue templates.
+
 ## [1.8.0] - 2026-06-13
 
 ### Added

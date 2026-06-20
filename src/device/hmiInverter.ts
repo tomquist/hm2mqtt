@@ -1,13 +1,17 @@
-import { BuildMessageFn, globalPollInterval, registerDeviceDefinition } from '../deviceDefinition';
-import { CommandParams, HmiInverterDeviceData, isValidHmiInverterMode } from '../types';
+import {
+  BuildMessageFn,
+  globalPollInterval,
+  registerDeviceDefinition,
+} from '../deviceDefinition.js';
+import { CommandParams, HmiInverterDeviceData, isValidHmiInverterMode } from '../types.js';
 import {
   sensorComponent,
   binarySensorComponent,
   numberComponent,
   selectComponent,
   switchComponent,
-} from '../homeAssistantDiscovery';
-import { number, divide, identity, equalsBoolean, map } from '../transforms';
+} from '../homeAssistantDiscovery.js';
+import { number, divide, identity, equalsBoolean, map } from '../transforms.js';
 
 /**
  * Command types supported by the HMI inverter (Marstek HMI family)

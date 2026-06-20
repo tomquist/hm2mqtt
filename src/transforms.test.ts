@@ -20,6 +20,8 @@ import {
   timePeriodField,
   mpptPvField,
   venusPvField,
+  pipeValue,
+  pipeArray,
   bitMaskToWeekday,
   sum,
   min,
@@ -36,7 +38,7 @@ import {
   isMultiKeyTransform,
   toTransformFunction,
   toMultiKeyTransformFunction,
-} from './transforms';
+} from './transforms.js';
 
 describe('transforms', () => {
   describe('number transform', () => {
@@ -394,6 +396,68 @@ describe('transforms', () => {
       );
       expect(transformToJinja2(venusPvField('connected'), 'value')).toBe(
         "{% set p = value.split('|') %}{% if p | length >= 2 %}{{ p[1] == '1' }}{% else %}false{% endif %}",
+      );
+    });
+  });
+
+  describe('pipeValue transform', () => {
+    it('should extract a numeric component by index', () => {
+      expect(executeTransform(pipeValue(0), '41|57')).toBe(41);
+      expect(executeTransform(pipeValue(1), '41|57')).toBe(57);
+    });
+
+    it('should support negative indices (from the end)', () => {
+      expect(executeTransform(pipeValue(-1), '41|57')).toBe(57);
+      expect(executeTransform(pipeValue(-1), '41|120|900|57')).toBe(57);
+    });
+
+    it('should return 0 for missing components', () => {
+      expect(executeTransform(pipeValue(5), '41|57')).toBe(0);
+    });
+
+    it('should generate correct Jinja2 templates', () => {
+      expect(transformToJinja2(pipeValue(0), 'value')).toBe(
+        "{% set parts = value.split('|') %}{{ parts[0] | int(0) }}",
+      );
+      expect(transformToJinja2(pipeValue(-1), 'value')).toBe(
+        "{% set parts = value.split('|') %}{{ parts[-1] | int(0) }}",
+      );
+    });
+  });
+
+  describe('pipeArray transform', () => {
+    it('should parse a pipe-separated list into an array', () => {
+      expect(executeTransform(pipeArray(), '41|57|12')).toEqual([41, 57, 12]);
+    });
+
+    it('should drop "-" group separators (Venus cell voltages)', () => {
+      expect(
+        executeTransform(
+          pipeArray(),
+          '3330|3330|3330|3330|-|3330|3331|3329|3330|-|3329|3329|3329|3330|-|3329|3330|3329|3329',
+        ),
+      ).toEqual([
+        3330, 3330, 3330, 3330, 3330, 3331, 3329, 3330, 3329, 3329, 3329, 3330, 3329, 3330, 3329,
+        3329,
+      ]);
+    });
+
+    it('should scale each element by the divisor (deci-degrees)', () => {
+      expect(executeTransform(pipeArray(10), '258|257|254|255|256')).toEqual([
+        25.8, 25.7, 25.4, 25.5, 25.6,
+      ]);
+    });
+
+    it('should treat non-numeric elements as 0', () => {
+      expect(executeTransform(pipeArray(), '41|foo|12')).toEqual([41, 0, 12]);
+    });
+
+    it('should generate correct Jinja2 templates', () => {
+      expect(transformToJinja2(pipeArray(), 'value')).toBe(
+        "{{ value.split('|') | reject('equalto', '-') | reject('equalto', '') | map('float', 0) | list }}",
+      );
+      expect(transformToJinja2(pipeArray(10), 'value')).toBe(
+        "{{ value.split('|') | reject('equalto', '-') | reject('equalto', '') | map('float', 0) | map('multiply', 0.1) | list }}",
       );
     });
   });

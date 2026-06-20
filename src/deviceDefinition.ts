@@ -1,9 +1,9 @@
-import { HaComponentConfig } from './homeAssistantDiscovery';
-import { ControlHandlerDefinition } from './controlHandler';
-import { HaAdvertisement } from './generateDiscoveryConfigs';
-import { Transform, MultiKeyTransform } from './transforms';
-import { levenshteinDistance } from './utils/stringDistance';
-import logger from './logger';
+import { HaComponentConfig } from './homeAssistantDiscovery.js';
+import { ControlHandlerDefinition } from './controlHandler.js';
+import { HaAdvertisement } from './generateDiscoveryConfigs.js';
+import { Transform, MultiKeyTransform } from './transforms.js';
+import { levenshteinDistance } from './utils/stringDistance.js';
+import logger from './logger.js';
 
 export const globalPollInterval = parseInt(process.env.MQTT_POLLING_INTERVAL || '60', 10) * 1000;
 
@@ -113,6 +113,12 @@ export interface MessageDefinition<T extends BaseDeviceData> {
   pollInterval: number;
   controlsDeviceAvailability: boolean;
   enabled?: boolean;
+  /**
+   * Optional state-aware poll predicate. When provided, the message is only
+   * polled if this returns true for the current (merged) device state. Used to
+   * dynamically poll per-pack BMS details only for packs that are present.
+   */
+  shouldPoll?: (state: BaseDeviceData) => boolean;
 }
 
 export type BaseDeviceData = {
@@ -163,6 +169,7 @@ export type BuildMessageFn = <T extends BaseDeviceData>(
     pollInterval: number;
     controlsDeviceAvailability: boolean;
     enabled?: boolean;
+    shouldPoll?: (state: BaseDeviceData) => boolean;
   },
   args: BuildMessageDefinitionFn<T>,
 ) => void;
@@ -270,5 +277,3 @@ export function getSuggestedDeviceType(baseType: string): string | undefined {
 
   return bestDistance <= threshold ? bestMatch : undefined;
 }
-
-import './device/registry';

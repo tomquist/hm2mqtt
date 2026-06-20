@@ -46,6 +46,8 @@ export type Transform =
   | TimePeriodFieldTransform
   | MPPTPVFieldTransform
   | VenusPvFieldTransform
+  | PipeValueTransform
+  | PipeArrayTransform
   | BitMaskToWeekdayTransform
   | ChainTransform;
 
@@ -177,6 +179,27 @@ export interface MPPTPVFieldTransform {
 export interface VenusPvFieldTransform {
   type: 'venusPvField';
   field: 'power' | 'connected';
+}
+
+/**
+ * Extract a single numeric component from a pipe-separated value (e.g.
+ * "today|total"). A negative index counts from the end, so `-1` selects the
+ * last component (robust against extra components being inserted before it).
+ */
+export interface PipeValueTransform {
+  type: 'pipeValue';
+  index: number;
+}
+
+/**
+ * Parse a pipe-separated list of numbers into an array, dropping the "-" group
+ * separators. Used for the Venus cd=42 per-pack cell-voltage / temperature
+ * arrays, e.g. "3330|3330|3330|3330|-|3330|...". An optional divisor scales each
+ * element (e.g. deci-degrees to °C).
+ */
+export interface PipeArrayTransform {
+  type: 'pipeArray';
+  divisor?: number;
 }
 
 /** Convert weekday bitmask to weekday set string */
@@ -331,6 +354,14 @@ export const mpptPvField = (field: MPPTPVFieldTransform['field']): MPPTPVFieldTr
 });
 
 /** Create a Venus PV input field transform */
+export const pipeValue = (index: number): PipeValueTransform => ({ type: 'pipeValue', index });
+
+/**
+ * Create a transform that parses a pipe-separated list of numbers into an array,
+ * dropping the "-" group separators. An optional divisor scales each element.
+ */
+export const pipeArray = (divisor?: number): PipeArrayTransform => ({ type: 'pipeArray', divisor });
+
 export const venusPvField = (field: VenusPvFieldTransform['field']): VenusPvFieldTransform => ({
   type: 'venusPvField',
   field,
@@ -488,6 +519,23 @@ export function executeTransform(
 
     case 'venusPvField':
       return executeVenusPvField(value, transform.field);
+
+    case 'pipeValue': {
+      const parts = value.split('|');
+      const idx = transform.index < 0 ? parts.length + transform.index : transform.index;
+      return safeParseInt(parts[idx]);
+    }
+
+    case 'pipeArray': {
+      const divisor = transform.divisor ?? 1;
+      return value
+        .split('|')
+        .filter(part => part !== '-' && part !== '')
+        .map(part => {
+          const num = parseFloat(part);
+          return Number.isNaN(num) ? 0 : num / divisor;
+        });
+    }
 
     case 'bitMaskToWeekday': {
       const bitmask = parseInt(value, 10);
@@ -750,6 +798,18 @@ export function transformToJinja2(
 
     case 'venusPvField':
       return generateVenusPvFieldJinja2(valueExpr, transform.field);
+
+    case 'pipeValue':
+      // Negative indices use Python-style indexing in Jinja2 (parts[-1]).
+      return `{% set parts = ${valueExpr}.split('|') %}{{ parts[${transform.index}] | int(0) }}`;
+
+    case 'pipeArray': {
+      // Split on "|", drop the "-" group separators, parse each element.
+      const base = `${valueExpr}.split('|') | reject('equalto', '-') | reject('equalto', '') | map('float', 0)`;
+      return transform.divisor != null
+        ? `{{ ${base} | map('multiply', ${1 / transform.divisor}) | list }}`
+        : `{{ ${base} | list }}`;
+    }
 
     case 'bitMaskToWeekday':
       // Convert bitmask to weekday set string - only mutate inside loop, output once at end

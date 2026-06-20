@@ -1,8 +1,18 @@
 import pino from 'pino';
-import { consoleStyleLogMethod } from './logger';
+import { consoleStyleLogMethod } from './logger.js';
+
+// pino v10's printf-placeholder-aware typings reject console.log-style calls
+// (a trailing object/string with no matching `%s`/`%d`). consoleStyleLogMethod
+// exists precisely to support that style at runtime, so the test logger is
+// typed loosely to mirror how the production logger is consumed.
+type ConsoleStyleLogger = Omit<
+  pino.Logger,
+  'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal'
+> &
+  Record<'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal', (...args: any[]) => void>;
 
 describe('consoleStyleLogMethod', () => {
-  function createTestLogger(lines: string[]) {
+  function createTestLogger(lines: string[]): ConsoleStyleLogger {
     return pino(
       {
         level: 'debug',
@@ -13,7 +23,7 @@ describe('consoleStyleLogMethod', () => {
           lines.push(chunk);
         },
       },
-    );
+    ) as unknown as ConsoleStyleLogger;
   }
 
   function lastMessage(lines: string[]): string {

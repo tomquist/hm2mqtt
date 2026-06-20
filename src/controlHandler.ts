@@ -1,9 +1,9 @@
-import { Device } from './types';
-import { DeviceManager } from './deviceManager';
-import { getDeviceDefinition, HaStatefulAdvertiseBuilder, KeyPath } from './deviceDefinition';
-import { HaComponentConfig } from './homeAssistantDiscovery';
+import { Device } from './types.js';
+import { DeviceManager } from './deviceManager.js';
+import { getDeviceDefinition, HaStatefulAdvertiseBuilder, KeyPath } from './deviceDefinition.js';
+import { HaComponentConfig } from './homeAssistantDiscovery.js';
 
-import logger from './logger';
+import logger from './logger.js';
 type RecursiveReadonly<T> = {
   readonly [P in keyof T]: RecursiveReadonly<T[P]>;
 };
