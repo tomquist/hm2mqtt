@@ -138,7 +138,14 @@ function valueTemplate(
   if (args.valueMappings) {
     return mappingValueTemplate({ value, valueMappings: args.valueMappings });
   }
-  return `{{ ${value}${args.defaultValue ? ` | default('${args.defaultValue}')` : ''} }}`;
+  if (args.defaultValue) {
+    return `{{ ${value} | default('${args.defaultValue}') }}`;
+  }
+  // Guard against keys that are not (yet) present in the payload. Some entities
+  // (e.g. command-only controls) only appear in the published state once they
+  // have been set, so accessing them unconditionally would make Home Assistant
+  // log a "dict object has no attribute ..." template warning on every update.
+  return `{{ ${value} if ${value} is defined else '' }}`;
 }
 
 function mappingValueTemplate({
@@ -153,7 +160,11 @@ function mappingValueTemplate({
       Object.entries(valueMappings).map(([key, value]) => [String(key), String(value)]),
     ),
   );
-  return `{% set mapping = ${map} %}{% set stringifiedValue = ${value} | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}`;
+  // Only access the value when it is present and non-null. A missing key (e.g. a
+  // command-only control that has not been set yet) would otherwise trigger a
+  // "dict object has no attribute ..." template warning in Home Assistant on
+  // every state update. When absent, render nothing so HA ignores the update.
+  return `{% set mapping = ${map} %}{% if ${value} is defined and ${value} is not none %}{% set stringifiedValue = ${value} | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}{% endif %}`;
 }
 
 export interface HaBaseComponentArgs {

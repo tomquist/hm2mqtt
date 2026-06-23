@@ -408,4 +408,38 @@ describe('Home Assistant Discovery', () => {
     expect(withPv.some(t => t.includes('pv3_'))).toBe(false);
     expect(withPv.some(t => t.includes('pv4_'))).toBe(false);
   });
+
+  test('Venus meter entities guard their value templates against missing keys (regression #346)', () => {
+    const device: Device = { deviceType: 'HMG-25', deviceId: 'venus123' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/HMG-25/device/venus123/ctrl',
+      deviceTopicNew: 'marstek_energy/HMG-25/device/venus123/ctrl',
+      deviceControlTopicOld: 'hame_energy/HMG-25/App/venus123/ctrl',
+      deviceControlTopicNew: 'marstek_energy/HMG-25/App/venus123/ctrl',
+      availabilityTopic: 'hame_energy/HMG-25/availability/venus123',
+      controlSubscriptionTopic: 'hame_energy/HMG-25/control/venus123/control',
+      publishTopic: 'hame_energy/HMG-25/device/venus123/data',
+    };
+
+    const configs = generateDiscoveryConfigs(
+      device,
+      deviceTopics,
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
+    );
+
+    // The Meter Type select reflects a command-only field (`meterType`) that is
+    // absent from the payload until the user selects a value. Its value template
+    // must check that the key exists, otherwise HA logs a template warning on
+    // every device update.
+    const meterTypeSelect = configs.find(c => c.topic.includes('meter_type'));
+    expect(meterTypeSelect).toBeDefined();
+    expect(meterTypeSelect?.config!.value_template).toContain('value_json.meterType is defined');
+
+    // The Meter MAC text entity has the same command-only `meterMac` field.
+    const meterMacText = configs.find(c => c.topic.includes('meter_mac'));
+    expect(meterMacText).toBeDefined();
+    expect(meterMacText?.config!.value_template).toContain('value_json.meterMac is defined');
+  });
 });
