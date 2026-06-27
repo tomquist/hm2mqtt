@@ -19,7 +19,7 @@
     "release": "./release.sh"
   },
   "dependencies": {
-    "aedes": "^1.0.2",
+    "aedes": "^1.1.0",
     "dotenv": "^17.4.2",
     "mqtt": "^5.15.1",
     "pino": "^10.3.1",
@@ -27,7 +27,7 @@
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
-    "@types/node": "^25.9.3",
+    "@types/node": "^26.0.1",
     "jest": "^30.4.2",
     "jest-junit": "^17.0.0",
     "jest-util": "^30.4.1",
