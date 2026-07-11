@@ -120,9 +120,18 @@ function applyMessageDefinition<T extends BaseDeviceData>(
     } else if (field.transform != null) {
       // Multi-key field
       let entries = key.map(key => [key, values[key]] as const);
-      if (entries.every(([, value]) => value !== undefined)) {
+      const presentEntries = entries.filter(([, value]) => value !== undefined);
+      // For aggregate fields flagged as partial-friendly, compute from whatever
+      // keys are present and skip silently when none are (e.g. total PV power on
+      // devices that report a variable number of PV strings). Otherwise require
+      // all keys and warn when only some are present.
+      if (
+        field.allowPartial ? presentEntries.length > 0 : presentEntries.length === entries.length
+      ) {
         const transform = field.transform;
-        const valuesObj = Object.fromEntries(entries) as Record<string, string>;
+        const valuesObj = Object.fromEntries(
+          field.allowPartial ? presentEntries : entries,
+        ) as Record<string, string>;
         let transformedValue: unknown;
 
         if (isDeclarativeTransform(transform)) {
@@ -134,7 +143,7 @@ function applyMessageDefinition<T extends BaseDeviceData>(
         }
 
         setValueAtPath(parsedData, field.path, transformedValue);
-      } else {
+      } else if (!field.allowPartial) {
         logger.warn(`Some values are missing for field ${field.path.join('.')}`);
       }
     } else {
