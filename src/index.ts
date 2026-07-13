@@ -4,7 +4,11 @@ dotenv.config();
 
 import './device/registry.js';
 import { Device, MqttConfig } from './types.js';
-import { DEFAULT_AUTODISCOVERY_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX } from './constants.js';
+import {
+  DEFAULT_AUTODISCOVERY_TOPIC_PREFIX,
+  DEFAULT_TOPIC_PREFIX,
+  parseCellDataPollingInterval,
+} from './constants.js';
 import { DeviceManager, DeviceStateData } from './deviceManager.js';
 import { MqttClient } from './mqttClient.js';
 import { ControlHandler } from './controlHandler.js';
@@ -114,6 +118,7 @@ function createMqttConfig(devices: Device[]): MqttConfig {
     topicPrefix: process.env.MQTT_TOPIC_PREFIX || DEFAULT_TOPIC_PREFIX,
     autodiscoveryTopicPrefix:
       process.env.AUTODISCOVERY_TOPIC_PREFIX || DEFAULT_AUTODISCOVERY_TOPIC_PREFIX,
+    cellDataPollingInterval: parseCellDataPollingInterval(process.env.POLL_CELL_DATA_INTERVAL),
     devices,
     responseTimeout: parseInt(process.env.MQTT_RESPONSE_TIMEOUT || '15', 10) * 1000,
     allowedConsecutiveTimeouts: parseInt(process.env.MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS || '3', 10),

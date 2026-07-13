@@ -1541,6 +1541,7 @@ describe('Device Commands', () => {
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
       autodiscoveryTopicPrefix: 'homeassistant',
+      cellDataPollingInterval: 15000,
       devices: [device],
       responseTimeout: 15000,
     };

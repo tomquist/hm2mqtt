@@ -709,6 +709,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
     getAdditionalDeviceInfo: () => ({}),
     publishPath: 'cells',
     pollInterval: 60000,
+    pollIntervalConfig: 'cellDataPollingInterval',
     controlsDeviceAvailability: false,
     enabled: process.env.POLL_CELL_DATA === 'true',
   } as const;

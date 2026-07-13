@@ -357,7 +357,8 @@ export class MqttClient {
       }
       let lastRequestTimeKey = `${device.deviceId}:${idx}`;
       const lastRequestTime = this.lastRequestTime.get(lastRequestTimeKey);
-      if (lastRequestTime == null || now > lastRequestTime + message.pollInterval) {
+      const pollInterval = this.deviceManager.getMessagePollingInterval(message);
+      if (lastRequestTime == null || now >= lastRequestTime + pollInterval) {
         needsRefresh = true;
         shouldStartTimeout = shouldStartTimeout || message.controlsDeviceAvailability;
       }
@@ -401,7 +402,8 @@ export class MqttClient {
 
       let lastRequestTimeKey = `${device.deviceId}:${idx}`;
       const lastRequestTime = this.lastRequestTime.get(lastRequestTimeKey);
-      if (lastRequestTime == null || now > lastRequestTime + message.pollInterval) {
+      const pollInterval = this.deviceManager.getMessagePollingInterval(message);
+      if (lastRequestTime == null || now >= lastRequestTime + pollInterval) {
         this.lastRequestTime.set(lastRequestTimeKey, now);
         const payload = message.refreshDataPayload;
         setTimeout(

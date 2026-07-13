@@ -39,6 +39,7 @@ describe('ControlHandler', () => {
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
       autodiscoveryTopicPrefix: 'homeassistant',
+      cellDataPollingInterval: 15000,
       devices: [testDeviceV1, testDeviceV2],
       responseTimeout: 15000,
     };

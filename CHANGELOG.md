@@ -1,7 +1,9 @@
 # Changelog
 ## [Next]
 
+### Added
 
+- B2500: Add a configurable cell-voltage polling interval via `POLL_CELL_DATA_INTERVAL` and the Home Assistant app option `cellDataPollingInterval` (default: 15 seconds, minimum: 1 second).
 
 ## [1.8.1] - 2026-06-20
 

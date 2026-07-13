@@ -8,6 +8,9 @@ configuration:
   enableCellData:
     name: Enable Cell Data
     description: "Enable cell voltage (only available on B2500 devices)"
+  cellDataPollingInterval:
+    name: Cell Data Polling Interval
+    description: "Interval in seconds between B2500 cell voltage polls (default: 15, minimum: 1)"
   enableCalibrationData:
     name: Enable Calibration Data
     description: "Enable calibration data reporting (only available on B2500 devices)"

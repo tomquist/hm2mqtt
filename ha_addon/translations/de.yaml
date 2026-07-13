@@ -8,6 +8,9 @@ configuration:
   enableCellData:
     name: "Zellspannung"
     description: "Aktiviere Abruf der Zellenspannung (nur verfügbar für B2500)"
+  cellDataPollingInterval:
+    name: "Abfrageintervall der Zellspannung"
+    description: "Intervall in Sekunden zwischen den Zellspannungsabfragen (Standard: 15, Minimum: 1)"
   enableCalibrationData:
     name: "Kalibrierungsdaten"
     description: "Aktiviere Abruf der Kalibrierungsdaten (nur verfügbar für B2500)"

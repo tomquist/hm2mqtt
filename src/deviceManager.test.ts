@@ -3,6 +3,7 @@ import './device/registry.js';
 import { DeviceManager } from './deviceManager.js';
 import { MqttConfig } from './types.js';
 import { DEFAULT_TOPIC_PREFIX } from './constants.js';
+import { getDeviceDefinition } from './deviceDefinition.js';
 import { calculateNewVersionTopicId } from './utils/crypt.js';
 import logger from './logger.js';
 
@@ -12,6 +13,7 @@ describe('DeviceManager', () => {
     clientId: 'test-client',
     topicPrefix: DEFAULT_TOPIC_PREFIX,
     autodiscoveryTopicPrefix: 'homeassistant',
+    cellDataPollingInterval: 15000,
     devices: [
       {
         deviceType: 'HMA-1',
@@ -58,12 +60,23 @@ describe('DeviceManager', () => {
     expect(topics?.availabilityTopic).toBe('customPrefix/HMA-1/availability/test123');
   });
 
+  it('should use the configured interval for B2500 cell data', () => {
+    const cellMessage = getDeviceDefinition('HMA-1')?.messages.find(
+      message => message.refreshDataPayload === 'cd=13',
+    );
+
+    expect(cellMessage).toBeDefined();
+    expect(cellMessage?.pollIntervalConfig).toBe('cellDataPollingInterval');
+    expect(deviceManager.getMessagePollingInterval(cellMessage!)).toBe(15000);
+  });
+
   it('should handle invalid device types gracefully', () => {
     const invalidConfig: MqttConfig = {
       brokerUrl: 'mqtt://localhost',
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
       autodiscoveryTopicPrefix: 'homeassistant',
+      cellDataPollingInterval: 15000,
       devices: [
         {
           deviceType: 'INVALID-TYPE',
@@ -84,6 +97,7 @@ describe('DeviceManager', () => {
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
       autodiscoveryTopicPrefix: 'homeassistant',
+      cellDataPollingInterval: 15000,
       devices: [
         {
           deviceType: 'INVALID-TYPE',
@@ -117,6 +131,7 @@ describe('DeviceManager', () => {
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
       autodiscoveryTopicPrefix: 'homeassistant',
+      cellDataPollingInterval: 15000,
       devices: [
         { deviceType: 'HWJ-2', deviceId: 'typo123' },
         { deviceType: 'HMA-1', deviceId: 'valid123' },
@@ -137,6 +152,7 @@ describe('DeviceManager', () => {
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
       autodiscoveryTopicPrefix: 'homeassistant',
+      cellDataPollingInterval: 15000,
       devices: [
         { deviceType: 'ZZZZZ-1', deviceId: 'bad123' },
         { deviceType: 'HMA-1', deviceId: 'valid123' },
@@ -154,6 +170,7 @@ describe('DeviceManager', () => {
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
       autodiscoveryTopicPrefix: 'homeassistant',
+      cellDataPollingInterval: 15000,
       devices: [{ deviceType: 'hma-1', deviceId: 'case123' }],
     };
 
@@ -168,6 +185,7 @@ describe('DeviceManager', () => {
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
       autodiscoveryTopicPrefix: 'homeassistant',
+      cellDataPollingInterval: 15000,
       devices: [
         {
           deviceType: 'HMB-1',
@@ -189,6 +207,7 @@ describe('DeviceManager', () => {
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
       autodiscoveryTopicPrefix: 'homeassistant',
+      cellDataPollingInterval: 15000,
       devices: [{ deviceType: 'VNSE3-0', deviceId: 'venus123' }],
     };
 

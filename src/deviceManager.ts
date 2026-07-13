@@ -3,8 +3,10 @@ import {
   getDeviceDefinition,
   extractBaseType,
   getSuggestedDeviceType,
+  BaseDeviceData,
   FieldDefinition,
   KeyPath,
+  MessageDefinition,
 } from './deviceDefinition.js';
 import { calculateNewVersionTopicId, decryptNewVersionTopicId } from './utils/crypt.js';
 import logger from './logger.js';
@@ -352,8 +354,9 @@ export class DeviceManager {
     const allPollingIntervals = this.getDevices().flatMap(device => {
       return (
         getDeviceDefinition(device.deviceType)
-          ?.messages.map(message => {
-            return message.pollInterval;
+          ?.messages.filter(message => message.enabled)
+          .map(message => {
+            return this.getMessagePollingInterval(message);
           })
           ?.filter(n => n != null) ?? []
       );
@@ -372,6 +375,16 @@ export class DeviceManager {
     }
 
     return allPollingIntervals.reduce(gcd2, allPollingIntervals[0]);
+  }
+
+  /** Resolve a message's configured polling interval in milliseconds. */
+  getMessagePollingInterval(
+    message: Pick<MessageDefinition<BaseDeviceData>, 'pollInterval' | 'pollIntervalConfig'>,
+  ): number {
+    if (message.pollIntervalConfig === 'cellDataPollingInterval') {
+      return this.config.cellDataPollingInterval;
+    }
+    return message.pollInterval;
   }
 
   /**

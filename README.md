@@ -147,6 +147,7 @@ docker run -d --name hm2mqtt \
   -e MQTT_USERNAME=your-username \
   -e MQTT_PASSWORD=your-password \
   -e POLL_CELL_DATA=false \
+  -e POLL_CELL_DATA_INTERVAL=15 \
   -e POLL_EXTRA_BATTERY_DATA=false \
   -e POLL_CALIBRATION_DATA=false \
   -e DEVICE_0=HMA-1:your-device-mac \
@@ -193,6 +194,7 @@ services:
       - MQTT_PROXY_ENABLED=true  # Enable proxy for multiple B2500s
       - MQTT_PROXY_PORT=1890
       - POLL_CELL_DATA=true
+      - POLL_CELL_DATA_INTERVAL=15
       - POLL_EXTRA_BATTERY_DATA=true
       - POLL_CALIBRATION_DATA=true
       - DEVICE_0=HMA-1:0019aa0d4dcb  # First B2500 device
@@ -214,6 +216,7 @@ services:
       - MQTT_USERNAME=''
       - MQTT_PASSWORD=''
       - POLL_CELL_DATA=true
+      - POLL_CELL_DATA_INTERVAL=15
       - POLL_EXTRA_BATTERY_DATA=true
       - POLL_CALIBRATION_DATA=true
       - DEVICE_0=HMA-1:0019aa0d4dcb  # 12-character MAC address
@@ -245,6 +248,7 @@ services:
    MQTT_POLLING_INTERVAL=60
    MQTT_RESPONSE_TIMEOUT=30
    POLL_CELL_DATA=false
+   POLL_CELL_DATA_INTERVAL=15
    POLL_EXTRA_BATTERY_DATA=false
    POLL_CALIBRATION_DATA=false
    DEVICE_0=HMA-1:001a2b3c4d5e  # 12-character MAC address
@@ -270,6 +274,7 @@ services:
 | `MQTT_POLLING_INTERVAL` | Interval between device polls in seconds | `60`                 |
 | `MQTT_RESPONSE_TIMEOUT` | Timeout for device responses in seconds | `15`                 |
 | `POLL_CELL_DATA` | Enable cell-level battery data (individual cell voltages, temperatures and, on Venus, detailed per-pack BMS data) | false |
+| `POLL_CELL_DATA_INTERVAL` | Interval between B2500 cell-voltage polls in seconds (minimum: `1`) | `15` |
 | `POLL_EXTRA_BATTERY_DATA` | Enable extra battery data reporting (only available on B2500 devices) | false |
 | `POLL_CALIBRATION_DATA` | Enable calibration data reporting (only available on B2500 devices) | false |
 | `DEVICE_n` | Device configuration in format `{type}:{mac}` | -                       |
@@ -282,6 +287,8 @@ services:
 ```yaml
 pollingInterval: 60  # Interval between device polls in seconds
 responseTimeout: 30  # Timeout for device responses in seconds
+enableCellData: false  # Enable detailed cell data polling
+cellDataPollingInterval: 15  # B2500 cell voltage polling interval in seconds (minimum: 1)
 allowedConsecutiveTimeouts: 3  # Number of consecutive timeouts before a device is marked offline
 topicPrefix: hm2mqtt  # Base MQTT topic prefix for published data
 autodiscoveryTopicPrefix: homeassistant  # Base MQTT topic prefix for HA auto discovery

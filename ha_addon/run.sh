@@ -109,6 +109,7 @@ export MQTT_CLIENT_ID="hm2mqtt-ha-addon"
 export MQTT_POLLING_INTERVAL=$(bashio::config 'pollingInterval' "60")
 export MQTT_RESPONSE_TIMEOUT=$(bashio::config 'responseTimeout' "30")
 export POLL_CELL_DATA=$(bashio::config 'enableCellData' "false")
+export POLL_CELL_DATA_INTERVAL=$(bashio::config 'cellDataPollingInterval' "15")
 export POLL_CALIBRATION_DATA=$(bashio::config 'enableCalibrationData' "false")
 export POLL_EXTRA_BATTERY_DATA=$(bashio::config 'enableExtraBatteryData' "false")
 export DEBUG=$(bashio::config 'debug' "false")
@@ -120,6 +121,7 @@ bashio::log.info "MQTT allowed consecutive timeouts: ${MQTT_ALLOWED_CONSECUTIVE_
 bashio::log.info "MQTT proxy enabled: ${MQTT_PROXY_ENABLED}"
 bashio::log.info "MQTT polling interval: ${MQTT_POLLING_INTERVAL} seconds"
 bashio::log.info "MQTT response timeout: ${MQTT_RESPONSE_TIMEOUT} seconds"
+bashio::log.info "Cell data polling interval: ${POLL_CELL_DATA_INTERVAL} seconds"
 bashio::log.info "MQTT topic prefix: ${MQTT_TOPIC_PREFIX}"
 bashio::log.info "MQTT autodiscovery topic prefix: ${AUTODISCOVERY_TOPIC_PREFIX}"
 

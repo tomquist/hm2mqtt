@@ -111,6 +111,8 @@ export interface MessageDefinition<T extends BaseDeviceData> {
   fields: FieldDefinition<T, KeyPath<T>>[];
   publishPath: string;
   pollInterval: number;
+  /** Optional MqttConfig property that overrides pollInterval. */
+  pollIntervalConfig?: 'cellDataPollingInterval';
   controlsDeviceAvailability: boolean;
   enabled?: boolean;
   /**
@@ -167,6 +169,7 @@ export type BuildMessageFn = <T extends BaseDeviceData>(
     defaultState: Omit<T, keyof BaseDeviceData>;
     getAdditionalDeviceInfo: (state: T) => AdditionalDeviceInfo;
     pollInterval: number;
+    pollIntervalConfig?: 'cellDataPollingInterval';
     controlsDeviceAvailability: boolean;
     enabled?: boolean;
     shouldPoll?: (state: BaseDeviceData) => boolean;

@@ -237,6 +237,8 @@ export interface MqttConfig {
    * (default: 'homeassistant')
    */
   autodiscoveryTopicPrefix: string;
+  /** Interval for polling detailed cell data, in milliseconds. */
+  cellDataPollingInterval: number;
   useFlashCommands?: boolean;
   responseTimeout?: number; // Timeout for device responses in milliseconds
   /**

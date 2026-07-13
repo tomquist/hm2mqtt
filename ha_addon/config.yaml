@@ -21,6 +21,7 @@ options:
   pollingInterval: 60
   responseTimeout: 30
   enableCellData: false
+  cellDataPollingInterval: 15
   enableCalibrationData: false
   enableExtraBatteryData: false
   allowedConsecutiveTimeouts: 3
@@ -35,6 +36,7 @@ schema:
   pollingInterval: int?
   responseTimeout: int?
   enableCellData: bool
+  cellDataPollingInterval: "int(1,)"
   enableCalibrationData: bool
   enableExtraBatteryData: bool
   allowedConsecutiveTimeouts: int?

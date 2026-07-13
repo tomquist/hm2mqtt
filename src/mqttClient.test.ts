@@ -192,6 +192,7 @@ describe('MqttClient shouldPoll gating', () => {
         getDeviceTopics: () => topics,
         getDeviceState: () => (packMask != null ? { packMask } : undefined),
         getDevices: () => [],
+        getMessagePollingInterval: (message: any) => message.pollInterval,
         getResponseTimeout: () => 5000,
         setResponseTimeout: jest.fn(),
         clearResponseTimeout: jest.fn(),
@@ -225,5 +226,47 @@ describe('MqttClient shouldPoll gating', () => {
     expect(payloads).toContain('cd=1');
     expect(payloads).not.toContain('cd=42,bms_idx=1');
     expect(payloads).not.toContain('cd=42,bms_idx=2');
+  });
+
+  test('polls again as soon as the configured interval has elapsed', () => {
+    jest.useFakeTimers({ now: 0 });
+    try {
+      mockGetDeviceDefinition.mockReturnValue({
+        messages: [makeMessage({ refreshDataPayload: 'cd=13', publishPath: 'cells' })],
+      } as any);
+
+      const device: Device = { deviceType: 'HMA-1', deviceId: 'b2500' };
+      const deviceManager: any = {
+        getDeviceTopics: () => topics,
+        getDeviceState: () => ({}),
+        getMessagePollingInterval: () => 1000,
+        getResponseTimeout: () => 5000,
+        setResponseTimeout: jest.fn(),
+        clearResponseTimeout: jest.fn(),
+      };
+      const config: any = {
+        brokerUrl: 'mqtt://localhost:1883',
+        clientId: 'test-client',
+        topicPrefix: 'homeassistant',
+        autodiscoveryTopicPrefix: 'homeassistant',
+      };
+      const mqttClient = new MqttClient(config, deviceManager, jest.fn());
+
+      mqttClient.requestDeviceData(device);
+      jest.advanceTimersByTime(0);
+      mockPublish.mockClear();
+
+      jest.advanceTimersByTime(999);
+      mqttClient.requestDeviceData(device);
+      jest.advanceTimersByTime(0);
+      expect(mockPublish).not.toHaveBeenCalled();
+
+      jest.advanceTimersByTime(1);
+      mqttClient.requestDeviceData(device);
+      jest.advanceTimersByTime(0);
+      expect(mockPublish).toHaveBeenCalledTimes(2);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

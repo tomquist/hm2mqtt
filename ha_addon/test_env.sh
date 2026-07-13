@@ -123,6 +123,7 @@ run_test "Additional configuration options" \
         "pollingInterval": 30,
         "responseTimeout": 15,
         "enableCellData": true,
+        "cellDataPollingInterval": 7,
         "enableCalibrationData": true,
         "enableExtraBatteryData": true,
         "topicPrefix": "custom",
@@ -139,6 +140,7 @@ MQTT_TOPIC_PREFIX=custom
 MQTT_POLLING_INTERVAL=30
 MQTT_RESPONSE_TIMEOUT=15
 POLL_CELL_DATA=true
+POLL_CELL_DATA_INTERVAL=7
 POLL_EXTRA_BATTERY_DATA=true
 POLL_CALIBRATION_DATA=true
 LOG_LEVEL=debug
