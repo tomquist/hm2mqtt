@@ -152,15 +152,18 @@ function applyMessageDefinition<T extends BaseDeviceData>(
  */
 function setValueAtPath<T>(obj: T, path: KeyPath<T>, value: any): void {
   let current = obj as any;
+  // Path elements are always string | number at runtime; narrowing the local
+  // view avoids resolving the deeply recursive KeyPath<T> element type here.
+  const keys = path as readonly (string | number)[];
 
   // Navigate to the second-to-last element in the path
-  for (let i = 0; i < path.length - 1; i++) {
-    const key = path[i];
+  for (let i = 0; i < keys.length - 1; i++) {
+    const key = keys[i];
 
     // Create the object if it doesn't exist
     if (current[key] === undefined) {
       // If the next key is a number or can be parsed as a number, create an array
-      const nextKey = path[i + 1];
+      const nextKey = keys[i + 1];
       const isNextKeyNumeric =
         typeof nextKey === 'number' ||
         (typeof nextKey === 'string' && !isNaN(parseInt(nextKey, 10)));
@@ -171,6 +174,6 @@ function setValueAtPath<T>(obj: T, path: KeyPath<T>, value: any): void {
   }
 
   // Set the value at the last path element
-  const lastKey = path[path.length - 1];
+  const lastKey = keys[keys.length - 1];
   current[lastKey] = value;
 }
