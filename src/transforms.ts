@@ -55,11 +55,7 @@ export type Transform =
  * Multi-key transforms that operate on multiple input values
  */
 export type MultiKeyTransform =
-  | SumTransform
-  | MinTransform
-  | MaxTransform
-  | DiffTransform
-  | AverageTransform;
+  SumTransform | MinTransform | MaxTransform | DiffTransform | AverageTransform;
 
 // =============================================================================
 // Single-Value Transforms

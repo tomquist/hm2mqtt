@@ -250,13 +250,7 @@ export interface MqttConfig {
  * Venus device working status types
  */
 export type VenusWorkingStatus =
-  | 'sleep'
-  | 'standby'
-  | 'charging'
-  | 'discharging'
-  | 'backup'
-  | 'upgrading'
-  | 'bypass';
+  'sleep' | 'standby' | 'charging' | 'discharging' | 'backup' | 'upgrading' | 'bypass';
 
 /**
  * Venus device CT status types
