@@ -1,9 +1,6 @@
 # Changelog
 ## [Next]
 
-### Changed
-
-- Build tooling: adopt the TypeScript 7.0 side-by-side setup. `tsc` now uses the native TypeScript 7 compiler (`@typescript/native`) while `ts-jest` and other tooling continue to consume the TypeScript 6.0 API via the `@typescript/typescript6` compatibility package, restoring a clean `npm ci`.
 
 
 ## [1.8.1] - 2026-06-20
