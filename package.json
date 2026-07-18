@@ -33,7 +33,7 @@
     "jest-util": "^30.4.1",
     "prettier": "^3.9.4",
     "ts-jest": "^29.4.11",
-    "typescript": "^7.0.2",
+    "typescript": "^6.0.3",
     "vite-node": "^6.0.0"
   }
 }
