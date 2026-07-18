@@ -28,12 +28,13 @@
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/node": "^26.1.1",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "jest": "^30.4.2",
     "jest-junit": "^17.0.0",
     "jest-util": "^30.4.1",
     "prettier": "^3.9.5",
     "ts-jest": "^29.4.11",
-    "typescript": "^7.0.2",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vite-node": "^6.0.0"
   }
 }
