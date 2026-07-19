@@ -1,5 +1,7 @@
+import { jest } from '@jest/globals';
 import './device/registry.js';
 import { parseMessage } from './parser.js';
+import logger from './logger.js';
 import {
   B2500V2DeviceData,
   HmiInverterDeviceData,
@@ -729,6 +731,42 @@ describe('MQTT Message Parser', () => {
     const result = parsed['data'] as VenusDeviceData;
     expect(result).not.toHaveProperty('pv1Power');
     expect(result).not.toHaveProperty('totalPvPower');
+  });
+
+  test('does not warn about total PV power when the payload omits the pv fields (issue #360)', () => {
+    const warnSpy = jest.spyOn(logger, 'warn');
+    try {
+      const message =
+        'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0';
+      const parsed = parseMessage(message, 'VNSE3-0', 'venus123');
+
+      const result = parsed['data'] as VenusDeviceData;
+      expect(result).not.toHaveProperty('totalPvPower');
+      expect(warnSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('Some values are missing for field totalPvPower'),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test('aggregates total PV power from a partial set of pv fields without warning (issue #360)', () => {
+    const warnSpy = jest.spyOn(logger, 'warn');
+    try {
+      // Only pv1 and pv2 are reported; pv3/pv4 are absent.
+      const message =
+        'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0,pv1=1076|1,pv2=1000|1';
+      const parsed = parseMessage(message, 'VNSE3-0', 'venus123');
+
+      const result = parsed['data'] as VenusDeviceData;
+      // 1076 + 1000 -> 2076 deciwatts -> 207.6 W
+      expect(result).toHaveProperty('totalPvPower', 207.6);
+      expect(warnSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('Some values are missing for field totalPvPower'),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   test('parses Venus D (VNSD) PV input power and connection status', () => {

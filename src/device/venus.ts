@@ -315,6 +315,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       key: ['pv1', 'pv2', 'pv3', 'pv4'],
       path: ['totalPvPower'],
       transform: sum(10),
+      // Not every Venus reports all four PV strings (some report fewer or none),
+      // so aggregate over whatever is present instead of warning about the rest.
+      allowPartial: true,
     });
     advertise(
       ['totalPvPower'],

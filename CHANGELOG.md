@@ -1,6 +1,9 @@
 # Changelog
 ## [Next]
 
+### Fixed
+
+- Venus: Stop logging `Some values are missing for field totalPvPower` on every poll for devices that report fewer than four PV strings (or none, e.g. Venus E). The *Total PV Power* value is now aggregated from whichever `pv1`–`pv4` inputs are present and is simply omitted when none are reported, instead of warning (fixes #360)
 
 
 ## [1.8.1] - 2026-06-20
