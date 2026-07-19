@@ -136,6 +136,33 @@ describe('MqttClient discovery re-publish', () => {
   });
 });
 
+describe('MqttClient subscribe', () => {
+  test('skips subscribing when the topic list is empty (regression #371)', () => {
+    mockSubscribe.mockClear();
+
+    const deviceManager: any = {
+      getDevices: jest.fn(() => []),
+    };
+    const config: any = {
+      brokerUrl: 'mqtt://localhost:1883',
+      clientId: 'test-client',
+      topicPrefix: 'homeassistant',
+      autodiscoveryTopicPrefix: 'homeassistant',
+    };
+
+    const mqttClient = new MqttClient(config, deviceManager, jest.fn());
+
+    mqttClient.subscribe([]);
+    expect(mockSubscribe).not.toHaveBeenCalled();
+
+    mqttClient.subscribe(['homeassistant/HME-4/control/ct002/control/refresh']);
+    expect(mockSubscribe).toHaveBeenCalledWith(
+      ['homeassistant/HME-4/control/ct002/control/refresh'],
+      expect.any(Function),
+    );
+  });
+});
+
 describe('MqttClient shouldPoll gating', () => {
   const topics = {
     deviceTopicOld: 'hame_energy/VNSD-0/device/venus1/ctrl',
