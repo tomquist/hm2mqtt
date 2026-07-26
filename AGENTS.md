@@ -24,9 +24,14 @@ Make safe, reviewable changes to `hm2mqtt` with minimal back-and-forth.
 Run locally:
 
 ```bash
+npm run lint          # oxlint
+npm run format:check  # oxfmt
 npm test -- --runInBand
 npm run build
 ```
+
+Use `npm run lint:fix` and `npm run format` to apply fixes.
+Requires Node `^20.19.0 || >=22.12.0` (oxlint/oxfmt engine requirement).
 
 If add-on behavior/config was changed, also validate add-on config consistency:
 

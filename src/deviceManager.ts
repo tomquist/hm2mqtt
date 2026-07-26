@@ -6,7 +6,7 @@ import {
   FieldDefinition,
   KeyPath,
 } from './deviceDefinition.js';
-import { calculateNewVersionTopicId, decryptNewVersionTopicId } from './utils/crypt.js';
+import { calculateNewVersionTopicId } from './utils/crypt.js';
 import logger from './logger.js';
 
 /**
@@ -160,7 +160,6 @@ export class DeviceManager {
     publishPath: string,
   ): DeviceStateData & T {
     const deviceDefinition = getDeviceDefinition(device.deviceType);
-    const deviceKey = this.getDeviceKey(device);
     const defaultState = deviceDefinition?.messages.find(
       msg => msg.publishPath === publishPath,
     )?.defaultState;

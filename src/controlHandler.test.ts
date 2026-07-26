@@ -3,13 +3,7 @@ import './device/registry.js';
 import logger from './logger.js';
 import { ControlHandler } from './controlHandler.js';
 import { DeviceManager, DeviceStateData } from './deviceManager.js';
-import {
-  MqttConfig,
-  Device,
-  B2500V2DeviceData,
-  B2500BaseDeviceData,
-  B2500V1DeviceData,
-} from './types.js';
+import { MqttConfig, Device, B2500V2DeviceData, B2500BaseDeviceData } from './types.js';
 import { DEFAULT_TOPIC_PREFIX } from './constants.js';
 
 describe('ControlHandler', () => {
@@ -19,7 +13,6 @@ describe('ControlHandler', () => {
   let testDeviceV1: Device;
   let testDeviceV2: Device;
   let deviceState: B2500BaseDeviceData;
-  let deviceStateV1: B2500V1DeviceData;
   let deviceStateV2: B2500V2DeviceData;
 
   beforeEach(() => {
@@ -44,11 +37,9 @@ describe('ControlHandler', () => {
     };
 
     deviceState = undefined as any;
-    deviceStateV1 = undefined as any;
     deviceStateV2 = undefined as any;
     const stateUpdateHandler = (device: Device, publishPath: string, state: DeviceStateData) => {
       deviceState = state as B2500BaseDeviceData;
-      deviceStateV1 = state as B2500V1DeviceData;
       deviceStateV2 = state as B2500V2DeviceData;
     };
     deviceManager = new DeviceManager(config, stateUpdateHandler);
