@@ -31,7 +31,8 @@ npm run build
 ```
 
 Use `npm run lint:fix` and `npm run format` to apply fixes.
-Requires Node `^20.19.0 || >=22.12.0` (oxlint/oxfmt engine requirement).
+Requires Node `^20.19.0 || >=22.12.0` (see `engines` in `package.json`).
+Node 18 is not supported.
 
 If add-on behavior/config was changed, also validate add-on config consistency:
 
