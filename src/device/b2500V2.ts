@@ -54,7 +54,7 @@ export const timePeriodSettingHandler = (
         logger.error(`No time period ${periodNumber} found for ${device.deviceId}`);
         return;
       }
-      const newTimePeriodSettings = [...state.timePeriods.map(p => ({ ...p }))];
+      const newTimePeriodSettings = state.timePeriods.map(p => ({ ...p }));
       // Update the appropriate setting
       switch (setting) {
         case 'enabled':
@@ -695,7 +695,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           publishCallback(
             processCommand(CommandType.SYNC_TIME, timeData, deviceState.useFlashCommands),
           );
-        } catch (error) {
+        } catch {
           logger.warn('Invalid time sync data:', message);
         }
       },

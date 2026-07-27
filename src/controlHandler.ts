@@ -1,6 +1,6 @@
 import { Device } from './types.js';
 import { DeviceManager } from './deviceManager.js';
-import { getDeviceDefinition, HaStatefulAdvertiseBuilder, KeyPath } from './deviceDefinition.js';
+import { getDeviceDefinition } from './deviceDefinition.js';
 import { HaComponentConfig } from './homeAssistantDiscovery.js';
 
 import logger from './logger.js';

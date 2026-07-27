@@ -3,6 +3,9 @@
   "version": "1.8.1",
   "type": "module",
   "main": "dist/index.js",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
@@ -11,10 +14,10 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
     "test:addon": "cd ha_addon && ./test_env.sh",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\"",
-    "lint": "prettier --check \"src/**/*.ts\"",
-    "lint:fix": "prettier --write \"src/**/*.ts\"",
+    "format": "oxfmt src",
+    "format:check": "oxfmt --check src",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
     "bump-version": "vite-node bump-version.ts",
     "release": "./release.sh"
   },
@@ -32,7 +35,8 @@
     "jest": "^30.4.2",
     "jest-junit": "^17.0.0",
     "jest-util": "^30.4.1",
-    "prettier": "^3.9.5",
+    "oxfmt": "^0.60.0",
+    "oxlint": "^1.75.0",
     "ts-jest": "^29.4.11",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vite-node": "^6.0.0"

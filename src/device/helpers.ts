@@ -11,7 +11,6 @@
 import {
   executeTransform,
   number,
-  boolean,
   bitBoolean as bitBooleanTransform,
   temperature,
   timeString,

@@ -170,7 +170,7 @@ export interface HaBaseStateComponentArgs extends HaBaseComponentArgs {
 
 const baseSensor =
   (definitions: HaBaseComponentArgs) =>
-  (args: Omit<AdvertiseBuilderArgs, 'keyPath'>): HaBaseComponent => ({
+  (_args: Omit<AdvertiseBuilderArgs, 'keyPath'>): HaBaseComponent => ({
     id: definitions.id,
     name: definitions.name,
     device_class: definitions.device_class,

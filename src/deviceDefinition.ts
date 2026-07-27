@@ -44,9 +44,6 @@ export type HaStatefulAdvertiseBuilder<
   T,
   R extends HaComponentConfig = HaComponentConfig,
 > = Flavored<(args: AdvertiseBuilderArgs) => R, T>;
-type TransformParams<K extends string | readonly string[]> = K extends string
-  ? [K: string]
-  : [{ [P in K[number]]: string }];
 
 /**
  * A function-based transform.

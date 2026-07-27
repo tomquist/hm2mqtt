@@ -15,12 +15,39 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # This job runs no authenticated git operations, so there is no need to
+          # leave the checkout token in the local git config.
+          persist-credentials: false
+
+      # Linting and formatting are version-independent, so they run once here
+      # instead of being repeated across the `validate` matrix.
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run oxlint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
   validate:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x, 20.x]
+        node-version: [20.x, 24.x]
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -33,9 +60,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Run linting
-        run: npm run lint
 
       - name: Run tests
         run: npm test -- --ci --reporters=default --reporters=jest-junit --forceExit --detectOpenHandles
@@ -79,7 +103,7 @@ jobs:
         run: npm run test:addon
 
   images:
-    needs: [validate, test-addon]
+    needs: [lint, validate, test-addon]
     uses: ./.github/workflows/build-images.yml
     permissions:
       contents: read
