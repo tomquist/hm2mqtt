@@ -139,7 +139,7 @@ export class DeviceManager {
     const deviceKey = this.getDeviceKey(device);
     const stateByPath = this.deviceStates[deviceKey];
     const mergedState = Object.values(stateByPath ?? {}).reduce(
-      (acc, state) => ({ ...acc, ...state }),
+      (acc, state) => Object.assign(acc, state),
       {},
     );
     return mergedState;

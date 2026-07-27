@@ -107,13 +107,13 @@ export class MqttClient {
   private getAdditionalDeviceInfo(device: Device) {
     const deviceDefinitions = getDeviceDefinition(device.deviceType);
     const deviceState = this.deviceManager.getDeviceState(device);
-    let additionalDeviceInfo: AdditionalDeviceInfo = {};
+    const additionalDeviceInfo: AdditionalDeviceInfo = {};
     if (deviceState != null && deviceDefinitions != null) {
       for (const message of deviceDefinitions.messages) {
-        additionalDeviceInfo = {
-          ...additionalDeviceInfo,
-          ...message.getAdditionalDeviceInfo(deviceState as BaseDeviceData),
-        };
+        Object.assign(
+          additionalDeviceInfo,
+          message.getAdditionalDeviceInfo(deviceState as BaseDeviceData),
+        );
       }
     }
     return additionalDeviceInfo;
