@@ -4,6 +4,7 @@ import {
   registerDeviceDefinition,
 } from '../deviceDefinition.js';
 import { CT002DeviceData, CT002PhaseEnergyInfo } from '../types.js';
+import { MIN_PHASE_ENERGY_POLL_INTERVAL_MS } from '../constants.js';
 import { sensorComponent } from '../homeAssistantDiscovery.js';
 import { number } from '../transforms.js';
 import { extractMeterDeviceInfo, registerMeterBaseFields } from './meterBase.js';
@@ -82,9 +83,7 @@ function registerPhaseEnergyMessage(message: BuildMessageFn) {
       publishPath: 'phase_energy',
       defaultState: {},
       getAdditionalDeviceInfo: () => ({}),
-      // Cumulative counters move slowly, so poll them far less often than the
-      // runtime data.
-      pollInterval: Math.max(globalPollInterval, 300000),
+      pollInterval: Math.max(globalPollInterval, MIN_PHASE_ENERGY_POLL_INTERVAL_MS),
       controlsDeviceAvailability: false,
     },
     ({ field, advertise }) => {
