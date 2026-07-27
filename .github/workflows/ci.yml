@@ -20,6 +20,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # This job runs no authenticated git operations, so there is no need to
+          # leave the checkout token in the local git config.
+          persist-credentials: false
 
       # Linting and formatting are version-independent, so they run once here
       # instead of being repeated across the `validate` matrix.
