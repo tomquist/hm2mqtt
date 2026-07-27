@@ -1,6 +1,10 @@
 # Changelog
 ## [Next]
 
+### Added
+
+- Support the `SMR-X` device type: the Marstek smart meter readers (`SMR-0` P1 Meter, `SMR-1` Infrared Meter, `SMR-2` TIC Meter), which are marketed as "CT003". They report the same per-phase and total power as the CT002 smart meter, plus a *Total Energy* sensor (`eng_t`, reported in 0.1 Wh), a *P1 Device Connected* binary sensor (`har_f`) and the *Meter Number*, *P1 Read Status*, *Infrared Read Status* and *Phase Read Status* diagnostic sensors, which are disabled by default (fixes #379)
+
 ### Fixed
 
 - Venus: Stop logging `Some values are missing for field totalPvPower` on every poll for devices that report fewer than four PV strings (or none, e.g. Venus E). The *Total PV Power* value is now aggregated from whichever `pv1`–`pv4` inputs are present and is simply omitted when none are reported, instead of warning (fixes #360)

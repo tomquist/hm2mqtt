@@ -7,6 +7,7 @@ import {
   HmiInverterDeviceData,
   JupiterBMSInfo,
   JupiterDeviceData,
+  SmrMeterDeviceData,
   VenusBMSInfo,
   VenusBMSPackInfo,
   VenusBMSPackDetail,
@@ -203,6 +204,47 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('fc4Version', '202409090159');
     expect(result).toHaveProperty('firmwareVersion', 119);
     expect(result).toHaveProperty('wifiStatus', 2);
+  });
+
+  test('should parse SMR smart meter reader message', () => {
+    const message =
+      'pwr_a=119,pwr_b=15,pwr_c=-136,pwr_t=-1,eng_t=1234567,smt_n=12,har_f=1,sof_f=0,irs_f=0,pwr_f=7,' +
+      'ble_s=5,wif_r=-79,fc4_v=202409090159,ver_v=108,wif_s=2,com_t=1,com_b=115200,ptl_t=3';
+    const { data } = parseMessage(message, 'SMR-0', 'b8d08fc5f943');
+
+    expect(data).toBeDefined();
+    const result = data as SmrMeterDeviceData;
+
+    expect(result).toHaveProperty('deviceType', 'SMR-0');
+    expect(result).toHaveProperty('phase1Power', 119);
+    expect(result).toHaveProperty('phase2Power', 15);
+    expect(result).toHaveProperty('phase3Power', -136);
+    expect(result).toHaveProperty('totalPower', -1);
+    // eng_t is reported in 0.1 Wh
+    expect(result).toHaveProperty('totalEnergy', 123456.7);
+    expect(result).toHaveProperty('meterNumber', 12);
+    expect(result).toHaveProperty('p1DeviceConnected', true);
+    expect(result).toHaveProperty('p1ReadStatus', 0);
+    expect(result).toHaveProperty('infraredReadStatus', 0);
+    expect(result).toHaveProperty('phaseReadStatus', 7);
+    expect(result).toHaveProperty('bluetoothSignal', 5);
+    expect(result).toHaveProperty('wifiRssi', -79);
+    expect(result).toHaveProperty('fc4Version', '202409090159');
+    expect(result).toHaveProperty('firmwareVersion', 108);
+    expect(result).toHaveProperty('wifiStatus', 2);
+
+    // Keys hm2mqtt does not map are still exposed raw
+    expect(result.values).toHaveProperty('com_t', '1');
+    expect(result.values).toHaveProperty('com_b', '115200');
+    expect(result.values).toHaveProperty('ptl_t', '3');
+  });
+
+  test('should report a disconnected P1 reader', () => {
+    const message = 'pwr_t=0,ver_v=108,har_f=0';
+    const { data } = parseMessage(message, 'SMR-0', 'b8d08fc5f943');
+
+    expect(data).toBeDefined();
+    expect(data as SmrMeterDeviceData).toHaveProperty('p1DeviceConnected', false);
   });
 
   test('should parse HMI inverter (2-PV) message correctly', () => {

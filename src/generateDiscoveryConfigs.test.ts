@@ -408,4 +408,51 @@ describe('Home Assistant Discovery', () => {
     expect(withPv.some(t => t.includes('pv3_'))).toBe(false);
     expect(withPv.some(t => t.includes('pv4_'))).toBe(false);
   });
+
+  test('should generate discovery configs for the SMR smart meter reader', () => {
+    const device: Device = { deviceType: 'SMR-0', deviceId: 'b8d08fc5f943' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/SMR-0/device/b8d08fc5f943/ctrl',
+      deviceTopicNew: 'marstek_energy/SMR-0/device/b8d08fc5f943/ctrl',
+      deviceControlTopicOld: 'hame_energy/SMR-0/App/b8d08fc5f943/ctrl',
+      deviceControlTopicNew: 'marstek_energy/SMR-0/App/b8d08fc5f943/ctrl',
+      availabilityTopic: 'hame_energy/SMR-0/availability/b8d08fc5f943',
+      controlSubscriptionTopic: 'hame_energy/SMR-0/control/b8d08fc5f943/control',
+      publishTopic: 'hame_energy/SMR-0/device/b8d08fc5f943/data',
+    };
+
+    const configs = generateDiscoveryConfigs(
+      device,
+      deviceTopics,
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
+      {},
+    );
+    const byObjectId = (objectId: string) =>
+      configs.find(c => c.topic.endsWith(`/${objectId}/config`));
+
+    expect(byObjectId('total_power')?.config).toMatchObject({
+      device_class: 'power',
+      unit_of_measurement: 'W',
+      state_topic: 'hame_energy/SMR-0/device/b8d08fc5f943/data/data',
+    });
+
+    // eng_t is a net reading in 0.1 Wh, so it is scaled and reported as `total`
+    expect(byObjectId('total_energy')?.config).toMatchObject({
+      device_class: 'energy',
+      unit_of_measurement: 'Wh',
+      state_class: 'total',
+    });
+
+    expect(byObjectId('p1_device_connected')?.config).toMatchObject({
+      device_class: 'connectivity',
+      payload_on: true,
+      payload_off: false,
+    });
+
+    // Diagnostics are advertised but off by default
+    expect(byObjectId('meter_number')?.config).toMatchObject({ enabled_by_default: false });
+    expect(byObjectId('phase_read_status')?.config).toMatchObject({ enabled_by_default: false });
+  });
 });

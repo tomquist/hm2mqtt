@@ -32,6 +32,7 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 - Marstek Jupiter E
 - Marstek Jupiter Plus
 - Marstek CT002 Smart Meter
+- Marstek P1 / Infrared / TIC Meter (the SMR smart meter readers, marketed as CT003)
 - Marstek HMI micro inverters (MI800, HMI-2000 with 4 PV inputs)
 
 ## Prerequisites
@@ -501,6 +502,7 @@ The device type can be one of the following:
 - **HMM-X**: (e.g. HMM-1) Marstek Jupiter C
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus
 - **HME-X**: (e.g. HME-3) Marstek CT002 Smart Meter
+- **SMR-X**: Marstek smart meter readers — `SMR-0` P1 Meter, `SMR-1` Infrared Meter, `SMR-2` TIC Meter
 - **HMI-X**: (e.g. HMI-1) Marstek HMI micro inverters, including the MI800 and the 4-PV HMI-2000
 
 ## Using the Development Version

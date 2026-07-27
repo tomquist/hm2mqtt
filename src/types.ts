@@ -757,3 +757,26 @@ export interface CT002DeviceData extends BaseDeviceData {
   firmwareVersion?: number; // ver_v
   wifiStatus?: number; // wif_s
 }
+
+/**
+ * Marstek smart meter reader (device type `SMR-X`), sold as the Marstek P1
+ * Meter (SMR-0), Infrared Meter (SMR-1) and TIC Meter (SMR-2). This family is
+ * marketed as "CT003".
+ */
+export interface SmrMeterDeviceData extends BaseDeviceData {
+  phase1Power?: number; // pwr_a
+  phase2Power?: number; // pwr_b
+  phase3Power?: number; // pwr_c
+  totalPower?: number; // pwr_t
+  totalEnergy?: number; // eng_t (reported in 0.1 Wh)
+  meterNumber?: number; // smt_n
+  p1DeviceConnected?: boolean; // har_f
+  p1ReadStatus?: number; // sof_f
+  infraredReadStatus?: number; // irs_f
+  phaseReadStatus?: number; // pwr_f
+  bluetoothSignal?: number; // ble_s
+  wifiRssi?: number; // wif_r
+  fc4Version?: string; // fc4_v
+  firmwareVersion?: number; // ver_v
+  wifiStatus?: number; // wif_s
+}
