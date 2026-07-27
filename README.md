@@ -666,23 +666,13 @@ The following commands are supported by both Jupiter C, Jupiter E and Jupiter Pl
 
 > **Note:** The Jupiter does not support trading mode or auto-switch working mode.
 
-### Smart Meter Commands
-
-Supported by all meter device types (`HME-X`, `TPM-CN`, `TPM2-X` and `SMR-X`):
-
-- `refresh`: Requests the runtime data immediately, instead of waiting for the next poll
+### Smart Meter Commands (CT002 and CT003)
+- `refresh`: Requests the device data immediately, instead of waiting for the next poll
 - `factory-reset`: Resets the meter to factory settings
 - `hardware-reset`: Performs a hardware reset of the meter
+- `phase1-measurement-reversed` / `phase2-measurement-reversed` / `phase3-measurement-reversed`: Inverts the measurement direction of that phase (`on` or `off`). CT002 device types only (`HME-X`, `TPM-CN`, `TPM2-X`); on the CT003 readers the measurement direction is reported but cannot be set.
 
-Supported by the CT002 device types (`HME-X`, `TPM-CN`, `TPM2-X`) only:
-
-- `phase1-measurement-reversed` / `phase2-measurement-reversed` / `phase3-measurement-reversed`: Inverts the measurement direction of that phase (`on` or `off`), matching the *Reverse Measurement Direction* screen in the Marstek app. The three phases share one command (`cd=5`), so hm2mqtt combines the switch you toggle with the direction currently reported for the other two phases; the entities only appear once the device has reported its current setting.
-
-All of these entities are disabled by default — the resets are destructive, and the meters are polled automatically without the refresh button.
-
-> **Note:** The SMR meter readers report their measurement direction (as read-only *Phase N Measurement Reversed* entities) but it cannot be set from hm2mqtt: they offer no measurement-direction setting, and their `cd=5` command configures the attached smart meter instead.
-
-The CT002 device types are additionally polled with `cd=19` for the per-phase charge and discharge counters, published on the `.../phase_energy` topic as *Phase 1/2/3 Charge* and *Phase 1/2/3 Discharge*. **The unit of these counters is not known**, so hm2mqtt publishes the raw reported value with no unit or device class. They are polled every 5 minutes (or the configured polling interval, whichever is longer) and are disabled by default.
+All meter entities are disabled by default. See [docs/meters.md](docs/meters.md) for the underlying MQTT protocol.
 
 ### Examples
 
