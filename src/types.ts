@@ -589,15 +589,23 @@ export interface VenusBMSPackDetail extends BaseDeviceData {
 }
 
 /**
- * Network configuration reported by the cd=26 response on newer Venus firmware.
+ * Network configuration reported by the `cd=26` response. Venus and Jupiter
+ * answer it with the same payload, so they share this shape — see
+ * `device/networkInfoBase.ts`.
  */
-export interface VenusNetworkInfo extends BaseDeviceData {
+export interface NetworkInfo extends BaseDeviceData {
   ipAddress?: string;
   gateway?: string;
   subnetMask?: string;
   dns?: string;
   ctConnectIp?: string;
 }
+
+/** Network configuration of a Venus, reported on newer firmware. */
+export type VenusNetworkInfo = NetworkInfo;
+
+/** Network configuration of a Jupiter. */
+export type JupiterNetworkInfo = NetworkInfo;
 
 export interface JupiterTimePeriod {
   startTime: string;
@@ -667,17 +675,6 @@ export interface JupiterDeviceData extends BaseDeviceData {
   shellyPort?: number; // shelly_p
   phaseDiagnosisStatus?: number; // seq_s
   bluetoothAdvertisingEnabled?: boolean; // bl
-}
-
-/**
- * Jupiter network information (`cd=26` response)
- */
-export interface JupiterNetworkInfo extends BaseDeviceData {
-  ipAddress?: string;
-  gateway?: string;
-  subnetMask?: string;
-  dns?: string;
-  ctConnectIp?: string;
 }
 
 /**

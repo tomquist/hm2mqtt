@@ -5,12 +5,12 @@ import {
   KeyPath,
   registerDeviceDefinition,
 } from '../deviceDefinition.js';
+import { registerNetworkInfoMessage } from './networkInfoBase.js';
 import {
   CommandParams,
   JupiterBatteryWorkingStatus,
   JupiterDeviceData,
   JupiterBMSInfo,
-  JupiterNetworkInfo,
   JupiterMPPTPVInfo,
   isValidJupiterWorkingMode,
   isValidJupiterRechargeMode,
@@ -163,53 +163,15 @@ registerDeviceDefinition(
   ({ message }) => {
     registerRuntimeInfoMessage(message);
     registerJupiterBMSInfoMessage(message);
-    registerNetworkInfoMessage(message);
+    // The Jupiter answers `cd=26` with the same payload as the Venus, but only
+    // its IP is confirmed, so no network sensor is enabled by default.
+    registerNetworkInfoMessage(message, {
+      commandCode: CommandType.GET_NETWORK_INFO,
+      isMessage: isJupiterNetworkInfoMessage,
+      ipEnabledByDefault: false,
+    });
   },
 );
-
-/**
- * Network configuration reported by `cd=26`, which the Jupiter answers with the
- * same `dev_net_info:ip:…` payload as the Venus. The message parser normalizes
- * that colon-delimited format into ip/gate/mask/dns/ct_connect_ip keys before
- * the fields below see it. Only the IP is confirmed for Jupiter, so every other
- * entity stays hidden until the device actually reports it.
- */
-function registerNetworkInfoMessage(message: BuildMessageFn) {
-  message<JupiterNetworkInfo>(
-    {
-      refreshDataPayload: `cd=${CommandType.GET_NETWORK_INFO}`,
-      isMessage: isJupiterNetworkInfoMessage,
-      publishPath: 'network',
-      defaultState: {},
-      getAdditionalDeviceInfo: () => ({}),
-      // Network configuration changes rarely, so poll it infrequently.
-      pollInterval: Math.max(globalPollInterval, 300000),
-      controlsDeviceAvailability: false,
-    },
-    ({ field, advertise }) => {
-      const networkFields = [
-        ['ip', 'ipAddress', 'IP Address', 'mdi:ip-network'],
-        ['gate', 'gateway', 'Gateway', 'mdi:router-network'],
-        ['mask', 'subnetMask', 'Subnet Mask', 'mdi:ip-network-outline'],
-        ['dns', 'dns', 'DNS Server', 'mdi:dns'],
-        ['ct_connect_ip', 'ctConnectIp', 'CT Connect IP', 'mdi:current-ac'],
-      ] as const;
-      for (const [key, path, name, icon] of networkFields) {
-        field({ key, path: [path], transform: identity() });
-        advertise(
-          [path],
-          sensorComponent<string>({
-            id: `network_${path.replace(/([A-Z])/g, '_$1').toLowerCase()}`,
-            name,
-            icon,
-            enabled_by_default: false,
-          }),
-          { enabled: state => (state[path] != null ? true : undefined) },
-        );
-      }
-    },
-  );
-}
 
 function registerRuntimeInfoMessage(message: BuildMessageFn) {
   let options = {

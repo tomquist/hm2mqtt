@@ -18,11 +18,11 @@ import {
   VenusBMSPackInfo,
   VenusBMSPackDetail,
   VenusDeviceData,
-  VenusNetworkInfo,
   VenusTimePeriod,
   VenusVersionSet,
   WeekdaySet,
 } from '../types.js';
+import { registerNetworkInfoMessage } from './networkInfoBase.js';
 import logger from '../logger.js';
 import {
   buttonComponent,
@@ -242,7 +242,7 @@ registerDeviceDefinition(
     registerBMSInfoMessage(message);
     registerBMSPackMessage(message);
     registerBMSPackDetailMessages(message);
-    registerNetworkInfoMessage(message);
+    registerVenusNetworkInfoMessage(message);
   },
 );
 
@@ -257,7 +257,7 @@ registerDeviceDefinition(
     registerBMSInfoMessage(message, { scaleTemperatures: true });
     registerBMSPackMessage(message, { scaleTemperatures: true });
     registerBMSPackDetailMessages(message, { scaleTemperatures: true });
-    registerNetworkInfoMessage(message);
+    registerVenusNetworkInfoMessage(message);
   },
 );
 
@@ -2563,40 +2563,10 @@ function isVenusNetworkInfoMessage(values: Record<string, string>): boolean {
   return 'ip' in values && 'gate' in values && 'ct_connect_ip' in values;
 }
 
-function registerNetworkInfoMessage(message: BuildMessageFn) {
-  message<VenusNetworkInfo>(
-    {
-      refreshDataPayload: `cd=${CommandType.GET_NETWORK_INFO}`,
-      isMessage: isVenusNetworkInfoMessage,
-      publishPath: 'network',
-      defaultState: {},
-      getAdditionalDeviceInfo: () => ({}),
-      // Network configuration changes rarely, so poll it infrequently.
-      pollInterval: Math.max(globalPollInterval, 300000),
-      controlsDeviceAvailability: false,
-    },
-    ({ field, advertise }) => {
-      const networkFields = [
-        ['ip', 'ipAddress', 'IP Address', 'mdi:ip-network'],
-        ['gate', 'gateway', 'Gateway', 'mdi:router-network'],
-        ['mask', 'subnetMask', 'Subnet Mask', 'mdi:ip-network-outline'],
-        ['dns', 'dns', 'DNS Server', 'mdi:dns'],
-        ['ct_connect_ip', 'ctConnectIp', 'CT Connect IP', 'mdi:current-ac'],
-      ] as const;
-
-      for (const [key, path, name, icon] of networkFields) {
-        field({ key, path: [path], transform: identity() });
-        advertise(
-          [path],
-          sensorComponent<string>({
-            id: `network_${path.replace(/([A-Z])/g, '_$1').toLowerCase()}`,
-            name,
-            icon,
-            enabled_by_default: key === 'ip',
-          }),
-          { enabled: state => (state[path] != null ? true : undefined) },
-        );
-      }
-    },
-  );
+function registerVenusNetworkInfoMessage(message: BuildMessageFn) {
+  registerNetworkInfoMessage(message, {
+    commandCode: CommandType.GET_NETWORK_INFO,
+    isMessage: isVenusNetworkInfoMessage,
+    ipEnabledByDefault: true,
+  });
 }
