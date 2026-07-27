@@ -304,6 +304,18 @@ export type VenusCTType = 'none' | 'ct1' | 'ct2' | 'ct3' | 'shellyPro' | 'p1Mete
 export type VenusPhaseType = 'unknown' | 'phaseA' | 'phaseB' | 'phaseC' | 'notDetected';
 
 /**
+ * Venus parallel-operation mode, reported as the `par` field and set with
+ * `cd=23,pm=`. Values other than 0-2 (e.g. the 255 reported by units that do not
+ * support parallel operation) are reported as `unknown`.
+ */
+const validVenusParallelModes = ['off', 'wiringCheck', 'on'] as const;
+export type VenusParallelMode = (typeof validVenusParallelModes)[number];
+
+export function isValidVenusParallelMode(mode: string): mode is VenusParallelMode {
+  return validVenusParallelModes.includes(mode as VenusParallelMode);
+}
+
+/**
  * Venus device recharge mode
  */
 const validVenusRechargeModes = ['singlePhase', 'threePhase'] as const;
@@ -388,7 +400,22 @@ export function resolveMeterMac(meterType: MeterType, configuredMac?: string): s
 
 export type WeekdaySet = `${0 | ''}${1 | ''}${2 | ''}${3 | ''}${4 | ''}${5 | ''}${6 | ''}`;
 
-const venusValidVersionSets = ['800W', '2500W'] as const;
+// Rated output power ("power version") of a Venus. The device reports this as a
+// numeric code in the `set_v` field, while the `cd=15,vs=` command takes the
+// rated power in watts. These are the power versions the Marstek app offers;
+// which of them a given unit accepts depends on its model and region.
+const venusValidVersionSets = [
+  '600W',
+  '800W',
+  '1200W',
+  '1500W',
+  '2000W',
+  '2200W',
+  '2300W',
+  '2500W',
+  '3000W',
+  '3600W',
+] as const;
 export type VenusVersionSet = (typeof venusValidVersionSets)[number];
 
 export function isValidVenusVersionSet(set: string): set is VenusVersionSet {
@@ -492,6 +519,12 @@ export interface VenusDeviceData extends BaseDeviceData {
   phaseDiagnosisStatus?: number; // seq_s
   inverterVersion?: number; // inv_v
   mpptVersion?: number; // mppt
+  peakShavingEnabled?: boolean; // peak_status
+  peakShavingPower?: number; // peak_power
+  batteryPower?: number; // bp
+  calculatedBatteryPower?: number; // rp
+  gridPower?: number; // gp
+  parallelMode?: VenusParallelMode | 'unknown'; // par
 }
 
 export interface VenusBMSInfo extends BaseDeviceData {

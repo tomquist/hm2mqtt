@@ -935,6 +935,36 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('bmsVersion', 116);
     expect(result).toHaveProperty('communicationModuleVersion', '202409090159');
     expect(result).toHaveProperty('shellyPort', 1010);
+    // set_v is a power-version code, not a wattage: 1 is the 800W version,
+    // which the same dump confirms via mdp_w=800.
+    expect(result).toHaveProperty('versionSet', '800W');
+    expect(result).toHaveProperty('maxDischargePower', 800);
+  });
+
+  test('maps the Venus set_v power-version code to the rated power', () => {
+    const base =
+      'cd=1,tot_i=1,tot_o=212,ele_d=0,ele_m=1,grd_d=212,grd_m=212,inc_d=0,inc_m=0,grd_f=0,grd_o=423,grd_t=3,gct_s=1,cel_s=2,cel_p=483,cel_c=94,err_t=0,err_a=0,dev_n=142,grd_y=0,wor_m=0,inc_a=0';
+    const expected: Record<string, string> = {
+      '0': '2500W',
+      '1': '800W',
+      '2': '600W',
+      '3': '2200W',
+      '4': '1200W',
+      '5': '1500W',
+      '6': '2300W',
+      '7': '2000W',
+      '8': '3000W',
+      '9': '3600W',
+    };
+
+    for (const [code, label] of Object.entries(expected)) {
+      const parsed = parseMessage(`${base},set_v=${code}`, 'VNSD-0', 'venusD123');
+      expect((parsed['data'] as VenusDeviceData).versionSet).toBe(label);
+    }
+
+    // Unknown codes are left unmapped rather than guessed.
+    const unknown = parseMessage(`${base},set_v=42`, 'VNSD-0', 'venusD123');
+    expect((unknown['data'] as VenusDeviceData).versionSet).toBeUndefined();
   });
 
   test('parses Venus v147 LED, backup, inverter/MPPT version and phase-diagnosis fields', () => {
@@ -950,6 +980,47 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('inverterVersion', 115);
     expect(result).toHaveProperty('mpptVersion', 104);
     expect(result).toHaveProperty('phaseDiagnosisStatus', 3);
+    // Battery and grid power, reported as bp/rp/gp
+    expect(result).toHaveProperty('batteryPower', 291);
+    expect(result).toHaveProperty('calculatedBatteryPower', 347);
+    expect(result).toHaveProperty('gridPower', 801);
+    // par=0 means parallel operation is turned off
+    expect(result).toHaveProperty('parallelMode', 'off');
+    // This firmware predates peak shaving, so it reports neither field
+    expect(result.peakShavingEnabled).toBeUndefined();
+    expect(result.peakShavingPower).toBeUndefined();
+  });
+
+  test('maps the Venus par field to the parallel mode', () => {
+    const base =
+      'cd=1,tot_i=6,tot_o=1109,ele_d=0,ele_m=0,grd_d=27,grd_m=27,inc_d=0,inc_m=0,grd_f=0,grd_o=801,grd_t=3,gct_s=1,cel_s=2,cel_p=233,cel_c=45,err_t=0,err_a=0,dev_n=147,grd_y=0,wor_m=5,inc_a=0';
+    const expected: Record<string, string> = {
+      '0': 'off',
+      '1': 'wiringCheck',
+      '2': 'on',
+      // Units without parallel support report 255
+      '255': 'unknown',
+    };
+
+    for (const [raw, mode] of Object.entries(expected)) {
+      const parsed = parseMessage(`${base},par=${raw}`, 'VNSD-0', 'venusD123');
+      expect((parsed['data'] as VenusDeviceData).parallelMode).toBe(mode);
+    }
+  });
+
+  test('parses Venus peak shaving state (peak_status/peak_power)', () => {
+    const base =
+      'cd=1,tot_i=6,tot_o=1109,ele_d=0,ele_m=0,grd_d=27,grd_m=27,inc_d=0,inc_m=0,grd_f=0,grd_o=801,grd_t=3,gct_s=1,cel_s=2,cel_p=233,cel_c=45,err_t=0,err_a=0,dev_n=150,grd_y=0,wor_m=5,inc_a=0';
+
+    const on = parseMessage(`${base},peak_status=1,peak_power=4000`, 'VNSD-0', 'venusD123');
+    const onResult = on['data'] as VenusDeviceData;
+    expect(onResult).toHaveProperty('peakShavingEnabled', true);
+    expect(onResult).toHaveProperty('peakShavingPower', 4000);
+
+    const off = parseMessage(`${base},peak_status=0,peak_power=2000`, 'VNSD-0', 'venusD123');
+    const offResult = off['data'] as VenusDeviceData;
+    expect(offResult).toHaveProperty('peakShavingEnabled', false);
+    expect(offResult).toHaveProperty('peakShavingPower', 2000);
   });
 
   test('parses Venus surplus feed-in state from the fu field', () => {

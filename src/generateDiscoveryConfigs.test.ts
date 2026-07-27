@@ -409,6 +409,40 @@ describe('Home Assistant Discovery', () => {
     expect(withPv.some(t => t.includes('pv4_'))).toBe(false);
   });
 
+  test('should advertise the Venus parallel mode select disabled by default', () => {
+    const device: Device = { deviceType: 'VNSD-0', deviceId: 'venusD123' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/VNSD-0/device/venusD123/ctrl',
+      deviceTopicNew: 'marstek_energy/VNSD-0/device/venusD123/ctrl',
+      deviceControlTopicOld: 'hame_energy/VNSD-0/App/venusD123/ctrl',
+      deviceControlTopicNew: 'marstek_energy/VNSD-0/App/venusD123/ctrl',
+      availabilityTopic: 'hame_energy/VNSD-0/availability/venusD123',
+      controlSubscriptionTopic: 'hame_energy/VNSD-0/control/venusD123/control',
+      publishTopic: 'hame_energy/VNSD-0/device/venusD123/data',
+    };
+    const configsFor = (state: object) =>
+      generateDiscoveryConfigs(
+        device,
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      );
+
+    // Without a par reading the select stays deferred
+    expect(
+      configsFor({ batterySoc: 94 }).some(c => c.topic.includes('/parallel_mode/config')),
+    ).toBe(false);
+
+    // Enabling parallel operation rewires the units and disables backup power,
+    // so the control must never be advertised as enabled by default.
+    const config = configsFor({ parallelMode: 'off' }).find(c =>
+      c.topic.includes('/parallel_mode/config'),
+    )?.config;
+    expect(config).toMatchObject({ enabled_by_default: false });
+  });
+
   test('should generate discovery configs for the SMR smart meter reader', () => {
     const device: Device = { deviceType: 'SMR-0', deviceId: 'b8d08fc5f943' };
     const deviceTopics: DeviceTopics = {
