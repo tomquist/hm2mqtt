@@ -212,6 +212,21 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('phase3MeasurementReversed', false);
   });
 
+  test('should parse CT002 messages for the TPM and TPM2 device types', () => {
+    // TPM-CN (CT002-CN) and TPM2-0 (TPM2-100CT) use the same parser as HME-4
+    const message = 'pwr_a=100,pwr_b=0,pwr_c=0,pwr_t=100,ver_v=42,cur_d=0';
+
+    for (const deviceType of ['TPM-CN', 'TPM2-0']) {
+      const { data } = parseMessage(message, deviceType, 'abcd');
+      expect(data).toBeDefined();
+      const result = data as CT002DeviceData;
+      expect(result).toHaveProperty('deviceType', deviceType);
+      expect(result).toHaveProperty('phase1Power', 100);
+      expect(result).toHaveProperty('totalPower', 100);
+      expect(result).toHaveProperty('firmwareVersion', 42);
+    }
+  });
+
   test('should decode the per-phase measurement direction bitmask', () => {
     // cur_d=5 -> bit 0 (phase 1) and bit 2 (phase 3) set
     const message = 'pwr_a=0,pwr_b=0,pwr_c=0,pwr_t=0,cur_d=5';

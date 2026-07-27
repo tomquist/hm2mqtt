@@ -31,7 +31,7 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 - Marstek Jupiter C
 - Marstek Jupiter E
 - Marstek Jupiter Plus
-- Marstek CT002 Smart Meter
+- Marstek CT002 Smart Meter (including the CT002-CN and the TPM2-100CT)
 - Marstek P1 / Infrared / TIC Meter (the SMR smart meter readers, marketed as CT003)
 - Marstek HMI micro inverters (MI800, HMI-2000 with 4 PV inputs)
 
@@ -502,6 +502,8 @@ The device type can be one of the following:
 - **HMM-X**: (e.g. HMM-1) Marstek Jupiter C
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus
 - **HME-X**: (e.g. HME-3) Marstek CT002 Smart Meter
+- **TPM-CN**: Marstek CT002-CN Smart Meter
+- **TPM2-X**: (e.g. TPM2-0) Marstek TPM2-100CT Smart Meter
 - **SMR-X**: Marstek smart meter readers — `SMR-0` P1 Meter, `SMR-1` Infrared Meter, `SMR-2` TIC Meter
 - **HMI-X**: (e.g. HMI-1) Marstek HMI micro inverters, including the MI800 and the 4-PV HMI-2000
 
@@ -665,6 +667,8 @@ The following commands are supported by both Jupiter C, Jupiter E and Jupiter Pl
 > **Note:** The Jupiter does not support trading mode or auto-switch working mode.
 
 ### CT002 Smart Meter Commands
+
+Supported by the `HME-X`, `TPM-CN` and `TPM2-X` device types.
 
 - `phase1-measurement-reversed` / `phase2-measurement-reversed` / `phase3-measurement-reversed`: Inverts the measurement direction of that phase (`on` or `off`), matching the *Reverse Measurement Direction* screen in the Marstek app. The three phases share one command (`cd=5`), so hm2mqtt combines the switch you toggle with the direction currently reported for the other two phases; the entities only appear once the device has reported its current setting.
 

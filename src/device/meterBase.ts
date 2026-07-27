@@ -1,4 +1,4 @@
-import { BuildMessageDefinitionArgs } from '../deviceDefinition.js';
+import { BuildMessageDefinitionArgs, extractBaseType } from '../deviceDefinition.js';
 import { MeterBaseDeviceData } from '../types.js';
 import {
   binarySensorComponent,
@@ -29,6 +29,14 @@ const phaseMeasurementDirections = [
   { bit: 2, path: 'phase3MeasurementReversed', id: 'phase3_measurement_reversed', label: 3 },
 ] as const;
 
+/**
+ * Parameter name the `cd=5` direction command uses. `TPM2` devices expect
+ * `dir`; every other CT002 variant expects `p1`.
+ */
+function directionParam(deviceType: string): 'dir' | 'p1' {
+  return extractBaseType(deviceType).toUpperCase() === 'TPM2' ? 'dir' : 'p1';
+}
+
 function measurementDirectionMask(state: {
   phase1MeasurementReversed?: boolean;
   phase2MeasurementReversed?: boolean;
@@ -46,8 +54,8 @@ function measurementDirectionMask(state: {
  * alias `cur_dir`.)
  *
  * It is written back with `cd=5,p1=<mask>`, using the same bit layout the
- * runtime payload reports. `TPM2` devices spell the parameter `dir` instead,
- * but hm2mqtt does not support that device type yet.
+ * runtime payload reports. `TPM2` devices spell the parameter `dir` instead:
+ * `cd=5,dir=<mask>`.
  *
  * The command is opt-in per device type because `cd=5` is not universal: on the
  * SMR readers `cd=5,p1=…,p2=…,p3=…,p4=…` configures the attached smart meter,
@@ -83,12 +91,14 @@ function registerPhaseMeasurementDirection<T extends MeterBaseDeviceData>(
       enabled,
     );
     command(commandName, {
-      handler: ({ message, publishCallback, updateDeviceState }) => {
+      handler: ({ device, message, publishCallback, updateDeviceState }) => {
         const reversed = message.toLowerCase() === 'true' || message === '1' || message === 'ON';
         // The device takes the whole bitmask, so fold the new value into the
         // other two phases as currently reported.
         const state = updateDeviceState(() => ({ [path]: reversed }));
-        publishCallback(`cd=5,p1=${measurementDirectionMask(state)}`);
+        publishCallback(
+          `cd=5,${directionParam(device.deviceType)}=${measurementDirectionMask(state)}`,
+        );
       },
     });
   }

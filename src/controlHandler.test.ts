@@ -420,6 +420,31 @@ describe('ControlHandler', () => {
       expect(publishCallback).toHaveBeenLastCalledWith(ct002, 'cd=5,p1=6');
     });
 
+    test('should use the p1 parameter on TPM-CN and dir on TPM2', () => {
+      const cases: Array<[string, string]> = [
+        ['TPM-CN', 'cd=5,p1=1'],
+        ['TPM2-0', 'cd=5,dir=1'],
+      ];
+
+      for (const [deviceType, expected] of cases) {
+        const device: Device = { deviceType, deviceId: 'tpmdevice' };
+        const config: MqttConfig = {
+          brokerUrl: 'mqtt://test.mosquitto.org',
+          clientId: 'test-client',
+          topicPrefix: DEFAULT_TOPIC_PREFIX,
+          autodiscoveryTopicPrefix: 'homeassistant',
+          devices: [device],
+          responseTimeout: 15000,
+        };
+        deviceManager = new DeviceManager(config, () => {});
+        publishCallback = jest.fn();
+        controlHandler = new ControlHandler(deviceManager, publishCallback);
+
+        handleControlTopic(device, 'phase1-measurement-reversed', 'true');
+        expect(publishCallback).toHaveBeenCalledWith(device, expected);
+      }
+    });
+
     test('should optimistically update the state before the next poll', () => {
       deviceManager.updateDeviceState(ct002, 'data', () => ({
         phase1MeasurementReversed: false,

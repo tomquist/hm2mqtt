@@ -20,7 +20,7 @@ body:
     attributes:
       label: Device Model (optional)
       description: |
-        Supported models: B2500 HMA/HMB/HMJ, Marstek Venus C, Marstek Venus E, Marstek Venus A, Marstek Venus D, Marstek Jupiter C, Marstek Jupiter E, Marstek Jupiter Plus, Marstek CT002 Smart Meter, Marstek P1/Infrared/TIC Meter (SMR), Marstek HMI micro inverters (MI800, HMI-2000)
+        Supported models: B2500 HMA/HMB/HMJ, Marstek Venus C, Marstek Venus E, Marstek Venus A, Marstek Venus D, Marstek Jupiter C, Marstek Jupiter E, Marstek Jupiter Plus, Marstek CT002 Smart Meter (incl. CT002-CN and TPM2-100CT), Marstek P1/Infrared/TIC Meter (SMR), Marstek HMI micro inverters (MI800, HMI-2000)
     validations:
       required: false
   - type: input
