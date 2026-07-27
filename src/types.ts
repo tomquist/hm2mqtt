@@ -589,15 +589,23 @@ export interface VenusBMSPackDetail extends BaseDeviceData {
 }
 
 /**
- * Network configuration reported by the cd=26 response on newer Venus firmware.
+ * Network configuration reported by the `cd=26` response. Venus and Jupiter
+ * answer it with the same payload, so they share this shape — see
+ * `device/networkInfoBase.ts`.
  */
-export interface VenusNetworkInfo extends BaseDeviceData {
+export interface NetworkInfo extends BaseDeviceData {
   ipAddress?: string;
   gateway?: string;
   subnetMask?: string;
   dns?: string;
   ctConnectIp?: string;
 }
+
+/** Network configuration of a Venus, reported on newer firmware. */
+export type VenusNetworkInfo = NetworkInfo;
+
+/** Network configuration of a Jupiter. */
+export type JupiterNetworkInfo = NetworkInfo;
 
 export interface JupiterTimePeriod {
   startTime: string;
@@ -628,9 +636,13 @@ export interface JupiterDeviceData extends BaseDeviceData {
   monthlyChargingCapacity?: number; // ele_m
   yearlyChargingCapacity?: number; // ele_y
   pv1Power?: number; // pv1_p
+  pv1Status?: boolean; // pv1_s
   pv2Power?: number; // pv2_p
+  pv2Status?: boolean; // pv2_s
   pv3Power?: number; // pv3_p
+  pv3Status?: boolean; // pv3_s
   pv4Power?: number; // pv4_p
+  pv4Status?: boolean; // pv4_s
   dailyDischargeCapacity?: number; // grd_d
   monthlyDischargeCapacity?: number; // grd_m
   combinedPower?: number; // grd_o
@@ -654,10 +666,15 @@ export interface JupiterDeviceData extends BaseDeviceData {
   bmsVersion?: number; // dev_b
   mpptVersion?: number; // dev_m
   inverterVersion?: number; // dev_i
+  screenVersion?: number; // dev_t
   timePeriods?: JupiterTimePeriod[];
   surplusFeedInEnabled?: boolean; // ful_d
   depthOfDischarge?: number; // dod
   alarmCode?: number; // ala_c
+  batteryPacks?: number; // total_b
+  shellyPort?: number; // shelly_p
+  phaseDiagnosisStatus?: number; // seq_s
+  bluetoothAdvertisingEnabled?: boolean; // bl
 }
 
 /**

@@ -13,12 +13,21 @@
 - Venus: Add *Peak Shaving* switch and *Peak Shaving Power* number entities, capping how much power the device draws from the grid (`cd=63`). Supported from control firmware v150 on the Venus D and Venus E; the entities appear once the device reports the `peak_status`/`peak_power` fields.
 - Venus: Add *Battery Power* and *Grid Power* sensors, read from the `bp` and `gp` fields reported by newer firmware, plus a *Battery Power (Calculated)* sensor for the `rp` field (disabled by default). The Marstek app shows either `bp` or `rp` depending on a per-model flag that could not be recovered from the app, so both are published.
 - Venus: Add a *Parallel Mode* select for running several units in parallel (`cd=23`), along with the `par` status field it reports (*Turned Off*, *Wiring Check*, *Turned On*). Disabled by default: parallel operation is a wiring-level change that also makes the backup/EPS function unavailable, so it has to be switched on deliberately. See [the README](README.md#parallel-mode) for what it does and the order the wiring steps have to happen in.
+- Jupiter: Add *PV1–PV4 Active* binary sensors, showing which PV strings are currently producing.
+- Jupiter: Add a *Battery Packs* sensor with the number of attached battery packs.
+- Jupiter: Add a *Bluetooth Advertising* switch to turn Bluetooth discovery on or off (the app's "Bluetooth Lock", inverted). Requires firmware 141 or newer.
+- Jupiter: Add a *Phase Diagnosis* button to start grid-phase detection, plus a *Phase Diagnosis Status* sensor.
+- Jupiter: Add a *Battery Pack Recovery* button to reactivate an unresponsive battery pack. Jupiter Plus only, firmware 135 or newer, disabled by default.
+- Jupiter: Add a *Screen Version* and a *Shelly Port* sensor, both disabled by default.
+- Jupiter: Add *Network* sensors (IP Address, Gateway, Subnet Mask, DNS Server, CT Connect IP). They appear once the device reports them and are disabled by default.
 
 ### Fixed
 
 - Venus: Fix the *Version Set* entity reporting the wrong rated power. The `set_v` field is a power-version *code*, not a wattage, and the previous mapping had it backwards: devices reporting `set_v=0` (the 2500W version) were shown as *800W Version* and every other code as *2500W Version*. The full code table from the Marstek app is now used, so the 600W, 1200W, 1500W, 2000W, 2200W, 2300W, 3000W and 3600W versions are reported correctly too, and unknown codes are left unset instead of being reported as 2500W. The *Version Set* select offers the same list; the command it sends is unchanged (`cd=15,vs=<watts>`)
 - Venus: Stop logging `Some values are missing for field totalPvPower` on every poll for devices that report fewer than four PV strings (or none, e.g. Venus E). The *Total PV Power* value is now aggregated from whichever `pv1`–`pv4` inputs are present and is simply omitted when none are reported, instead of warning (fixes #360)
 - CT002: Stop logging a spurious `Invalid topic empty_topic_list` subscription error on startup for devices without any controls (fixes #371)
+- Jupiter: *Meter Type* and *Recharge Mode* were sent using the Venus command, so neither setting ever reached the device.
+- Venus & Jupiter: *Sync Time* set the device clock one month too early — and to the previous year every January.
 
 
 ## [1.8.1] - 2026-06-20

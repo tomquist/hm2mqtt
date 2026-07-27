@@ -443,6 +443,63 @@ describe('Home Assistant Discovery', () => {
     expect(config).toMatchObject({ enabled_by_default: false });
   });
 
+  const jupiterTopics = (deviceType: string, deviceId: string): DeviceTopics => ({
+    deviceTopicOld: `hame_energy/${deviceType}/device/${deviceId}/ctrl`,
+    deviceTopicNew: `marstek_energy/${deviceType}/device/${deviceId}/ctrl`,
+    deviceControlTopicOld: `hame_energy/${deviceType}/App/${deviceId}/ctrl`,
+    deviceControlTopicNew: `marstek_energy/${deviceType}/App/${deviceId}/ctrl`,
+    availabilityTopic: `hame_energy/${deviceType}/availability/${deviceId}`,
+    controlSubscriptionTopic: `hame_energy/${deviceType}/control/${deviceId}/control`,
+    publishTopic: `hame_energy/${deviceType}/device/${deviceId}/data`,
+  });
+
+  // An advertisement whose `enabled` predicate returns false is published as an
+  // explicit removal (`config: null`), so "offered" means a non-null config.
+  const isOffered = (configs: { config: unknown }[]) =>
+    configs.length === 1 && configs[0].config !== null;
+
+  test('should gate the Jupiter Bluetooth advertising switch on firmware 141', () => {
+    const device: Device = { deviceType: 'HMN-1', deviceId: 'jupiter123' };
+    const bleConfigs = (state: object) =>
+      generateDiscoveryConfigs(
+        device,
+        jupiterTopics('HMN-1', 'jupiter123'),
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      ).filter(c => c.topic.includes('bluetooth_advertising'));
+
+    expect(isOffered(bleConfigs({ deviceVersion: 140, bluetoothAdvertisingEnabled: true }))).toBe(
+      false,
+    );
+    expect(isOffered(bleConfigs({ deviceVersion: 141, bluetoothAdvertisingEnabled: true }))).toBe(
+      true,
+    );
+  });
+
+  test('should offer Jupiter battery pack recovery on Jupiter Plus only', () => {
+    const recoveryConfigs = (deviceType: string, state: object) =>
+      generateDiscoveryConfigs(
+        { deviceType, deviceId: 'jupiter123' },
+        jupiterTopics(deviceType, 'jupiter123'),
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        // The merged device state carries the device type the message was
+        // parsed for, just like the state built from a real payload.
+        { deviceType, ...state },
+      ).filter(c => c.topic.includes('battery_pack_recovery'));
+
+    // Jupiter Plus on new enough firmware: offered
+    expect(isOffered(recoveryConfigs('JPLS-8H', { deviceVersion: 135 }))).toBe(true);
+    // Jupiter Plus on older firmware: not offered
+    expect(isOffered(recoveryConfigs('JPLS-8H', { deviceVersion: 134 }))).toBe(false);
+    // Jupiter C / Jupiter E never offer it
+    expect(isOffered(recoveryConfigs('HMM-1', { deviceVersion: 240 }))).toBe(false);
+    expect(isOffered(recoveryConfigs('HMN-1', { deviceVersion: 240 }))).toBe(false);
+  });
+
   test('should generate discovery configs for the SMR smart meter reader', () => {
     const device: Device = { deviceType: 'SMR-0', deviceId: 'b8d08fc5f943' };
     const deviceTopics: DeviceTopics = {
