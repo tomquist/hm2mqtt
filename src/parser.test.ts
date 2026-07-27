@@ -4,9 +4,12 @@ import { parseMessage } from './parser.js';
 import logger from './logger.js';
 import {
   B2500V2DeviceData,
+  CT002DeviceData,
+  CT002PhaseEnergyInfo,
   HmiInverterDeviceData,
   JupiterBMSInfo,
   JupiterDeviceData,
+  SmrMeterDeviceData,
   VenusBMSInfo,
   VenusBMSPackInfo,
   VenusBMSPackDetail,
@@ -203,6 +206,108 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('fc4Version', '202409090159');
     expect(result).toHaveProperty('firmwareVersion', 119);
     expect(result).toHaveProperty('wifiStatus', 2);
+    expect(result).toHaveProperty('slaveCount', 1);
+    // cur_d=0: no phase has its measurement direction reversed
+    expect(result).toHaveProperty('phase1MeasurementReversed', false);
+    expect(result).toHaveProperty('phase2MeasurementReversed', false);
+    expect(result).toHaveProperty('phase3MeasurementReversed', false);
+  });
+
+  test('should parse CT002 messages for the TPM and TPM2 device types', () => {
+    // TPM-CN (CT002-CN) and TPM2-0 (TPM2-100CT) use the same parser as HME-4
+    const message = 'pwr_a=100,pwr_b=0,pwr_c=0,pwr_t=100,ver_v=42,cur_d=0';
+
+    for (const deviceType of ['TPM-CN', 'TPM2-0']) {
+      const { data } = parseMessage(message, deviceType, 'abcd');
+      expect(data).toBeDefined();
+      const result = data as CT002DeviceData;
+      expect(result).toHaveProperty('deviceType', deviceType);
+      expect(result).toHaveProperty('phase1Power', 100);
+      expect(result).toHaveProperty('totalPower', 100);
+      expect(result).toHaveProperty('firmwareVersion', 42);
+    }
+  });
+
+  test('should parse the CT002 cd=19 per-phase charge/discharge counters', () => {
+    const message = 'ca=100,cb=200,cc=300,da=10,db=20,dc=30';
+    const parsed = parseMessage(message, 'HME-4', 'abcd');
+
+    // Published under its own path, separate from the cd=1 runtime data
+    expect(Object.keys(parsed)).toEqual(['phase_energy']);
+    const result = parsed['phase_energy'] as CT002PhaseEnergyInfo;
+    expect(result).toHaveProperty('phase1Charge', 100);
+    expect(result).toHaveProperty('phase2Charge', 200);
+    expect(result).toHaveProperty('phase3Charge', 300);
+    expect(result).toHaveProperty('phase1Discharge', 10);
+    expect(result).toHaveProperty('phase2Discharge', 20);
+    expect(result).toHaveProperty('phase3Discharge', 30);
+  });
+
+  test('should ignore the cd=19 write acknowledgement', () => {
+    // A write is acknowledged with `ret` rather than the counters
+    expect(parseMessage('ca=1,cb=1,cc=1,da=1,db=1,dc=1,ret=0', 'HME-4', 'abcd')).toEqual({});
+  });
+
+  test('should not handle cd=19 on SMR readers', () => {
+    // The SMR family reports its energy as eng_t in the cd=1 payload instead
+    expect(parseMessage('ca=100,cb=200,cc=300,da=10,db=20,dc=30', 'SMR-0', 'abcd')).toEqual({});
+  });
+
+  test('should decode the per-phase measurement direction bitmask', () => {
+    // cur_d=5 -> bit 0 (phase 1) and bit 2 (phase 3) set
+    const message = 'pwr_a=0,pwr_b=0,pwr_c=0,pwr_t=0,cur_d=5';
+    const { data } = parseMessage(message, 'HME-4', 'abcd');
+
+    const result = data as CT002DeviceData;
+    expect(result).toHaveProperty('phase1MeasurementReversed', true);
+    expect(result).toHaveProperty('phase2MeasurementReversed', false);
+    expect(result).toHaveProperty('phase3MeasurementReversed', true);
+  });
+
+  test('should parse SMR smart meter reader message', () => {
+    const message =
+      'pwr_a=119,pwr_b=15,pwr_c=-136,pwr_t=-1,eng_t=1234567,smt_n=12,har_f=1,sof_f=0,irs_f=0,pwr_f=7,' +
+      'ble_s=5,wif_r=-79,fc4_v=202409090159,ver_v=108,wif_s=2,slv_n=0,cur_d=2,com_t=1,com_b=115200,ptl_t=3';
+    const { data } = parseMessage(message, 'SMR-0', 'b8d08fc5f943');
+
+    expect(data).toBeDefined();
+    const result = data as SmrMeterDeviceData;
+
+    expect(result).toHaveProperty('deviceType', 'SMR-0');
+    expect(result).toHaveProperty('phase1Power', 119);
+    expect(result).toHaveProperty('phase2Power', 15);
+    expect(result).toHaveProperty('phase3Power', -136);
+    expect(result).toHaveProperty('totalPower', -1);
+    // eng_t is reported in 0.1 Wh
+    expect(result).toHaveProperty('totalEnergy', 123456.7);
+    expect(result).toHaveProperty('meterNumber', 12);
+    expect(result).toHaveProperty('p1DeviceConnected', true);
+    expect(result).toHaveProperty('p1ReadStatus', 0);
+    expect(result).toHaveProperty('infraredReadStatus', 0);
+    expect(result).toHaveProperty('phaseReadStatus', 7);
+    expect(result).toHaveProperty('bluetoothSignal', 5);
+    expect(result).toHaveProperty('wifiRssi', -79);
+    expect(result).toHaveProperty('fc4Version', '202409090159');
+    expect(result).toHaveProperty('firmwareVersion', 108);
+    expect(result).toHaveProperty('wifiStatus', 2);
+    // Shared with the CT002: slave count and the per-phase direction bitmask
+    expect(result).toHaveProperty('slaveCount', 0);
+    expect(result).toHaveProperty('phase1MeasurementReversed', false);
+    expect(result).toHaveProperty('phase2MeasurementReversed', true);
+    expect(result).toHaveProperty('phase3MeasurementReversed', false);
+
+    // Keys hm2mqtt does not map are still exposed raw
+    expect(result.values).toHaveProperty('com_t', '1');
+    expect(result.values).toHaveProperty('com_b', '115200');
+    expect(result.values).toHaveProperty('ptl_t', '3');
+  });
+
+  test('should report a disconnected P1 reader', () => {
+    const message = 'pwr_t=0,ver_v=108,har_f=0';
+    const { data } = parseMessage(message, 'SMR-0', 'b8d08fc5f943');
+
+    expect(data).toBeDefined();
+    expect(data as SmrMeterDeviceData).toHaveProperty('p1DeviceConnected', false);
   });
 
   test('should parse HMI inverter (2-PV) message correctly', () => {

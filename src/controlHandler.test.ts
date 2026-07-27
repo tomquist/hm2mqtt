@@ -385,4 +385,136 @@ describe('ControlHandler', () => {
       expect(publishCallback).not.toHaveBeenCalled();
     });
   });
+  describe('CT002 phase measurement direction', () => {
+    let ct002: Device;
+
+    beforeEach(() => {
+      ct002 = { deviceType: 'HME-4', deviceId: 'ct002device' };
+      const config: MqttConfig = {
+        brokerUrl: 'mqtt://test.mosquitto.org',
+        clientId: 'test-client',
+        topicPrefix: DEFAULT_TOPIC_PREFIX,
+        autodiscoveryTopicPrefix: 'homeassistant',
+        devices: [ct002],
+        responseTimeout: 15000,
+      };
+      deviceManager = new DeviceManager(config, () => {});
+      publishCallback = jest.fn();
+      controlHandler = new ControlHandler(deviceManager, publishCallback);
+    });
+
+    test('should fold the switched phase into the reported bitmask', () => {
+      // Device currently reports phases 1 and 3 reversed (cur_d=5)
+      deviceManager.updateDeviceState(ct002, 'data', () => ({
+        phase1MeasurementReversed: true,
+        phase2MeasurementReversed: false,
+        phase3MeasurementReversed: true,
+      }));
+
+      // Turning phase 2 on must keep 1 and 3 set: 1 | 2 | 4 = 7
+      handleControlTopic(ct002, 'phase2-measurement-reversed', 'true');
+      expect(publishCallback).toHaveBeenCalledWith(ct002, 'cd=5,p1=7');
+
+      // Turning phase 1 back off leaves 2 and 3: 2 | 4 = 6
+      handleControlTopic(ct002, 'phase1-measurement-reversed', 'false');
+      expect(publishCallback).toHaveBeenLastCalledWith(ct002, 'cd=5,p1=6');
+    });
+
+    test('should use the p1 parameter on TPM-CN and dir on TPM2', () => {
+      const cases: Array<[string, string]> = [
+        ['TPM-CN', 'cd=5,p1=1'],
+        ['TPM2-0', 'cd=5,dir=1'],
+      ];
+
+      for (const [deviceType, expected] of cases) {
+        const device: Device = { deviceType, deviceId: 'tpmdevice' };
+        const config: MqttConfig = {
+          brokerUrl: 'mqtt://test.mosquitto.org',
+          clientId: 'test-client',
+          topicPrefix: DEFAULT_TOPIC_PREFIX,
+          autodiscoveryTopicPrefix: 'homeassistant',
+          devices: [device],
+          responseTimeout: 15000,
+        };
+        deviceManager = new DeviceManager(config, () => {});
+        publishCallback = jest.fn();
+        controlHandler = new ControlHandler(deviceManager, publishCallback);
+
+        handleControlTopic(device, 'phase1-measurement-reversed', 'true');
+        expect(publishCallback).toHaveBeenCalledWith(device, expected);
+      }
+    });
+
+    test('should optimistically update the state before the next poll', () => {
+      deviceManager.updateDeviceState(ct002, 'data', () => ({
+        phase1MeasurementReversed: false,
+      }));
+
+      handleControlTopic(ct002, 'phase1-measurement-reversed', 'true');
+
+      expect(deviceManager.getDeviceState(ct002)).toHaveProperty('phase1MeasurementReversed', true);
+    });
+
+    test('should not register the command for SMR devices', () => {
+      const smr: Device = { deviceType: 'SMR-0', deviceId: 'smrdevice' };
+      const config: MqttConfig = {
+        brokerUrl: 'mqtt://test.mosquitto.org',
+        clientId: 'test-client',
+        topicPrefix: DEFAULT_TOPIC_PREFIX,
+        autodiscoveryTopicPrefix: 'homeassistant',
+        devices: [smr],
+        responseTimeout: 15000,
+      };
+      deviceManager = new DeviceManager(config, () => {});
+      publishCallback = jest.fn();
+      controlHandler = new ControlHandler(deviceManager, publishCallback);
+
+      handleControlTopic(smr, 'phase1-measurement-reversed', 'true');
+
+      // cd=5 configures the attached smart meter on the SMR, so nothing is sent
+      expect(publishCallback).not.toHaveBeenCalled();
+    });
+  });
+  describe('meter buttons', () => {
+    const meter = (deviceType: string): Device => ({ deviceType, deviceId: 'meterdevice' });
+
+    const setUp = (device: Device) => {
+      const config: MqttConfig = {
+        brokerUrl: 'mqtt://test.mosquitto.org',
+        clientId: 'test-client',
+        topicPrefix: DEFAULT_TOPIC_PREFIX,
+        autodiscoveryTopicPrefix: 'homeassistant',
+        devices: [device],
+        responseTimeout: 15000,
+      };
+      deviceManager = new DeviceManager(config, () => {});
+      publishCallback = jest.fn();
+      controlHandler = new ControlHandler(deviceManager, publishCallback);
+    };
+
+    test.each(['HME-4', 'TPM-CN', 'TPM2-0', 'SMR-0'])(
+      'should send refresh, factory reset and hardware reset on %s',
+      deviceType => {
+        const device = meter(deviceType);
+        setUp(device);
+
+        handleControlTopic(device, 'refresh', 'PRESS');
+        expect(publishCallback).toHaveBeenLastCalledWith(device, 'cd=1');
+
+        handleControlTopic(device, 'factory-reset', 'PRESS');
+        expect(publishCallback).toHaveBeenLastCalledWith(device, 'cd=11');
+
+        handleControlTopic(device, 'hardware-reset', 'PRESS');
+        expect(publishCallback).toHaveBeenLastCalledWith(device, 'cd=8');
+      },
+    );
+
+    test('should ignore a non-press payload', () => {
+      const device = meter('HME-4');
+      setUp(device);
+
+      handleControlTopic(device, 'factory-reset', 'off');
+      expect(publishCallback).not.toHaveBeenCalled();
+    });
+  });
 });

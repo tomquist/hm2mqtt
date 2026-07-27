@@ -31,7 +31,8 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 - Marstek Jupiter C
 - Marstek Jupiter E
 - Marstek Jupiter Plus
-- Marstek CT002 Smart Meter
+- Marstek CT002 Smart Meter (including the CT002-CN and the TPM2-100CT)
+- Marstek CT003 Smart Meter Reader (device types `SMR-0` P1, `SMR-1` Infrared, `SMR-2` TIC)
 - Marstek HMI micro inverters (MI800, HMI-2000 with 4 PV inputs)
 
 ## Prerequisites
@@ -501,6 +502,9 @@ The device type can be one of the following:
 - **HMM-X**: (e.g. HMM-1) Marstek Jupiter C
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus
 - **HME-X**: (e.g. HME-3) Marstek CT002 Smart Meter
+- **TPM-CN**: Marstek CT002-CN Smart Meter
+- **TPM2-X**: (e.g. TPM2-0) Marstek TPM2-100CT Smart Meter
+- **SMR-X**: Marstek CT003 Smart Meter Reader — `SMR-0` P1, `SMR-1` Infrared, `SMR-2` TIC
 - **HMI-X**: (e.g. HMI-1) Marstek HMI micro inverters, including the MI800 and the 4-PV HMI-2000
 
 ## Using the Development Version
@@ -662,6 +666,14 @@ The following commands are supported by both Jupiter C, Jupiter E and Jupiter Pl
 
 > **Note:** The Jupiter does not support trading mode or auto-switch working mode.
 
+### Smart Meter Commands (CT002 and CT003)
+- `refresh`: Requests the device data immediately, instead of waiting for the next poll
+- `factory-reset`: Resets the meter to factory settings
+- `hardware-reset`: Performs a hardware reset of the meter
+- `phase1-measurement-reversed` / `phase2-measurement-reversed` / `phase3-measurement-reversed`: Inverts the measurement direction of that phase (`on` or `off`). CT002 device types only (`HME-X`, `TPM-CN`, `TPM2-X`); on the CT003 readers the measurement direction is reported but cannot be set.
+
+All meter entities are disabled by default. See [docs/meters.md](docs/meters.md) for the underlying MQTT protocol.
+
 ### Examples
 
 ```
@@ -682,6 +694,9 @@ mosquitto_pub -t "hm2mqtt/HMG-50/control/abcdef123456/time-period/1/enabled" -m 
 
 # Enable timer period 0 on Jupiter Plus device
 mosquitto_pub -t "hm2mqtt/JPLS/control/abcdef123456/time-period/0/enabled" -m "on"
+
+# Reverse the measurement direction of phase 1 on a CT002 smart meter
+mosquitto_pub -t "hm2mqtt/HME-4/control/abcdef123456/phase1-measurement-reversed" -m "on"
 ```
 
 ## License

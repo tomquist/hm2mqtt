@@ -1,6 +1,16 @@
 # Changelog
 ## [Next]
 
+### Added
+
+- Support the `SMR-X` device type: the Marstek CT003 Smart Meter Reader (`SMR-0` P1, `SMR-1` Infrared, `SMR-2` TIC). It reports the same per-phase and total power as the CT002 smart meter, plus a *Total Energy* sensor and a *P1 Device Connected* binary sensor, and the *Meter Number*, *P1 Read Status*, *Infrared Read Status* and *Phase Read Status* diagnostic sensors, which are disabled by default (fixes #379)
+- Support the `TPM-CN` and `TPM2-X` device types, the Marstek CT002-CN and TPM2-100CT smart meters. They get the same entities as the `HME-X` CT002.
+- CT002 & CT003: Add *Refresh*, *Factory Reset* and *Hardware Reset* buttons, matching the B2500, Venus and Jupiter devices. Disabled by default.
+- CT002 & CT003: Add *Phase 1/2/3 Measurement Reversed* entities, showing which phases the meter measures in reverse. On the CT002 they are switches, so the direction can be corrected from Home Assistant; on the CT003 readers the meter offers no such setting, so they are read-only. They appear once the meter has reported its current setting, and are disabled by default.
+- CT002 & CT003: Add a *Slave Count* sensor, disabled by default.
+- CT002: Add *Phase 1/2/3 Charge* and *Phase 1/2/3 Discharge* counters, disabled by default. The meter does not say what unit these are in, so they are published as reported, without a unit — if you can match them against your meter's own readings, please report what you find.
+- Docs: Add [docs/meters.md](docs/meters.md), documenting the MQTT protocol of the CT002 and CT003 meters.
+
 ### Fixed
 
 - Venus: Stop logging `Some values are missing for field totalPvPower` on every poll for devices that report fewer than four PV strings (or none, e.g. Venus E). The *Total PV Power* value is now aggregated from whichever `pv1`–`pv4` inputs are present and is simply omitted when none are reported, instead of warning (fixes #360)
