@@ -684,6 +684,9 @@ The following commands are supported by both Jupiter C, Jupiter E and Jupiter Pl
 - `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`)
 - `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped)
 - `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `ct002`, `ct003`, `shellyEmGen3`, or `shellyProEm50`). For CT002/CT003 and the Shelly EM Gen3/Pro EM50, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC.
+- `bluetooth-advertising`: Toggles Bluetooth advertising (`on` enables advertising, `off` disables it / "Bluetooth lock"). Requires firmware 141 or newer.
+- `phase-diagnosis`: Starts the grid-phase detection routine
+- `battery-pack-recovery`: Reactivates an unresponsive battery pack. Jupiter Plus only, firmware 135 or newer.
 - `time-period/[0-4]/enabled`: Enables/disables time period (`on` or `off`)
 - `time-period/[0-4]/start-time`: Sets start time for period (HH:MM format)
 - `time-period/[0-4]/end-time`: Sets end time for period (HH:MM format)

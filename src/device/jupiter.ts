@@ -1,5 +1,6 @@
 import {
   BuildMessageFn,
+  extractBaseType,
   globalPollInterval,
   KeyPath,
   registerDeviceDefinition,
@@ -9,6 +10,7 @@ import {
   JupiterBatteryWorkingStatus,
   JupiterDeviceData,
   JupiterBMSInfo,
+  JupiterNetworkInfo,
   JupiterMPPTPVInfo,
   isValidJupiterWorkingMode,
   isValidJupiterRechargeMode,
@@ -23,6 +25,7 @@ import {
 import logger from '../logger.js';
 import {
   sensorComponent,
+  binarySensorComponent,
   switchComponent,
   buttonComponent,
   selectComponent,
@@ -39,6 +42,7 @@ import {
   highByte,
   lowByte,
   diff,
+  equalsBoolean,
 } from '../transforms.js';
 
 /**
@@ -51,16 +55,38 @@ enum CommandType {
   SET_DEVICE_TIME = 4,
   SET_TIME_PERIOD = 3,
   SET_WORKING_MODE = 2,
-  SET_METER_TYPE = 18,
+  // CT/meter configuration. Unlike Venus (which uses cd=18), the Jupiter family
+  // (HMM/HMN/JPLS) uses cd=16 for all three sub-commands that go through this
+  // code: `meter=`/`mac=` (meter selection), `dchrg=` (power reference mode) and
+  // `seq_check` (phase diagnosis).
+  SET_METER_TYPE = 16,
+  BATTERY_PACK_RECOVERY = 20,
+  GET_NETWORK_INFO = 26,
   SURPLUS_FEED_IN = 13,
   GET_BMS_INFO = 14, // -> inv:g_state=1,w_state1=1,w_state2=1,i_err=0,i_war=0,g_vol=2399,g_cur=0,g_pf=0,g_fre=5000,b_vol=526,g_power=119,i_temp=31,mppt:m_state=244,m_err=0,m_temp=30,m_war=0,pv1=350|37|1304,pv2=349|39|1372,pv3=378|18|712,pv4=365|32|1180,b_vol=525,b_cur=85,base_v=221,pe_v=165,fail_t=0,bms:c_vol=571,c_cur=500,d_cur=500,soc=33,soh=100,b_cap=5120,b_vol=5252,b_cur=63,b_temp=250,b_err=0,b_war=0,b_err2=0,b_war2=0,c_flag=192,s_flag=0,b_num=1,vol0=3280,vol1=3281,vol2=3283,vol3=3283,vol4=3283,vol5=3283,vol6=3280,vol7=3284,vol8=3283,vol9=3284,vol10=3282,vol11=3286,vol12=3277,vol13=3286,vol14=3283,vol15=3284,b_temp0=14,b_temp1=15,b_temp2=15,b_temp3=16,env_t=27,mos_t=20,lck=0
   DEPTH_OF_DISCHARGE = 56,
+  // Toggles BLE advertising (`adv=1` on / `adv=0` off). Venus uses cd=55, the
+  // Jupiter family uses cd=57. The Marstek app surfaces this inverted, as a
+  // "Bluetooth Lock" switch (lock on == advertising off).
+  BLUETOOTH_ADVERTISING = 57,
 }
+
+// EMS firmware versions (`dev_n`) from which the corresponding Jupiter feature
+// is available. The Marstek app hides each control below these versions.
+const MIN_VERSION_DOD = 140;
+const MIN_VERSION_BLE_BROADCAST = 141;
+const MIN_VERSION_BATTERY_PACK_RECOVERY = 135;
 
 // Minimum and maximum Depth of Discharge values based on Marstek app limits (30-90%).
 // NOTE: Experience has shown that these limits may change over time!
 const DOD_MIN = 30;
 const DOD_MAX = 90;
+
+// The `cd=26` response carries the network configuration in the same
+// colon-delimited format Venus uses; the parser normalizes it to `ip=…` keys.
+function isJupiterNetworkInfoMessage(values: Record<string, string>): boolean {
+  return 'ip' in values;
+}
 
 function processCommand(command: CommandType, params: CommandParams = {}): string {
   const entries = Object.entries(params);
@@ -137,8 +163,53 @@ registerDeviceDefinition(
   ({ message }) => {
     registerRuntimeInfoMessage(message);
     registerJupiterBMSInfoMessage(message);
+    registerNetworkInfoMessage(message);
   },
 );
+
+/**
+ * Network configuration reported by `cd=26`, which the Jupiter answers with the
+ * same `dev_net_info:ip:…` payload as the Venus. The message parser normalizes
+ * that colon-delimited format into ip/gate/mask/dns/ct_connect_ip keys before
+ * the fields below see it. Only the IP is confirmed for Jupiter, so every other
+ * entity stays hidden until the device actually reports it.
+ */
+function registerNetworkInfoMessage(message: BuildMessageFn) {
+  message<JupiterNetworkInfo>(
+    {
+      refreshDataPayload: `cd=${CommandType.GET_NETWORK_INFO}`,
+      isMessage: isJupiterNetworkInfoMessage,
+      publishPath: 'network',
+      defaultState: {},
+      getAdditionalDeviceInfo: () => ({}),
+      // Network configuration changes rarely, so poll it infrequently.
+      pollInterval: Math.max(globalPollInterval, 300000),
+      controlsDeviceAvailability: false,
+    },
+    ({ field, advertise }) => {
+      const networkFields = [
+        ['ip', 'ipAddress', 'IP Address', 'mdi:ip-network'],
+        ['gate', 'gateway', 'Gateway', 'mdi:router-network'],
+        ['mask', 'subnetMask', 'Subnet Mask', 'mdi:ip-network-outline'],
+        ['dns', 'dns', 'DNS Server', 'mdi:dns'],
+        ['ct_connect_ip', 'ctConnectIp', 'CT Connect IP', 'mdi:current-ac'],
+      ] as const;
+      for (const [key, path, name, icon] of networkFields) {
+        field({ key, path: [path], transform: identity() });
+        advertise(
+          [path],
+          sensorComponent<string>({
+            id: `network_${path.replace(/([A-Z])/g, '_$1').toLowerCase()}`,
+            name,
+            icon,
+            enabled_by_default: false,
+          }),
+          { enabled: state => (state[path] != null ? true : undefined) },
+        );
+      }
+    },
+  );
+}
 
 function registerRuntimeInfoMessage(message: BuildMessageFn) {
   let options = {
@@ -223,50 +294,32 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'total_increasing',
       }),
     );
-    field({ key: 'pv1_p', path: ['pv1Power'], transform: number() });
-    advertise(
-      ['pv1Power'],
-      sensorComponent<number>({
-        id: 'pv1_power',
-        name: 'PV1 Power',
-        device_class: 'power',
-        unit_of_measurement: 'W',
-        state_class: 'measurement',
-      }),
-    );
-    field({ key: 'pv2_p', path: ['pv2Power'], transform: number() });
-    advertise(
-      ['pv2Power'],
-      sensorComponent<number>({
-        id: 'pv2_power',
-        name: 'PV2 Power',
-        device_class: 'power',
-        unit_of_measurement: 'W',
-        state_class: 'measurement',
-      }),
-    );
-    field({ key: 'pv3_p', path: ['pv3Power'], transform: number() });
-    advertise(
-      ['pv3Power'],
-      sensorComponent<number>({
-        id: 'pv3_power',
-        name: 'PV3 Power',
-        device_class: 'power',
-        unit_of_measurement: 'W',
-        state_class: 'measurement',
-      }),
-    );
-    field({ key: 'pv4_p', path: ['pv4Power'], transform: number() });
-    advertise(
-      ['pv4Power'],
-      sensorComponent<number>({
-        id: 'pv4_power',
-        name: 'PV4 Power',
-        device_class: 'power',
-        unit_of_measurement: 'W',
-        state_class: 'measurement',
-      }),
-    );
+    // PV inputs: `pvX_p` is the input power, `pvX_s` the input state. The state
+    // is a boolean "this string is producing" flag, where `1` means active.
+    for (const pvIndex of [1, 2, 3, 4] as const) {
+      const powerPath = `pv${pvIndex}Power` as const;
+      const statusPath = `pv${pvIndex}Status` as const;
+      field({ key: `pv${pvIndex}_p`, path: [powerPath], transform: number() });
+      advertise(
+        [powerPath],
+        sensorComponent<number>({
+          id: `pv${pvIndex}_power`,
+          name: `PV${pvIndex} Power`,
+          device_class: 'power',
+          unit_of_measurement: 'W',
+          state_class: 'measurement',
+        }),
+      );
+      field({ key: `pv${pvIndex}_s`, path: [statusPath], transform: equalsBoolean('1') });
+      advertise(
+        [statusPath],
+        binarySensorComponent({
+          id: `pv${pvIndex}_status`,
+          name: `PV${pvIndex} Active`,
+          device_class: 'power',
+        }),
+      );
+    }
     field({
       key: 'grd_d',
       path: ['dailyDischargeCapacity'],
@@ -507,6 +560,18 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Inverter Version',
       }),
     );
+    // Fifth entry in the device's version set, alongside the EMS (`dev_n`),
+    // inverter (`dev_i`), MPPT (`dev_m`) and BMS (`dev_b`) versions: the
+    // display/screen module.
+    field({ key: 'dev_t', path: ['screenVersion'], transform: number() });
+    advertise(
+      ['screenVersion'],
+      sensorComponent<number>({
+        id: 'screen_version',
+        name: 'Screen Version',
+        enabled_by_default: false,
+      }),
+    );
     field({ key: 'ssid', path: ['wifiName'], transform: identity() });
     advertise(
       ['wifiName'],
@@ -556,7 +621,10 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         max: DOD_MAX,
         step: 1,
       }),
-      { enabled: state => state.deviceVersion !== undefined && state.deviceVersion >= 140 },
+      {
+        enabled: state =>
+          state.deviceVersion !== undefined && state.deviceVersion >= MIN_VERSION_DOD,
+      },
     );
     command('discharge-depth', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
@@ -582,6 +650,117 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Alarm Code',
         icon: 'mdi:alert',
       }),
+    );
+
+    // Number of attached battery packs, shown as the "xN" badge next to the
+    // battery in the Marstek app.
+    field({ key: 'total_b', path: ['batteryPacks'], transform: number() });
+    advertise(
+      ['batteryPacks'],
+      sensorComponent<number>({
+        id: 'battery_packs',
+        name: 'Battery Packs',
+        icon: 'mdi:battery-high',
+        state_class: 'measurement',
+      }),
+    );
+
+    // UDP port of the Shelly meter, only meaningful when a Shelly is configured
+    // as the meter. Same field as on Venus.
+    field({ key: 'shelly_p', path: ['shellyPort'], transform: number() });
+    advertise(
+      ['shellyPort'],
+      sensorComponent<number>({
+        id: 'shelly_port',
+        name: 'Shelly Port',
+        icon: 'mdi:lan',
+        enabled_by_default: false,
+      }),
+    );
+
+    // Result of the wiring-sequence diagnosis and the button that starts the
+    // routine. Jupiter sends the flag without a value, as `cd=16,seq_check`.
+    field({ key: 'seq_s', path: ['phaseDiagnosisStatus'], transform: number() });
+    advertise(
+      ['phaseDiagnosisStatus'],
+      sensorComponent<number>({
+        id: 'phase_diagnosis_status',
+        name: 'Phase Diagnosis Status',
+        icon: 'mdi:sine-wave',
+        enabled_by_default: false,
+      }),
+    );
+    command('phase-diagnosis', {
+      handler: ({ message, publishCallback }) => {
+        if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
+          publishCallback(`cd=${CommandType.SET_METER_TYPE},seq_check`);
+        }
+      },
+    });
+    advertise(
+      [],
+      buttonComponent({
+        id: 'phase_diagnosis',
+        name: 'Phase Diagnosis',
+        icon: 'mdi:sine-wave',
+        command: 'phase-diagnosis',
+        payload_press: 'PRESS',
+        enabled_by_default: false,
+      }),
+    );
+
+    // Bluetooth advertising (`bl`). The Marstek app shows the inverse of this
+    // as a "Bluetooth Lock" switch: locking the device turns advertising off.
+    field({ key: 'bl', path: ['bluetoothAdvertisingEnabled'], transform: equalsBoolean('1') });
+    advertise(
+      ['bluetoothAdvertisingEnabled'],
+      switchComponent({
+        id: 'bluetooth_advertising',
+        name: 'Bluetooth Advertising',
+        icon: 'mdi:bluetooth',
+        command: 'bluetooth-advertising',
+      }),
+      {
+        enabled: state =>
+          state.deviceVersion !== undefined && state.deviceVersion >= MIN_VERSION_BLE_BROADCAST,
+      },
+    );
+    command('bluetooth-advertising', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const enable =
+          message.toLowerCase() === 'true' || message.toLowerCase() === 'on' || message === '1';
+        updateDeviceState(() => ({ bluetoothAdvertisingEnabled: enable }));
+        publishCallback(processCommand(CommandType.BLUETOOTH_ADVERTISING, { adv: enable ? 1 : 0 }));
+      },
+    });
+
+    // Battery pack recovery ("Battery Pack Recovery" / BMS coding) reactivates
+    // a battery pack that stopped responding. The flag is sent without a value.
+    // The app only offers it on Jupiter Plus (JPLS) from firmware 135 on.
+    command('battery-pack-recovery', {
+      handler: ({ message, publishCallback }) => {
+        if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
+          publishCallback(`cd=${CommandType.BATTERY_PACK_RECOVERY},number_as`);
+        }
+      },
+    });
+    advertise(
+      [],
+      buttonComponent({
+        id: 'battery_pack_recovery',
+        name: 'Battery Pack Recovery',
+        icon: 'mdi:battery-sync',
+        command: 'battery-pack-recovery',
+        payload_press: 'PRESS',
+        enabled_by_default: false,
+      }),
+      {
+        enabled: state =>
+          state.deviceType !== undefined &&
+          extractBaseType(state.deviceType).toUpperCase() === 'JPLS' &&
+          state.deviceVersion !== undefined &&
+          state.deviceVersion >= MIN_VERSION_BATTERY_PACK_RECOVERY,
+      },
     );
 
     // --- COMMANDS ---
@@ -764,7 +943,10 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           publishCallback(
             processCommand(CommandType.SET_DEVICE_TIME, {
               yy: now.getFullYear(),
-              mm: now.getMonth(),
+              // The device expects a 1-based month: the Marstek app passes
+              // `DateTime.month` (1-12) straight into `mm=`, while
+              // `Date.getMonth()` is 0-based.
+              mm: now.getMonth() + 1,
               rr: now.getDate(),
               hh: now.getHours(),
               mn: now.getMinutes(),

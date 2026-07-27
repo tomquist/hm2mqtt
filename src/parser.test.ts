@@ -9,6 +9,7 @@ import {
   HmiInverterDeviceData,
   JupiterBMSInfo,
   JupiterDeviceData,
+  JupiterNetworkInfo,
   SmrMeterDeviceData,
   VenusBMSInfo,
   VenusBMSPackInfo,
@@ -488,11 +489,15 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('dailyDischargeCapacity', 2.85);
     expect(result).toHaveProperty('monthlyDischargeCapacity', 20.18);
 
-    // PV power
+    // PV power and per-string status
     expect(result).toHaveProperty('pv1Power', 94);
     expect(result).toHaveProperty('pv2Power', 77);
     expect(result).toHaveProperty('pv3Power', 41);
     expect(result).toHaveProperty('pv4Power', 60);
+    expect(result).toHaveProperty('pv1Status', true);
+    expect(result).toHaveProperty('pv2Status', true);
+    expect(result).toHaveProperty('pv3Status', true);
+    expect(result).toHaveProperty('pv4Status', true);
 
     // Grid and power
     expect(result).toHaveProperty('combinedPower', 250);
@@ -519,12 +524,16 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('bmsVersion', 209);
     expect(result).toHaveProperty('mpptVersion', 206);
     expect(result).toHaveProperty('inverterVersion', 106);
+    expect(result).toHaveProperty('screenVersion', 110);
     expect(result).toHaveProperty('wifiName', 'xxxx');
 
     // Additional features
     expect(result).toHaveProperty('surplusFeedInEnabled', true);
     expect(result).toHaveProperty('alarmCode', 0);
     expect(result).toHaveProperty('depthOfDischarge', 88);
+    expect(result).toHaveProperty('batteryPacks', 1);
+    expect(result).toHaveProperty('shellyPort', 1010);
+    expect(result).toHaveProperty('phaseDiagnosisStatus', 3);
 
     // Time periods
     expect(result).toHaveProperty('timePeriods');
@@ -797,6 +806,37 @@ describe('MQTT Message Parser', () => {
     expect(parsed).toHaveProperty('data');
     const result = parsed['data'] as JupiterDeviceData;
     expect(result).toHaveProperty('workingMode', 'ai');
+  });
+
+  test('parses Jupiter Bluetooth advertising state (bl) and idle PV strings', () => {
+    // `bl=1` means BLE advertising is on, which the Marstek app shows inverted
+    // as its "Bluetooth Lock" switch being off.
+    const message =
+      'ele_d=349,ele_m=2193,ele_y=0,pv1_p=94,pv1_s=1,pv2_p=0,pv2_s=0,pv3_p=0,pv3_s=0,pv4_p=0,pv4_s=0,grd_o=250,grd_t=1,gct_s=1,cel_s=0,cel_p=424,cel_c=83,err_t=0,wor_m=1,tim_0=12|0|23|59|127|800|1,tim_1=0|0|12|0|127|150|1,tim_2=0|0|0|0|255|0|0,tim_3=0|0|0|0|255|0|0,tim_4=0|0|0|0|255|0|0,cts_m=0,grd_d=285,grd_m=2018,dev_n=141,dev_i=106,dev_m=206,dev_b=209,dev_t=110,wif_s=75,ala_c=0,ful_d=1,ssid=xxxx,stop_s=10,htt_p=0,ct_t=4,phase_t=1,dchrg=1,seq_s=3,ctrl_r=0,shelly_p=1010,c_ratio=100,b_lck=0,dod=88,bl=1,total_b=2,online_b=2';
+    const parsed = parseMessage(message, 'JPLS-1', 'jupiter123');
+
+    expect(parsed).toHaveProperty('data');
+    const result = parsed['data'] as JupiterDeviceData;
+    expect(result).toHaveProperty('bluetoothAdvertisingEnabled', true);
+    expect(result).toHaveProperty('pv1Status', true);
+    expect(result).toHaveProperty('pv2Status', false);
+    expect(result).toHaveProperty('pv3Status', false);
+    expect(result).toHaveProperty('pv4Status', false);
+    expect(result).toHaveProperty('batteryPacks', 2);
+  });
+
+  test('parses Jupiter network information response (cd=26)', () => {
+    const message =
+      'cd=26,dev_net_info:ip:192.168.1.42,gate:192.168.1.1,mask:255.255.255.0,dns:192.168.1.1,ct_connect_ip:192.168.1.255';
+    const parsed = parseMessage(message, 'JPLS-1', 'jupiter123');
+
+    expect(parsed).toHaveProperty('network');
+    const result = parsed['network'] as JupiterNetworkInfo;
+    expect(result).toHaveProperty('ipAddress', '192.168.1.42');
+    expect(result).toHaveProperty('gateway', '192.168.1.1');
+    expect(result).toHaveProperty('subnetMask', '255.255.255.0');
+    expect(result).toHaveProperty('dns', '192.168.1.1');
+    expect(result).toHaveProperty('ctConnectIp', '192.168.1.255');
   });
 
   test('parses Venus A (VNSA) PV input power and connection status (issue #218)', () => {

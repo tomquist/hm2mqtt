@@ -628,9 +628,13 @@ export interface JupiterDeviceData extends BaseDeviceData {
   monthlyChargingCapacity?: number; // ele_m
   yearlyChargingCapacity?: number; // ele_y
   pv1Power?: number; // pv1_p
+  pv1Status?: boolean; // pv1_s
   pv2Power?: number; // pv2_p
+  pv2Status?: boolean; // pv2_s
   pv3Power?: number; // pv3_p
+  pv3Status?: boolean; // pv3_s
   pv4Power?: number; // pv4_p
+  pv4Status?: boolean; // pv4_s
   dailyDischargeCapacity?: number; // grd_d
   monthlyDischargeCapacity?: number; // grd_m
   combinedPower?: number; // grd_o
@@ -654,10 +658,26 @@ export interface JupiterDeviceData extends BaseDeviceData {
   bmsVersion?: number; // dev_b
   mpptVersion?: number; // dev_m
   inverterVersion?: number; // dev_i
+  screenVersion?: number; // dev_t
   timePeriods?: JupiterTimePeriod[];
   surplusFeedInEnabled?: boolean; // ful_d
   depthOfDischarge?: number; // dod
   alarmCode?: number; // ala_c
+  batteryPacks?: number; // total_b
+  shellyPort?: number; // shelly_p
+  phaseDiagnosisStatus?: number; // seq_s
+  bluetoothAdvertisingEnabled?: boolean; // bl
+}
+
+/**
+ * Jupiter network information (`cd=26` response)
+ */
+export interface JupiterNetworkInfo extends BaseDeviceData {
+  ipAddress?: string;
+  gateway?: string;
+  subnetMask?: string;
+  dns?: string;
+  ctConnectIp?: string;
 }
 
 /**

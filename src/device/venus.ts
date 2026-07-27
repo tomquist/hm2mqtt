@@ -1615,7 +1615,10 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           publishCallback(
             processCommand(CommandType.SET_DEVICE_TIME, {
               yy: now.getFullYear(),
-              mm: now.getMonth(),
+              // The device expects a 1-based month: the Marstek app passes
+              // `DateTime.month` (1-12) straight into `mm=`, while
+              // `Date.getMonth()` is 0-based.
+              mm: now.getMonth() + 1,
               rr: now.getDate(),
               hh: now.getHours(),
               mn: now.getMinutes(),
