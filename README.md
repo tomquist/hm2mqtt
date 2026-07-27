@@ -646,6 +646,32 @@ homeassistant/{component}/{node_id}/{object_id}/config
 - `surplus-feed-in`: Toggles surplus feed-in into the grid (`on` or `off`). Only available on Venus models with PV inputs (Venus A/D).
 - `bluetooth-advertising`: Toggles Bluetooth advertising (`on` enables advertising, `off` disables it / "Bluetooth lock")
 - `phase-diagnosis`: Starts the grid-phase detection routine
+- `peak-shaving`: Toggles peak shaving, which caps the power drawn from the grid (`on` or `off`). Only available on firmware that reports the peak-shaving state (control v150 and up on Venus D/E).
+- `peak-shaving-power`: Sets the peak-shaving power cap in watts. Only takes effect on the device while peak shaving is enabled; while it is off the value is stored and applied the next time you enable it.
+- `parallel-mode`: Controls parallel operation (`off`, `wiringCheck` or `on`), which links several units into one group for a higher combined output. **Disabled by default, and best left that way unless you know you need it** — see the warning below.
+
+#### Parallel mode
+
+Parallel operation is a wiring-level change, not a software setting: the units
+have to be physically cabled together, and the command only tells them to run in
+that configuration. The Marstek app puts it behind a "⚠️ Parallel Connection
+Safety Notice" warning that it involves high-voltage output, that improper
+operation may damage the devices, that you must not operate under load, and that
+it should not be attempted unless you are a qualified professional.
+
+Two things are worth knowing before you touch it:
+
+- **The order differs between on and off.** Enabling comes first and the rewiring
+  second (power off, then reconnect). Disabling is the reverse: power off every
+  device in the group and remove the wiring *first*, then turn parallel mode off.
+- **Parallel mode disables backup power.** While a group runs in off-grid
+  parallel mode the backup/EPS function is unavailable, so the *Backup Power*
+  switch will not work.
+
+The `wiringCheck` value is the app's own verification step — it runs that before
+enabling. The matching *Parallel Mode* entity reports the current state (*Turned
+Off*, *Wiring Check*, *Turned On*, or *Unknown* on units that do not support
+parallel operation).
 
 ### Jupiter Device Commands
 

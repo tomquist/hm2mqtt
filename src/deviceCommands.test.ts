@@ -865,6 +865,21 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: 'cd=15,vs=2500',
   },
   {
+    // The command carries the rated power in watts, not the set_v code.
+    description: 'Venus version-set 1200W',
+    deviceType: 'HMG-1',
+    command: 'version-set',
+    input: '1200W',
+    expectedOutput: 'cd=15,vs=1200',
+  },
+  {
+    description: 'Venus version-set 3600W',
+    deviceType: 'HMG-1',
+    command: 'version-set',
+    input: '3600W',
+    expectedOutput: 'cd=15,vs=3600',
+  },
+  {
     description: 'Venus version-set invalid',
     deviceType: 'HMG-1',
     command: 'version-set',
@@ -1032,6 +1047,86 @@ const commandTestCases: CommandTestCase[] = [
     initialState: { deviceVersion: 153 },
     command: 'local-api-port',
     input: '70000',
+    expectedOutput: null,
+  },
+
+  // parallel-mode command (cd=23)
+  {
+    description: 'Venus parallel-mode on',
+    deviceType: 'HMG-1',
+    command: 'parallel-mode',
+    input: 'on',
+    expectedOutput: 'cd=23,pm=2',
+  },
+  {
+    description: 'Venus parallel-mode wiring check',
+    deviceType: 'HMG-1',
+    command: 'parallel-mode',
+    input: 'wiringCheck',
+    expectedOutput: 'cd=23,pm=1',
+  },
+  {
+    description: 'Venus parallel-mode off',
+    deviceType: 'HMG-1',
+    command: 'parallel-mode',
+    input: 'off',
+    expectedOutput: 'cd=23,pm=0',
+  },
+  {
+    description: 'Venus parallel-mode rejects the read-only unknown state',
+    deviceType: 'HMG-1',
+    command: 'parallel-mode',
+    input: 'unknown',
+    expectedOutput: null,
+  },
+
+  // peak-shaving commands (cd=63)
+  {
+    description: 'Venus peak-shaving enable uses the configured cap',
+    deviceType: 'HMG-1',
+    initialState: { peakShavingPower: 4500 },
+    command: 'peak-shaving',
+    input: 'true',
+    expectedOutput: 'cd=63,as=1,vv=4500',
+  },
+  {
+    description: 'Venus peak-shaving enable falls back to the app default cap',
+    deviceType: 'HMG-1',
+    command: 'peak-shaving',
+    input: 'ON',
+    expectedOutput: 'cd=63,as=1,vv=2000',
+  },
+  {
+    description: 'Venus peak-shaving disable omits the cap',
+    deviceType: 'HMG-1',
+    initialState: { peakShavingPower: 4500 },
+    command: 'peak-shaving',
+    input: 'false',
+    expectedOutput: 'cd=63,as=0',
+  },
+  {
+    description: 'Venus peak-shaving-power while enabled re-applies the cap',
+    deviceType: 'HMG-1',
+    initialState: { peakShavingEnabled: true },
+    command: 'peak-shaving-power',
+    input: '3000',
+    expectedOutput: 'cd=63,as=1,vv=3000',
+  },
+  {
+    description: 'Venus peak-shaving-power while disabled only stores the cap',
+    deviceType: 'HMG-1',
+    initialState: { peakShavingEnabled: false },
+    command: 'peak-shaving-power',
+    input: '3000',
+    expectedOutput: null,
+    expectedStateChanges: { peakShavingPower: 3000 },
+  },
+  {
+    description: 'Venus peak-shaving-power invalid',
+    deviceType: 'HMG-1',
+    initialState: { peakShavingEnabled: true },
+    command: 'peak-shaving-power',
+    input: 'nonsense',
     expectedOutput: null,
   },
 

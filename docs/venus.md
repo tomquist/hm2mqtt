@@ -32,8 +32,6 @@
     1. [Public](#121-public)
     2. [Receive](#122-receive)
 13. [Set maximum discharge power](#13-set-maximum-discharge-power)
-    1. [Public](#131-public)
-    2. [Receive](#132-receive)
 14. [Set the meter type and supplementary power type](#14-set-the-meter-type-and-supplementary-power-type)
     1. [Public](#141-public)
 15. [Obtain CT power](#15-obtain-ct-power)
@@ -72,6 +70,12 @@
 27. [Configure Bluetooth advertising](#27-configure-bluetooth-advertising)
     1. [Public](#271-public)
     2. [Receive](#272-receive)
+28. [Configure peak shaving](#28-configure-peak-shaving)
+    1. [Public](#281-public)
+    2. [Receive](#282-receive)
+29. [Configure parallel operation](#29-configure-parallel-operation)
+    1. [Public](#291-public)
+    2. [Receive](#292-receive)
 
 ## 1 MQTT Core Concepts
 
@@ -176,7 +180,7 @@ Description of the above parameters:
 | prc_d | Obtain regional discharge prices |
 | wif_s | WIFI signal strength (Less than 50: Good signal; 50-70: The signal is average; 70-80: Poor signal; Greater than 80: The signal is very weak) |
 | inc_a | Total cumulative income (Unit: 0.001 euros) |
-| set_v | Version set (0: 2500W version; 1: 800W version) |
+| set_v | Power version — a *code* for the device's rated output power, not a wattage (see [Set version](#11-set-version)). The resulting power is reported back as `mdp_w`. |
 | mcp_w | Maximum charging power (Not exceeding 2500W) |
 | mdp_w | Maximum discharge power (Not exceeding 2500W) |
 | ct_t | CT type (0: No meter detected; 1: CT1; 2: CT2; 3: CT3; 4: Shelly pro; 5: p1 meter) |
@@ -200,7 +204,7 @@ guesses based on context and cross-referencing other commands:
 |-----|-------------|
 | seq_s | Phase-diagnosis status *(unconfirmed)* — changes after running `cd=18,seq_check` |
 | ctrl_r | *(unconfirmed)* |
-| par | Parallel-operation flag *(unconfirmed)* |
+| par | Parallel operation status (0: turned off; 1: wiring check; 2: turned on). Units that do not support parallel operation report `255`. See [Configure parallel operation](#29-configure-parallel-operation) |
 | gen | Generator flag *(unconfirmed)* |
 | ble | Bluetooth state bitmask; bit 2 (value `4`) is set when advertising is enabled (Bluetooth lock off), `1` when the lock is enabled (see `cd=55`) |
 | c_ratio | CT ratio (%) *(unconfirmed)* |
@@ -211,11 +215,11 @@ guesses based on context and cross-referencing other commands:
 | inv_v | Inverter / micro module version number (matches the `micro` OTA image version) |
 | id | *(unconfirmed)*, pipe-separated list |
 | lk | Lock flag *(unconfirmed)* |
-| bp | Battery power (W) *(unconfirmed)* |
+| bp | Battery power (W) |
 | ei | *(unconfirmed)* |
 | eb | *(unconfirmed)* |
-| rp | *(unconfirmed)* power (W) |
-| gp | Grid power (W) *(unconfirmed)* |
+| rp | Battery power (W), calculated. The app overwrites the `bp` reading with this one when its per-model "use calculated power" flag is set (see the note below) |
+| gp | Grid power (W). Only used by the app when the same flag is set; otherwise grid power comes from `grd_o` |
 | vp | *(unconfirmed)* power (W) |
 | bl | *(unconfirmed)* |
 | bl_p | *(unconfirmed)* |
@@ -226,6 +230,16 @@ guesses based on context and cross-referencing other commands:
 | pv | PV energy (Wh), pipe-separated — first component is today's collected PV energy, the last component is the cumulative total (the total is likely but unconfirmed; reading it as the last component leaves room for monthly/yearly values to be added in between) |
 | fu | Surplus feed-in state `enabled\|?` — first component is `1` when surplus feed-in is enabled, `0` when disabled (see `cd=43`) |
 | em | *(unconfirmed)* |
+| peak_status | Peak shaving enabled (0: off; 1: on) (see [Configure peak shaving](#28-configure-peak-shaving)) |
+| peak_power | Peak shaving power cap (W) (see [Configure peak shaving](#28-configure-peak-shaving)) |
+
+> **Note on `bp`, `rp` and `gp`.** The Marstek app shows a single battery-power
+> value and a single grid-power value. Battery power normally comes from `bp`
+> and grid power from `grd_o`, but on some models a "calculated" reading is used
+> instead: `rp` for battery power and `gp` for grid power. Which models those are
+> is not something the payload reveals. On the devices observed so far `gp`
+> matched `grd_o` exactly, while `bp` and `rp` differed slightly (e.g. `bp=291`
+> vs `rp=347`), and all three only appear on models with PV inputs (Venus A/D).
 
 ## 4 Set working status
 
@@ -381,6 +395,8 @@ You will receive a message with a ret value:
 
 ## 11 Set version
 
+Selects the device's rated output power ("power version").
+
 ### 11.1 Public
 
 Topic:
@@ -392,11 +408,38 @@ Payload:
 1. `cd=15,vs=800` - Set up 800W version
 2. `cd=15,vs=2500` - Set up 2500W version
 
+The `vs` parameter is the rated power **in watts**. These are the values the
+Marstek app sends; which of them a given unit accepts depends on its model and
+region:
+
+`600`, `800`, `1200`, `1500`, `2000`, `2200`, `2300`, `2400`, `2500`, `3000`, `3600`
+
 ### 11.2 Receive
 
 You will receive a message with a ret value:
 1. `ret=0` - Setting failed
 2. `ret=1` - Setting successful
+
+The current setting is reported in the `cd=1` response as the `set_v` **code**
+(not the wattage), and the resulting power as `mdp_w`. The codes map to the
+rated powers as follows:
+
+| `set_v` | Rated power |
+|-----|-------------|
+| 0 | Device default: 2500 W on a Venus C/D/E with recent firmware; 800 W on older firmware or on a Venus A below control v148 / inverter v118, 1500 W on a Venus A at or above those versions, and 600 W on the Swiss (`…CH-0`) variants |
+| 1 | 800 W |
+| 2 | 600 W |
+| 3 | 2200 W |
+| 4 | 1200 W |
+| 5 | 1500 W |
+| 6 | 2300 W |
+| 7 | 2000 W |
+| 8 | 3000 W |
+| 9 | 3600 W |
+
+Note that code `0` is **not** the 800 W version — observed device dumps report
+`set_v=0` alongside `mcp_w=2500,mdp_w=2500`, `set_v=1` alongside `mdp_w=800`,
+and `set_v=4` alongside `mdp_w=1200`.
 
 ## 12 Set maximum charging power
 
@@ -420,22 +463,11 @@ You will receive a message with a ret value:
 
 ## 13 Set maximum discharge power
 
-### 13.1 Public
-
-Topic:
-```
-hame_energy/{type}/App/{uid or mac}/ctrl
-```
-
-Payload:
-1. `cd=15,vs=800` - Set up 800W version
-2. `cd=15,vs=2500` - Set up 2500W version
-
-### 13.2 Receive
-
-You will receive a message with a ret value:
-1. `ret=0` - Setting failed
-2. `ret=1` - Setting successful
+The maximum discharge power is not a separate setting: it follows the power
+version, so it is changed with the same `cd=15,vs=<watts>` command as
+[Set version](#11-set-version) and read back as `mdp_w`. (Only the maximum
+*charging* power, `mcp_w`, is independently adjustable — see
+[Set maximum charging power](#12-set-maximum-charging-power).)
 
 ## 14 Set the meter type and supplementary power type
 
@@ -937,3 +969,101 @@ The device echoes the resulting state:
 The current state is also reflected in the `ble` field of the `cd=1` response: it
 is a bitmask where bit 2 (value `4`) is set when advertising is enabled
 (Bluetooth lock off), and `1` when the lock is enabled.
+
+## 28 Configure peak shaving
+
+Peak shaving caps how much power the device draws from the grid, for regions
+that limit the grid connection. Supported from control firmware v150 on the
+Venus D and Venus E (`VNSD`/`VNSE3`); older firmware neither accepts the command
+nor reports the two status fields.
+
+### 28.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+1. `cd=63,as=1,vv=2000` - Enable peak shaving and cap grid draw at 2000 W
+2. `cd=63,as=0` - Disable peak shaving
+
+Description of the above parameters:
+
+| Key | Description |
+|-----|-------------|
+| cd | Instruction identification |
+| as | Enable (0: disable; 1: enable) |
+| vv | Peak power cap in watts. Only sent when enabling; the Marstek app defaults it to 2000 W and does not enforce an upper bound of its own |
+
+### 28.2 Receive
+
+You will receive a message with a ret value:
+1. `ret=0` - Setting failed
+2. `ret=1` - Setting successful
+
+The current state is reported in the `cd=1` response as `peak_status` (0/1) and
+`peak_power` (the cap, in watts).
+
+## 29 Configure parallel operation
+
+Links several units into one group so they operate in parallel, for a higher
+combined output than a single unit can deliver.
+
+This is a wiring-level change, not a software setting: the units have to be
+physically cabled together, and the command only tells them to run in that
+configuration. The Marstek app exposes it under *Parallel Mode Control*, behind
+a "⚠️ Parallel Connection Safety Notice", and the warnings it shows are worth
+repeating verbatim:
+
+> - This function involves high-voltage output. Please ensure correct wiring.
+> - Check all device wiring before operation.
+> - Improper operation may cause device damage. Please proceed with caution.
+> - For all devices in the group, please follow the app instructions carefully.
+> - In parallel mode, the Backup Power function will be unavailable.
+> - For your safety, do not operate under load!
+> - Do not operate unless you are a qualified professional!
+
+The order of operations matters, and differs between enabling and disabling:
+
+- **Enabling**: enable parallel mode first, then power off and reconnect all the
+  wiring ("After enabling parallel mode, power off before reconnecting all
+  wiring. Do not operate under load!").
+- **Disabling**: power off every device in the group and remove the wiring
+  *first*, then disable parallel mode ("Before disabling parallel mode, power
+  off all devices in the group and disconnect wiring. Do not operate under load!
+  After removing all wiring, use the app to turn off parallel mode.").
+
+While a group is in off-grid parallel mode the backup/EPS function is refused
+with "This device is currently in off-grid parallel mode. This function is
+unavailable." — so parallel operation and [the backup function](#10-enable-eps-function)
+are mutually exclusive.
+
+### 29.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+1. `cd=23,pm=0` - Turn parallel mode off
+2. `cd=23,pm=1` - Run the wiring check
+3. `cd=23,pm=2` - Turn parallel mode on
+
+The app's own flow is to run the wiring check (`pm=1`) first and only send
+`pm=2` once it passes.
+
+### 29.2 Receive
+
+You will receive a message with a ret value:
+1. `ret=0` - Setting failed
+2. `ret=1` - Setting successful
+
+The current state is reported in the `cd=1` response as the `par` field, using
+the same values (0: turned off; 1: wiring check; 2: turned on). Units that do
+not support parallel operation report `255`.
+
+The `pm=1` "wiring check" is the app's own verification step, shown as *Wiring
+Check* in the status line; the app runs it and asks the user to follow the
+on-screen instructions before it sends `pm=2`.

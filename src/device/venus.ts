@@ -6,6 +6,7 @@ import {
 import {
   CommandParams,
   isValidMeterType,
+  isValidVenusParallelMode,
   isValidVenusRechargeMode,
   isValidVenusVersionSet,
   isValidVenusWorkingMode,
@@ -19,6 +20,7 @@ import {
   VenusDeviceData,
   VenusNetworkInfo,
   VenusTimePeriod,
+  VenusVersionSet,
   WeekdaySet,
 } from '../types.js';
 import logger from '../logger.js';
@@ -65,12 +67,14 @@ enum CommandType {
   GET_FC41D_INFO = 10, // -> wifi_v=202409090159
   ENABLE_BACKUP = 11,
   GET_BMS_INFO = 14, // -> b_ver=212,b_chv=571,b_rci=1000,b_rdi=1000,b_soc=65,b_soh=100,b_cap=5120,b_vol=5223,b_cur=-94,b_tem=250,b_chf=192,b_slf=0,b_cpc=332,b_err=0,b_war=0,b_ret=102482070,b_ent=0,b_mot=23,b_tp1=18,b_tp2=19,b_tp3=18,b_tp4=19,b_vo1=3265,b_vo2=3265,b_vo3=3265,b_vo4=3265,b_vo5=3264,b_vo6=3264,b_vo7=3265,b_vo8=3265,b_vo9=3264,b_vo10=3265,b_vo11=3264,b_vo12=3265,b_vo13=3265,b_vo14=3265,b_vo15=3264,b_vo16=3262
+  // `cd=15,vs=<watts>` selects the rated output power ("power version"). The
+  // resulting power is reported back as `mdp_w`, and its code as `set_v`.
   SET_DISCHARGE_POWER = 15,
   SET_MAX_CHARGING_POWER = 16,
-  SET_MAX_DISCHARGE_POWER = 17,
   SET_METER_TYPE = 18, // also used for phase diagnosis via `cd=18,seq_check`
   GET_CT_POWER = 19,
   UPGRADE_FC4_MODULE = 20,
+  SET_PARALLEL_MODE = 23,
   GET_NETWORK_INFO = 26,
   SET_LOCAL_API = 30,
   GET_BMS_PACK_INFO = 42,
@@ -78,12 +82,53 @@ enum CommandType {
   BLUETOOTH_ADVERTISING = 55,
   DEPTH_OF_DISCHARGE = 56,
   SET_LED = 59,
+  SET_PEAK_SHAVING = 63,
 }
 
 // Minimum and maximum Depth of Discharge values based on Marstek app limits (30-88%).
 // NOTE: Experience has shown that these limits may change over time!
 const DOD_MIN = 30;
 const DOD_MAX = 88;
+
+// The `set_v` field is a power-version *code*, not a wattage: it identifies the
+// device's rated output power, which is reported back as `mdp_w`. Code 0 means
+// "device default", which depends on the model and firmware version (2500 W for
+// a Venus C/D/E on recent firmware, less on older firmware, on a Venus A, or on
+// the Swiss variants). The regional variant cannot be told apart from MQTT
+// alone, so 0 is reported as the 2500 W default, which matches every observed
+// device dump (`set_v=0` alongside `mdp_w=2500`). Unknown codes are left
+// unmapped rather than guessed.
+const venusPowerVersions: Record<string, VenusVersionSet> = {
+  '0': '2500W',
+  '1': '800W',
+  '2': '600W',
+  '3': '2200W',
+  '4': '1200W',
+  '5': '1500W',
+  '6': '2300W',
+  '7': '2000W',
+  '8': '3000W',
+  '9': '3600W',
+};
+
+// Peak shaving caps the power drawn from the grid. The Marstek app defaults the
+// cap to 2000 W and does not enforce an upper bound of its own, so the limit
+// below only exists to give the Home Assistant number entity a sane range.
+const PEAK_SHAVING_POWER_DEFAULT = 2000;
+const PEAK_SHAVING_POWER_MAX = 20000;
+
+const venusVersionSetLabels: Record<VenusVersionSet, string> = {
+  '600W': '600W Version',
+  '800W': '800W Version',
+  '1200W': '1200W Version',
+  '1500W': '1500W Version',
+  '2000W': '2000W Version',
+  '2200W': '2200W Version',
+  '2300W': '2300W Version',
+  '2500W': '2500W Version',
+  '3000W': '3000W Version',
+  '3600W': '3600W Version',
+};
 
 /**
  * Process a command for the Venus device
@@ -1135,6 +1180,192 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       },
     });
 
+    // Peak shaving (cd=63), which caps how much power the device draws from the
+    // grid. Reported as `peak_status` (0/1) and `peak_power` (the cap, in W) on
+    // firmware that supports it (control v150 and up on Venus D/E). The device
+    // expects both parts in one command, so enabling sends `cd=63,as=1,vv=<W>`
+    // and disabling sends `cd=63,as=0`.
+    field({
+      key: 'peak_status',
+      path: ['peakShavingEnabled'],
+      transform: equalsBoolean('1'),
+    });
+    advertise(
+      ['peakShavingEnabled'],
+      switchComponent({
+        id: 'peak_shaving',
+        name: 'Peak Shaving',
+        icon: 'mdi:transmission-tower-import',
+        command: 'peak-shaving',
+      }),
+      { enabled: state => (state.peakShavingEnabled != null ? true : undefined) },
+    );
+
+    field({
+      key: 'peak_power',
+      path: ['peakShavingPower'],
+      transform: number(),
+    });
+    advertise(
+      ['peakShavingPower'],
+      numberComponent({
+        id: 'peak_shaving_power',
+        name: 'Peak Shaving Power',
+        icon: 'mdi:flash-alert',
+        unit_of_measurement: 'W',
+        device_class: 'power',
+        command: 'peak-shaving-power',
+        min: 0,
+        max: PEAK_SHAVING_POWER_MAX,
+        step: 1,
+      }),
+      { enabled: state => (state.peakShavingPower != null ? true : undefined) },
+    );
+
+    command('peak-shaving', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const enable =
+          message.toLowerCase() === 'true' || message.toLowerCase() === 'on' || message === '1';
+        updateDeviceState(state => {
+          publishCallback(
+            enable
+              ? processCommand(CommandType.SET_PEAK_SHAVING, {
+                  as: 1,
+                  vv: state.peakShavingPower ?? PEAK_SHAVING_POWER_DEFAULT,
+                })
+              : processCommand(CommandType.SET_PEAK_SHAVING, { as: 0 }),
+          );
+          return { peakShavingEnabled: enable };
+        });
+      },
+    });
+
+    command('peak-shaving-power', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const power = parseInt(message, 10);
+        if (isNaN(power) || power < 0 || power > PEAK_SHAVING_POWER_MAX) {
+          logger.warn('Invalid peak shaving power value:', message);
+          return;
+        }
+        updateDeviceState(state => {
+          // Changing the cap only takes effect while peak shaving is on; when it
+          // is off the value is stored and applied the next time it is enabled.
+          if (state.peakShavingEnabled) {
+            publishCallback(processCommand(CommandType.SET_PEAK_SHAVING, { as: 1, vv: power }));
+          }
+          return { peakShavingPower: power };
+        });
+      },
+    });
+
+    // Battery power (bp/rp) and grid power (gp), reported on newer firmware.
+    //
+    // The Marstek app shows a single battery-power value and a single
+    // grid-power value. Battery power normally comes from `bp` and grid power
+    // from `grd_o` (the Combined Power sensor), but on some models the app uses
+    // a "calculated" reading instead: `rp` for battery power and `gp` for grid
+    // power. Which models those are is not something the payload reveals, so
+    // both readings are published, with the calculated one disabled by default.
+    // On the devices seen so far the two differ slightly (e.g. bp=291 vs
+    // rp=347) while `gp` matched `grd_o` exactly.
+    field({
+      key: 'bp',
+      path: ['batteryPower'],
+      transform: number(),
+    });
+    advertise(
+      ['batteryPower'],
+      sensorComponent<number>({
+        id: 'battery_power',
+        name: 'Battery Power',
+        device_class: 'power',
+        unit_of_measurement: 'W',
+        state_class: 'measurement',
+      }),
+      { enabled: state => (state.batteryPower != null ? true : undefined) },
+    );
+
+    field({
+      key: 'rp',
+      path: ['calculatedBatteryPower'],
+      transform: number(),
+    });
+    advertise(
+      ['calculatedBatteryPower'],
+      sensorComponent<number>({
+        id: 'calculated_battery_power',
+        name: 'Battery Power (Calculated)',
+        device_class: 'power',
+        unit_of_measurement: 'W',
+        state_class: 'measurement',
+        enabled_by_default: false,
+      }),
+      { enabled: state => (state.calculatedBatteryPower != null ? true : undefined) },
+    );
+
+    field({
+      key: 'gp',
+      path: ['gridPower'],
+      transform: number(),
+    });
+    advertise(
+      ['gridPower'],
+      sensorComponent<number>({
+        id: 'grid_power',
+        name: 'Grid Power',
+        device_class: 'power',
+        unit_of_measurement: 'W',
+        state_class: 'measurement',
+      }),
+      { enabled: state => (state.gridPower != null ? true : undefined) },
+    );
+
+    // Parallel operation (cd=23), for running two units in parallel. Reported as
+    // the `par` field; units that do not support it report 255, which maps to
+    // `unknown`. Enabling this changes how the units are wired together and the
+    // app guards it behind a wiring-safety notice, so the select is disabled by
+    // default.
+    field({
+      key: 'par',
+      path: ['parallelMode'],
+      transform: map(
+        {
+          '0': 'off',
+          '1': 'wiringCheck',
+          '2': 'on',
+        },
+        'unknown',
+      ),
+    });
+    advertise(
+      ['parallelMode'],
+      selectComponent<NonNullable<VenusDeviceData['parallelMode']>>({
+        id: 'parallel_mode',
+        name: 'Parallel Mode',
+        icon: 'mdi:call-split',
+        command: 'parallel-mode',
+        valueMappings: {
+          off: 'Turned Off',
+          wiringCheck: 'Wiring Check',
+          on: 'Turned On',
+          unknown: 'Unknown',
+        },
+        enabled_by_default: false,
+      }),
+      { enabled: state => (state.parallelMode != null ? true : undefined) },
+    );
+    command('parallel-mode', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        if (!isValidVenusParallelMode(message)) {
+          logger.warn('Invalid parallel mode value:', message);
+          return;
+        }
+        const mode = { off: 0, wiringCheck: 1, on: 2 }[message];
+        updateDeviceState(() => ({ parallelMode: message }));
+        publishCallback(processCommand(CommandType.SET_PARALLEL_MODE, { pm: mode }));
+      },
+    });
+
     // Inverter / micro module version (inv_v), reported on newer firmware.
     field({
       key: 'inv_v',
@@ -1306,7 +1537,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'set_v',
       path: ['versionSet'],
-      transform: map({ '0': '800W' }, '2500W'),
+      transform: map(venusPowerVersions),
     });
     advertise(
       ['versionSet'],
@@ -1315,11 +1546,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Version Set',
         icon: 'mdi:power-socket',
         command: 'version-set',
-        valueMappings: {
-          '800W': '800W Version',
-          '2500W': '2500W Version',
-        },
+        valueMappings: venusVersionSetLabels,
       }),
+      { enabled: state => (state.versionSet != null ? true : undefined) },
     );
 
     command('version-set', {
@@ -1333,7 +1562,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           versionSet: message,
         }));
 
-        const version = message === '2500W' ? 2500 : 800;
+        // The command carries the rated power in watts, not the `set_v` code.
+        const version = parseInt(message, 10);
         publishCallback(processCommand(CommandType.SET_DISCHARGE_POWER, { vs: version }));
       },
     });
