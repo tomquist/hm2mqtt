@@ -3,12 +3,12 @@
 
 ### Added
 
-- CT002 & CT003: Add *Refresh*, *Factory Reset* and *Hardware Reset* buttons, bringing the meters in line with the B2500, Venus and Jupiter devices. All three are disabled by default.
-- CT002: Add *Phase 1/2/3 Charge* and *Phase 1/2/3 Discharge* counters, polled separately from the runtime data and published on a new `.../phase_energy` topic. Their unit is not known, so the raw reported value is published with no unit or device class — if you can correlate them with your meter's readings, please report what you find. Polled every 5 minutes at most and disabled by default.
-- Support the `TPM-CN` and `TPM2-X` device types (the Marstek CT002-CN and TPM2-100CT smart meters). They speak the same protocol as the `HME-X` CT002, so they get the full set of CT002 entities.
 - Support the `SMR-X` device type: the Marstek CT003 Smart Meter Reader (`SMR-0` P1, `SMR-1` Infrared, `SMR-2` TIC). It reports the same per-phase and total power as the CT002 smart meter, plus a *Total Energy* sensor and a *P1 Device Connected* binary sensor, and the *Meter Number*, *P1 Read Status*, *Infrared Read Status* and *Phase Read Status* diagnostic sensors, which are disabled by default (fixes #379)
-- CT002 & CT003: Expose the per-phase measurement direction, which flags the phases measured in reverse, and add a *Slave Count* sensor. All new entities are disabled by default, and the measurement-direction entities only appear once the device has reported its current setting.
-- CT002: The *Phase 1/2/3 Measurement Reversed* entities are settable switches, mirroring the *Reverse Measurement Direction* screen in the Marstek app. Because the device takes all three phases at once, toggling one switch re-sends the direction currently reported for the other two. On the CT003 readers the same entities stay read-only: they offer no measurement-direction setting.
+- Support the `TPM-CN` and `TPM2-X` device types, the Marstek CT002-CN and TPM2-100CT smart meters. They get the same entities as the `HME-X` CT002.
+- CT002 & CT003: Add *Refresh*, *Factory Reset* and *Hardware Reset* buttons, matching the B2500, Venus and Jupiter devices. Disabled by default.
+- CT002 & CT003: Add *Phase 1/2/3 Measurement Reversed* entities, showing which phases the meter measures in reverse. On the CT002 they are switches, so the direction can be corrected from Home Assistant; on the CT003 readers the meter offers no such setting, so they are read-only. They appear once the meter has reported its current setting, and are disabled by default.
+- CT002 & CT003: Add a *Slave Count* sensor, disabled by default.
+- CT002: Add *Phase 1/2/3 Charge* and *Phase 1/2/3 Discharge* counters, disabled by default. The meter does not say what unit these are in, so they are published as reported, without a unit — if you can match them against your meter's own readings, please report what you find.
 - Docs: Add [docs/meters.md](docs/meters.md), documenting the MQTT protocol of the CT002 and CT003 meters.
 
 ### Fixed
