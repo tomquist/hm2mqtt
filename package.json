@@ -37,7 +37,7 @@
     "jest-util": "^30.4.1",
     "oxfmt": "^0.60.0",
     "oxlint": "^1.75.0",
-    "ts-jest": "^29.4.11",
+    "ts-jest": "^29.4.12",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vite-node": "^6.0.0"
   }
