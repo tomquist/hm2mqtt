@@ -5,6 +5,7 @@ import logger from './logger.js';
 import {
   B2500V2DeviceData,
   CT002DeviceData,
+  CT002PhaseEnergyInfo,
   HmiInverterDeviceData,
   JupiterBMSInfo,
   JupiterDeviceData,
@@ -225,6 +226,31 @@ describe('MQTT Message Parser', () => {
       expect(result).toHaveProperty('totalPower', 100);
       expect(result).toHaveProperty('firmwareVersion', 42);
     }
+  });
+
+  test('should parse the CT002 cd=19 per-phase charge/discharge counters', () => {
+    const message = 'ca=100,cb=200,cc=300,da=10,db=20,dc=30';
+    const parsed = parseMessage(message, 'HME-4', 'abcd');
+
+    // Published under its own path, separate from the cd=1 runtime data
+    expect(Object.keys(parsed)).toEqual(['phase_energy']);
+    const result = parsed['phase_energy'] as CT002PhaseEnergyInfo;
+    expect(result).toHaveProperty('phase1Charge', 100);
+    expect(result).toHaveProperty('phase2Charge', 200);
+    expect(result).toHaveProperty('phase3Charge', 300);
+    expect(result).toHaveProperty('phase1Discharge', 10);
+    expect(result).toHaveProperty('phase2Discharge', 20);
+    expect(result).toHaveProperty('phase3Discharge', 30);
+  });
+
+  test('should ignore the cd=19 write acknowledgement', () => {
+    // A write is acknowledged with `ret` rather than the counters
+    expect(parseMessage('ca=1,cb=1,cc=1,da=1,db=1,dc=1,ret=0', 'HME-4', 'abcd')).toEqual({});
+  });
+
+  test('should not handle cd=19 on SMR readers', () => {
+    // The SMR family reports its energy as eng_t in the cd=1 payload instead
+    expect(parseMessage('ca=100,cb=200,cc=300,da=10,db=20,dc=30', 'SMR-0', 'abcd')).toEqual({});
   });
 
   test('should decode the per-phase measurement direction bitmask', () => {

@@ -475,4 +475,46 @@ describe('ControlHandler', () => {
       expect(publishCallback).not.toHaveBeenCalled();
     });
   });
+  describe('meter buttons', () => {
+    const meter = (deviceType: string): Device => ({ deviceType, deviceId: 'meterdevice' });
+
+    const setUp = (device: Device) => {
+      const config: MqttConfig = {
+        brokerUrl: 'mqtt://test.mosquitto.org',
+        clientId: 'test-client',
+        topicPrefix: DEFAULT_TOPIC_PREFIX,
+        autodiscoveryTopicPrefix: 'homeassistant',
+        devices: [device],
+        responseTimeout: 15000,
+      };
+      deviceManager = new DeviceManager(config, () => {});
+      publishCallback = jest.fn();
+      controlHandler = new ControlHandler(deviceManager, publishCallback);
+    };
+
+    test.each(['HME-4', 'TPM-CN', 'TPM2-0', 'SMR-0'])(
+      'should send refresh, factory reset and hardware reset on %s',
+      deviceType => {
+        const device = meter(deviceType);
+        setUp(device);
+
+        handleControlTopic(device, 'refresh', 'PRESS');
+        expect(publishCallback).toHaveBeenLastCalledWith(device, 'cd=1');
+
+        handleControlTopic(device, 'factory-reset', 'PRESS');
+        expect(publishCallback).toHaveBeenLastCalledWith(device, 'cd=11');
+
+        handleControlTopic(device, 'hardware-reset', 'PRESS');
+        expect(publishCallback).toHaveBeenLastCalledWith(device, 'cd=8');
+      },
+    );
+
+    test('should ignore a non-press payload', () => {
+      const device = meter('HME-4');
+      setUp(device);
+
+      handleControlTopic(device, 'factory-reset', 'off');
+      expect(publishCallback).not.toHaveBeenCalled();
+    });
+  });
 });

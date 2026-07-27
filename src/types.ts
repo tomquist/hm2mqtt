@@ -770,9 +770,25 @@ export interface MeterBaseDeviceData extends BaseDeviceData {
 export interface CT002DeviceData extends MeterBaseDeviceData {}
 
 /**
+ * Per-phase charge/discharge counters the CT002 returns for `cd=19`. They are
+ * not part of the `cd=1` runtime payload.
+ *
+ * The counters are raw: their unit and scale could not be established, so
+ * hm2mqtt publishes the reported value unchanged and without a unit.
+ */
+export interface CT002PhaseEnergyInfo extends BaseDeviceData {
+  phase1Charge?: number; // ca
+  phase2Charge?: number; // cb
+  phase3Charge?: number; // cc
+  phase1Discharge?: number; // da
+  phase2Discharge?: number; // db
+  phase3Discharge?: number; // dc
+}
+
+/**
  * Marstek smart meter reader (device type `SMR-X`), sold as the Marstek P1
- * Meter (SMR-0), Infrared Meter (SMR-1) and TIC Meter (SMR-2). This family is
- * marketed as "CT003".
+ * Meter (SMR-0), Infrared Meter (SMR-1) and TIC Meter (SMR-2). They are sold as
+ * the Marstek CT003 Smart Meter Reader.
  */
 export interface SmrMeterDeviceData extends MeterBaseDeviceData {
   totalEnergy?: number; // eng_t (reported in 0.1 Wh)

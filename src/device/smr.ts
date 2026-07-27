@@ -15,7 +15,8 @@ import { extractMeterDeviceInfo, registerMeterBaseFields } from './meterBase.js'
  * - `SMR-1` — Marstek Infrared Meter
  * - `SMR-2` — Marstek TIC Meter
  *
- * These are marketed as "CT003". They report the same runtime payload as the
+ * They are sold as the Marstek CT003 Smart Meter Reader, and report the same
+ * runtime payload as the
  * CT002 smart meter (see `meterBase.ts`) plus a handful of reader specific
  * keys.
  */

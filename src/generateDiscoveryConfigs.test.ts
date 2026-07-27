@@ -508,8 +508,10 @@ describe('Home Assistant Discovery', () => {
       expect(smr).toContain(id);
     }
 
-    // The CT002 gets only the shared components; the SMR adds its own
-    expect(ct002.sort()).toEqual([...shared].sort());
+    // The CT002 gets the shared components plus the meter buttons; the SMR
+    // adds its own reader-specific ones on top
+    const buttons = ['refresh', 'factory_reset', 'hardware_reset'];
+    expect(ct002.sort()).toEqual([...shared, ...buttons].sort());
     expect(smr).toContain('total_energy');
     expect(ct002).not.toContain('total_energy');
 
@@ -550,5 +552,94 @@ describe('Home Assistant Discovery', () => {
     const smr = configFor('SMR-0');
     expect(smr?.topic).toContain('/binary_sensor/');
     expect(smr?.config).not.toHaveProperty('command_topic');
+  });
+
+  test('should advertise refresh and reset buttons on every meter type', () => {
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'a',
+      deviceTopicNew: 'b',
+      deviceControlTopicOld: 'c',
+      deviceControlTopicNew: 'd',
+      availabilityTopic: 'e',
+      controlSubscriptionTopic: 'hm2mqtt/control/meter',
+      publishTopic: 'g',
+    };
+
+    for (const deviceType of ['HME-4', 'TPM-CN', 'TPM2-0', 'SMR-0']) {
+      const configs = generateDiscoveryConfigs(
+        { deviceType, deviceId: 'meter' },
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        {},
+      ).filter(c => c.topic.includes('/button/'));
+
+      expect(configs.map(c => c.topic.split('/').at(-2)).sort()).toEqual([
+        'factory_reset',
+        'hardware_reset',
+        'refresh',
+      ]);
+      // Destructive or redundant, so off by default
+      for (const c of configs) {
+        expect(c.config).toMatchObject({ enabled_by_default: false });
+      }
+      expect(configs.find(c => c.topic.includes('refresh'))?.config).toMatchObject({
+        command_topic: 'hm2mqtt/control/meter/refresh',
+        payload_press: 'PRESS',
+      });
+    }
+  });
+
+  test('should defer the CT002 phase energy configs until cd=19 is answered', () => {
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'a',
+      deviceTopicNew: 'b',
+      deviceControlTopicOld: 'c',
+      deviceControlTopicNew: 'd',
+      availabilityTopic: 'e',
+      controlSubscriptionTopic: 'f',
+      publishTopic: 'hm2mqtt/HME-4/device/meter',
+    };
+    const phaseEnergyConfigs = (state: object) =>
+      generateDiscoveryConfigs(
+        { deviceType: 'HME-4', deviceId: 'meter' },
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      ).filter(c => /phase\d_(charge|discharge)/.test(c.topic));
+
+    expect(phaseEnergyConfigs({})).toHaveLength(0);
+
+    const answered = phaseEnergyConfigs({
+      phase1Charge: 100,
+      phase2Charge: 200,
+      phase3Charge: 300,
+      phase1Discharge: 10,
+      phase2Discharge: 20,
+      phase3Discharge: 30,
+    });
+    expect(answered).toHaveLength(6);
+    // Published on their own path, and with no unit claimed
+    expect(answered[0].config).toMatchObject({
+      state_topic: 'hm2mqtt/HME-4/device/meter/phase_energy',
+      enabled_by_default: false,
+    });
+    // The scale of these counters is unknown, so no unit or device class is claimed
+    expect(answered[0].config?.unit_of_measurement).toBeUndefined();
+    expect(answered[0].config?.device_class).toBeUndefined();
+
+    // The SMR family gets its energy from eng_t instead
+    const smr = generateDiscoveryConfigs(
+      { deviceType: 'SMR-0', deviceId: 'meter' },
+      deviceTopics,
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
+      { phase1Charge: 100 },
+    ).filter(c => /phase\d_charge/.test(c.topic));
+    expect(smr).toHaveLength(0);
   });
 });

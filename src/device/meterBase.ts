@@ -2,6 +2,7 @@ import { BuildMessageDefinitionArgs, extractBaseType } from '../deviceDefinition
 import { MeterBaseDeviceData } from '../types.js';
 import {
   binarySensorComponent,
+  buttonComponent,
   sensorComponent,
   switchComponent,
 } from '../homeAssistantDiscovery.js';
@@ -104,6 +105,48 @@ function registerPhaseMeasurementDirection<T extends MeterBaseDeviceData>(
   }
 }
 
+const isPress = (message: string) =>
+  message.toLowerCase() === 'true' || message === '1' || message === 'PRESS';
+
+/**
+ * Buttons every Marstek meter supports: a manual data refresh (`cd=1`), a
+ * factory reset (`cd=11`) and a hardware reset (`cd=8`).
+ *
+ * All three are disabled by default — the meters are polled automatically, and
+ * the two resets are destructive.
+ */
+function registerMeterCommands<T extends MeterBaseDeviceData>(
+  args: BuildMessageDefinitionArgs<T>,
+): void {
+  const { advertise, command } = args as unknown as BuildMessageDefinitionArgs<MeterBaseDeviceData>;
+
+  const button = (id: string, name: string, icon: string, payload: string) => {
+    const commandName = id.replace(/_/g, '-');
+    command(commandName, {
+      handler: ({ message, publishCallback }) => {
+        if (isPress(message)) {
+          publishCallback(payload);
+        }
+      },
+    });
+    advertise(
+      [],
+      buttonComponent({
+        id,
+        name,
+        icon,
+        command: commandName,
+        payload_press: 'PRESS',
+        enabled_by_default: false,
+      }),
+    );
+  };
+
+  button('refresh', 'Refresh', 'mdi:refresh', 'cd=1');
+  button('factory_reset', 'Factory Reset', 'mdi:delete-forever', 'cd=11');
+  button('hardware_reset', 'Hardware Reset', 'mdi:restart-alert', 'cd=8');
+}
+
 /**
  * Register the fields and Home Assistant components every Marstek meter
  * reports. Device specific fields are registered by the caller.
@@ -188,6 +231,7 @@ export function registerMeterBaseFields<T extends MeterBaseDeviceData>(
   );
 
   registerPhaseMeasurementDirection(args, options);
+  registerMeterCommands(args);
 
   // Number of slave meters attached. Each one is queried individually with
   // `cd=4,p1=<index>` whenever this is greater than zero.
