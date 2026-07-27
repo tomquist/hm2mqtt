@@ -14,6 +14,7 @@
 ### Fixed
 
 - Venus: Stop logging `Some values are missing for field totalPvPower` on every poll for devices that report fewer than four PV strings (or none, e.g. Venus E). The *Total PV Power* value is now aggregated from whichever `pv1`–`pv4` inputs are present and is simply omitted when none are reported, instead of warning (fixes #360)
+- CT002: Stop logging a spurious `Invalid topic empty_topic_list` subscription error on startup for devices without any controls (fixes #371)
 
 
 ## [1.8.1] - 2026-06-20

@@ -150,6 +150,9 @@ export class MqttClient {
    * @param topic - The topic to subscribe to
    */
   subscribe(topic: string | string[]): void {
+    if (Array.isArray(topic) && topic.length === 0) {
+      return;
+    }
     this.client.subscribe(topic, err => {
       if (err) {
         logger.error(`Subscription error for ${topic}:`, err);
