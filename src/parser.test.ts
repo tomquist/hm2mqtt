@@ -4,6 +4,7 @@ import { parseMessage } from './parser.js';
 import logger from './logger.js';
 import {
   B2500V2DeviceData,
+  CT002DeviceData,
   HmiInverterDeviceData,
   JupiterBMSInfo,
   JupiterDeviceData,
@@ -204,12 +205,28 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('fc4Version', '202409090159');
     expect(result).toHaveProperty('firmwareVersion', 119);
     expect(result).toHaveProperty('wifiStatus', 2);
+    expect(result).toHaveProperty('slaveCount', 1);
+    // cur_d=0: no phase has its measurement direction reversed
+    expect(result).toHaveProperty('phase1MeasurementReversed', false);
+    expect(result).toHaveProperty('phase2MeasurementReversed', false);
+    expect(result).toHaveProperty('phase3MeasurementReversed', false);
+  });
+
+  test('should decode the per-phase measurement direction bitmask', () => {
+    // cur_d=5 -> bit 0 (phase 1) and bit 2 (phase 3) set
+    const message = 'pwr_a=0,pwr_b=0,pwr_c=0,pwr_t=0,cur_d=5';
+    const { data } = parseMessage(message, 'HME-4', 'abcd');
+
+    const result = data as CT002DeviceData;
+    expect(result).toHaveProperty('phase1MeasurementReversed', true);
+    expect(result).toHaveProperty('phase2MeasurementReversed', false);
+    expect(result).toHaveProperty('phase3MeasurementReversed', true);
   });
 
   test('should parse SMR smart meter reader message', () => {
     const message =
       'pwr_a=119,pwr_b=15,pwr_c=-136,pwr_t=-1,eng_t=1234567,smt_n=12,har_f=1,sof_f=0,irs_f=0,pwr_f=7,' +
-      'ble_s=5,wif_r=-79,fc4_v=202409090159,ver_v=108,wif_s=2,com_t=1,com_b=115200,ptl_t=3';
+      'ble_s=5,wif_r=-79,fc4_v=202409090159,ver_v=108,wif_s=2,slv_n=0,cur_d=2,com_t=1,com_b=115200,ptl_t=3';
     const { data } = parseMessage(message, 'SMR-0', 'b8d08fc5f943');
 
     expect(data).toBeDefined();
@@ -232,6 +249,11 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('fc4Version', '202409090159');
     expect(result).toHaveProperty('firmwareVersion', 108);
     expect(result).toHaveProperty('wifiStatus', 2);
+    // Shared with the CT002: slave count and the per-phase direction bitmask
+    expect(result).toHaveProperty('slaveCount', 0);
+    expect(result).toHaveProperty('phase1MeasurementReversed', false);
+    expect(result).toHaveProperty('phase2MeasurementReversed', true);
+    expect(result).toHaveProperty('phase3MeasurementReversed', false);
 
     // Keys hm2mqtt does not map are still exposed raw
     expect(result.values).toHaveProperty('com_t', '1');

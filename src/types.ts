@@ -746,11 +746,20 @@ export interface JupiterBMSInfo extends BaseDeviceData {
   };
 }
 
-export interface CT002DeviceData extends BaseDeviceData {
+/**
+ * Runtime values every Marstek meter reports. The CT002 smart meter (`HME-X`,
+ * `TPM-CN`, `TPM2-X`) and the SMR smart meter readers (`SMR-X`) speak the same
+ * protocol, so they share these keys.
+ */
+export interface MeterBaseDeviceData extends BaseDeviceData {
   phase1Power?: number; // pwr_a
   phase2Power?: number; // pwr_b
   phase3Power?: number; // pwr_c
   totalPower?: number; // pwr_t
+  phase1MeasurementReversed?: boolean; // cur_d bit 0
+  phase2MeasurementReversed?: boolean; // cur_d bit 1
+  phase3MeasurementReversed?: boolean; // cur_d bit 2
+  slaveCount?: number; // slv_n
   bluetoothSignal?: number; // ble_s
   wifiRssi?: number; // wif_r
   fc4Version?: string; // fc4_v
@@ -758,25 +767,18 @@ export interface CT002DeviceData extends BaseDeviceData {
   wifiStatus?: number; // wif_s
 }
 
+export interface CT002DeviceData extends MeterBaseDeviceData {}
+
 /**
  * Marstek smart meter reader (device type `SMR-X`), sold as the Marstek P1
  * Meter (SMR-0), Infrared Meter (SMR-1) and TIC Meter (SMR-2). This family is
  * marketed as "CT003".
  */
-export interface SmrMeterDeviceData extends BaseDeviceData {
-  phase1Power?: number; // pwr_a
-  phase2Power?: number; // pwr_b
-  phase3Power?: number; // pwr_c
-  totalPower?: number; // pwr_t
+export interface SmrMeterDeviceData extends MeterBaseDeviceData {
   totalEnergy?: number; // eng_t (reported in 0.1 Wh)
   meterNumber?: number; // smt_n
   p1DeviceConnected?: boolean; // har_f
   p1ReadStatus?: number; // sof_f
   infraredReadStatus?: number; // irs_f
   phaseReadStatus?: number; // pwr_f
-  bluetoothSignal?: number; // ble_s
-  wifiRssi?: number; // wif_r
-  fc4Version?: string; // fc4_v
-  firmwareVersion?: number; // ver_v
-  wifiStatus?: number; // wif_s
 }

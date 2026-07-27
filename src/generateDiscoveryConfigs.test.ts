@@ -455,4 +455,55 @@ describe('Home Assistant Discovery', () => {
     expect(byObjectId('meter_number')?.config).toMatchObject({ enabled_by_default: false });
     expect(byObjectId('phase_read_status')?.config).toMatchObject({ enabled_by_default: false });
   });
+
+  test('should advertise the shared meter components for both CT002 and SMR', () => {
+    const objectIds = (deviceType: string, deviceId: string) => {
+      const deviceTopics: DeviceTopics = {
+        deviceTopicOld: 'a',
+        deviceTopicNew: 'b',
+        deviceControlTopicOld: 'c',
+        deviceControlTopicNew: 'd',
+        availabilityTopic: 'e',
+        controlSubscriptionTopic: 'f',
+        publishTopic: 'g',
+      };
+      return generateDiscoveryConfigs(
+        { deviceType, deviceId },
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        {},
+      ).map(c => c.topic.split('/').at(-2));
+    };
+
+    const shared = [
+      'timestamp',
+      'phase1_power',
+      'phase2_power',
+      'phase3_power',
+      'total_power',
+      'phase1_measurement_reversed',
+      'phase2_measurement_reversed',
+      'phase3_measurement_reversed',
+      'slave_count',
+      'bluetooth_signal',
+      'wifi_rssi',
+      'fc4_version',
+      'firmware_version',
+      'wifi_status',
+    ];
+
+    const ct002 = objectIds('HME-4', 'abcd');
+    const smr = objectIds('SMR-0', 'b8d08fc5f943');
+    for (const id of shared) {
+      expect(ct002).toContain(id);
+      expect(smr).toContain(id);
+    }
+
+    // The CT002 gets only the shared components; the SMR adds its own
+    expect(ct002.sort()).toEqual([...shared].sort());
+    expect(smr).toContain('total_energy');
+    expect(ct002).not.toContain('total_energy');
+  });
 });
