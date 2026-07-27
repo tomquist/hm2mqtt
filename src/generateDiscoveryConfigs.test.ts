@@ -457,7 +457,7 @@ describe('Home Assistant Discovery', () => {
   });
 
   test('should advertise the shared meter components for both CT002 and SMR', () => {
-    const objectIds = (deviceType: string, deviceId: string) => {
+    const objectIds = (deviceType: string, deviceId: string, state: object = {}) => {
       const deviceTopics: DeviceTopics = {
         deviceTopicOld: 'a',
         deviceTopicNew: 'b',
@@ -473,8 +473,15 @@ describe('Home Assistant Discovery', () => {
         {},
         DEFAULT_TOPIC_PREFIX,
         'homeassistant',
-        {},
+        state,
       ).map(c => c.topic.split('/').at(-2));
+    };
+
+    // The phase direction components are deferred until the device reports cur_d
+    const withDirection = {
+      phase1MeasurementReversed: false,
+      phase2MeasurementReversed: false,
+      phase3MeasurementReversed: false,
     };
 
     const shared = [
@@ -494,8 +501,8 @@ describe('Home Assistant Discovery', () => {
       'wifi_status',
     ];
 
-    const ct002 = objectIds('HME-4', 'abcd');
-    const smr = objectIds('SMR-0', 'b8d08fc5f943');
+    const ct002 = objectIds('HME-4', 'abcd', withDirection);
+    const smr = objectIds('SMR-0', 'b8d08fc5f943', withDirection);
     for (const id of shared) {
       expect(ct002).toContain(id);
       expect(smr).toContain(id);
@@ -505,5 +512,43 @@ describe('Home Assistant Discovery', () => {
     expect(ct002.sort()).toEqual([...shared].sort());
     expect(smr).toContain('total_energy');
     expect(ct002).not.toContain('total_energy');
+
+    // Without cur_d data the direction components are deferred entirely
+    const noDirection = objectIds('HME-4', 'abcd');
+    expect(noDirection).not.toContain('phase1_measurement_reversed');
+  });
+
+  test('should expose the phase direction as a switch on CT002 but read-only on SMR', () => {
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'a',
+      deviceTopicNew: 'b',
+      deviceControlTopicOld: 'c',
+      deviceControlTopicNew: 'd',
+      availabilityTopic: 'e',
+      controlSubscriptionTopic: 'hm2mqtt/control/meter',
+      publishTopic: 'g',
+    };
+    const state = { phase1MeasurementReversed: true };
+    const configFor = (deviceType: string) =>
+      generateDiscoveryConfigs(
+        { deviceType, deviceId: 'meter' },
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      ).find(c => c.topic.endsWith('/phase1_measurement_reversed/config'));
+
+    const ct002 = configFor('HME-4');
+    expect(ct002?.topic).toContain('/switch/');
+    expect(ct002?.config).toMatchObject({
+      command_topic: 'hm2mqtt/control/meter/phase1-measurement-reversed',
+      enabled_by_default: false,
+    });
+
+    // cd=5 means something else on the SMR, so it stays read-only there
+    const smr = configFor('SMR-0');
+    expect(smr?.topic).toContain('/binary_sensor/');
+    expect(smr?.config).not.toHaveProperty('command_topic');
   });
 });

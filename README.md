@@ -664,6 +664,12 @@ The following commands are supported by both Jupiter C, Jupiter E and Jupiter Pl
 
 > **Note:** The Jupiter does not support trading mode or auto-switch working mode.
 
+### CT002 Smart Meter Commands
+
+- `phase1-measurement-reversed` / `phase2-measurement-reversed` / `phase3-measurement-reversed`: Inverts the measurement direction of that phase (`on` or `off`), matching the *Reverse Measurement Direction* screen in the Marstek app. The three phases share one command (`cd=5`), so hm2mqtt combines the switch you toggle with the direction currently reported for the other two phases; the entities only appear once the device has reported its current setting.
+
+> **Note:** The SMR meter readers report their measurement direction (as read-only *Phase N Measurement Reversed* entities) but it cannot be set from hm2mqtt: they offer no measurement-direction setting, and their `cd=5` command configures the attached smart meter instead.
+
 ### Examples
 
 ```
@@ -684,6 +690,9 @@ mosquitto_pub -t "hm2mqtt/HMG-50/control/abcdef123456/time-period/1/enabled" -m 
 
 # Enable timer period 0 on Jupiter Plus device
 mosquitto_pub -t "hm2mqtt/JPLS/control/abcdef123456/time-period/0/enabled" -m "on"
+
+# Reverse the measurement direction of phase 1 on a CT002 smart meter
+mosquitto_pub -t "hm2mqtt/HME-4/control/abcdef123456/phase1-measurement-reversed" -m "on"
 ```
 
 ## License

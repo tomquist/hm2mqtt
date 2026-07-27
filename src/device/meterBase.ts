@@ -1,6 +1,10 @@
 import { BuildMessageDefinitionArgs } from '../deviceDefinition.js';
 import { MeterBaseDeviceData } from '../types.js';
-import { binarySensorComponent, sensorComponent } from '../homeAssistantDiscovery.js';
+import {
+  binarySensorComponent,
+  sensorComponent,
+  switchComponent,
+} from '../homeAssistantDiscovery.js';
 import { bitBoolean, identity, number } from '../transforms.js';
 
 /**
@@ -17,11 +21,96 @@ export function extractMeterDeviceInfo(state: MeterBaseDeviceData) {
 }
 
 /**
+ * The three phases of the `cur_d` bitmask, in bit order.
+ */
+const phaseMeasurementDirections = [
+  { bit: 0, path: 'phase1MeasurementReversed', id: 'phase1_measurement_reversed', label: 1 },
+  { bit: 1, path: 'phase2MeasurementReversed', id: 'phase2_measurement_reversed', label: 2 },
+  { bit: 2, path: 'phase3MeasurementReversed', id: 'phase3_measurement_reversed', label: 3 },
+] as const;
+
+function measurementDirectionMask(state: {
+  phase1MeasurementReversed?: boolean;
+  phase2MeasurementReversed?: boolean;
+  phase3MeasurementReversed?: boolean;
+}): number {
+  return phaseMeasurementDirections.reduce(
+    (mask, { bit, path }) => (state[path] ? mask | (1 << bit) : mask),
+    0,
+  );
+}
+
+/**
+ * `cur_d` is a bitmask with one bit per phase, set when that phase's
+ * measurement direction is reversed. (The CT002 also accepts the key under the
+ * alias `cur_dir`.)
+ *
+ * It is written back with `cd=5,p1=<mask>`, using the same bit layout the
+ * runtime payload reports. `TPM2` devices spell the parameter `dir` instead,
+ * but hm2mqtt does not support that device type yet.
+ *
+ * The command is opt-in per device type because `cd=5` is not universal: on the
+ * SMR readers `cd=5,p1=…,p2=…,p3=…,p4=…` configures the attached smart meter,
+ * and they offer no measurement-direction setting at all. Sending a direction
+ * command there could reconfigure the meter interface instead.
+ */
+function registerPhaseMeasurementDirection<T extends MeterBaseDeviceData>(
+  args: BuildMessageDefinitionArgs<T>,
+  options: MeterBaseOptions,
+): void {
+  const { field, advertise, command } =
+    args as unknown as BuildMessageDefinitionArgs<MeterBaseDeviceData>;
+
+  for (const { bit, path, id, label } of phaseMeasurementDirections) {
+    field({ key: 'cur_d', path: [path], transform: bitBoolean(bit) });
+
+    const name = `Phase ${label} Measurement Reversed`;
+    // Only advertise once the device has actually reported `cur_d`, so devices
+    // that never send it do not get a control that cannot work.
+    const enabled = {
+      enabled: (state: MeterBaseDeviceData) => (state[path] != null ? true : undefined),
+    };
+
+    if (!options.settablePhaseMeasurementDirection) {
+      advertise([path], binarySensorComponent({ id, name, enabled_by_default: false }), enabled);
+      continue;
+    }
+
+    const commandName = `${id.replace(/_/g, '-')}`;
+    advertise(
+      [path],
+      switchComponent({ id, name, command: commandName, enabled_by_default: false }),
+      enabled,
+    );
+    command(commandName, {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const reversed = message.toLowerCase() === 'true' || message === '1' || message === 'ON';
+        // The device takes the whole bitmask, so fold the new value into the
+        // other two phases as currently reported.
+        const state = updateDeviceState(() => ({ [path]: reversed }));
+        publishCallback(`cd=5,p1=${measurementDirectionMask(state)}`);
+      },
+    });
+  }
+}
+
+/**
  * Register the fields and Home Assistant components every Marstek meter
  * reports. Device specific fields are registered by the caller.
  */
+export interface MeterBaseOptions {
+  /**
+   * Expose the per-phase measurement direction as switches backed by the
+   * `cd=5` command instead of read-only binary sensors. Only enable this for
+   * device types where `cd=5` really is the direction command — see
+   * {@link registerPhaseMeasurementDirection}.
+   */
+  settablePhaseMeasurementDirection?: boolean;
+}
+
 export function registerMeterBaseFields<T extends MeterBaseDeviceData>(
   args: BuildMessageDefinitionArgs<T>,
+  options: MeterBaseOptions = {},
 ): void {
   // `field`/`advertise` are keyed on `KeyPath<T>`. Every path used below exists
   // on `MeterBaseDeviceData`, which `T` extends, but TypeScript cannot narrow
@@ -88,38 +177,7 @@ export function registerMeterBaseFields<T extends MeterBaseDeviceData>(
     }),
   );
 
-  // `cur_d` is a bitmask with one bit per phase, set when that phase's
-  // measurement direction is reversed. (The CT002 also accepts the key under
-  // the alias `cur_dir`.)
-  field({ key: 'cur_d', path: ['phase1MeasurementReversed'], transform: bitBoolean(0) });
-  advertise(
-    ['phase1MeasurementReversed'],
-    binarySensorComponent({
-      id: 'phase1_measurement_reversed',
-      name: 'Phase 1 Measurement Reversed',
-      enabled_by_default: false,
-    }),
-  );
-
-  field({ key: 'cur_d', path: ['phase2MeasurementReversed'], transform: bitBoolean(1) });
-  advertise(
-    ['phase2MeasurementReversed'],
-    binarySensorComponent({
-      id: 'phase2_measurement_reversed',
-      name: 'Phase 2 Measurement Reversed',
-      enabled_by_default: false,
-    }),
-  );
-
-  field({ key: 'cur_d', path: ['phase3MeasurementReversed'], transform: bitBoolean(2) });
-  advertise(
-    ['phase3MeasurementReversed'],
-    binarySensorComponent({
-      id: 'phase3_measurement_reversed',
-      name: 'Phase 3 Measurement Reversed',
-      enabled_by_default: false,
-    }),
-  );
+  registerPhaseMeasurementDirection(args, options);
 
   // Number of slave meters attached. Each one is queried individually with
   // `cd=4,p1=<index>` whenever this is greater than zero.

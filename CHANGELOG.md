@@ -4,7 +4,8 @@
 ### Added
 
 - Support the `SMR-X` device type: the Marstek smart meter readers (`SMR-0` P1 Meter, `SMR-1` Infrared Meter, `SMR-2` TIC Meter), which are marketed as "CT003". They report the same per-phase and total power as the CT002 smart meter, plus a *Total Energy* sensor (`eng_t`, reported in 0.1 Wh), a *P1 Device Connected* binary sensor (`har_f`) and the *Meter Number*, *P1 Read Status*, *Infrared Read Status* and *Phase Read Status* diagnostic sensors, which are disabled by default (fixes #379)
-- CT002 & SMR: Add *Phase 1/2/3 Measurement Reversed* binary sensors (decoded from the `cur_d` bitmask, which flags the phases whose measurement direction is inverted) and a *Slave Count* sensor (`slv_n`). Both device types report these keys, and both are disabled by default.
+- CT002 & SMR: Expose the per-phase measurement direction (decoded from the `cur_d` bitmask, which flags the phases whose measurement direction is inverted) and add a *Slave Count* sensor (`slv_n`). Both device types report these keys. All new entities are disabled by default, and the measurement-direction entities only appear once the device has reported `cur_d`.
+- CT002: The *Phase 1/2/3 Measurement Reversed* entities are settable switches, mirroring the *Reverse Measurement Direction* screen in the Marstek app. Because the device takes all three phases as one bitmask in a single `cd=5` command, toggling one switch re-sends the direction currently reported for the other two. On the SMR readers the same entities stay read-only binary sensors: they offer no measurement-direction setting, and their `cd=5` configures the attached smart meter instead.
 
 ### Fixed
 

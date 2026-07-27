@@ -31,5 +31,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     pollInterval: globalPollInterval,
     controlsDeviceAvailability: true,
   } as const;
-  message<CT002DeviceData>(options, registerMeterBaseFields);
+  // The CT002 is the one meter whose `cd=5` is the phase direction command, so
+  // it gets switches rather than read-only sensors.
+  message<CT002DeviceData>(options, args =>
+    registerMeterBaseFields(args, { settablePhaseMeasurementDirection: true }),
+  );
 }
