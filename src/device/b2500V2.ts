@@ -9,6 +9,7 @@ import {
   normalizeMeterMac,
   resolveMeterMac,
   isValidMeterType,
+  isValidB2500RechargeMode,
 } from '../types.js';
 import logger from '../logger.js';
 import {
@@ -204,6 +205,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       path: ['batteryOutputThreshold'],
       transform: number(),
     });
+    // Read-only on V2. The threshold setting is only offered on the V1 (HMB);
+    // V2 models report the current value in `lv` but do not act on `cd=6`.
     advertise(
       ['batteryOutputThreshold'],
       sensorComponent<number>({
@@ -488,12 +491,22 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     );
     command('connected-phase', {
       handler: ({ message, publishCallback, deviceState }) => {
-        let channelValue = message;
-        if (['auto', 'none', 'null', 'unknown'].includes(message.toLowerCase())) {
-          channelValue = '255';
-        }
+        // The select publishes the state name, so the two non-numeric values it
+        // can report have to map back onto the codes the device takes. Without
+        // the `searching` alias, picking that option published the literal
+        // string and was rejected here, leaving it a dead entry in the picker.
+        const aliases: Record<string, string> = {
+          auto: '255',
+          none: '255',
+          null: '255',
+          unknown: '255',
+          searching: '3',
+        };
+        const channelValue = aliases[message.toLowerCase()] ?? message;
         const channel = parseInt(channelValue, 10);
-        if (isNaN(channel) || channel < 0 || (channel > 4 && channel !== 255)) {
+        // The device accepts 0-3 and 255 for "none", and ignores anything else,
+        // so reject it here rather than sending something that does nothing.
+        if (isNaN(channel) || (channel !== 255 && (channel < 0 || channel > 3))) {
           logger.warn('Invalid connected phase value:', message);
           return;
         }
@@ -586,6 +599,44 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'measurement',
       }),
     );
+    // The meter the device is currently configured for. hm2mqtt can set this
+    // with `cd=27`, but the device only ever echoed it back here, so the
+    // configured value was not visible anywhere. Note that `ct_t` uses its own
+    // code space, *not* the one the `meter=` parameter takes — see
+    // docs/b2500.md for the two tables.
+    field({
+      key: 'ct_t',
+      path: ['ctType'],
+      transform: map({
+        '1': 'ct001',
+        '3': 'ct002',
+        '4': 'shellyPro3em',
+        '5': 'p1Meter',
+        '6': 'ct003',
+        '7': 'shellyEmGen3',
+        '8': 'shellyProEm50',
+        '9': 'ecoTracker',
+      }),
+    });
+    advertise(
+      ['ctType'],
+      sensorComponent<NonNullable<B2500V2DeviceData['ctType']>>({
+        id: 'ct_type',
+        name: 'CT Type',
+        valueMappings: {
+          ct001: 'CT001',
+          ct002: 'CT002',
+          ct003: 'CT003',
+          shellyPro3em: 'Shelly Pro 3EM',
+          shellyEmGen3: 'Shelly EM Gen3',
+          shellyProEm50: 'Shelly Pro EM50',
+          p1Meter: 'P1 Meter',
+          ecoTracker: 'EcoTracker',
+        },
+        enabled_by_default: false,
+      }),
+    );
+
     field({
       key: 'm3',
       path: ['ctInfo', 'microInverterPower'],
@@ -662,14 +713,18 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           // If the message is "PRESS" or similar from Home Assistant button, generate current time
           if (message === 'PRESS' || message === 'press' || message === 'true' || message === '1') {
             const now = new Date();
+            // `cd=08` takes the local wall-clock time together with the offset
+            // of that same zone in `wy` — not UTC. Sending UTC components with
+            // a local `wy` left the device clock wrong by the offset. `mm` is
+            // 0-based and `yy` is the year minus 1900.
             const timeData = {
               wy: -now.getTimezoneOffset(),
-              yy: now.getUTCFullYear() - 1900,
-              mm: now.getUTCMonth(),
-              rr: now.getUTCDate(),
-              hh: now.getUTCHours(),
-              mn: now.getUTCMinutes(),
-              ss: now.getUTCSeconds(),
+              yy: now.getFullYear() - 1900,
+              mm: now.getMonth(),
+              rr: now.getDate(),
+              hh: now.getHours(),
+              mn: now.getMinutes(),
+              ss: now.getSeconds(),
             };
             publishCallback(
               processCommand(CommandType.SYNC_TIME, timeData, deviceState.useFlashCommands),
@@ -677,17 +732,12 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             return;
           }
 
-          // Otherwise try to parse as JSON
+          // Otherwise try to parse as JSON. Every field is checked for presence
+          // rather than truthiness: 0 is a legal value for all of them (January,
+          // midnight, UTC+0, …) and used to be rejected as "missing".
           const timeData = JSON.parse(message);
-          if (
-            !timeData.wy ||
-            !timeData.yy ||
-            !timeData.mm ||
-            !timeData.rr ||
-            !timeData.hh ||
-            !timeData.mn ||
-            !timeData.ss
-          ) {
+          const requiredKeys = ['wy', 'yy', 'mm', 'rr', 'hh', 'mn', 'ss'] as const;
+          if (requiredKeys.some(key => timeData?.[key] == null)) {
             logger.error('Missing time parameters:', message);
             return;
           }
@@ -823,6 +873,64 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:meter-electric',
         command: 'meter-type',
         valueMappings: meterTypeLabels,
+        enabled_by_default: false,
+      }),
+    );
+
+    // `cd=27` doubles as the grid recharge command, the same way `cd=18` does on
+    // the Venus and Jupiter. The device does not report the current value in any
+    // response hm2mqtt polls, so this entity shows the last value that was set
+    // rather than the device's own state.
+    command('recharge-mode', {
+      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
+        if (!isValidB2500RechargeMode(message)) {
+          logger.warn('Invalid recharge mode value:', message);
+          return;
+        }
+        updateDeviceState(() => ({ rechargeMode: message }));
+        publishCallback(
+          processCommand(
+            CommandType.SET_SMART_METER_TYPE,
+            { dchrg: message === 'threePhase' ? 1 : 0 },
+            deviceState.useFlashCommands,
+          ),
+        );
+      },
+    });
+    advertise(
+      ['rechargeMode'],
+      selectComponent<NonNullable<B2500V2DeviceData['rechargeMode']>>({
+        id: 'recharge_mode',
+        name: 'Recharge Mode',
+        icon: 'mdi:flash',
+        command: 'recharge-mode',
+        valueMappings: {
+          singlePhase: 'Single Phase',
+          threePhase: 'Three Phase',
+        },
+        enabled_by_default: false,
+      }),
+    );
+
+    // Starts the grid-phase detection routine. The device clears the phase and
+    // moves the CT status to "Preparing to diagnose CT001 (Step 1)", so progress
+    // can be followed on the CT Status sensor.
+    command('phase-diagnosis', {
+      handler: ({ message, publishCallback }) => {
+        if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
+          // `seq_check` is a bare flag, so it cannot go through processCommand.
+          publishCallback(`cd=${CommandType.SET_SMART_METER_TYPE},seq_check`);
+        }
+      },
+    });
+    advertise(
+      [],
+      buttonComponent({
+        id: 'phase_diagnosis',
+        name: 'Phase Diagnosis',
+        icon: 'mdi:sine-wave',
+        command: 'phase-diagnosis',
+        payload_press: 'PRESS',
         enabled_by_default: false,
       }),
     );

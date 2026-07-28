@@ -20,6 +20,10 @@
 - Jupiter: Add a *Battery Pack Recovery* button to reactivate an unresponsive battery pack. Jupiter Plus only, firmware 135 or newer, disabled by default.
 - Jupiter: Add a *Screen Version* and a *Shelly Port* sensor, both disabled by default.
 - Jupiter: Add *Network* sensors (IP Address, Gateway, Subnet Mask, DNS Server, CT Connect IP). They appear once the device reports them and are disabled by default.
+- B2500: Add a *WiFi Signal Strength* sensor, in dBm. The device reports two "no reading" values (`0` and `32767`); both are published as unknown rather than as a signal level.
+- B2500 V2/V3: Add a *CT Type* sensor, disabled by default, showing which meter the device is currently configured for (CT001, CT002, CT003, Shelly Pro 3EM, Shelly EM Gen3, Shelly Pro EM50, P1 Meter or EcoTracker) — so the write-only *Meter Type* select can be checked against what the device actually took.
+- B2500 V2/V3: Add a *Recharge Mode* select (single/three phase) and a *Phase Diagnosis* button, matching the Venus and Jupiter. Both are disabled by default. The device never reports the recharge mode back, so that entity shows the last value set rather than the device's own state; phase diagnosis progress shows up on the existing *CT Status* sensor.
+- B2500, Venus & Jupiter: Add *EcoTracker* to the *Meter Type* options.
 
 ### Fixed
 
@@ -28,7 +32,10 @@
 - CT002: Stop logging a spurious `Invalid topic empty_topic_list` subscription error on startup for devices without any controls (fixes #371)
 - Jupiter: *Meter Type* and *Recharge Mode* were sent using the Venus command, so neither setting ever reached the device.
 - Venus & Jupiter: *Sync Time* set the device clock one month too early — and to the previous year every January.
-
+- B2500 V2/V3: *Sync Time* left the device clock wrong by your UTC offset — an hour or more for most users. It now sets the correct local time.
+- B2500 V2/V3: `sync-time` rejected a JSON payload whenever any field was `0`, so January, midnight, a zero minute or second, and UTC+0 all failed with "Missing time parameters".
+- B2500: Only the first 14 of the 16 cell voltages each battery pack reports were read. The last two are now published, and the *Min*/*Max*/*Average*/*Difference* cell sensors take them into account.
+- B2500 V2/V3: The *CT Connected Phase* select offered a *Searching* option that never worked — picking it logged `Invalid connected phase value: searching` and sent nothing. It now sends the value the device takes for that state. The command also accepts `0`-`3` and `255` only, matching what the device acts on, instead of silently forwarding values it ignores.
 
 ## [1.8.1] - 2026-06-20
 

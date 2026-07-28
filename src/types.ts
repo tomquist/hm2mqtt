@@ -23,6 +23,32 @@ export type B2500V2SmartMeterStatus =
   | 'chargingInProgress'
   | 'unableToFindChannel'
   | 'notInDiagnosis';
+/**
+ * Meter reported in the B2500 `ct_t` field. The device reports the configured
+ * meter under its own numeric codes, which do not match the codes the
+ * `cd=27,meter=` command accepts.
+ */
+export type B2500CtType =
+  | 'ct001'
+  | 'ct002'
+  | 'ct003'
+  | 'shellyPro3em'
+  | 'shellyEmGen3'
+  | 'shellyProEm50'
+  | 'p1Meter'
+  | 'ecoTracker';
+/**
+ * Grid recharge mode set with `cd=27,dchrg=`. The device does not report the
+ * current value in any response hm2mqtt polls, so the entity reflects the last
+ * value that was set rather than the device's own state.
+ */
+const validB2500RechargeModes = ['singlePhase', 'threePhase'] as const;
+export type B2500RechargeMode = (typeof validB2500RechargeModes)[number];
+
+export function isValidB2500RechargeMode(mode: string): mode is B2500RechargeMode {
+  return validB2500RechargeModes.includes(mode as B2500RechargeMode);
+}
+
 export type B2500V1ChargingMode = 'chargeThenDischarge' | 'pv2PassThrough';
 export type B2500V2ChargingMode = 'chargeDischargeSimultaneously' | 'chargeThenDischarge';
 
@@ -82,6 +108,9 @@ export interface B2500BaseDeviceData extends BaseDeviceData {
 
   // Scene information (day/night/dusk)
   scene?: B2500Scene;
+
+  // Wi-Fi signal strength in dBm, from the `ws` field (already signed)
+  wifiSignalStrength?: number;
 
   // Output enabled states
   outputEnabled?: {
@@ -178,6 +207,13 @@ export interface B2500V2DeviceData extends B2500BaseDeviceData {
   // Smart meter configuration (cd=27)
   meterType?: MeterType;
   meterMac?: string;
+
+  // The meter the device reports as configured (`ct_t`). Its numeric codes are
+  // distinct from the ones the `cd=27,meter=` command takes.
+  ctType?: B2500CtType;
+
+  // Last grid recharge mode set via `cd=27,dchrg=` (not reported by the device)
+  rechargeMode?: B2500RechargeMode;
 }
 
 type SolarSocketData = {
@@ -337,6 +373,7 @@ const validMeterTypes = [
   'ct003',
   'shellyEmGen3',
   'shellyProEm50',
+  'ecoTracker',
 ] as const;
 export type MeterType = (typeof validMeterTypes)[number];
 
@@ -354,6 +391,9 @@ export const meterTypeCommandCodes: Record<MeterType, number> = {
   ct003: 4,
   shellyEmGen3: 5,
   shellyProEm50: 6,
+  // Code 7 is confirmed on the B2500. The Venus and Jupiter take the same meter
+  // codes on their own command, so it is offered there too.
+  ecoTracker: 7,
 };
 
 /**
@@ -366,6 +406,7 @@ export const meterTypeLabels: Record<MeterType, string> = {
   ct003: 'CT003',
   shellyEmGen3: 'Shelly EM Gen3',
   shellyProEm50: 'Shelly Pro EM50',
+  ecoTracker: 'EcoTracker',
 };
 
 /**

@@ -266,6 +266,33 @@ describe('ControlHandler', () => {
       // Restore timers
       jest.useRealTimers();
     });
+
+    test('should sync the local wall-clock time, not UTC', () => {
+      // The device expects the local date/time fields alongside the matching UTC
+      // offset. Simulate UTC+9, where 2023-01-01T12:30:45Z is local 21:30:45 on
+      // the same day: the payload must carry the local hour, not the UTC one.
+      // The local getters are stubbed rather than setting process.env.TZ, which
+      // Node does not re-read once the process has started.
+      jest.useFakeTimers().setSystemTime(new Date(Date.UTC(2023, 0, 1, 12, 30, 45)));
+      jest.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-540);
+      jest.spyOn(Date.prototype, 'getFullYear').mockReturnValue(2023);
+      jest.spyOn(Date.prototype, 'getMonth').mockReturnValue(0);
+      jest.spyOn(Date.prototype, 'getDate').mockReturnValue(1);
+      jest.spyOn(Date.prototype, 'getHours').mockReturnValue(21);
+      jest.spyOn(Date.prototype, 'getMinutes').mockReturnValue(30);
+      jest.spyOn(Date.prototype, 'getSeconds').mockReturnValue(45);
+
+      try {
+        handleControlTopic(testDeviceV2, 'sync-time', 'PRESS');
+
+        expect(publishCallback).toHaveBeenCalledWith(
+          testDeviceV2,
+          expect.stringContaining('cd=8,wy=540,yy=123,mm=0,rr=1,hh=21,mn=30,ss=45'),
+        );
+      } finally {
+        jest.useRealTimers();
+      }
+    });
     test('should handle sync-time control topic with JSON', () => {
       // Call the method with a sync time JSON message
       const timeData = {

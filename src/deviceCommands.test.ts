@@ -450,6 +450,28 @@ const commandTestCases: CommandTestCase[] = [
     input: '10',
     expectedOutput: null,
   },
+  {
+    // The select publishes the state name, not the code.
+    description: 'B2500V2 connected-phase searching maps to md=3',
+    deviceType: 'HMA-1',
+    command: 'connected-phase',
+    input: 'searching',
+    expectedOutput: 'cd=22,md=3',
+  },
+  {
+    description: 'B2500V2 connected-phase numeric 3 is accepted',
+    deviceType: 'HMA-1',
+    command: 'connected-phase',
+    input: '3',
+    expectedOutput: 'cd=22,md=3',
+  },
+  {
+    description: 'B2500V2 connected-phase 4 is rejected',
+    deviceType: 'HMA-1',
+    command: 'connected-phase',
+    input: '4',
+    expectedOutput: null,
+  },
 
   // time-zone command (V2 only)
   {
@@ -488,6 +510,14 @@ const commandTestCases: CommandTestCase[] = [
     command: 'sync-time',
     input: '{"wy":480,"yy":123,"mm":1,"rr":2,"hh":23,"mn":56,"ss":56}',
     expectedOutput: 'cd=8,wy=480,yy=123,mm=1,rr=2,hh=23,mn=56,ss=56',
+  },
+  {
+    // Every field here is a legal 0: UTC+0, January, midnight, zero minute/second.
+    description: 'B2500V2 sync-time with JSON accepts zero values',
+    deviceType: 'HMA-1',
+    command: 'sync-time',
+    input: '{"wy":0,"yy":126,"mm":0,"rr":1,"hh":0,"mn":0,"ss":0}',
+    expectedOutput: 'cd=8,wy=0,yy=126,mm=0,rr=1,hh=0,mn=0,ss=0',
   },
   {
     description: 'B2500V2 sync-time with incomplete JSON (invalid)',
@@ -591,6 +621,53 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'HMA-1',
     command: 'meter-type',
     input: 'ct002',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 meter-type EcoTracker with configured MAC',
+    deviceType: 'HMA-1',
+    initialState: { meterMac: 'aabbccddeeff' },
+    command: 'meter-type',
+    input: 'ecoTracker',
+    expectedOutput: 'cd=27,meter=7,mac=aabbccddeeff',
+  },
+
+  // recharge-mode + phase-diagnosis (cd=27 doubles as the grid recharge command)
+  {
+    description: 'B2500V2 recharge-mode single phase',
+    deviceType: 'HMA-1',
+    command: 'recharge-mode',
+    input: 'singlePhase',
+    expectedOutput: 'cd=27,dchrg=0',
+    expectedStateChanges: { rechargeMode: 'singlePhase' },
+  },
+  {
+    description: 'B2500V2 recharge-mode three phase',
+    deviceType: 'HMA-1',
+    command: 'recharge-mode',
+    input: 'threePhase',
+    expectedOutput: 'cd=27,dchrg=1',
+    expectedStateChanges: { rechargeMode: 'threePhase' },
+  },
+  {
+    description: 'B2500V2 recharge-mode invalid',
+    deviceType: 'HMA-1',
+    command: 'recharge-mode',
+    input: 'twoPhase',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 phase-diagnosis sends the bare seq_check flag',
+    deviceType: 'HMA-1',
+    command: 'phase-diagnosis',
+    input: 'PRESS',
+    expectedOutput: 'cd=27,seq_check',
+  },
+  {
+    description: 'B2500V2 phase-diagnosis ignores a non-press payload',
+    deviceType: 'HMA-1',
+    command: 'phase-diagnosis',
+    input: 'false',
     expectedOutput: null,
   },
   {
