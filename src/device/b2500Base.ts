@@ -29,6 +29,7 @@ import {
   diff,
   average,
   divide,
+  negate,
 } from '../transforms.js';
 
 export function extractAdditionalDeviceInfo(state: B2500BaseDeviceData): AdditionalDeviceInfo {
@@ -229,6 +230,20 @@ export function registerBaseMessage({
   field({ key: 'fc', path: ['deviceInfo', 'fc42dVersion'], transform: identity() });
   field({ key: 'id', path: ['deviceInfo', 'deviceIdNumber'], transform: number() });
   field({ key: 'uv', path: ['deviceInfo', 'bootloaderVersion'], transform: number() });
+
+  // The B2500's counterpart to the Venus/Jupiter `wif_s`: the RSSI magnitude
+  // without its sign, so it is negated to give dBm (0 meaning "no signal").
+  field({ key: 'ws', path: ['wifiSignalStrength'], transform: negate() });
+  advertise(
+    ['wifiSignalStrength'],
+    sensorComponent<number>({
+      id: 'wifi_signal_strength',
+      name: 'WiFi Signal Strength',
+      device_class: 'signal_strength',
+      unit_of_measurement: 'dBm',
+      state_class: 'measurement',
+    }),
+  );
 
   // Output state information
   for (const outputNumber of [1, 2] as const) {

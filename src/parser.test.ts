@@ -154,6 +154,23 @@ describe('MQTT Message Parser', () => {
     }
   });
 
+  test('should negate the unsigned WiFi signal into dBm', () => {
+    const base = 'pe=75,kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0';
+
+    const parsed = parseMessage(`${base},ws=79`, 'HMA-1', '12345');
+    const result = parsed['data'] as B2500V2DeviceData;
+    expect(result).toHaveProperty('wifiSignalStrength', -79);
+
+    // 0 means "no signal". Negating it yields -0, which JSON serialisation
+    // normalises to 0, so that is what actually gets published.
+    const noSignal = parseMessage(`${base},ws=0`, 'HMA-1', '12345');
+    expect(JSON.parse(JSON.stringify(noSignal['data'])).wifiSignalStrength).toBe(0);
+
+    // Absent on devices that do not report it
+    const without = parseMessage(base, 'HMA-1', '12345');
+    expect((without['data'] as B2500V2DeviceData).wifiSignalStrength).toBeUndefined();
+  });
+
   test('should handle message definitions correctly', () => {
     // Create a simple test message
     const message =

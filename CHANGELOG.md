@@ -20,6 +20,8 @@
 - Jupiter: Add a *Battery Pack Recovery* button to reactivate an unresponsive battery pack. Jupiter Plus only, firmware 135 or newer, disabled by default.
 - Jupiter: Add a *Screen Version* and a *Shelly Port* sensor, both disabled by default.
 - Jupiter: Add *Network* sensors (IP Address, Gateway, Subnet Mask, DNS Server, CT Connect IP). They appear once the device reports them and are disabled by default.
+- B2500: Add a *WiFi Signal Strength* sensor, in dBm, matching the equivalent Venus and Jupiter sensor. `0` means no signal.
+- B2500 V2/V3: Add *CT Type* and *Phase Type* sensors, disabled by default. *CT Type* shows which meter the device is currently configured for, so the write-only *Meter Type* select can be checked against what the device actually took. Both report raw numbers rather than named values.
 
 ### Fixed
 
@@ -28,7 +30,8 @@
 - CT002: Stop logging a spurious `Invalid topic empty_topic_list` subscription error on startup for devices without any controls (fixes #371)
 - Jupiter: *Meter Type* and *Recharge Mode* were sent using the Venus command, so neither setting ever reached the device.
 - Venus & Jupiter: *Sync Time* set the device clock one month too early — and to the previous year every January.
-
+- B2500 V2/V3: *Sync Time* left the device clock wrong by your UTC offset — an hour or more for most users. It now sets the correct local time.
+- B2500 V2/V3: `sync-time` rejected a JSON payload whenever any field was `0`, so January, midnight, a zero minute or second, and UTC+0 all failed with "Missing time parameters".
 
 ## [1.8.1] - 2026-06-20
 

@@ -83,6 +83,9 @@ export interface B2500BaseDeviceData extends BaseDeviceData {
   // Scene information (day/night/dusk)
   scene?: B2500Scene;
 
+  // Wi-Fi signal strength in dBm, from the (unsigned) `ws` field
+  wifiSignalStrength?: number;
+
   // Output enabled states
   outputEnabled?: {
     output1?: boolean;
@@ -178,6 +181,11 @@ export interface B2500V2DeviceData extends B2500BaseDeviceData {
   // Smart meter configuration (cd=27)
   meterType?: MeterType;
   meterMac?: string;
+
+  // CT type and phase the device reports back (`ct_t`/`phase_t`). The numeric
+  // code space is not documented, so both are published as reported.
+  ctType?: number;
+  phaseType?: number;
 }
 
 type SolarSocketData = {

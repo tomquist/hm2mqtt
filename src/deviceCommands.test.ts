@@ -490,6 +490,14 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: 'cd=8,wy=480,yy=123,mm=1,rr=2,hh=23,mn=56,ss=56',
   },
   {
+    // Every field here is a legal 0: UTC+0, January, midnight, zero minute/second.
+    description: 'B2500V2 sync-time with JSON accepts zero values',
+    deviceType: 'HMA-1',
+    command: 'sync-time',
+    input: '{"wy":0,"yy":126,"mm":0,"rr":1,"hh":0,"mn":0,"ss":0}',
+    expectedOutput: 'cd=8,wy=0,yy=126,mm=0,rr=1,hh=0,mn=0,ss=0',
+  },
+  {
     description: 'B2500V2 sync-time with incomplete JSON (invalid)',
     deviceType: 'HMA-1',
     command: 'sync-time',

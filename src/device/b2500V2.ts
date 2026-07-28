@@ -204,6 +204,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       path: ['batteryOutputThreshold'],
       transform: number(),
     });
+    // Read-only on V2. The threshold setting is only offered on the V1 (HMB) —
+    // V2 models report the current value in `lv` but expose no way to change it,
+    // and there is no evidence their firmware accepts `cd=6`.
     advertise(
       ['batteryOutputThreshold'],
       sensorComponent<number>({
@@ -586,6 +589,30 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'measurement',
       }),
     );
+    // The CT type and phase the device reports back. hm2mqtt can set the meter
+    // type via `cd=27`, but the device only ever echoed it here, so the
+    // configured value was never visible. The numeric code space of both fields
+    // is undocumented, so they are published as reported rather than mapped to
+    // labels — the same treatment the Jupiter gives these two fields.
+    field({ key: 'ct_t', path: ['ctType'], transform: number() });
+    advertise(
+      ['ctType'],
+      sensorComponent<number>({
+        id: 'ct_type',
+        name: 'CT Type',
+        enabled_by_default: false,
+      }),
+    );
+    field({ key: 'phase_t', path: ['phaseType'], transform: number() });
+    advertise(
+      ['phaseType'],
+      sensorComponent<number>({
+        id: 'phase_type',
+        name: 'Phase Type',
+        enabled_by_default: false,
+      }),
+    );
+
     field({
       key: 'm3',
       path: ['ctInfo', 'microInverterPower'],
@@ -662,14 +689,18 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           // If the message is "PRESS" or similar from Home Assistant button, generate current time
           if (message === 'PRESS' || message === 'press' || message === 'true' || message === '1') {
             const now = new Date();
+            // `cd=08` takes the local wall-clock time together with the offset
+            // of that same zone in `wy` — not UTC. Sending UTC components with
+            // a local `wy` left the device clock wrong by the offset. `mm` is
+            // 0-based and `yy` is the year minus 1900.
             const timeData = {
               wy: -now.getTimezoneOffset(),
-              yy: now.getUTCFullYear() - 1900,
-              mm: now.getUTCMonth(),
-              rr: now.getUTCDate(),
-              hh: now.getUTCHours(),
-              mn: now.getUTCMinutes(),
-              ss: now.getUTCSeconds(),
+              yy: now.getFullYear() - 1900,
+              mm: now.getMonth(),
+              rr: now.getDate(),
+              hh: now.getHours(),
+              mn: now.getMinutes(),
+              ss: now.getSeconds(),
             };
             publishCallback(
               processCommand(CommandType.SYNC_TIME, timeData, deviceState.useFlashCommands),
@@ -677,17 +708,12 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             return;
           }
 
-          // Otherwise try to parse as JSON
+          // Otherwise try to parse as JSON. Every field is checked for presence
+          // rather than truthiness: 0 is a legal value for all of them (January,
+          // midnight, UTC+0, …) and used to be rejected as "missing".
           const timeData = JSON.parse(message);
-          if (
-            !timeData.wy ||
-            !timeData.yy ||
-            !timeData.mm ||
-            !timeData.rr ||
-            !timeData.hh ||
-            !timeData.mn ||
-            !timeData.ss
-          ) {
+          const requiredKeys = ['wy', 'yy', 'mm', 'rr', 'hh', 'mn', 'ss'] as const;
+          if (requiredKeys.some(key => timeData?.[key] == null)) {
             logger.error('Missing time parameters:', message);
             return;
           }
