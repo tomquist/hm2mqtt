@@ -33,7 +33,7 @@
 - B2500 V2/V3: *Sync Time* left the device clock wrong by your UTC offset — an hour or more for most users. It now sets the correct local time.
 - B2500 V2/V3: `sync-time` rejected a JSON payload whenever any field was `0`, so January, midnight, a zero minute or second, and UTC+0 all failed with "Missing time parameters".
 - B2500: Only the first 14 of the 16 cell voltages each battery pack reports were read. The last two are now published, and the *Min*/*Max*/*Average*/*Difference* cell sensors take them into account.
-- B2500 V2/V3: `connected-phase` accepted values the device ignores. It now takes `0`-`3` and `255` only, matching what the device acts on.
+- B2500 V2/V3: The *CT Connected Phase* select offered a *Searching* option that never worked — picking it logged `Invalid connected phase value: searching` and sent nothing. It now sends the value the device takes for that state. The command also accepts `0`-`3` and `255` only, matching what the device acts on, instead of silently forwarding values it ignores.
 
 ## [1.8.1] - 2026-06-20
 

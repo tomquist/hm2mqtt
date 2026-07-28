@@ -450,6 +450,28 @@ const commandTestCases: CommandTestCase[] = [
     input: '10',
     expectedOutput: null,
   },
+  {
+    // The select publishes the state name, not the code.
+    description: 'B2500V2 connected-phase searching maps to md=3',
+    deviceType: 'HMA-1',
+    command: 'connected-phase',
+    input: 'searching',
+    expectedOutput: 'cd=22,md=3',
+  },
+  {
+    description: 'B2500V2 connected-phase numeric 3 is accepted',
+    deviceType: 'HMA-1',
+    command: 'connected-phase',
+    input: '3',
+    expectedOutput: 'cd=22,md=3',
+  },
+  {
+    description: 'B2500V2 connected-phase 4 is rejected',
+    deviceType: 'HMA-1',
+    command: 'connected-phase',
+    input: '4',
+    expectedOutput: null,
+  },
 
   // time-zone command (V2 only)
   {

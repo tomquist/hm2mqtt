@@ -491,10 +491,18 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     );
     command('connected-phase', {
       handler: ({ message, publishCallback, deviceState }) => {
-        let channelValue = message;
-        if (['auto', 'none', 'null', 'unknown'].includes(message.toLowerCase())) {
-          channelValue = '255';
-        }
+        // The select publishes the state name, so the two non-numeric values it
+        // can report have to map back onto the codes the device takes. Without
+        // the `searching` alias, picking that option published the literal
+        // string and was rejected here, leaving it a dead entry in the picker.
+        const aliases: Record<string, string> = {
+          auto: '255',
+          none: '255',
+          null: '255',
+          unknown: '255',
+          searching: '3',
+        };
+        const channelValue = aliases[message.toLowerCase()] ?? message;
         const channel = parseInt(channelValue, 10);
         // The device accepts 0-3 (stored as phase 'A'-'D') and 255 for "none";
         // anything else is dropped on the floor, so reject it here.
