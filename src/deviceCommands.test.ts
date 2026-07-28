@@ -624,6 +624,53 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
   {
+    description: 'B2500V2 meter-type EcoTracker with configured MAC',
+    deviceType: 'HMA-1',
+    initialState: { meterMac: 'aabbccddeeff' },
+    command: 'meter-type',
+    input: 'ecoTracker',
+    expectedOutput: 'cd=27,meter=7,mac=aabbccddeeff',
+  },
+
+  // recharge-mode + phase-diagnosis (cd=27 doubles as the grid recharge command)
+  {
+    description: 'B2500V2 recharge-mode single phase',
+    deviceType: 'HMA-1',
+    command: 'recharge-mode',
+    input: 'singlePhase',
+    expectedOutput: 'cd=27,dchrg=0',
+    expectedStateChanges: { rechargeMode: 'singlePhase' },
+  },
+  {
+    description: 'B2500V2 recharge-mode three phase',
+    deviceType: 'HMA-1',
+    command: 'recharge-mode',
+    input: 'threePhase',
+    expectedOutput: 'cd=27,dchrg=1',
+    expectedStateChanges: { rechargeMode: 'threePhase' },
+  },
+  {
+    description: 'B2500V2 recharge-mode invalid',
+    deviceType: 'HMA-1',
+    command: 'recharge-mode',
+    input: 'twoPhase',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 phase-diagnosis sends the bare seq_check flag',
+    deviceType: 'HMA-1',
+    command: 'phase-diagnosis',
+    input: 'PRESS',
+    expectedOutput: 'cd=27,seq_check',
+  },
+  {
+    description: 'B2500V2 phase-diagnosis ignores a non-press payload',
+    deviceType: 'HMA-1',
+    command: 'phase-diagnosis',
+    input: 'false',
+    expectedOutput: null,
+  },
+  {
     description: 'B2500V2 meter-type invalid',
     deviceType: 'HMA-1',
     command: 'meter-type',

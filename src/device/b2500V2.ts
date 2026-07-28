@@ -9,6 +9,7 @@ import {
   normalizeMeterMac,
   resolveMeterMac,
   isValidMeterType,
+  isValidB2500RechargeMode,
 } from '../types.js';
 import logger from '../logger.js';
 import {
@@ -873,6 +874,64 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:meter-electric',
         command: 'meter-type',
         valueMappings: meterTypeLabels,
+        enabled_by_default: false,
+      }),
+    );
+
+    // `cd=27` doubles as the grid recharge command, the same way `cd=18` does on
+    // the Venus and Jupiter. The device does not report the current value in any
+    // response hm2mqtt polls, so this entity shows the last value that was set
+    // rather than the device's own state.
+    command('recharge-mode', {
+      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
+        if (!isValidB2500RechargeMode(message)) {
+          logger.warn('Invalid recharge mode value:', message);
+          return;
+        }
+        updateDeviceState(() => ({ rechargeMode: message }));
+        publishCallback(
+          processCommand(
+            CommandType.SET_SMART_METER_TYPE,
+            { dchrg: message === 'threePhase' ? 1 : 0 },
+            deviceState.useFlashCommands,
+          ),
+        );
+      },
+    });
+    advertise(
+      ['rechargeMode'],
+      selectComponent<NonNullable<B2500V2DeviceData['rechargeMode']>>({
+        id: 'recharge_mode',
+        name: 'Recharge Mode',
+        icon: 'mdi:flash',
+        command: 'recharge-mode',
+        valueMappings: {
+          singlePhase: 'Single Phase',
+          threePhase: 'Three Phase',
+        },
+        enabled_by_default: false,
+      }),
+    );
+
+    // Starts the grid-phase detection routine. The device clears the stored
+    // phase and moves the CT status to "Preparing to diagnose CT001 (Step 1)",
+    // so progress can be followed on the CT Status sensor.
+    command('phase-diagnosis', {
+      handler: ({ message, publishCallback }) => {
+        if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
+          // `seq_check` is a bare flag, so it cannot go through processCommand.
+          publishCallback(`cd=${CommandType.SET_SMART_METER_TYPE},seq_check`);
+        }
+      },
+    });
+    advertise(
+      [],
+      buttonComponent({
+        id: 'phase_diagnosis',
+        name: 'Phase Diagnosis',
+        icon: 'mdi:sine-wave',
+        command: 'phase-diagnosis',
+        payload_press: 'PRESS',
         enabled_by_default: false,
       }),
     );

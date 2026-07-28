@@ -22,6 +22,8 @@
 - Jupiter: Add *Network* sensors (IP Address, Gateway, Subnet Mask, DNS Server, CT Connect IP). They appear once the device reports them and are disabled by default.
 - B2500: Add a *WiFi Signal Strength* sensor, in dBm. The device reports two "no reading" values (`0` and `32767`); both are published as unknown rather than as a signal level.
 - B2500 V2/V3: Add a *CT Type* sensor, disabled by default, showing which meter the device is currently configured for (CT001, CT002, CT003, Shelly Pro 3EM, Shelly EM Gen3, Shelly Pro EM50, P1 Meter or EcoTracker) — so the write-only *Meter Type* select can be checked against what the device actually took.
+- B2500 V2/V3: Add a *Recharge Mode* select (single/three phase) and a *Phase Diagnosis* button, matching the Venus and Jupiter. Both are disabled by default. The device never reports the recharge mode back, so that entity shows the last value set rather than the device's own state; phase diagnosis progress shows up on the existing *CT Status* sensor.
+- B2500, Venus & Jupiter: Add *EcoTracker* to the *Meter Type* options.
 
 ### Fixed
 
