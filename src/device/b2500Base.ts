@@ -232,10 +232,10 @@ export function registerBaseMessage({
   field({ key: 'uv', path: ['deviceInfo', 'bootloaderVersion'], transform: number() });
 
   // Wi-Fi RSSI, already signed and already in dBm (e.g. `ws=-79`) — unlike the
-  // Venus/Jupiter `wif_s`, which is an unsigned magnitude. The device also uses
-  // two "no reading" sentinels: 0 when the Wi-Fi module has no state yet, and
-  // 32767 (INT16_MAX) while the association is down. Both are filtered out so
-  // the sensor goes unknown instead of reporting an implausible value.
+  // Venus/Jupiter `wif_s`, which is an unsigned magnitude. Two values mean "no
+  // reading": 0 before the Wi-Fi module reports any state, and 32767 while the
+  // association is down. Both are filtered out so the sensor goes unknown
+  // instead of reporting an implausible signal level.
   field({ key: 'ws', path: ['wifiSignalStrength'], transform: inRange(-120, -1) });
   advertise(
     ['wifiSignalStrength'],

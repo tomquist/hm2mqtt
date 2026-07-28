@@ -205,9 +205,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       path: ['batteryOutputThreshold'],
       transform: number(),
     });
-    // Read-only on V2. The threshold setting is only offered on the V1 (HMB) —
-    // V2 models report the current value in `lv` but expose no way to change it,
-    // and there is no evidence their firmware accepts `cd=6`.
+    // Read-only on V2. The threshold setting is only offered on the V1 (HMB);
+    // V2 models report the current value in `lv` but do not act on `cd=6`.
     advertise(
       ['batteryOutputThreshold'],
       sensorComponent<number>({
@@ -505,8 +504,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         };
         const channelValue = aliases[message.toLowerCase()] ?? message;
         const channel = parseInt(channelValue, 10);
-        // The device accepts 0-3 (stored as phase 'A'-'D') and 255 for "none";
-        // anything else is dropped on the floor, so reject it here.
+        // The device accepts 0-3 and 255 for "none", and ignores anything else,
+        // so reject it here rather than sending something that does nothing.
         if (isNaN(channel) || (channel !== 255 && (channel < 0 || channel > 3))) {
           logger.warn('Invalid connected phase value:', message);
           return;
@@ -913,9 +912,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    // Starts the grid-phase detection routine. The device clears the stored
-    // phase and moves the CT status to "Preparing to diagnose CT001 (Step 1)",
-    // so progress can be followed on the CT Status sensor.
+    // Starts the grid-phase detection routine. The device clears the phase and
+    // moves the CT status to "Preparing to diagnose CT001 (Step 1)", so progress
+    // can be followed on the CT Status sensor.
     command('phase-diagnosis', {
       handler: ({ message, publishCallback }) => {
         if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {

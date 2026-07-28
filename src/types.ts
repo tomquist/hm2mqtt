@@ -109,7 +109,7 @@ export interface B2500BaseDeviceData extends BaseDeviceData {
   // Scene information (day/night/dusk)
   scene?: B2500Scene;
 
-  // Wi-Fi signal strength in dBm, from the (unsigned) `ws` field
+  // Wi-Fi signal strength in dBm, from the `ws` field (already signed)
   wifiSignalStrength?: number;
 
   // Output enabled states
@@ -391,8 +391,8 @@ export const meterTypeCommandCodes: Record<MeterType, number> = {
   ct003: 4,
   shellyEmGen3: 5,
   shellyProEm50: 6,
-  // Code 7 is confirmed accepted by B2500 V2 firmware. The Venus and Jupiter
-  // take the same meter codes on their own command, so it is offered there too.
+  // Code 7 is confirmed on the B2500. The Venus and Jupiter take the same meter
+  // codes on their own command, so it is offered there too.
   ecoTracker: 7,
 };
 

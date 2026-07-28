@@ -165,8 +165,8 @@ describe('MQTT Message Parser', () => {
     expect(ws('-79')).toBe(-79);
     expect(ws('-42')).toBe(-42);
 
-    // Both "no reading" sentinels are dropped: 0 (no Wi-Fi state yet) and
-    // 32767 / INT16_MAX (association down).
+    // Both "no reading" values are dropped: 0 (no Wi-Fi state yet) and
+    // 32767 (association down).
     expect(ws('0')).toBeUndefined();
     expect(ws('32767')).toBeUndefined();
 
