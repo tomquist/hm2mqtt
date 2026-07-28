@@ -10,3 +10,11 @@ export const DEFAULT_TOPIC_PREFIX = 'hm2mqtt';
  * `AUTODISCOVERY_TOPIC_PREFIX` is not provided.
  */
 export const DEFAULT_AUTODISCOVERY_TOPIC_PREFIX = 'homeassistant';
+
+/**
+ * Lower bound for how often the CT002 per-phase charge/discharge counters are
+ * polled. They are cumulative and move slowly, so there is no point requesting
+ * them at the runtime polling interval. A shorter `MQTT_POLLING_INTERVAL` does
+ * not lower this floor; a longer one wins.
+ */
+export const MIN_PHASE_ENERGY_POLL_INTERVAL_MS = 300000;

@@ -408,4 +408,329 @@ describe('Home Assistant Discovery', () => {
     expect(withPv.some(t => t.includes('pv3_'))).toBe(false);
     expect(withPv.some(t => t.includes('pv4_'))).toBe(false);
   });
+
+  test('should advertise the Venus parallel mode select disabled by default', () => {
+    const device: Device = { deviceType: 'VNSD-0', deviceId: 'venusD123' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/VNSD-0/device/venusD123/ctrl',
+      deviceTopicNew: 'marstek_energy/VNSD-0/device/venusD123/ctrl',
+      deviceControlTopicOld: 'hame_energy/VNSD-0/App/venusD123/ctrl',
+      deviceControlTopicNew: 'marstek_energy/VNSD-0/App/venusD123/ctrl',
+      availabilityTopic: 'hame_energy/VNSD-0/availability/venusD123',
+      controlSubscriptionTopic: 'hame_energy/VNSD-0/control/venusD123/control',
+      publishTopic: 'hame_energy/VNSD-0/device/venusD123/data',
+    };
+    const configsFor = (state: object) =>
+      generateDiscoveryConfigs(
+        device,
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      );
+
+    // Without a par reading the select stays deferred
+    expect(
+      configsFor({ batterySoc: 94 }).some(c => c.topic.includes('/parallel_mode/config')),
+    ).toBe(false);
+
+    // Enabling parallel operation rewires the units and disables backup power,
+    // so the control must never be advertised as enabled by default.
+    const config = configsFor({ parallelMode: 'off' }).find(c =>
+      c.topic.includes('/parallel_mode/config'),
+    )?.config;
+    expect(config).toMatchObject({ enabled_by_default: false });
+  });
+
+  const jupiterTopics = (deviceType: string, deviceId: string): DeviceTopics => ({
+    deviceTopicOld: `hame_energy/${deviceType}/device/${deviceId}/ctrl`,
+    deviceTopicNew: `marstek_energy/${deviceType}/device/${deviceId}/ctrl`,
+    deviceControlTopicOld: `hame_energy/${deviceType}/App/${deviceId}/ctrl`,
+    deviceControlTopicNew: `marstek_energy/${deviceType}/App/${deviceId}/ctrl`,
+    availabilityTopic: `hame_energy/${deviceType}/availability/${deviceId}`,
+    controlSubscriptionTopic: `hame_energy/${deviceType}/control/${deviceId}/control`,
+    publishTopic: `hame_energy/${deviceType}/device/${deviceId}/data`,
+  });
+
+  // An advertisement whose `enabled` predicate returns false is published as an
+  // explicit removal (`config: null`), so "offered" means a non-null config.
+  const isOffered = (configs: { config: unknown }[]) =>
+    configs.length === 1 && configs[0].config !== null;
+
+  test('should gate the Jupiter Bluetooth advertising switch on firmware 141', () => {
+    const device: Device = { deviceType: 'HMN-1', deviceId: 'jupiter123' };
+    const bleConfigs = (state: object) =>
+      generateDiscoveryConfigs(
+        device,
+        jupiterTopics('HMN-1', 'jupiter123'),
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      ).filter(c => c.topic.includes('bluetooth_advertising'));
+
+    expect(isOffered(bleConfigs({ deviceVersion: 140, bluetoothAdvertisingEnabled: true }))).toBe(
+      false,
+    );
+    expect(isOffered(bleConfigs({ deviceVersion: 141, bluetoothAdvertisingEnabled: true }))).toBe(
+      true,
+    );
+  });
+
+  test('should offer Jupiter battery pack recovery on Jupiter Plus only', () => {
+    const recoveryConfigs = (deviceType: string, state: object) =>
+      generateDiscoveryConfigs(
+        { deviceType, deviceId: 'jupiter123' },
+        jupiterTopics(deviceType, 'jupiter123'),
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        // The merged device state carries the device type the message was
+        // parsed for, just like the state built from a real payload.
+        { deviceType, ...state },
+      ).filter(c => c.topic.includes('battery_pack_recovery'));
+
+    // Jupiter Plus on new enough firmware: offered
+    expect(isOffered(recoveryConfigs('JPLS-8H', { deviceVersion: 135 }))).toBe(true);
+    // Jupiter Plus on older firmware: not offered
+    expect(isOffered(recoveryConfigs('JPLS-8H', { deviceVersion: 134 }))).toBe(false);
+    // Jupiter C / Jupiter E never offer it
+    expect(isOffered(recoveryConfigs('HMM-1', { deviceVersion: 240 }))).toBe(false);
+    expect(isOffered(recoveryConfigs('HMN-1', { deviceVersion: 240 }))).toBe(false);
+  });
+
+  test('should generate discovery configs for the SMR smart meter reader', () => {
+    const device: Device = { deviceType: 'SMR-0', deviceId: 'b8d08fc5f943' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/SMR-0/device/b8d08fc5f943/ctrl',
+      deviceTopicNew: 'marstek_energy/SMR-0/device/b8d08fc5f943/ctrl',
+      deviceControlTopicOld: 'hame_energy/SMR-0/App/b8d08fc5f943/ctrl',
+      deviceControlTopicNew: 'marstek_energy/SMR-0/App/b8d08fc5f943/ctrl',
+      availabilityTopic: 'hame_energy/SMR-0/availability/b8d08fc5f943',
+      controlSubscriptionTopic: 'hame_energy/SMR-0/control/b8d08fc5f943/control',
+      publishTopic: 'hame_energy/SMR-0/device/b8d08fc5f943/data',
+    };
+
+    const configs = generateDiscoveryConfigs(
+      device,
+      deviceTopics,
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
+      {},
+    );
+    const byObjectId = (objectId: string) =>
+      configs.find(c => c.topic.endsWith(`/${objectId}/config`));
+
+    expect(byObjectId('total_power')?.config).toMatchObject({
+      device_class: 'power',
+      unit_of_measurement: 'W',
+      state_topic: 'hame_energy/SMR-0/device/b8d08fc5f943/data/data',
+    });
+
+    // eng_t is a net reading in 0.1 Wh, so it is scaled and reported as `total`
+    expect(byObjectId('total_energy')?.config).toMatchObject({
+      device_class: 'energy',
+      unit_of_measurement: 'Wh',
+      state_class: 'total',
+    });
+
+    expect(byObjectId('p1_device_connected')?.config).toMatchObject({
+      device_class: 'connectivity',
+      payload_on: true,
+      payload_off: false,
+    });
+
+    // Diagnostics are advertised but off by default
+    expect(byObjectId('meter_number')?.config).toMatchObject({ enabled_by_default: false });
+    expect(byObjectId('phase_read_status')?.config).toMatchObject({ enabled_by_default: false });
+  });
+
+  test('should advertise the shared meter components for both CT002 and SMR', () => {
+    const objectIds = (deviceType: string, deviceId: string, state: object = {}) => {
+      const deviceTopics: DeviceTopics = {
+        deviceTopicOld: 'a',
+        deviceTopicNew: 'b',
+        deviceControlTopicOld: 'c',
+        deviceControlTopicNew: 'd',
+        availabilityTopic: 'e',
+        controlSubscriptionTopic: 'f',
+        publishTopic: 'g',
+      };
+      return generateDiscoveryConfigs(
+        { deviceType, deviceId },
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      ).map(c => c.topic.split('/').at(-2));
+    };
+
+    // The phase direction components are deferred until the device reports cur_d
+    const withDirection = {
+      phase1MeasurementReversed: false,
+      phase2MeasurementReversed: false,
+      phase3MeasurementReversed: false,
+    };
+
+    const shared = [
+      'timestamp',
+      'phase1_power',
+      'phase2_power',
+      'phase3_power',
+      'total_power',
+      'phase1_measurement_reversed',
+      'phase2_measurement_reversed',
+      'phase3_measurement_reversed',
+      'slave_count',
+      'bluetooth_signal',
+      'wifi_rssi',
+      'fc4_version',
+      'firmware_version',
+      'wifi_status',
+    ];
+
+    const ct002 = objectIds('HME-4', 'abcd', withDirection);
+    const smr = objectIds('SMR-0', 'b8d08fc5f943', withDirection);
+    for (const id of shared) {
+      expect(ct002).toContain(id);
+      expect(smr).toContain(id);
+    }
+
+    // The CT002 gets the shared components plus the meter buttons; the SMR
+    // adds its own reader-specific ones on top
+    const buttons = ['refresh', 'factory_reset', 'hardware_reset'];
+    expect(ct002.sort()).toEqual([...shared, ...buttons].sort());
+    expect(smr).toContain('total_energy');
+    expect(ct002).not.toContain('total_energy');
+
+    // Without cur_d data the direction components are deferred entirely
+    const noDirection = objectIds('HME-4', 'abcd');
+    expect(noDirection).not.toContain('phase1_measurement_reversed');
+  });
+
+  test('should expose the phase direction as a switch on CT002 but read-only on SMR', () => {
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'a',
+      deviceTopicNew: 'b',
+      deviceControlTopicOld: 'c',
+      deviceControlTopicNew: 'd',
+      availabilityTopic: 'e',
+      controlSubscriptionTopic: 'hm2mqtt/control/meter',
+      publishTopic: 'g',
+    };
+    const state = { phase1MeasurementReversed: true };
+    const configFor = (deviceType: string) =>
+      generateDiscoveryConfigs(
+        { deviceType, deviceId: 'meter' },
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      ).find(c => c.topic.endsWith('/phase1_measurement_reversed/config'));
+
+    const ct002 = configFor('HME-4');
+    expect(ct002?.topic).toContain('/switch/');
+    expect(ct002?.config).toMatchObject({
+      command_topic: 'hm2mqtt/control/meter/phase1-measurement-reversed',
+      enabled_by_default: false,
+    });
+
+    // cd=5 means something else on the SMR, so it stays read-only there
+    const smr = configFor('SMR-0');
+    expect(smr?.topic).toContain('/binary_sensor/');
+    expect(smr?.config).not.toHaveProperty('command_topic');
+  });
+
+  test('should advertise refresh and reset buttons on every meter type', () => {
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'a',
+      deviceTopicNew: 'b',
+      deviceControlTopicOld: 'c',
+      deviceControlTopicNew: 'd',
+      availabilityTopic: 'e',
+      controlSubscriptionTopic: 'hm2mqtt/control/meter',
+      publishTopic: 'g',
+    };
+
+    for (const deviceType of ['HME-4', 'TPM-CN', 'TPM2-0', 'SMR-0']) {
+      const configs = generateDiscoveryConfigs(
+        { deviceType, deviceId: 'meter' },
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        {},
+      ).filter(c => c.topic.includes('/button/'));
+
+      expect(configs.map(c => c.topic.split('/').at(-2)).sort()).toEqual([
+        'factory_reset',
+        'hardware_reset',
+        'refresh',
+      ]);
+      // Destructive or redundant, so off by default
+      for (const c of configs) {
+        expect(c.config).toMatchObject({ enabled_by_default: false });
+      }
+      expect(configs.find(c => c.topic.includes('refresh'))?.config).toMatchObject({
+        command_topic: 'hm2mqtt/control/meter/refresh',
+        payload_press: 'PRESS',
+      });
+    }
+  });
+
+  test('should defer the CT002 phase energy configs until cd=19 is answered', () => {
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'a',
+      deviceTopicNew: 'b',
+      deviceControlTopicOld: 'c',
+      deviceControlTopicNew: 'd',
+      availabilityTopic: 'e',
+      controlSubscriptionTopic: 'f',
+      publishTopic: 'hm2mqtt/HME-4/device/meter',
+    };
+    const phaseEnergyConfigs = (state: object) =>
+      generateDiscoveryConfigs(
+        { deviceType: 'HME-4', deviceId: 'meter' },
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      ).filter(c => /phase\d_(charge|discharge)/.test(c.topic));
+
+    expect(phaseEnergyConfigs({})).toHaveLength(0);
+
+    const answered = phaseEnergyConfigs({
+      phase1Charge: 100,
+      phase2Charge: 200,
+      phase3Charge: 300,
+      phase1Discharge: 10,
+      phase2Discharge: 20,
+      phase3Discharge: 30,
+    });
+    expect(answered).toHaveLength(6);
+    // Published on their own path, and with no unit claimed
+    expect(answered[0].config).toMatchObject({
+      state_topic: 'hm2mqtt/HME-4/device/meter/phase_energy',
+      enabled_by_default: false,
+    });
+    // The scale of these counters is unknown, so no unit or device class is claimed
+    expect(answered[0].config?.unit_of_measurement).toBeUndefined();
+    expect(answered[0].config?.device_class).toBeUndefined();
+
+    // The SMR family gets its energy from eng_t instead
+    const smr = generateDiscoveryConfigs(
+      { deviceType: 'SMR-0', deviceId: 'meter' },
+      deviceTopics,
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
+      { phase1Charge: 100 },
+    ).filter(c => /phase\d_charge/.test(c.topic));
+    expect(smr).toHaveLength(0);
+  });
 });

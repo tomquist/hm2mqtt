@@ -3,13 +3,7 @@ import './device/registry.js';
 import logger from './logger.js';
 import { ControlHandler } from './controlHandler.js';
 import { DeviceManager, DeviceStateData } from './deviceManager.js';
-import {
-  MqttConfig,
-  Device,
-  B2500V2DeviceData,
-  B2500BaseDeviceData,
-  B2500V1DeviceData,
-} from './types.js';
+import { MqttConfig, Device, B2500V2DeviceData, B2500BaseDeviceData } from './types.js';
 import { DEFAULT_TOPIC_PREFIX } from './constants.js';
 
 describe('ControlHandler', () => {
@@ -19,7 +13,6 @@ describe('ControlHandler', () => {
   let testDeviceV1: Device;
   let testDeviceV2: Device;
   let deviceState: B2500BaseDeviceData;
-  let deviceStateV1: B2500V1DeviceData;
   let deviceStateV2: B2500V2DeviceData;
 
   beforeEach(() => {
@@ -44,11 +37,9 @@ describe('ControlHandler', () => {
     };
 
     deviceState = undefined as any;
-    deviceStateV1 = undefined as any;
     deviceStateV2 = undefined as any;
     const stateUpdateHandler = (device: Device, publishPath: string, state: DeviceStateData) => {
       deviceState = state as B2500BaseDeviceData;
-      deviceStateV1 = state as B2500V1DeviceData;
       deviceStateV2 = state as B2500V2DeviceData;
     };
     deviceManager = new DeviceManager(config, stateUpdateHandler);
@@ -275,6 +266,33 @@ describe('ControlHandler', () => {
       // Restore timers
       jest.useRealTimers();
     });
+
+    test('should sync the local wall-clock time, not UTC', () => {
+      // The device expects the local date/time fields alongside the matching UTC
+      // offset. Simulate UTC+9, where 2023-01-01T12:30:45Z is local 21:30:45 on
+      // the same day: the payload must carry the local hour, not the UTC one.
+      // The local getters are stubbed rather than setting process.env.TZ, which
+      // Node does not re-read once the process has started.
+      jest.useFakeTimers().setSystemTime(new Date(Date.UTC(2023, 0, 1, 12, 30, 45)));
+      jest.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-540);
+      jest.spyOn(Date.prototype, 'getFullYear').mockReturnValue(2023);
+      jest.spyOn(Date.prototype, 'getMonth').mockReturnValue(0);
+      jest.spyOn(Date.prototype, 'getDate').mockReturnValue(1);
+      jest.spyOn(Date.prototype, 'getHours').mockReturnValue(21);
+      jest.spyOn(Date.prototype, 'getMinutes').mockReturnValue(30);
+      jest.spyOn(Date.prototype, 'getSeconds').mockReturnValue(45);
+
+      try {
+        handleControlTopic(testDeviceV2, 'sync-time', 'PRESS');
+
+        expect(publishCallback).toHaveBeenCalledWith(
+          testDeviceV2,
+          expect.stringContaining('cd=8,wy=540,yy=123,mm=0,rr=1,hh=21,mn=30,ss=45'),
+        );
+      } finally {
+        jest.useRealTimers();
+      }
+    });
     test('should handle sync-time control topic with JSON', () => {
       // Call the method with a sync time JSON message
       const timeData = {
@@ -391,6 +409,138 @@ describe('ControlHandler', () => {
       );
 
       // Check that the publish callback was not called
+      expect(publishCallback).not.toHaveBeenCalled();
+    });
+  });
+  describe('CT002 phase measurement direction', () => {
+    let ct002: Device;
+
+    beforeEach(() => {
+      ct002 = { deviceType: 'HME-4', deviceId: 'ct002device' };
+      const config: MqttConfig = {
+        brokerUrl: 'mqtt://test.mosquitto.org',
+        clientId: 'test-client',
+        topicPrefix: DEFAULT_TOPIC_PREFIX,
+        autodiscoveryTopicPrefix: 'homeassistant',
+        devices: [ct002],
+        responseTimeout: 15000,
+      };
+      deviceManager = new DeviceManager(config, () => {});
+      publishCallback = jest.fn();
+      controlHandler = new ControlHandler(deviceManager, publishCallback);
+    });
+
+    test('should fold the switched phase into the reported bitmask', () => {
+      // Device currently reports phases 1 and 3 reversed (cur_d=5)
+      deviceManager.updateDeviceState(ct002, 'data', () => ({
+        phase1MeasurementReversed: true,
+        phase2MeasurementReversed: false,
+        phase3MeasurementReversed: true,
+      }));
+
+      // Turning phase 2 on must keep 1 and 3 set: 1 | 2 | 4 = 7
+      handleControlTopic(ct002, 'phase2-measurement-reversed', 'true');
+      expect(publishCallback).toHaveBeenCalledWith(ct002, 'cd=5,p1=7');
+
+      // Turning phase 1 back off leaves 2 and 3: 2 | 4 = 6
+      handleControlTopic(ct002, 'phase1-measurement-reversed', 'false');
+      expect(publishCallback).toHaveBeenLastCalledWith(ct002, 'cd=5,p1=6');
+    });
+
+    test('should use the p1 parameter on TPM-CN and dir on TPM2', () => {
+      const cases: Array<[string, string]> = [
+        ['TPM-CN', 'cd=5,p1=1'],
+        ['TPM2-0', 'cd=5,dir=1'],
+      ];
+
+      for (const [deviceType, expected] of cases) {
+        const device: Device = { deviceType, deviceId: 'tpmdevice' };
+        const config: MqttConfig = {
+          brokerUrl: 'mqtt://test.mosquitto.org',
+          clientId: 'test-client',
+          topicPrefix: DEFAULT_TOPIC_PREFIX,
+          autodiscoveryTopicPrefix: 'homeassistant',
+          devices: [device],
+          responseTimeout: 15000,
+        };
+        deviceManager = new DeviceManager(config, () => {});
+        publishCallback = jest.fn();
+        controlHandler = new ControlHandler(deviceManager, publishCallback);
+
+        handleControlTopic(device, 'phase1-measurement-reversed', 'true');
+        expect(publishCallback).toHaveBeenCalledWith(device, expected);
+      }
+    });
+
+    test('should optimistically update the state before the next poll', () => {
+      deviceManager.updateDeviceState(ct002, 'data', () => ({
+        phase1MeasurementReversed: false,
+      }));
+
+      handleControlTopic(ct002, 'phase1-measurement-reversed', 'true');
+
+      expect(deviceManager.getDeviceState(ct002)).toHaveProperty('phase1MeasurementReversed', true);
+    });
+
+    test('should not register the command for SMR devices', () => {
+      const smr: Device = { deviceType: 'SMR-0', deviceId: 'smrdevice' };
+      const config: MqttConfig = {
+        brokerUrl: 'mqtt://test.mosquitto.org',
+        clientId: 'test-client',
+        topicPrefix: DEFAULT_TOPIC_PREFIX,
+        autodiscoveryTopicPrefix: 'homeassistant',
+        devices: [smr],
+        responseTimeout: 15000,
+      };
+      deviceManager = new DeviceManager(config, () => {});
+      publishCallback = jest.fn();
+      controlHandler = new ControlHandler(deviceManager, publishCallback);
+
+      handleControlTopic(smr, 'phase1-measurement-reversed', 'true');
+
+      // cd=5 configures the attached smart meter on the SMR, so nothing is sent
+      expect(publishCallback).not.toHaveBeenCalled();
+    });
+  });
+  describe('meter buttons', () => {
+    const meter = (deviceType: string): Device => ({ deviceType, deviceId: 'meterdevice' });
+
+    const setUp = (device: Device) => {
+      const config: MqttConfig = {
+        brokerUrl: 'mqtt://test.mosquitto.org',
+        clientId: 'test-client',
+        topicPrefix: DEFAULT_TOPIC_PREFIX,
+        autodiscoveryTopicPrefix: 'homeassistant',
+        devices: [device],
+        responseTimeout: 15000,
+      };
+      deviceManager = new DeviceManager(config, () => {});
+      publishCallback = jest.fn();
+      controlHandler = new ControlHandler(deviceManager, publishCallback);
+    };
+
+    test.each(['HME-4', 'TPM-CN', 'TPM2-0', 'SMR-0'])(
+      'should send refresh, factory reset and hardware reset on %s',
+      deviceType => {
+        const device = meter(deviceType);
+        setUp(device);
+
+        handleControlTopic(device, 'refresh', 'PRESS');
+        expect(publishCallback).toHaveBeenLastCalledWith(device, 'cd=1');
+
+        handleControlTopic(device, 'factory-reset', 'PRESS');
+        expect(publishCallback).toHaveBeenLastCalledWith(device, 'cd=11');
+
+        handleControlTopic(device, 'hardware-reset', 'PRESS');
+        expect(publishCallback).toHaveBeenLastCalledWith(device, 'cd=8');
+      },
+    );
+
+    test('should ignore a non-press payload', () => {
+      const device = meter('HME-4');
+      setUp(device);
+
+      handleControlTopic(device, 'factory-reset', 'off');
       expect(publishCallback).not.toHaveBeenCalled();
     });
   });

@@ -3,28 +3,49 @@ import {
   globalPollInterval,
   registerDeviceDefinition,
 } from '../deviceDefinition.js';
-import { CT002DeviceData } from '../types.js';
+import { CT002DeviceData, CT002PhaseEnergyInfo } from '../types.js';
+import { MIN_PHASE_ENERGY_POLL_INTERVAL_MS } from '../constants.js';
 import { sensorComponent } from '../homeAssistantDiscovery.js';
-import { number, identity } from '../transforms.js';
+import { number } from '../transforms.js';
+import { extractMeterDeviceInfo, registerMeterBaseFields } from './meterBase.js';
 
+/**
+ * Marstek CT002 smart meter. Three device types are sold under the CT002 model
+ * and all speak the same protocol:
+ *
+ * - `HME-4` — CT002
+ * - `TPM-CN` — CT002-CN
+ * - `TPM2-0` — CT002, sold as the TPM2-100CT
+ *
+ * (`HME-2` is a CT002 as well and shares the `HME` base type with `HME-4`.)
+ */
 const requiredRuntimeInfoKeys = ['pwr_a', 'pwr_b', 'pwr_c', 'pwr_t'];
 
 function isCt002RuntimeInfoMessage(values: Record<string, string>): boolean {
   return requiredRuntimeInfoKeys.every(k => k in values);
 }
 
-function extractAdditionalDeviceInfo(state: CT002DeviceData) {
-  return {
-    firmwareVersion: state.firmwareVersion?.toString(),
-  };
+const phaseEnergyFields = [
+  { key: 'ca', path: 'phase1Charge', id: 'phase1_charge', name: 'Phase 1 Charge' },
+  { key: 'cb', path: 'phase2Charge', id: 'phase2_charge', name: 'Phase 2 Charge' },
+  { key: 'cc', path: 'phase3Charge', id: 'phase3_charge', name: 'Phase 3 Charge' },
+  { key: 'da', path: 'phase1Discharge', id: 'phase1_discharge', name: 'Phase 1 Discharge' },
+  { key: 'db', path: 'phase2Discharge', id: 'phase2_discharge', name: 'Phase 2 Discharge' },
+  { key: 'dc', path: 'phase3Discharge', id: 'phase3_discharge', name: 'Phase 3 Discharge' },
+] as const;
+
+function isPhaseEnergyMessage(values: Record<string, string>): boolean {
+  // The `cd=19` acknowledgement of a write carries `ret` instead of the counters.
+  return !('ret' in values) && phaseEnergyFields.every(({ key }) => key in values);
 }
 
 registerDeviceDefinition(
   {
-    deviceTypes: ['HME'],
+    deviceTypes: ['HME', 'TPM', 'TPM2'],
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
+    registerPhaseEnergyMessage(message);
   },
 );
 
@@ -34,117 +55,51 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     isMessage: isCt002RuntimeInfoMessage,
     publishPath: 'data',
     defaultState: {},
-    getAdditionalDeviceInfo: extractAdditionalDeviceInfo,
+    getAdditionalDeviceInfo: extractMeterDeviceInfo,
     pollInterval: globalPollInterval,
     controlsDeviceAvailability: true,
   } as const;
-  message<CT002DeviceData>(options, ({ field, advertise }) => {
-    advertise(
-      ['timestamp'],
-      sensorComponent<string>({
-        id: 'timestamp',
-        name: 'Last Update',
-        device_class: 'timestamp',
-        icon: 'mdi:clock',
-      }),
-    );
+  // The CT002 is the one meter whose `cd=5` is the phase direction command, so
+  // it gets switches rather than read-only sensors.
+  message<CT002DeviceData>(options, args =>
+    registerMeterBaseFields(args, { settablePhaseMeasurementDirection: true }),
+  );
+}
 
-    // Power measurements - use declarative number() transform (explicit, same as default)
-    field({ key: 'pwr_a', path: ['phase1Power'], transform: number() });
-    advertise(
-      ['phase1Power'],
-      sensorComponent<number>({
-        id: 'phase1_power',
-        name: 'Phase 1 Power',
-        device_class: 'power',
-        unit_of_measurement: 'W',
-        state_class: 'measurement',
-      }),
-    );
-
-    field({ key: 'pwr_b', path: ['phase2Power'], transform: number() });
-    advertise(
-      ['phase2Power'],
-      sensorComponent<number>({
-        id: 'phase2_power',
-        name: 'Phase 2 Power',
-        device_class: 'power',
-        unit_of_measurement: 'W',
-        state_class: 'measurement',
-      }),
-    );
-
-    field({ key: 'pwr_c', path: ['phase3Power'], transform: number() });
-    advertise(
-      ['phase3Power'],
-      sensorComponent<number>({
-        id: 'phase3_power',
-        name: 'Phase 3 Power',
-        device_class: 'power',
-        unit_of_measurement: 'W',
-        state_class: 'measurement',
-      }),
-    );
-
-    field({ key: 'pwr_t', path: ['totalPower'], transform: number() });
-    advertise(
-      ['totalPower'],
-      sensorComponent<number>({
-        id: 'total_power',
-        name: 'Total Power',
-        device_class: 'power',
-        unit_of_measurement: 'W',
-        state_class: 'measurement',
-      }),
-    );
-
-    field({ key: 'ble_s', path: ['bluetoothSignal'], transform: number() });
-    advertise(
-      ['bluetoothSignal'],
-      sensorComponent<number>({
-        id: 'bluetooth_signal',
-        name: 'Bluetooth Signal',
-      }),
-    );
-
-    field({ key: 'wif_r', path: ['wifiRssi'], transform: number() });
-    advertise(
-      ['wifiRssi'],
-      sensorComponent<number>({
-        id: 'wifi_rssi',
-        name: 'WiFi RSSI',
-        device_class: 'signal_strength',
-        unit_of_measurement: 'dBm',
-        state_class: 'measurement',
-      }),
-    );
-
-    // String field - use identity() declarative transform instead of inline function
-    field({ key: 'fc4_v', path: ['fc4Version'], transform: identity() });
-    advertise(
-      ['fc4Version'],
-      sensorComponent<string>({
-        id: 'fc4_version',
-        name: 'FC41D Firmware',
-      }),
-    );
-
-    field({ key: 'ver_v', path: ['firmwareVersion'], transform: number() });
-    advertise(
-      ['firmwareVersion'],
-      sensorComponent<number>({
-        id: 'firmware_version',
-        name: 'Firmware Version',
-      }),
-    );
-
-    field({ key: 'wif_s', path: ['wifiStatus'], transform: number() });
-    advertise(
-      ['wifiStatus'],
-      sensorComponent<number>({
-        id: 'wifi_status',
-        name: 'WiFi Status',
-      }),
-    );
-  });
+/**
+ * Per-phase charge/discharge counters, requested with `cd=19`. They are not part
+ * of the `cd=1` runtime payload, so they need their own poll.
+ *
+ * The counters are published raw: `ca`/`cb`/`cc` are the per-phase charge
+ * counters and `da`/`db`/`dc` the discharge ones, but their unit and scale could
+ * not be established, so no `device_class` or `unit_of_measurement` is claimed.
+ * All six are disabled by default.
+ */
+function registerPhaseEnergyMessage(message: BuildMessageFn) {
+  message<CT002PhaseEnergyInfo>(
+    {
+      refreshDataPayload: 'cd=19',
+      isMessage: isPhaseEnergyMessage,
+      publishPath: 'phase_energy',
+      defaultState: {},
+      getAdditionalDeviceInfo: () => ({}),
+      pollInterval: Math.max(globalPollInterval, MIN_PHASE_ENERGY_POLL_INTERVAL_MS),
+      controlsDeviceAvailability: false,
+    },
+    ({ field, advertise }) => {
+      for (const { key, path, id, name } of phaseEnergyFields) {
+        field({ key, path: [path], transform: number() });
+        advertise(
+          [path],
+          sensorComponent<number>({
+            id,
+            name,
+            icon: 'mdi:counter',
+            enabled_by_default: false,
+          }),
+          { enabled: state => (state[path] != null ? true : undefined) },
+        );
+      }
+    },
+  );
 }

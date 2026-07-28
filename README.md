@@ -2,6 +2,19 @@
 
 Reads Hame energy storage MQTT data, parses it and exposes it as JSON.
 
+<!-- marstek-family:start -->
+**🔋 The Marstek ecosystem.** This repo is part of a family of open-source tools for Marstek batteries (B2500, Venus, Jupiter, …):
+
+| Project | What it does |
+|---|---|
+| **hm2mqtt** (this repo) | Brings your battery into your smart home, turning its raw data into readable sensors and controls (e.g. in Home Assistant) |
+| [hame-relay](https://github.com/tomquist/hame-relay) | Connects the official Marstek cloud/app and your local smart home so both work together, forwarding data whichever way your battery is set up |
+| [marsrelay](https://github.com/tomquist/marsrelay) | Runs your battery completely offline, with no internet or Marstek cloud, while still sending all its data to your smart home |
+| [AstraMeter](https://github.com/tomquist/astrameter) | Tells your battery your live grid usage (read from your existing meter) so it charges and discharges to avoid buying or selling power |
+| [hmjs](https://github.com/tomquist/hmjs) | Sets up and configures B2500 batteries over Bluetooth, right from your web browser, with no app or account needed |
+| [esphome-b2500](https://github.com/tomquist/esphome-b2500) | Continuously monitors and controls a B2500 over Bluetooth using a small ESP32 board |
+<!-- marstek-family:end -->
+
 ## Overview
 
 hm2mqtt is a bridge application that connects Hame energy storage devices (like the B2500 series) to Home Assistant (or other home automation systems) through MQTT. It provides real-time monitoring and control of your energy storage system directly from your Home Assistant dashboard.
@@ -18,7 +31,8 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 - Marstek Jupiter C
 - Marstek Jupiter E
 - Marstek Jupiter Plus
-- Marstek CT002 Smart Meter
+- Marstek CT002 Smart Meter (including the CT002-CN and the TPM2-100CT)
+- Marstek CT003 Smart Meter Reader (device types `SMR-0` P1, `SMR-1` Infrared, `SMR-2` TIC)
 - Marstek HMI micro inverters (MI800, HMI-2000 with 4 PV inputs)
 
 ## Prerequisites
@@ -488,6 +502,9 @@ The device type can be one of the following:
 - **HMM-X**: (e.g. HMM-1) Marstek Jupiter C
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus
 - **HME-X**: (e.g. HME-3) Marstek CT002 Smart Meter
+- **TPM-CN**: Marstek CT002-CN Smart Meter
+- **TPM2-X**: (e.g. TPM2-0) Marstek TPM2-100CT Smart Meter
+- **SMR-X**: Marstek CT003 Smart Meter Reader — `SMR-0` P1, `SMR-1` Infrared, `SMR-2` TIC
 - **HMI-X**: (e.g. HMI-1) Marstek HMI micro inverters, including the MI800 and the 4-PV HMI-2000
 
 ## Using the Development Version
@@ -605,16 +622,18 @@ homeassistant/{component}/{node_id}/{object_id}/config
 - `time-period/[1-5]/start-time`: Sets start time for period (HH:MM format)
 - `time-period/[1-5]/end-time`: Sets end time for period (HH:MM format)
 - `time-period/[1-5]/output-value`: Sets output power for period (0-800W)
-- `connected-phase`: Sets connected phase for CT meter (`1`, `2`, or `3`)
-- `time-zone`: Sets time zone (UTC offset in hours)
+- `connected-phase`: Sets connected phase for CT meter (`0`, `1` or `2` for phase 1, 2 and 3, `3`/`searching` for the searching state, or `255`/`none` for no phase)
+- `time-zone`: Sets time zone (UTC offset in minutes, e.g. `60` for UTC+1)
 - `sync-time`: Synchronizes device time with server
 - `surplus-feed-in`: Toggles Surplus Feed-in mode (`on` or `off`). When enabled, surplus PV power is fed into the home grid when the battery is nearly full.
+- `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`). The device does not report this back, so the entity shows the last value set.
+- `phase-diagnosis`: Starts grid-phase detection. Progress shows up on the *CT Status* sensor.
 
 ### Venus Device Commands
 - `working-mode`: Sets working mode (`automatic`, `manual`, `trading`, or `ai`). The `ai` value expands to `cd=2,md=5,nl=1` (AI mode requires both `md=5` and `nl=1`).
 - `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`)
 - `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped)
-- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `ct002`, `ct003`, `shellyEmGen3`, or `shellyProEm50`). For CT002/CT003 and the Shelly EM Gen3/Pro EM50, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC.
+- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50` or `ecoTracker`). For CT002/CT003 and the Shelly EM Gen3/Pro EM50, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC.
 - `auto-switch-working-mode`: Toggles automatic mode switching (`on` or `off`)
 - `time-period/[0-9]/enabled`: Enables/disables time period (`on` or `off`)
 - `time-period/[0-9]/start-time`: Sets start time for period (HH:MM format)
@@ -629,6 +648,32 @@ homeassistant/{component}/{node_id}/{object_id}/config
 - `surplus-feed-in`: Toggles surplus feed-in into the grid (`on` or `off`). Only available on Venus models with PV inputs (Venus A/D).
 - `bluetooth-advertising`: Toggles Bluetooth advertising (`on` enables advertising, `off` disables it / "Bluetooth lock")
 - `phase-diagnosis`: Starts the grid-phase detection routine
+- `peak-shaving`: Toggles peak shaving, which caps the power drawn from the grid (`on` or `off`). Only available on firmware that reports the peak-shaving state (control v150 and up on Venus D/E).
+- `peak-shaving-power`: Sets the peak-shaving power cap in watts. Only takes effect on the device while peak shaving is enabled; while it is off the value is stored and applied the next time you enable it.
+- `parallel-mode`: Controls parallel operation (`off`, `wiringCheck` or `on`), which links several units into one group for a higher combined output. **Disabled by default, and best left that way unless you know you need it** — see the warning below.
+
+#### Parallel mode
+
+Parallel operation is a wiring-level change, not a software setting: the units
+have to be physically cabled together, and the command only tells them to run in
+that configuration. The Marstek app puts it behind a "⚠️ Parallel Connection
+Safety Notice" warning that it involves high-voltage output, that improper
+operation may damage the devices, that you must not operate under load, and that
+it should not be attempted unless you are a qualified professional.
+
+Two things are worth knowing before you touch it:
+
+- **The order differs between on and off.** Enabling comes first and the rewiring
+  second (power off, then reconnect). Disabling is the reverse: power off every
+  device in the group and remove the wiring *first*, then turn parallel mode off.
+- **Parallel mode disables backup power.** While a group runs in off-grid
+  parallel mode the backup/EPS function is unavailable, so the *Backup Power*
+  switch will not work.
+
+The `wiringCheck` value is the app's own verification step — it runs that before
+enabling. The matching *Parallel Mode* entity reports the current state (*Turned
+Off*, *Wiring Check*, *Turned On*, or *Unknown* on units that do not support
+parallel operation).
 
 ### Jupiter Device Commands
 
@@ -640,7 +685,10 @@ The following commands are supported by both Jupiter C, Jupiter E and Jupiter Pl
 - `working-mode`: Sets working mode (`automatic`, `manual`, or `ai`). The `ai` value expands to `cd=2,md=5,nl=1` (AI mode requires both `md=5` and `nl=1`).
 - `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`)
 - `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped)
-- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `ct002`, `ct003`, `shellyEmGen3`, or `shellyProEm50`). For CT002/CT003 and the Shelly EM Gen3/Pro EM50, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC.
+- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50` or `ecoTracker`). For CT002/CT003 and the Shelly EM Gen3/Pro EM50, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC.
+- `bluetooth-advertising`: Toggles Bluetooth advertising (`on` enables advertising, `off` disables it / "Bluetooth lock"). Requires firmware 141 or newer.
+- `phase-diagnosis`: Starts the grid-phase detection routine
+- `battery-pack-recovery`: Reactivates an unresponsive battery pack. Jupiter Plus only, firmware 135 or newer.
 - `time-period/[0-4]/enabled`: Enables/disables time period (`on` or `off`)
 - `time-period/[0-4]/start-time`: Sets start time for period (HH:MM format)
 - `time-period/[0-4]/end-time`: Sets end time for period (HH:MM format)
@@ -648,6 +696,14 @@ The following commands are supported by both Jupiter C, Jupiter E and Jupiter Pl
 - `time-period/[0-4]/weekday`: Sets days of week for period (0-6, where 0 is Sunday)
 
 > **Note:** The Jupiter does not support trading mode or auto-switch working mode.
+
+### Smart Meter Commands (CT002 and CT003)
+- `refresh`: Requests the device data immediately, instead of waiting for the next poll
+- `factory-reset`: Resets the meter to factory settings
+- `hardware-reset`: Performs a hardware reset of the meter
+- `phase1-measurement-reversed` / `phase2-measurement-reversed` / `phase3-measurement-reversed`: Inverts the measurement direction of that phase (`on` or `off`). CT002 device types only (`HME-X`, `TPM-CN`, `TPM2-X`); on the CT003 readers the measurement direction is reported but cannot be set.
+
+All meter entities are disabled by default. See [docs/meters.md](docs/meters.md) for the underlying MQTT protocol.
 
 ### Examples
 
@@ -669,6 +725,9 @@ mosquitto_pub -t "hm2mqtt/HMG-50/control/abcdef123456/time-period/1/enabled" -m 
 
 # Enable timer period 0 on Jupiter Plus device
 mosquitto_pub -t "hm2mqtt/JPLS/control/abcdef123456/time-period/0/enabled" -m "on"
+
+# Reverse the measurement direction of phase 1 on a CT002 smart meter
+mosquitto_pub -t "hm2mqtt/HME-4/control/abcdef123456/phase1-measurement-reversed" -m "on"
 ```
 
 ## License

@@ -1,17 +1,14 @@
-import { B2500V2DeviceData } from './types.js';
 import {
   KeyPath,
   BaseDeviceData,
   getDeviceDefinition,
   FieldDefinition,
-  TypeAtPath,
 } from './deviceDefinition.js';
 import { transformNumber } from './device/helpers.js';
 import logger from './logger.js';
 import {
   Transform,
   MultiKeyTransform,
-  isMultiKeyTransform,
   executeTransform,
   executeMultiKeyTransform,
 } from './transforms.js';
@@ -120,9 +117,18 @@ function applyMessageDefinition<T extends BaseDeviceData>(
     } else if (field.transform != null) {
       // Multi-key field
       let entries = key.map(key => [key, values[key]] as const);
-      if (entries.every(([, value]) => value !== undefined)) {
+      const presentEntries = entries.filter(([, value]) => value !== undefined);
+      // For aggregate fields flagged as partial-friendly, compute from whatever
+      // keys are present and skip silently when none are (e.g. total PV power on
+      // devices that report a variable number of PV strings). Otherwise require
+      // all keys and warn when only some are present.
+      if (
+        field.allowPartial ? presentEntries.length > 0 : presentEntries.length === entries.length
+      ) {
         const transform = field.transform;
-        const valuesObj = Object.fromEntries(entries) as Record<string, string>;
+        const valuesObj = Object.fromEntries(
+          field.allowPartial ? presentEntries : entries,
+        ) as Record<string, string>;
         let transformedValue: unknown;
 
         if (isDeclarativeTransform(transform)) {
@@ -134,7 +140,7 @@ function applyMessageDefinition<T extends BaseDeviceData>(
         }
 
         setValueAtPath(parsedData, field.path, transformedValue);
-      } else {
+      } else if (!field.allowPartial) {
         logger.warn(`Some values are missing for field ${field.path.join('.')}`);
       }
     } else {
@@ -152,15 +158,18 @@ function applyMessageDefinition<T extends BaseDeviceData>(
  */
 function setValueAtPath<T>(obj: T, path: KeyPath<T>, value: any): void {
   let current = obj as any;
+  // Path elements are always string | number at runtime; narrowing the local
+  // view avoids resolving the deeply recursive KeyPath<T> element type here.
+  const keys = path as readonly (string | number)[];
 
   // Navigate to the second-to-last element in the path
-  for (let i = 0; i < path.length - 1; i++) {
-    const key = path[i];
+  for (let i = 0; i < keys.length - 1; i++) {
+    const key = keys[i];
 
     // Create the object if it doesn't exist
     if (current[key] === undefined) {
       // If the next key is a number or can be parsed as a number, create an array
-      const nextKey = path[i + 1];
+      const nextKey = keys[i + 1];
       const isNextKeyNumeric =
         typeof nextKey === 'number' ||
         (typeof nextKey === 'string' && !isNaN(parseInt(nextKey, 10)));
@@ -171,6 +180,6 @@ function setValueAtPath<T>(obj: T, path: KeyPath<T>, value: any): void {
   }
 
   // Set the value at the last path element
-  const lastKey = path[path.length - 1];
+  const lastKey = keys[keys.length - 1];
   current[lastKey] = value;
 }

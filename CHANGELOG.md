@@ -1,4 +1,41 @@
 # Changelog
+## [1.9.0] - 2026-07-28
+
+### Added
+
+- Support the `SMR-X` device type: the Marstek CT003 Smart Meter Reader (`SMR-0` P1, `SMR-1` Infrared, `SMR-2` TIC). It reports the same per-phase and total power as the CT002 smart meter, plus a *Total Energy* sensor and a *P1 Device Connected* binary sensor, and the *Meter Number*, *P1 Read Status*, *Infrared Read Status* and *Phase Read Status* diagnostic sensors, which are disabled by default (fixes #379)
+- Support the `TPM-CN` and `TPM2-X` device types, the Marstek CT002-CN and TPM2-100CT smart meters. They get the same entities as the `HME-X` CT002.
+- CT002 & CT003: Add *Refresh*, *Factory Reset* and *Hardware Reset* buttons, matching the B2500, Venus and Jupiter devices. Disabled by default.
+- CT002 & CT003: Add *Phase 1/2/3 Measurement Reversed* entities, showing which phases the meter measures in reverse. On the CT002 they are switches, so the direction can be corrected from Home Assistant; on the CT003 readers the meter offers no such setting, so they are read-only. They appear once the meter has reported its current setting, and are disabled by default.
+- CT002 & CT003: Add a *Slave Count* sensor, disabled by default.
+- CT002: Add *Phase 1/2/3 Charge* and *Phase 1/2/3 Discharge* counters, disabled by default. The meter does not say what unit these are in, so they are published as reported, without a unit — if you can match them against your meter's own readings, please report what you find.
+- Docs: Add [docs/meters.md](docs/meters.md), documenting the MQTT protocol of the CT002 and CT003 meters.
+- Venus: Add *Peak Shaving* switch and *Peak Shaving Power* number entities, capping how much power the device draws from the grid (`cd=63`). Supported from control firmware v150 on the Venus D and Venus E; the entities appear once the device reports the `peak_status`/`peak_power` fields.
+- Venus: Add *Battery Power* and *Grid Power* sensors, read from the `bp` and `gp` fields reported by newer firmware, plus a *Battery Power (Calculated)* sensor for the `rp` field (disabled by default). The Marstek app shows either `bp` or `rp` depending on a per-model flag that could not be recovered from the app, so both are published.
+- Venus: Add a *Parallel Mode* select for running several units in parallel (`cd=23`), along with the `par` status field it reports (*Turned Off*, *Wiring Check*, *Turned On*). Disabled by default: parallel operation is a wiring-level change that also makes the backup/EPS function unavailable, so it has to be switched on deliberately. See [the README](README.md#parallel-mode) for what it does and the order the wiring steps have to happen in.
+- Jupiter: Add *PV1–PV4 Active* binary sensors, showing which PV strings are currently producing.
+- Jupiter: Add a *Battery Packs* sensor with the number of attached battery packs.
+- Jupiter: Add a *Bluetooth Advertising* switch to turn Bluetooth discovery on or off (the app's "Bluetooth Lock", inverted). Requires firmware 141 or newer.
+- Jupiter: Add a *Phase Diagnosis* button to start grid-phase detection, plus a *Phase Diagnosis Status* sensor.
+- Jupiter: Add a *Battery Pack Recovery* button to reactivate an unresponsive battery pack. Jupiter Plus only, firmware 135 or newer, disabled by default.
+- Jupiter: Add a *Screen Version* and a *Shelly Port* sensor, both disabled by default.
+- Jupiter: Add *Network* sensors (IP Address, Gateway, Subnet Mask, DNS Server, CT Connect IP). They appear once the device reports them and are disabled by default.
+- B2500: Add a *WiFi Signal Strength* sensor, in dBm. The device reports two "no reading" values (`0` and `32767`); both are published as unknown rather than as a signal level.
+- B2500 V2/V3: Add a *CT Type* sensor, disabled by default, showing which meter the device is currently configured for (CT001, CT002, CT003, Shelly Pro 3EM, Shelly EM Gen3, Shelly Pro EM50, P1 Meter or EcoTracker) — so the write-only *Meter Type* select can be checked against what the device actually took.
+- B2500 V2/V3: Add a *Recharge Mode* select (single/three phase) and a *Phase Diagnosis* button, matching the Venus and Jupiter. Both are disabled by default. The device never reports the recharge mode back, so that entity shows the last value set rather than the device's own state; phase diagnosis progress shows up on the existing *CT Status* sensor.
+- B2500, Venus & Jupiter: Add *EcoTracker* to the *Meter Type* options.
+
+### Fixed
+
+- Venus: Fix the *Version Set* entity reporting the wrong rated power. The `set_v` field is a power-version *code*, not a wattage, and the previous mapping had it backwards: devices reporting `set_v=0` (the 2500W version) were shown as *800W Version* and every other code as *2500W Version*. The full code table from the Marstek app is now used, so the 600W, 1200W, 1500W, 2000W, 2200W, 2300W, 3000W and 3600W versions are reported correctly too, and unknown codes are left unset instead of being reported as 2500W. The *Version Set* select offers the same list; the command it sends is unchanged (`cd=15,vs=<watts>`)
+- Venus: Stop logging `Some values are missing for field totalPvPower` on every poll for devices that report fewer than four PV strings (or none, e.g. Venus E). The *Total PV Power* value is now aggregated from whichever `pv1`–`pv4` inputs are present and is simply omitted when none are reported, instead of warning (fixes #360)
+- CT002: Stop logging a spurious `Invalid topic empty_topic_list` subscription error on startup for devices without any controls (fixes #371)
+- Jupiter: *Meter Type* and *Recharge Mode* were sent using the Venus command, so neither setting ever reached the device.
+- Venus & Jupiter: *Sync Time* set the device clock one month too early — and to the previous year every January.
+- B2500 V2/V3: *Sync Time* left the device clock wrong by your UTC offset — an hour or more for most users. It now sets the correct local time.
+- B2500 V2/V3: `sync-time` rejected a JSON payload whenever any field was `0`, so January, midnight, a zero minute or second, and UTC+0 all failed with "Missing time parameters".
+- B2500: Only the first 14 of the 16 cell voltages each battery pack reports were read. The last two are now published, and the *Min*/*Max*/*Average*/*Difference* cell sensors take them into account.
+- B2500 V2/V3: The *CT Connected Phase* select offered a *Searching* option that never worked — picking it logged `Invalid connected phase value: searching` and sent nothing. It now sends the value the device takes for that state. The command also accepts `0`-`3` and `255` only, matching what the device acts on, instead of silently forwarding values it ignores.
 
 ## [1.8.1] - 2026-06-20
 

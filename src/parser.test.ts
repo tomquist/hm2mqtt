@@ -1,10 +1,17 @@
+import { jest } from '@jest/globals';
 import './device/registry.js';
 import { parseMessage } from './parser.js';
+import logger from './logger.js';
 import {
+  B2500CellData,
   B2500V2DeviceData,
+  CT002DeviceData,
+  CT002PhaseEnergyInfo,
   HmiInverterDeviceData,
   JupiterBMSInfo,
   JupiterDeviceData,
+  JupiterNetworkInfo,
+  SmrMeterDeviceData,
   VenusBMSInfo,
   VenusBMSPackInfo,
   VenusBMSPackDetail,
@@ -148,6 +155,39 @@ describe('MQTT Message Parser', () => {
     }
   });
 
+  test('should read the WiFi signal as signed dBm and drop the sentinels', () => {
+    const base = 'pe=75,kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0';
+    const ws = (value: string) =>
+      (parseMessage(`${base},ws=${value}`, 'HMA-1', '12345')['data'] as B2500V2DeviceData)
+        .wifiSignalStrength;
+
+    // The device already reports a signed dBm value.
+    expect(ws('-79')).toBe(-79);
+    expect(ws('-42')).toBe(-42);
+
+    // Both "no reading" values are dropped: 0 (no Wi-Fi state yet) and
+    // 32767 (association down).
+    expect(ws('0')).toBeUndefined();
+    expect(ws('32767')).toBeUndefined();
+
+    // Absent on devices that do not report it
+    const without = parseMessage(base, 'HMA-1', '12345');
+    expect((without['data'] as B2500V2DeviceData).wifiSignalStrength).toBeUndefined();
+  });
+
+  test('should parse all 16 cell voltages per pack', () => {
+    const cells = (prefix: string, mv: number) =>
+      Array.from({ length: 16 }, (_, i) => `${prefix}${i.toString(16)}=${mv + i}`).join(',');
+    const message = [cells('a', 3300), cells('b', 0), cells('c', 0)].join(',');
+
+    const result = parseMessage(message, 'HMA-1', '12345')['cells'] as B2500CellData;
+    expect(result.cellVoltage?.host?.cells).toHaveLength(16);
+    // a0=3300 .. af=3315, scaled from mV to V
+    expect(result.cellVoltage?.host?.cells[15]).toBeCloseTo(3.315, 5);
+    expect(result.cellVoltage?.host?.min).toBeCloseTo(3.3, 5);
+    expect(result.cellVoltage?.host?.max).toBeCloseTo(3.315, 5);
+  });
+
   test('should handle message definitions correctly', () => {
     // Create a simple test message
     const message =
@@ -201,6 +241,108 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('fc4Version', '202409090159');
     expect(result).toHaveProperty('firmwareVersion', 119);
     expect(result).toHaveProperty('wifiStatus', 2);
+    expect(result).toHaveProperty('slaveCount', 1);
+    // cur_d=0: no phase has its measurement direction reversed
+    expect(result).toHaveProperty('phase1MeasurementReversed', false);
+    expect(result).toHaveProperty('phase2MeasurementReversed', false);
+    expect(result).toHaveProperty('phase3MeasurementReversed', false);
+  });
+
+  test('should parse CT002 messages for the TPM and TPM2 device types', () => {
+    // TPM-CN (CT002-CN) and TPM2-0 (TPM2-100CT) use the same parser as HME-4
+    const message = 'pwr_a=100,pwr_b=0,pwr_c=0,pwr_t=100,ver_v=42,cur_d=0';
+
+    for (const deviceType of ['TPM-CN', 'TPM2-0']) {
+      const { data } = parseMessage(message, deviceType, 'abcd');
+      expect(data).toBeDefined();
+      const result = data as CT002DeviceData;
+      expect(result).toHaveProperty('deviceType', deviceType);
+      expect(result).toHaveProperty('phase1Power', 100);
+      expect(result).toHaveProperty('totalPower', 100);
+      expect(result).toHaveProperty('firmwareVersion', 42);
+    }
+  });
+
+  test('should parse the CT002 cd=19 per-phase charge/discharge counters', () => {
+    const message = 'ca=100,cb=200,cc=300,da=10,db=20,dc=30';
+    const parsed = parseMessage(message, 'HME-4', 'abcd');
+
+    // Published under its own path, separate from the cd=1 runtime data
+    expect(Object.keys(parsed)).toEqual(['phase_energy']);
+    const result = parsed['phase_energy'] as CT002PhaseEnergyInfo;
+    expect(result).toHaveProperty('phase1Charge', 100);
+    expect(result).toHaveProperty('phase2Charge', 200);
+    expect(result).toHaveProperty('phase3Charge', 300);
+    expect(result).toHaveProperty('phase1Discharge', 10);
+    expect(result).toHaveProperty('phase2Discharge', 20);
+    expect(result).toHaveProperty('phase3Discharge', 30);
+  });
+
+  test('should ignore the cd=19 write acknowledgement', () => {
+    // A write is acknowledged with `ret` rather than the counters
+    expect(parseMessage('ca=1,cb=1,cc=1,da=1,db=1,dc=1,ret=0', 'HME-4', 'abcd')).toEqual({});
+  });
+
+  test('should not handle cd=19 on SMR readers', () => {
+    // The SMR family reports its energy as eng_t in the cd=1 payload instead
+    expect(parseMessage('ca=100,cb=200,cc=300,da=10,db=20,dc=30', 'SMR-0', 'abcd')).toEqual({});
+  });
+
+  test('should decode the per-phase measurement direction bitmask', () => {
+    // cur_d=5 -> bit 0 (phase 1) and bit 2 (phase 3) set
+    const message = 'pwr_a=0,pwr_b=0,pwr_c=0,pwr_t=0,cur_d=5';
+    const { data } = parseMessage(message, 'HME-4', 'abcd');
+
+    const result = data as CT002DeviceData;
+    expect(result).toHaveProperty('phase1MeasurementReversed', true);
+    expect(result).toHaveProperty('phase2MeasurementReversed', false);
+    expect(result).toHaveProperty('phase3MeasurementReversed', true);
+  });
+
+  test('should parse SMR smart meter reader message', () => {
+    const message =
+      'pwr_a=119,pwr_b=15,pwr_c=-136,pwr_t=-1,eng_t=1234567,smt_n=12,har_f=1,sof_f=0,irs_f=0,pwr_f=7,' +
+      'ble_s=5,wif_r=-79,fc4_v=202409090159,ver_v=108,wif_s=2,slv_n=0,cur_d=2,com_t=1,com_b=115200,ptl_t=3';
+    const { data } = parseMessage(message, 'SMR-0', 'b8d08fc5f943');
+
+    expect(data).toBeDefined();
+    const result = data as SmrMeterDeviceData;
+
+    expect(result).toHaveProperty('deviceType', 'SMR-0');
+    expect(result).toHaveProperty('phase1Power', 119);
+    expect(result).toHaveProperty('phase2Power', 15);
+    expect(result).toHaveProperty('phase3Power', -136);
+    expect(result).toHaveProperty('totalPower', -1);
+    // eng_t is reported in 0.1 Wh
+    expect(result).toHaveProperty('totalEnergy', 123456.7);
+    expect(result).toHaveProperty('meterNumber', 12);
+    expect(result).toHaveProperty('p1DeviceConnected', true);
+    expect(result).toHaveProperty('p1ReadStatus', 0);
+    expect(result).toHaveProperty('infraredReadStatus', 0);
+    expect(result).toHaveProperty('phaseReadStatus', 7);
+    expect(result).toHaveProperty('bluetoothSignal', 5);
+    expect(result).toHaveProperty('wifiRssi', -79);
+    expect(result).toHaveProperty('fc4Version', '202409090159');
+    expect(result).toHaveProperty('firmwareVersion', 108);
+    expect(result).toHaveProperty('wifiStatus', 2);
+    // Shared with the CT002: slave count and the per-phase direction bitmask
+    expect(result).toHaveProperty('slaveCount', 0);
+    expect(result).toHaveProperty('phase1MeasurementReversed', false);
+    expect(result).toHaveProperty('phase2MeasurementReversed', true);
+    expect(result).toHaveProperty('phase3MeasurementReversed', false);
+
+    // Keys hm2mqtt does not map are still exposed raw
+    expect(result.values).toHaveProperty('com_t', '1');
+    expect(result.values).toHaveProperty('com_b', '115200');
+    expect(result.values).toHaveProperty('ptl_t', '3');
+  });
+
+  test('should report a disconnected P1 reader', () => {
+    const message = 'pwr_t=0,ver_v=108,har_f=0';
+    const { data } = parseMessage(message, 'SMR-0', 'b8d08fc5f943');
+
+    expect(data).toBeDefined();
+    expect(data as SmrMeterDeviceData).toHaveProperty('p1DeviceConnected', false);
   });
 
   test('should parse HMI inverter (2-PV) message correctly', () => {
@@ -381,11 +523,15 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('dailyDischargeCapacity', 2.85);
     expect(result).toHaveProperty('monthlyDischargeCapacity', 20.18);
 
-    // PV power
+    // PV power and per-string status
     expect(result).toHaveProperty('pv1Power', 94);
     expect(result).toHaveProperty('pv2Power', 77);
     expect(result).toHaveProperty('pv3Power', 41);
     expect(result).toHaveProperty('pv4Power', 60);
+    expect(result).toHaveProperty('pv1Status', true);
+    expect(result).toHaveProperty('pv2Status', true);
+    expect(result).toHaveProperty('pv3Status', true);
+    expect(result).toHaveProperty('pv4Status', true);
 
     // Grid and power
     expect(result).toHaveProperty('combinedPower', 250);
@@ -412,12 +558,16 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('bmsVersion', 209);
     expect(result).toHaveProperty('mpptVersion', 206);
     expect(result).toHaveProperty('inverterVersion', 106);
+    expect(result).toHaveProperty('screenVersion', 110);
     expect(result).toHaveProperty('wifiName', 'xxxx');
 
     // Additional features
     expect(result).toHaveProperty('surplusFeedInEnabled', true);
     expect(result).toHaveProperty('alarmCode', 0);
     expect(result).toHaveProperty('depthOfDischarge', 88);
+    expect(result).toHaveProperty('batteryPacks', 1);
+    expect(result).toHaveProperty('shellyPort', 1010);
+    expect(result).toHaveProperty('phaseDiagnosisStatus', 3);
 
     // Time periods
     expect(result).toHaveProperty('timePeriods');
@@ -692,6 +842,37 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('workingMode', 'ai');
   });
 
+  test('parses Jupiter Bluetooth advertising state (bl) and idle PV strings', () => {
+    // `bl=1` means BLE advertising is on, which the Marstek app shows inverted
+    // as its "Bluetooth Lock" switch being off.
+    const message =
+      'ele_d=349,ele_m=2193,ele_y=0,pv1_p=94,pv1_s=1,pv2_p=0,pv2_s=0,pv3_p=0,pv3_s=0,pv4_p=0,pv4_s=0,grd_o=250,grd_t=1,gct_s=1,cel_s=0,cel_p=424,cel_c=83,err_t=0,wor_m=1,tim_0=12|0|23|59|127|800|1,tim_1=0|0|12|0|127|150|1,tim_2=0|0|0|0|255|0|0,tim_3=0|0|0|0|255|0|0,tim_4=0|0|0|0|255|0|0,cts_m=0,grd_d=285,grd_m=2018,dev_n=141,dev_i=106,dev_m=206,dev_b=209,dev_t=110,wif_s=75,ala_c=0,ful_d=1,ssid=xxxx,stop_s=10,htt_p=0,ct_t=4,phase_t=1,dchrg=1,seq_s=3,ctrl_r=0,shelly_p=1010,c_ratio=100,b_lck=0,dod=88,bl=1,total_b=2,online_b=2';
+    const parsed = parseMessage(message, 'JPLS-1', 'jupiter123');
+
+    expect(parsed).toHaveProperty('data');
+    const result = parsed['data'] as JupiterDeviceData;
+    expect(result).toHaveProperty('bluetoothAdvertisingEnabled', true);
+    expect(result).toHaveProperty('pv1Status', true);
+    expect(result).toHaveProperty('pv2Status', false);
+    expect(result).toHaveProperty('pv3Status', false);
+    expect(result).toHaveProperty('pv4Status', false);
+    expect(result).toHaveProperty('batteryPacks', 2);
+  });
+
+  test('parses Jupiter network information response (cd=26)', () => {
+    const message =
+      'cd=26,dev_net_info:ip:192.168.1.42,gate:192.168.1.1,mask:255.255.255.0,dns:192.168.1.1,ct_connect_ip:192.168.1.255';
+    const parsed = parseMessage(message, 'JPLS-1', 'jupiter123');
+
+    expect(parsed).toHaveProperty('network');
+    const result = parsed['network'] as JupiterNetworkInfo;
+    expect(result).toHaveProperty('ipAddress', '192.168.1.42');
+    expect(result).toHaveProperty('gateway', '192.168.1.1');
+    expect(result).toHaveProperty('subnetMask', '255.255.255.0');
+    expect(result).toHaveProperty('dns', '192.168.1.1');
+    expect(result).toHaveProperty('ctConnectIp', '192.168.1.255');
+  });
+
   test('parses Venus A (VNSA) PV input power and connection status (issue #218)', () => {
     // Real runtime reading from a Venus A: pv1 connected and producing, pv2-4 idle.
     const message =
@@ -729,6 +910,42 @@ describe('MQTT Message Parser', () => {
     const result = parsed['data'] as VenusDeviceData;
     expect(result).not.toHaveProperty('pv1Power');
     expect(result).not.toHaveProperty('totalPvPower');
+  });
+
+  test('does not warn about total PV power when the payload omits the pv fields (issue #360)', () => {
+    const warnSpy = jest.spyOn(logger, 'warn');
+    try {
+      const message =
+        'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0';
+      const parsed = parseMessage(message, 'VNSE3-0', 'venus123');
+
+      const result = parsed['data'] as VenusDeviceData;
+      expect(result).not.toHaveProperty('totalPvPower');
+      expect(warnSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('Some values are missing for field totalPvPower'),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test('aggregates total PV power from a partial set of pv fields without warning (issue #360)', () => {
+    const warnSpy = jest.spyOn(logger, 'warn');
+    try {
+      // Only pv1 and pv2 are reported; pv3/pv4 are absent.
+      const message =
+        'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0,pv1=1076|1,pv2=1000|1';
+      const parsed = parseMessage(message, 'VNSE3-0', 'venus123');
+
+      const result = parsed['data'] as VenusDeviceData;
+      // 1076 + 1000 -> 2076 deciwatts -> 207.6 W
+      expect(result).toHaveProperty('totalPvPower', 207.6);
+      expect(warnSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('Some values are missing for field totalPvPower'),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   test('parses Venus D (VNSD) PV input power and connection status', () => {
@@ -792,6 +1009,36 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('bmsVersion', 116);
     expect(result).toHaveProperty('communicationModuleVersion', '202409090159');
     expect(result).toHaveProperty('shellyPort', 1010);
+    // set_v is a power-version code, not a wattage: 1 is the 800W version,
+    // which the same dump confirms via mdp_w=800.
+    expect(result).toHaveProperty('versionSet', '800W');
+    expect(result).toHaveProperty('maxDischargePower', 800);
+  });
+
+  test('maps the Venus set_v power-version code to the rated power', () => {
+    const base =
+      'cd=1,tot_i=1,tot_o=212,ele_d=0,ele_m=1,grd_d=212,grd_m=212,inc_d=0,inc_m=0,grd_f=0,grd_o=423,grd_t=3,gct_s=1,cel_s=2,cel_p=483,cel_c=94,err_t=0,err_a=0,dev_n=142,grd_y=0,wor_m=0,inc_a=0';
+    const expected: Record<string, string> = {
+      '0': '2500W',
+      '1': '800W',
+      '2': '600W',
+      '3': '2200W',
+      '4': '1200W',
+      '5': '1500W',
+      '6': '2300W',
+      '7': '2000W',
+      '8': '3000W',
+      '9': '3600W',
+    };
+
+    for (const [code, label] of Object.entries(expected)) {
+      const parsed = parseMessage(`${base},set_v=${code}`, 'VNSD-0', 'venusD123');
+      expect((parsed['data'] as VenusDeviceData).versionSet).toBe(label);
+    }
+
+    // Unknown codes are left unmapped rather than guessed.
+    const unknown = parseMessage(`${base},set_v=42`, 'VNSD-0', 'venusD123');
+    expect((unknown['data'] as VenusDeviceData).versionSet).toBeUndefined();
   });
 
   test('parses Venus v147 LED, backup, inverter/MPPT version and phase-diagnosis fields', () => {
@@ -807,6 +1054,47 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('inverterVersion', 115);
     expect(result).toHaveProperty('mpptVersion', 104);
     expect(result).toHaveProperty('phaseDiagnosisStatus', 3);
+    // Battery and grid power, reported as bp/rp/gp
+    expect(result).toHaveProperty('batteryPower', 291);
+    expect(result).toHaveProperty('calculatedBatteryPower', 347);
+    expect(result).toHaveProperty('gridPower', 801);
+    // par=0 means parallel operation is turned off
+    expect(result).toHaveProperty('parallelMode', 'off');
+    // This firmware predates peak shaving, so it reports neither field
+    expect(result.peakShavingEnabled).toBeUndefined();
+    expect(result.peakShavingPower).toBeUndefined();
+  });
+
+  test('maps the Venus par field to the parallel mode', () => {
+    const base =
+      'cd=1,tot_i=6,tot_o=1109,ele_d=0,ele_m=0,grd_d=27,grd_m=27,inc_d=0,inc_m=0,grd_f=0,grd_o=801,grd_t=3,gct_s=1,cel_s=2,cel_p=233,cel_c=45,err_t=0,err_a=0,dev_n=147,grd_y=0,wor_m=5,inc_a=0';
+    const expected: Record<string, string> = {
+      '0': 'off',
+      '1': 'wiringCheck',
+      '2': 'on',
+      // Units without parallel support report 255
+      '255': 'unknown',
+    };
+
+    for (const [raw, mode] of Object.entries(expected)) {
+      const parsed = parseMessage(`${base},par=${raw}`, 'VNSD-0', 'venusD123');
+      expect((parsed['data'] as VenusDeviceData).parallelMode).toBe(mode);
+    }
+  });
+
+  test('parses Venus peak shaving state (peak_status/peak_power)', () => {
+    const base =
+      'cd=1,tot_i=6,tot_o=1109,ele_d=0,ele_m=0,grd_d=27,grd_m=27,inc_d=0,inc_m=0,grd_f=0,grd_o=801,grd_t=3,gct_s=1,cel_s=2,cel_p=233,cel_c=45,err_t=0,err_a=0,dev_n=150,grd_y=0,wor_m=5,inc_a=0';
+
+    const on = parseMessage(`${base},peak_status=1,peak_power=4000`, 'VNSD-0', 'venusD123');
+    const onResult = on['data'] as VenusDeviceData;
+    expect(onResult).toHaveProperty('peakShavingEnabled', true);
+    expect(onResult).toHaveProperty('peakShavingPower', 4000);
+
+    const off = parseMessage(`${base},peak_status=0,peak_power=2000`, 'VNSD-0', 'venusD123');
+    const offResult = off['data'] as VenusDeviceData;
+    expect(offResult).toHaveProperty('peakShavingEnabled', false);
+    expect(offResult).toHaveProperty('peakShavingPower', 2000);
   });
 
   test('parses Venus surplus feed-in state from the fu field', () => {

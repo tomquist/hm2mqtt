@@ -107,13 +107,13 @@ export class MqttClient {
   private getAdditionalDeviceInfo(device: Device) {
     const deviceDefinitions = getDeviceDefinition(device.deviceType);
     const deviceState = this.deviceManager.getDeviceState(device);
-    let additionalDeviceInfo: AdditionalDeviceInfo = {};
+    const additionalDeviceInfo: AdditionalDeviceInfo = {};
     if (deviceState != null && deviceDefinitions != null) {
       for (const message of deviceDefinitions.messages) {
-        additionalDeviceInfo = {
-          ...additionalDeviceInfo,
-          ...message.getAdditionalDeviceInfo(deviceState as BaseDeviceData),
-        };
+        Object.assign(
+          additionalDeviceInfo,
+          message.getAdditionalDeviceInfo(deviceState as BaseDeviceData),
+        );
       }
     }
     return additionalDeviceInfo;
@@ -150,6 +150,9 @@ export class MqttClient {
    * @param topic - The topic to subscribe to
    */
   subscribe(topic: string | string[]): void {
+    if (Array.isArray(topic) && topic.length === 0) {
+      return;
+    }
     this.client.subscribe(topic, err => {
       if (err) {
         logger.error(`Subscription error for ${topic}:`, err);

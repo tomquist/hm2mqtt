@@ -294,7 +294,7 @@ afterAll(async () => {
     if (indexModule && typeof (indexModule as any).cleanup === 'function') {
       (indexModule as any).cleanup();
     }
-  } catch (e) {
+  } catch {
     // Ignore errors if module can't be imported
   }
 });

@@ -23,6 +23,32 @@ export type B2500V2SmartMeterStatus =
   | 'chargingInProgress'
   | 'unableToFindChannel'
   | 'notInDiagnosis';
+/**
+ * Meter reported in the B2500 `ct_t` field. The device reports the configured
+ * meter under its own numeric codes, which do not match the codes the
+ * `cd=27,meter=` command accepts.
+ */
+export type B2500CtType =
+  | 'ct001'
+  | 'ct002'
+  | 'ct003'
+  | 'shellyPro3em'
+  | 'shellyEmGen3'
+  | 'shellyProEm50'
+  | 'p1Meter'
+  | 'ecoTracker';
+/**
+ * Grid recharge mode set with `cd=27,dchrg=`. The device does not report the
+ * current value in any response hm2mqtt polls, so the entity reflects the last
+ * value that was set rather than the device's own state.
+ */
+const validB2500RechargeModes = ['singlePhase', 'threePhase'] as const;
+export type B2500RechargeMode = (typeof validB2500RechargeModes)[number];
+
+export function isValidB2500RechargeMode(mode: string): mode is B2500RechargeMode {
+  return validB2500RechargeModes.includes(mode as B2500RechargeMode);
+}
+
 export type B2500V1ChargingMode = 'chargeThenDischarge' | 'pv2PassThrough';
 export type B2500V2ChargingMode = 'chargeDischargeSimultaneously' | 'chargeThenDischarge';
 
@@ -82,6 +108,9 @@ export interface B2500BaseDeviceData extends BaseDeviceData {
 
   // Scene information (day/night/dusk)
   scene?: B2500Scene;
+
+  // Wi-Fi signal strength in dBm, from the `ws` field (already signed)
+  wifiSignalStrength?: number;
 
   // Output enabled states
   outputEnabled?: {
@@ -178,6 +207,13 @@ export interface B2500V2DeviceData extends B2500BaseDeviceData {
   // Smart meter configuration (cd=27)
   meterType?: MeterType;
   meterMac?: string;
+
+  // The meter the device reports as configured (`ct_t`). Its numeric codes are
+  // distinct from the ones the `cd=27,meter=` command takes.
+  ctType?: B2500CtType;
+
+  // Last grid recharge mode set via `cd=27,dchrg=` (not reported by the device)
+  rechargeMode?: B2500RechargeMode;
 }
 
 type SolarSocketData = {
@@ -304,6 +340,18 @@ export type VenusCTType = 'none' | 'ct1' | 'ct2' | 'ct3' | 'shellyPro' | 'p1Mete
 export type VenusPhaseType = 'unknown' | 'phaseA' | 'phaseB' | 'phaseC' | 'notDetected';
 
 /**
+ * Venus parallel-operation mode, reported as the `par` field and set with
+ * `cd=23,pm=`. Values other than 0-2 (e.g. the 255 reported by units that do not
+ * support parallel operation) are reported as `unknown`.
+ */
+const validVenusParallelModes = ['off', 'wiringCheck', 'on'] as const;
+export type VenusParallelMode = (typeof validVenusParallelModes)[number];
+
+export function isValidVenusParallelMode(mode: string): mode is VenusParallelMode {
+  return validVenusParallelModes.includes(mode as VenusParallelMode);
+}
+
+/**
  * Venus device recharge mode
  */
 const validVenusRechargeModes = ['singlePhase', 'threePhase'] as const;
@@ -325,6 +373,7 @@ const validMeterTypes = [
   'ct003',
   'shellyEmGen3',
   'shellyProEm50',
+  'ecoTracker',
 ] as const;
 export type MeterType = (typeof validMeterTypes)[number];
 
@@ -342,6 +391,9 @@ export const meterTypeCommandCodes: Record<MeterType, number> = {
   ct003: 4,
   shellyEmGen3: 5,
   shellyProEm50: 6,
+  // Code 7 is confirmed on the B2500. The Venus and Jupiter take the same meter
+  // codes on their own command, so it is offered there too.
+  ecoTracker: 7,
 };
 
 /**
@@ -354,6 +406,7 @@ export const meterTypeLabels: Record<MeterType, string> = {
   ct003: 'CT003',
   shellyEmGen3: 'Shelly EM Gen3',
   shellyProEm50: 'Shelly Pro EM50',
+  ecoTracker: 'EcoTracker',
 };
 
 /**
@@ -388,7 +441,22 @@ export function resolveMeterMac(meterType: MeterType, configuredMac?: string): s
 
 export type WeekdaySet = `${0 | ''}${1 | ''}${2 | ''}${3 | ''}${4 | ''}${5 | ''}${6 | ''}`;
 
-const venusValidVersionSets = ['800W', '2500W'] as const;
+// Rated output power ("power version") of a Venus. The device reports this as a
+// numeric code in the `set_v` field, while the `cd=15,vs=` command takes the
+// rated power in watts. These are the power versions the Marstek app offers;
+// which of them a given unit accepts depends on its model and region.
+const venusValidVersionSets = [
+  '600W',
+  '800W',
+  '1200W',
+  '1500W',
+  '2000W',
+  '2200W',
+  '2300W',
+  '2500W',
+  '3000W',
+  '3600W',
+] as const;
 export type VenusVersionSet = (typeof venusValidVersionSets)[number];
 
 export function isValidVenusVersionSet(set: string): set is VenusVersionSet {
@@ -492,6 +560,12 @@ export interface VenusDeviceData extends BaseDeviceData {
   phaseDiagnosisStatus?: number; // seq_s
   inverterVersion?: number; // inv_v
   mpptVersion?: number; // mppt
+  peakShavingEnabled?: boolean; // peak_status
+  peakShavingPower?: number; // peak_power
+  batteryPower?: number; // bp
+  calculatedBatteryPower?: number; // rp
+  gridPower?: number; // gp
+  parallelMode?: VenusParallelMode | 'unknown'; // par
 }
 
 export interface VenusBMSInfo extends BaseDeviceData {
@@ -556,15 +630,23 @@ export interface VenusBMSPackDetail extends BaseDeviceData {
 }
 
 /**
- * Network configuration reported by the cd=26 response on newer Venus firmware.
+ * Network configuration reported by the `cd=26` response. Venus and Jupiter
+ * answer it with the same payload, so they share this shape — see
+ * `device/networkInfoBase.ts`.
  */
-export interface VenusNetworkInfo extends BaseDeviceData {
+export interface NetworkInfo extends BaseDeviceData {
   ipAddress?: string;
   gateway?: string;
   subnetMask?: string;
   dns?: string;
   ctConnectIp?: string;
 }
+
+/** Network configuration of a Venus, reported on newer firmware. */
+export type VenusNetworkInfo = NetworkInfo;
+
+/** Network configuration of a Jupiter. */
+export type JupiterNetworkInfo = NetworkInfo;
 
 export interface JupiterTimePeriod {
   startTime: string;
@@ -595,9 +677,13 @@ export interface JupiterDeviceData extends BaseDeviceData {
   monthlyChargingCapacity?: number; // ele_m
   yearlyChargingCapacity?: number; // ele_y
   pv1Power?: number; // pv1_p
+  pv1Status?: boolean; // pv1_s
   pv2Power?: number; // pv2_p
+  pv2Status?: boolean; // pv2_s
   pv3Power?: number; // pv3_p
+  pv3Status?: boolean; // pv3_s
   pv4Power?: number; // pv4_p
+  pv4Status?: boolean; // pv4_s
   dailyDischargeCapacity?: number; // grd_d
   monthlyDischargeCapacity?: number; // grd_m
   combinedPower?: number; // grd_o
@@ -621,10 +707,15 @@ export interface JupiterDeviceData extends BaseDeviceData {
   bmsVersion?: number; // dev_b
   mpptVersion?: number; // dev_m
   inverterVersion?: number; // dev_i
+  screenVersion?: number; // dev_t
   timePeriods?: JupiterTimePeriod[];
   surplusFeedInEnabled?: boolean; // ful_d
   depthOfDischarge?: number; // dod
   alarmCode?: number; // ala_c
+  batteryPacks?: number; // total_b
+  shellyPort?: number; // shelly_p
+  phaseDiagnosisStatus?: number; // seq_s
+  bluetoothAdvertisingEnabled?: boolean; // bl
 }
 
 /**
@@ -746,14 +837,55 @@ export interface JupiterBMSInfo extends BaseDeviceData {
   };
 }
 
-export interface CT002DeviceData extends BaseDeviceData {
+/**
+ * Runtime values every Marstek meter reports. The CT002 smart meter (`HME-X`,
+ * `TPM-CN`, `TPM2-X`) and the SMR smart meter readers (`SMR-X`) speak the same
+ * protocol, so they share these keys.
+ */
+export interface MeterBaseDeviceData extends BaseDeviceData {
   phase1Power?: number; // pwr_a
   phase2Power?: number; // pwr_b
   phase3Power?: number; // pwr_c
   totalPower?: number; // pwr_t
+  phase1MeasurementReversed?: boolean; // cur_d bit 0
+  phase2MeasurementReversed?: boolean; // cur_d bit 1
+  phase3MeasurementReversed?: boolean; // cur_d bit 2
+  slaveCount?: number; // slv_n
   bluetoothSignal?: number; // ble_s
   wifiRssi?: number; // wif_r
   fc4Version?: string; // fc4_v
   firmwareVersion?: number; // ver_v
   wifiStatus?: number; // wif_s
+}
+
+export interface CT002DeviceData extends MeterBaseDeviceData {}
+
+/**
+ * Per-phase charge/discharge counters the CT002 returns for `cd=19`. They are
+ * not part of the `cd=1` runtime payload.
+ *
+ * The counters are raw: their unit and scale could not be established, so
+ * hm2mqtt publishes the reported value unchanged and without a unit.
+ */
+export interface CT002PhaseEnergyInfo extends BaseDeviceData {
+  phase1Charge?: number; // ca
+  phase2Charge?: number; // cb
+  phase3Charge?: number; // cc
+  phase1Discharge?: number; // da
+  phase2Discharge?: number; // db
+  phase3Discharge?: number; // dc
+}
+
+/**
+ * Marstek smart meter reader (device type `SMR-X`), sold as the Marstek P1
+ * Meter (SMR-0), Infrared Meter (SMR-1) and TIC Meter (SMR-2). They are sold as
+ * the Marstek CT003 Smart Meter Reader.
+ */
+export interface SmrMeterDeviceData extends MeterBaseDeviceData {
+  totalEnergy?: number; // eng_t (reported in 0.1 Wh)
+  meterNumber?: number; // smt_n
+  p1DeviceConnected?: boolean; // har_f
+  p1ReadStatus?: number; // sof_f
+  infraredReadStatus?: number; // irs_f
+  phaseReadStatus?: number; // pwr_f
 }

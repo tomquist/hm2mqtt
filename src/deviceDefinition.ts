@@ -44,9 +44,6 @@ export type HaStatefulAdvertiseBuilder<
   T,
   R extends HaComponentConfig = HaComponentConfig,
 > = Flavored<(args: AdvertiseBuilderArgs) => R, T>;
-type TransformParams<K extends string | readonly string[]> = K extends string
-  ? [K: string]
-  : [{ [P in K[number]]: string }];
 
 /**
  * A function-based transform.
@@ -88,6 +85,15 @@ export type FieldDefinition<
    * Home Assistant `total_increasing` sensors from transient corrupt readings.
    */
   monotonic?: boolean;
+  /**
+   * Only meaningful for multi-key (aggregate) fields. When set, the field is
+   * computed from whichever keys are present instead of requiring all of them:
+   * if none of the keys are present the field is skipped silently, and a partial
+   * set no longer logs a "Some values are missing" warning. Use for optional
+   * aggregates such as total PV power on devices that report a variable number
+   * of PV strings.
+   */
+  allowPartial?: boolean;
 } & (TypeAtPath<T, KP> extends number | undefined
   ? {}
   : {
