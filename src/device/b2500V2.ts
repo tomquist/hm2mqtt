@@ -496,7 +496,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           channelValue = '255';
         }
         const channel = parseInt(channelValue, 10);
-        if (isNaN(channel) || channel < 0 || (channel > 4 && channel !== 255)) {
+        // The device accepts 0-3 (stored as phase 'A'-'D') and 255 for "none";
+        // anything else is dropped on the floor, so reject it here.
+        if (isNaN(channel) || (channel !== 255 && (channel < 0 || channel > 3))) {
           logger.warn('Invalid connected phase value:', message);
           return;
         }
@@ -589,26 +591,40 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'measurement',
       }),
     );
-    // The CT type and phase the device reports back. hm2mqtt can set the meter
-    // type via `cd=27`, but the device only ever echoed it here, so the
-    // configured value was never visible. The numeric code space of both fields
-    // is undocumented, so they are published as reported rather than mapped to
-    // labels — the same treatment the Jupiter gives these two fields.
-    field({ key: 'ct_t', path: ['ctType'], transform: number() });
+    // The meter the device is currently configured for. hm2mqtt can set this
+    // with `cd=27`, but the device only ever echoed it back here, so the
+    // configured value was not visible anywhere. Note that `ct_t` uses its own
+    // code space, *not* the one the `meter=` parameter takes — see
+    // docs/b2500.md for the two tables.
+    field({
+      key: 'ct_t',
+      path: ['ctType'],
+      transform: map({
+        '1': 'ct001',
+        '3': 'ct002',
+        '4': 'shellyPro3em',
+        '5': 'p1Meter',
+        '6': 'ct003',
+        '7': 'shellyEmGen3',
+        '8': 'shellyProEm50',
+        '9': 'ecoTracker',
+      }),
+    });
     advertise(
       ['ctType'],
-      sensorComponent<number>({
+      sensorComponent<NonNullable<B2500V2DeviceData['ctType']>>({
         id: 'ct_type',
         name: 'CT Type',
-        enabled_by_default: false,
-      }),
-    );
-    field({ key: 'phase_t', path: ['phaseType'], transform: number() });
-    advertise(
-      ['phaseType'],
-      sensorComponent<number>({
-        id: 'phase_type',
-        name: 'Phase Type',
+        valueMappings: {
+          ct001: 'CT001',
+          ct002: 'CT002',
+          ct003: 'CT003',
+          shellyPro3em: 'Shelly Pro 3EM',
+          shellyEmGen3: 'Shelly EM Gen3',
+          shellyProEm50: 'Shelly Pro EM50',
+          p1Meter: 'P1 Meter',
+          ecoTracker: 'EcoTracker',
+        },
         enabled_by_default: false,
       }),
     );

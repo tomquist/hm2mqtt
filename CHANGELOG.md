@@ -20,8 +20,8 @@
 - Jupiter: Add a *Battery Pack Recovery* button to reactivate an unresponsive battery pack. Jupiter Plus only, firmware 135 or newer, disabled by default.
 - Jupiter: Add a *Screen Version* and a *Shelly Port* sensor, both disabled by default.
 - Jupiter: Add *Network* sensors (IP Address, Gateway, Subnet Mask, DNS Server, CT Connect IP). They appear once the device reports them and are disabled by default.
-- B2500: Add a *WiFi Signal Strength* sensor, in dBm, matching the equivalent Venus and Jupiter sensor. `0` means no signal.
-- B2500 V2/V3: Add *CT Type* and *Phase Type* sensors, disabled by default. *CT Type* shows which meter the device is currently configured for, so the write-only *Meter Type* select can be checked against what the device actually took. Both report raw numbers rather than named values.
+- B2500: Add a *WiFi Signal Strength* sensor, in dBm. The device reports two "no reading" values (`0` and `32767`); both are published as unknown rather than as a signal level.
+- B2500 V2/V3: Add a *CT Type* sensor, disabled by default, showing which meter the device is currently configured for (CT001, CT002, CT003, Shelly Pro 3EM, Shelly EM Gen3, Shelly Pro EM50, P1 Meter or EcoTracker) — so the write-only *Meter Type* select can be checked against what the device actually took.
 
 ### Fixed
 
@@ -32,6 +32,8 @@
 - Venus & Jupiter: *Sync Time* set the device clock one month too early — and to the previous year every January.
 - B2500 V2/V3: *Sync Time* left the device clock wrong by your UTC offset — an hour or more for most users. It now sets the correct local time.
 - B2500 V2/V3: `sync-time` rejected a JSON payload whenever any field was `0`, so January, midnight, a zero minute or second, and UTC+0 all failed with "Missing time parameters".
+- B2500: Only the first 14 of the 16 cell voltages each battery pack reports were read. The last two are now published, and the *Min*/*Max*/*Average*/*Difference* cell sensors take them into account.
+- B2500 V2/V3: `connected-phase` accepted values the device ignores. It now takes `0`-`3` and `255` only, matching what the device acts on.
 
 ## [1.8.1] - 2026-06-20
 

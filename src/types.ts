@@ -23,6 +23,20 @@ export type B2500V2SmartMeterStatus =
   | 'chargingInProgress'
   | 'unableToFindChannel'
   | 'notInDiagnosis';
+/**
+ * Meter reported in the B2500 `ct_t` field. The device reports the configured
+ * meter under its own numeric codes, which do not match the codes the
+ * `cd=27,meter=` command accepts.
+ */
+export type B2500CtType =
+  | 'ct001'
+  | 'ct002'
+  | 'ct003'
+  | 'shellyPro3em'
+  | 'shellyEmGen3'
+  | 'shellyProEm50'
+  | 'p1Meter'
+  | 'ecoTracker';
 export type B2500V1ChargingMode = 'chargeThenDischarge' | 'pv2PassThrough';
 export type B2500V2ChargingMode = 'chargeDischargeSimultaneously' | 'chargeThenDischarge';
 
@@ -182,10 +196,9 @@ export interface B2500V2DeviceData extends B2500BaseDeviceData {
   meterType?: MeterType;
   meterMac?: string;
 
-  // CT type and phase the device reports back (`ct_t`/`phase_t`). The numeric
-  // code space is not documented, so both are published as reported.
-  ctType?: number;
-  phaseType?: number;
+  // The meter the device reports as configured (`ct_t`). Its numeric codes are
+  // distinct from the ones the `cd=27,meter=` command takes.
+  ctType?: B2500CtType;
 }
 
 type SolarSocketData = {

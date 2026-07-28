@@ -29,7 +29,7 @@ import {
   diff,
   average,
   divide,
-  negate,
+  inRange,
 } from '../transforms.js';
 
 export function extractAdditionalDeviceInfo(state: B2500BaseDeviceData): AdditionalDeviceInfo {
@@ -231,9 +231,12 @@ export function registerBaseMessage({
   field({ key: 'id', path: ['deviceInfo', 'deviceIdNumber'], transform: number() });
   field({ key: 'uv', path: ['deviceInfo', 'bootloaderVersion'], transform: number() });
 
-  // The B2500's counterpart to the Venus/Jupiter `wif_s`: the RSSI magnitude
-  // without its sign, so it is negated to give dBm (0 meaning "no signal").
-  field({ key: 'ws', path: ['wifiSignalStrength'], transform: negate() });
+  // Wi-Fi RSSI, already signed and already in dBm (e.g. `ws=-79`) — unlike the
+  // Venus/Jupiter `wif_s`, which is an unsigned magnitude. The device also uses
+  // two "no reading" sentinels: 0 when the Wi-Fi module has no state yet, and
+  // 32767 (INT16_MAX) while the association is down. Both are filtered out so
+  // the sensor goes unknown instead of reporting an implausible value.
+  field({ key: 'ws', path: ['wifiSignalStrength'], transform: inRange(-120, -1) });
   advertise(
     ['wifiSignalStrength'],
     sensorComponent<number>({
@@ -712,8 +715,16 @@ export function registerBaseMessage({
   );
 }
 
+// The device reports 16 cell slots per pack (`a0`-`af`). Detection only
+// requires the first 14 so that firmware reporting fewer still matches; the
+// aggregates below are partial-friendly for the same reason.
+const CELL_COUNT = 16;
+const CELL_DETECT_COUNT = 14;
+
 function isB2500CellDataMessage(values: Record<string, string>) {
-  return Array.from({ length: 14 }, (_, i) => `a${i.toString(16)}`).every(key => key in values);
+  return Array.from({ length: CELL_DETECT_COUNT }, (_, i) => `a${i.toString(16)}`).every(
+    key => key in values,
+  );
 }
 
 export function registerCellDataMessage(message: BuildMessageFn) {
@@ -743,11 +754,15 @@ export function registerCellDataMessage(message: BuildMessageFn) {
       b: 'extra1',
       c: 'extra2',
     } as const)) {
-      const allKeys = Array.from({ length: 14 }, (_, i) => `${key}${i.toString(16)}` as const);
+      const allKeys = Array.from(
+        { length: CELL_COUNT },
+        (_, i) => `${key}${i.toString(16)}` as const,
+      );
       field({
         key: allKeys,
         path: ['cellVoltage', battery, 'min'],
         transform: min(1000),
+        allowPartial: true,
       });
       advertise(
         ['cellVoltage', battery, 'min'],
@@ -764,6 +779,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
         key: allKeys,
         path: ['cellVoltage', battery, 'max'],
         transform: max(1000),
+        allowPartial: true,
       });
       advertise(
         ['cellVoltage', battery, 'max'],
@@ -780,6 +796,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
         key: allKeys,
         path: ['cellVoltage', battery, 'diff'],
         transform: diff(1000),
+        allowPartial: true,
       });
       advertise(
         ['cellVoltage', battery, 'diff'],
@@ -796,6 +813,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
         key: allKeys,
         path: ['cellVoltage', battery, 'avg'],
         transform: average(1000, true),
+        allowPartial: true,
       });
       advertise(
         ['cellVoltage', battery, 'avg'],
@@ -809,7 +827,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
         }),
       );
 
-      for (let i = 0; i < 14; i++) {
+      for (let i = 0; i < CELL_COUNT; i++) {
         field({
           key: `${key}${i.toString(16)}`,
           path: ['cellVoltage', battery, 'cells', i],

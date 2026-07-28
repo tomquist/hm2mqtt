@@ -3,6 +3,7 @@ import './device/registry.js';
 import { parseMessage } from './parser.js';
 import logger from './logger.js';
 import {
+  B2500CellData,
   B2500V2DeviceData,
   CT002DeviceData,
   CT002PhaseEnergyInfo,
@@ -154,21 +155,37 @@ describe('MQTT Message Parser', () => {
     }
   });
 
-  test('should negate the unsigned WiFi signal into dBm', () => {
+  test('should read the WiFi signal as signed dBm and drop the sentinels', () => {
     const base = 'pe=75,kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0';
+    const ws = (value: string) =>
+      (parseMessage(`${base},ws=${value}`, 'HMA-1', '12345')['data'] as B2500V2DeviceData)
+        .wifiSignalStrength;
 
-    const parsed = parseMessage(`${base},ws=79`, 'HMA-1', '12345');
-    const result = parsed['data'] as B2500V2DeviceData;
-    expect(result).toHaveProperty('wifiSignalStrength', -79);
+    // The device already reports a signed dBm value.
+    expect(ws('-79')).toBe(-79);
+    expect(ws('-42')).toBe(-42);
 
-    // 0 means "no signal". Negating it yields -0, which JSON serialisation
-    // normalises to 0, so that is what actually gets published.
-    const noSignal = parseMessage(`${base},ws=0`, 'HMA-1', '12345');
-    expect(JSON.parse(JSON.stringify(noSignal['data'])).wifiSignalStrength).toBe(0);
+    // Both "no reading" sentinels are dropped: 0 (no Wi-Fi state yet) and
+    // 32767 / INT16_MAX (association down).
+    expect(ws('0')).toBeUndefined();
+    expect(ws('32767')).toBeUndefined();
 
     // Absent on devices that do not report it
     const without = parseMessage(base, 'HMA-1', '12345');
     expect((without['data'] as B2500V2DeviceData).wifiSignalStrength).toBeUndefined();
+  });
+
+  test('should parse all 16 cell voltages per pack', () => {
+    const cells = (prefix: string, mv: number) =>
+      Array.from({ length: 16 }, (_, i) => `${prefix}${i.toString(16)}=${mv + i}`).join(',');
+    const message = [cells('a', 3300), cells('b', 0), cells('c', 0)].join(',');
+
+    const result = parseMessage(message, 'HMA-1', '12345')['cells'] as B2500CellData;
+    expect(result.cellVoltage?.host?.cells).toHaveLength(16);
+    // a0=3300 .. af=3315, scaled from mV to V
+    expect(result.cellVoltage?.host?.cells[15]).toBeCloseTo(3.315, 5);
+    expect(result.cellVoltage?.host?.min).toBeCloseTo(3.3, 5);
+    expect(result.cellVoltage?.host?.max).toBeCloseTo(3.315, 5);
   });
 
   test('should handle message definitions correctly', () => {
