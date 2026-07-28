@@ -622,7 +622,7 @@ homeassistant/{component}/{node_id}/{object_id}/config
 - `time-period/[1-5]/start-time`: Sets start time for period (HH:MM format)
 - `time-period/[1-5]/end-time`: Sets end time for period (HH:MM format)
 - `time-period/[1-5]/output-value`: Sets output power for period (0-800W)
-- `connected-phase`: Sets connected phase for CT meter (`0`, `1` or `2` for phase 1, 2 and 3, or `255`/`none` for no phase)
+- `connected-phase`: Sets connected phase for CT meter (`0`, `1` or `2` for phase 1, 2 and 3, `3`/`searching` for the searching state, or `255`/`none` for no phase)
 - `time-zone`: Sets time zone (UTC offset in minutes, e.g. `60` for UTC+1)
 - `sync-time`: Synchronizes device time with server
 - `surplus-feed-in`: Toggles Surplus Feed-in mode (`on` or `off`). When enabled, surplus PV power is fed into the home grid when the battery is nearly full.
