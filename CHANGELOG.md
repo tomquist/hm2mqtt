@@ -1,4 +1,11 @@
 # Changelog
+## [1.9.1] - 2026-07-29
+
+### Fixed
+
+- B2500: Fix the cell voltage sensors on packs with fewer than 16 cells. Reading all 16 slots (new in 1.9.0) meant the unused slots, which the device reports as `0`, were counted as 0 V cells: *Min Cell Voltage* dropped to 0 V, *Cell Voltage Difference* jumped to the full cell voltage and *Average Cell Voltage* was pulled down. Empty slots are now ignored by the aggregates and the individual *Cell Voltage* sensors for those slots show as unknown instead of 0 V (fixes #384)
+
+
 ## [1.9.0] - 2026-07-28
 
 ### Added

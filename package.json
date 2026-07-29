@@ -1,6 +1,6 @@
 {
   "name": "hm2mqtt",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "type": "module",
   "main": "dist/index.js",
   "engines": {
