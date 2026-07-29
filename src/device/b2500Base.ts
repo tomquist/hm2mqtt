@@ -30,6 +30,7 @@ import {
   average,
   divide,
   inRange,
+  chain,
 } from '../transforms.js';
 
 export function extractAdditionalDeviceInfo(state: B2500BaseDeviceData): AdditionalDeviceInfo {
@@ -718,6 +719,12 @@ export function registerBaseMessage({
 // The device reports 16 cell slots per pack (`a0`-`af`). Detection only
 // requires the first 14 so that firmware reporting fewer still matches; the
 // aggregates below are partial-friendly for the same reason.
+//
+// Packs with fewer than 16 physical cells report the unused slots as `0`, so
+// both the individual cell sensors and the aggregates have to drop zeroes.
+// Otherwise an empty slot is read as a 0 V cell: the minimum collapses to 0,
+// the difference becomes the full cell voltage and the average is pulled down
+// by the missing cells (see #384).
 const CELL_COUNT = 16;
 const CELL_DETECT_COUNT = 14;
 
@@ -761,7 +768,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
       field({
         key: allKeys,
         path: ['cellVoltage', battery, 'min'],
-        transform: min(1000),
+        transform: min(1000, true),
         allowPartial: true,
       });
       advertise(
@@ -778,7 +785,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
       field({
         key: allKeys,
         path: ['cellVoltage', battery, 'max'],
-        transform: max(1000),
+        transform: max(1000, true),
         allowPartial: true,
       });
       advertise(
@@ -795,7 +802,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
       field({
         key: allKeys,
         path: ['cellVoltage', battery, 'diff'],
-        transform: diff(1000),
+        transform: diff(1000, true),
         allowPartial: true,
       });
       advertise(
@@ -812,7 +819,7 @@ export function registerCellDataMessage(message: BuildMessageFn) {
       field({
         key: allKeys,
         path: ['cellVoltage', battery, 'avg'],
-        transform: average(1000, true),
+        transform: average(1000, true, true),
         allowPartial: true,
       });
       advertise(
@@ -831,7 +838,10 @@ export function registerCellDataMessage(message: BuildMessageFn) {
         field({
           key: `${key}${i.toString(16)}`,
           path: ['cellVoltage', battery, 'cells', i],
-          transform: divide(1000),
+          // Unused slots read exactly 0; publish them as unknown rather than as
+          // a 0 V cell. The upper bound is only there because `inRange` needs
+          // one — no real cell comes anywhere near it.
+          transform: chain(divide(1000), inRange(0.001, 100)),
         });
         advertise(
           ['cellVoltage', battery, 'cells', i],

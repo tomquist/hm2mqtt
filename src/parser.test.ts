@@ -188,6 +188,27 @@ describe('MQTT Message Parser', () => {
     expect(result.cellVoltage?.host?.max).toBeCloseTo(3.315, 5);
   });
 
+  test('should ignore unused cell slots reported as 0 (issue #384)', () => {
+    // A 14-cell pack fills the first 14 slots and reports the remaining two as
+    // 0. Those must not drag the minimum to 0, blow up the difference or pull
+    // the average down.
+    const used = Array.from({ length: 14 }, (_, i) => `a${i.toString(16)}=${3300 + i}`);
+    const unused = ['ae=0', 'af=0'];
+    const message = [...used, ...unused].join(',');
+
+    const result = parseMessage(message, 'HMA-1', '12345')['cells'] as B2500CellData;
+    expect(result.cellVoltage?.host?.min).toBeCloseTo(3.3, 5);
+    expect(result.cellVoltage?.host?.max).toBeCloseTo(3.313, 5);
+    expect(result.cellVoltage?.host?.diff).toBeCloseTo(0.013, 5);
+    // Average over the 14 populated cells only: 3300..3313 -> 3306.5, rounded
+    // to 3307 mV before scaling.
+    expect(result.cellVoltage?.host?.avg).toBeCloseTo(3.307, 5);
+    // The empty slots are published as unknown, not as 0 V cells
+    expect(result.cellVoltage?.host?.cells[13]).toBeCloseTo(3.313, 5);
+    expect(result.cellVoltage?.host?.cells[14]).toBeUndefined();
+    expect(result.cellVoltage?.host?.cells[15]).toBeUndefined();
+  });
+
   test('should handle message definitions correctly', () => {
     // Create a simple test message
     const message =
