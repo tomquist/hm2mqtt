@@ -3,8 +3,8 @@
 
 ### Fixed
 
-- B2500 V2/V3, Venus & Jupiter: Stop Home Assistant logging a `Template variable warning: 'dict object' has no attribute 'meterType'` (and the same for `meterMac`) on every poll once the *Meter Type* or *Meter MAC* entity was enabled. Both are write-only settings that the device never reports back, so the state topic they were advertised with never carried the value and Home Assistant warned each time it rendered the template. They are now advertised without a state topic, which puts them into Home Assistant's optimistic mode: the entity shows the last value that was set. This also fixes the *Meter MAC* text entity failing with `Value "" … doesn't match pattern ^[0-9A-Fa-f]{12}$` (fixes #346)
-- B2500 V2/V3: The *Recharge Mode* select had the same problem and is now advertised the same way
+- B2500 V2/V3, Venus & Jupiter: Stop Home Assistant flooding the log with `Template variable warning: 'dict object' has no attribute 'meterType'` (and the same for `meterMac`) on every poll once the *Meter Type* or *Meter MAC* entity was enabled. The device never reports either setting back, so both entities now simply show the last value that was set. *Meter MAC* also no longer fails with `Value "" … doesn't match pattern ^[0-9A-Fa-f]{12}$` (fixes #346)
+- B2500 V2/V3: *Recharge Mode* was affected the same way and got the same fix
 
 ## [1.9.1] - 2026-07-29
 
