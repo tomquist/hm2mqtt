@@ -835,6 +835,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:identifier',
         command: 'meter-mac',
         pattern: '^[0-9A-Fa-f]{12}$',
+        // Write-only: the device never reports the configured MAC back.
+        optimistic: true,
         enabled_by_default: false,
       }),
     );
@@ -873,6 +875,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:meter-electric',
         command: 'meter-type',
         valueMappings: meterTypeLabels,
+        // Write-only: the device never reports the configured meter type back.
+        // The separate CT Type sensor shows what the device actually took.
+        optimistic: true,
         enabled_by_default: false,
       }),
     );
@@ -908,6 +913,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           singlePhase: 'Single Phase',
           threePhase: 'Three Phase',
         },
+        // Write-only: the device never reports the recharge mode back.
+        optimistic: true,
         enabled_by_default: false,
       }),
     );

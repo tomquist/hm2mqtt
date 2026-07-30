@@ -836,6 +836,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         command: 'meter-mac',
         // The device uses a plain 12 hex digit MAC without ':'/'-' separators.
         pattern: '^[0-9A-Fa-f]{12}$',
+        // Write-only: the device never reports the configured MAC back.
+        optimistic: true,
         enabled_by_default: false,
       }),
     );
@@ -873,6 +875,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:meter-electric',
         command: 'meter-type',
         valueMappings: meterTypeLabels,
+        // Write-only: the device never reports the configured meter type back.
+        optimistic: true,
         enabled_by_default: false,
       }),
     );
