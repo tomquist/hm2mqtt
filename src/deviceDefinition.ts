@@ -268,6 +268,10 @@ export function getDeviceDefinition(
   return undefined;
 }
 
+export function getRegisteredDeviceTypes(): string[] {
+  return [...deviceDefinitionRegistry.keys()];
+}
+
 export function getSuggestedDeviceType(baseType: string): string | undefined {
   const threshold = Math.max(1, Math.floor(baseType.length / 2));
   let bestMatch: string | undefined;

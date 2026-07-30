@@ -14,6 +14,16 @@ export interface HaBaseStateComponent extends HaBaseComponent {
   value_template: string;
 }
 
+/**
+ * Base for components that can be advertised without a state topic. Home
+ * Assistant treats such an entity as optimistic: it shows the last value that
+ * was set instead of subscribing to a state topic.
+ */
+export interface HaOptionalStateComponent extends HaBaseComponent {
+  state_topic?: string;
+  value_template?: string;
+}
+
 export interface HaBinarySensorComponent extends HaBaseStateComponent {
   type: 'binary_sensor';
   payload_on: string | number | boolean;
@@ -44,7 +54,7 @@ export interface HaNumberComponent extends Omit<HaSensorComponent, 'type'> {
   step?: number;
 }
 
-export interface HaTextComponent extends HaBaseStateComponent {
+export interface HaTextComponent extends HaOptionalStateComponent {
   type: 'text';
   command_topic: string;
   min?: number;
@@ -52,11 +62,10 @@ export interface HaTextComponent extends HaBaseStateComponent {
   pattern?: string;
 }
 
-export interface HaSelectComponent extends HaBaseStateComponent {
+export interface HaSelectComponent extends HaOptionalStateComponent {
   type: 'select';
   command_topic: string;
   options: string[];
-  value_template: string;
   command_template: string;
 }
 
@@ -168,6 +177,29 @@ export interface HaBaseStateComponentArgs extends HaBaseComponentArgs {
   defaultValue?: string;
 }
 
+/**
+ * Marks a control whose value the device never reports back, e.g. a setting that
+ * can only be written. Such a control must not be advertised with a state topic:
+ * Home Assistant would render the value template against every published payload
+ * and log a `'dict object' has no attribute …` warning each time, because the key
+ * is simply never there. Without a state topic Home Assistant switches the entity
+ * to optimistic mode and shows the last value that was set.
+ */
+export interface HaOptimisticComponentArgs {
+  optimistic?: boolean;
+}
+
+function stateSource(
+  definition: HaOptimisticComponentArgs,
+  args: AdvertiseBuilderArgs,
+  buildValueTemplate: () => string,
+): { state_topic?: string; value_template?: string } {
+  if (definition.optimistic) {
+    return {};
+  }
+  return { state_topic: args.stateTopic, value_template: buildValueTemplate() };
+}
+
 const baseSensor =
   (definitions: HaBaseComponentArgs) =>
   (_args: Omit<AdvertiseBuilderArgs, 'keyPath'>): HaBaseComponent => ({
@@ -258,38 +290,41 @@ export const switchComponent =
   });
 export const textComponent =
   <T extends string = string>(
-    definition: HaBaseStateComponentArgs & {
-      command: string;
-      max?: number;
-      min?: number;
-      pattern?: string;
-    },
+    definition: HaBaseStateComponentArgs &
+      HaOptimisticComponentArgs & {
+        command: string;
+        max?: number;
+        min?: number;
+        pattern?: string;
+      },
   ): HaStatefulAdvertiseBuilder<T> =>
   args => ({
-    ...baseStateSensor(definition)(args),
+    ...baseSensor(definition)(args),
+    ...stateSource(definition, args, () => valueTemplate(args)),
     type: 'text',
-    state_topic: args.stateTopic,
     command_topic: commandTopic({ ...args, ...definition }),
-    value_template: valueTemplate(args),
     max: definition.max,
     min: definition.min,
     pattern: definition.pattern,
   });
 export const selectComponent =
   <T extends string | number>(
-    definition: HaBaseStateComponentArgs & {
-      command: string;
-      valueMappings: Record<T, string>;
-      defaultValue?: T;
-    },
+    definition: HaBaseStateComponentArgs &
+      HaOptimisticComponentArgs & {
+        command: string;
+        valueMappings: Record<T, string>;
+        defaultValue?: T;
+      },
   ): HaStatefulAdvertiseBuilder<T, HaSelectComponent> =>
   args => ({
-    ...baseStateSensor(definition)(args),
+    ...baseSensor(definition)(args),
+    ...stateSource(definition, args, () =>
+      mappingValueTemplate({
+        value: getJinjaPath(args.keyPath),
+        valueMappings: definition.valueMappings,
+      }),
+    ),
     type: 'select',
-    value_template: mappingValueTemplate({
-      value: getJinjaPath(args.keyPath),
-      valueMappings: definition.valueMappings,
-    }),
     command_template: mappingValueTemplate({
       value: 'value',
       valueMappings: reverseMappings(definition.valueMappings),
