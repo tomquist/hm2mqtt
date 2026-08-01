@@ -972,6 +972,30 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
     getAdditionalDeviceInfo: () => ({}),
     enabled: process.env.POLL_EXTRA_BATTERY_DATA === 'true',
   } as const;
+  // Some firmware versions (e.g. B2500 113.x) answer `cd=16` without the
+  // voltage/current keys, which leaves the corresponding sensors permanently
+  // unknown. `timestamp` cannot be used as the "we got a `cd=16` response"
+  // marker because the device state handed to the discovery generator is a flat
+  // merge of all message paths and every message carries a timestamp. The
+  // top-level `cd=16` keys are exclusive to this message instead, and
+  // `isB2500CD16Message` guarantees at least one of them is set for every
+  // recognized response.
+  const hasExtraBatteryData = (state: B2500V2CD16Data) =>
+    state.input1 != null ||
+    state.input2 != null ||
+    state.output1 != null ||
+    state.output2 != null ||
+    state.batteryData != null;
+  // Defer the decision until a `cd=16` response has been seen, then advertise
+  // the sensor only if the device actually reports its value.
+  const isExtraBatteryValueReported =
+    (getValue: (state: B2500V2CD16Data) => number | undefined) =>
+    (state: B2500V2CD16Data): boolean | undefined => {
+      if (!hasExtraBatteryData(state)) {
+        return undefined;
+      }
+      return getValue(state) != null;
+    };
   message<B2500V2CD16Data>(options, ({ field, advertise }) => {
     advertise(
       ['timestamp'],
@@ -998,6 +1022,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
           unit_of_measurement: 'V',
           state_class: 'measurement',
         }),
+        { enabled: isExtraBatteryValueReported(state => state[`input${input}`]?.voltage) },
       );
       field({
         key: `c${input}`,
@@ -1013,6 +1038,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
           unit_of_measurement: 'A',
           state_class: 'measurement',
         }),
+        { enabled: isExtraBatteryValueReported(state => state[`input${input}`]?.current) },
       );
       field({
         key: `w${input}`,
@@ -1033,6 +1059,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
           unit_of_measurement: 'V',
           state_class: 'measurement',
         }),
+        { enabled: isExtraBatteryValueReported(state => state[`output${input}`]?.voltage) },
       );
       field({
         key: `c${input + 2}`,
@@ -1048,6 +1075,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
           unit_of_measurement: 'A',
           state_class: 'measurement',
         }),
+        { enabled: isExtraBatteryValueReported(state => state[`output${input}`]?.current) },
       );
       field({
         key: `g${input}`,
@@ -1073,6 +1101,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
         unit_of_measurement: 'V',
         state_class: 'measurement',
       }),
+      { enabled: isExtraBatteryValueReported(state => state.batteryData?.host?.voltage) },
     );
     field({
       key: 'bc',
@@ -1088,6 +1117,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
         unit_of_measurement: 'A',
         state_class: 'measurement',
       }),
+      { enabled: isExtraBatteryValueReported(state => state.batteryData?.host?.current) },
     );
     field({
       key: 'sb',
@@ -1108,6 +1138,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
         state_class: 'measurement',
         enabled_by_default: false,
       }),
+      { enabled: isExtraBatteryValueReported(state => state.batteryData?.extra1?.voltage) },
     );
     field({
       key: 'sc',
@@ -1124,6 +1155,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
         state_class: 'measurement',
         enabled_by_default: false,
       }),
+      { enabled: isExtraBatteryValueReported(state => state.batteryData?.extra1?.current) },
     );
     field({
       key: 'lb',
@@ -1144,6 +1176,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
         state_class: 'measurement',
         enabled_by_default: false,
       }),
+      { enabled: isExtraBatteryValueReported(state => state.batteryData?.extra2?.voltage) },
     );
     field({
       key: 'lc',
@@ -1160,6 +1193,7 @@ export function registerExtraBatteryData(message: BuildMessageFn) {
         state_class: 'measurement',
         enabled_by_default: false,
       }),
+      { enabled: isExtraBatteryValueReported(state => state.batteryData?.extra2?.current) },
     );
   });
 }

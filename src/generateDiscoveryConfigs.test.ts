@@ -733,4 +733,159 @@ describe('Home Assistant Discovery', () => {
     ).filter(c => /phase\d_charge/.test(c.topic));
     expect(smr).toHaveLength(0);
   });
+
+  describe('B2500 V2 extra battery voltage/current sensors', () => {
+    const device: Device = { deviceType: 'HMJ-2', deviceId: 'b2500123' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/HMJ-2/device/b2500123/ctrl',
+      deviceTopicNew: 'marstek_energy/HMJ-2/device/b2500123/ctrl',
+      deviceControlTopicOld: 'hame_energy/HMJ-2/App/b2500123/ctrl',
+      deviceControlTopicNew: 'marstek_energy/HMJ-2/App/b2500123/ctrl',
+      availabilityTopic: 'hame_energy/HMJ-2/availability/b2500123',
+      controlSubscriptionTopic: 'hame_energy/HMJ-2/control/b2500123/control',
+      publishTopic: 'hame_energy/HMJ-2/device/b2500123/data',
+    };
+
+    const gatedObjectIds = [
+      'solar_input_voltage_1',
+      'solar_input_voltage_2',
+      'solar_input_current_1',
+      'solar_input_current_2',
+      'output_voltage_1',
+      'output_voltage_2',
+      'output_current_1',
+      'output_current_2',
+      'battery_voltage',
+      'battery_current',
+      'battery_extra1_voltage',
+      'battery_extra1_current',
+      'battery_extra2_voltage',
+      'battery_extra2_current',
+    ];
+
+    // The `cd=16` message is only built when POLL_EXTRA_BATTERY_DATA is set, so the
+    // device definitions have to be registered again with the flag turned on.
+    const gatedConfigs = async (state: object) => {
+      const previous = process.env.POLL_EXTRA_BATTERY_DATA;
+      process.env.POLL_EXTRA_BATTERY_DATA = 'true';
+      jest.resetModules();
+      try {
+        await import('./device/registry.js');
+        const { generateDiscoveryConfigs: generate } =
+          await import('./generateDiscoveryConfigs.js');
+        return generate(
+          device,
+          deviceTopics,
+          {},
+          DEFAULT_TOPIC_PREFIX,
+          'homeassistant',
+          state,
+        ).filter(c => gatedObjectIds.includes(c.topic.split('/').slice(-2)[0]));
+      } finally {
+        if (previous == null) {
+          delete process.env.POLL_EXTRA_BATTERY_DATA;
+        } else {
+          process.env.POLL_EXTRA_BATTERY_DATA = previous;
+        }
+        jest.resetModules();
+      }
+    };
+
+    test('should not announce or remove them before a cd=16 response arrived', async () => {
+      // Only cd=01 data so far. The merged device state carries a timestamp from
+      // that message, which must not be mistaken for a cd=16 response.
+      const configs = await gatedConfigs({
+        deviceType: 'HMJ-2',
+        deviceId: 'b2500123',
+        timestamp: '2026-01-01T00:00:00.000Z',
+        batteryPercentage: 50,
+      });
+      expect(configs).toHaveLength(0);
+    });
+
+    test('should announce the values the device reports', async () => {
+      const configs = await gatedConfigs({
+        deviceType: 'HMJ-2',
+        deviceId: 'b2500123',
+        timestamp: '2026-01-01T00:00:00.000Z',
+        input1: { voltage: 30, current: 1, power: 30 },
+        input2: { voltage: 0, current: 0, power: 0 },
+        output1: { voltage: 52, current: 0.5, power: 25 },
+        output2: { voltage: 0, current: 0, power: 0 },
+        batteryData: {
+          host: { power: 100, voltage: 52, current: 2 },
+          extra1: { power: 0, voltage: 51, current: 0 },
+          extra2: { power: 0, voltage: 50, current: 0 },
+        },
+      });
+      expect(configs).toHaveLength(gatedObjectIds.length);
+      expect(configs.every(c => c.config !== null)).toBe(true);
+    });
+
+    test('should remove them when the device answers cd=16 without them', async () => {
+      // Firmware 113.x answers cd=16 without any voltage/current keys (fixes #280)
+      const configs = await gatedConfigs({
+        deviceType: 'HMJ-2',
+        deviceId: 'b2500123',
+        timestamp: '2026-01-01T00:00:00.000Z',
+        input1: { power: 30 },
+        input2: { power: 0 },
+        output1: { power: 25 },
+        output2: { power: 0 },
+        batteryData: {
+          host: { power: 100 },
+          extra1: { power: 0 },
+          extra2: { power: 0 },
+        },
+      });
+      expect(configs).toHaveLength(gatedObjectIds.length);
+      expect(configs.every(c => c.config === null)).toBe(true);
+    });
+
+    test('should gate each value on its own, not on the message as a whole', async () => {
+      // A response that carries the input voltages but none of the currents
+      const configs = await gatedConfigs({
+        deviceType: 'HMJ-2',
+        deviceId: 'b2500123',
+        timestamp: '2026-01-01T00:00:00.000Z',
+        input1: { voltage: 30, power: 30 },
+        input2: { voltage: 0, power: 0 },
+      });
+      const byObjectId = Object.fromEntries(
+        configs.map(c => [c.topic.split('/').slice(-2)[0], c.config]),
+      );
+      expect(byObjectId['solar_input_voltage_1']).not.toBeNull();
+      expect(byObjectId['solar_input_voltage_2']).not.toBeNull();
+      expect(byObjectId['solar_input_current_1']).toBeNull();
+      expect(byObjectId['output_voltage_1']).toBeNull();
+      expect(byObjectId['battery_voltage']).toBeNull();
+    });
+
+    test('should keep the extra battery timestamp sensor ungated', async () => {
+      const previous = process.env.POLL_EXTRA_BATTERY_DATA;
+      process.env.POLL_EXTRA_BATTERY_DATA = 'true';
+      jest.resetModules();
+      try {
+        await import('./device/registry.js');
+        const { generateDiscoveryConfigs: generate } =
+          await import('./generateDiscoveryConfigs.js');
+        const timestampConfig = generate(
+          device,
+          deviceTopics,
+          {},
+          DEFAULT_TOPIC_PREFIX,
+          'homeassistant',
+          { deviceType: 'HMJ-2', deviceId: 'b2500123' },
+        ).find(c => c.topic.includes('/timestamp_extra_battery_data/config'));
+        expect(timestampConfig?.config).not.toBeNull();
+      } finally {
+        if (previous == null) {
+          delete process.env.POLL_EXTRA_BATTERY_DATA;
+        } else {
+          process.env.POLL_EXTRA_BATTERY_DATA = previous;
+        }
+        jest.resetModules();
+      }
+    });
+  });
 });

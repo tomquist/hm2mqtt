@@ -8,6 +8,7 @@
 - Jupiter: Fix the cell voltage sensors of external battery packs. *Cell With Highest Voltage* and *Cell With Lowest Voltage* showed cell numbers far beyond the 16 cells a pack has (such as 62 or 248), *Lowest Cell Voltage* could read 0 mV, and *Cell Voltage Difference* was correspondingly wrong. The sensors of the internal battery were not affected (see discussion #393)
 - B2500: On devices with a CT meter attached, an ordinary status poll was mistaken for an extra battery reading, so the *Input Voltage* and *Extra Battery 2 Voltage* sensors showed the meter's power readings scaled down to a few volts
 - B2500: Ignore state of charge readings outside 0-100%. The extra batteries occasionally report values like 4873% or 56577%, which ended up in Home Assistant's long-term statistics; the *Battery Percentage* and *Battery SoC* sensors now show unknown for that poll instead (fixes #97)
+- B2500 V2/V3: Remove the extra battery voltage and current sensors on firmware that does not report them. On 113.x they sat permanently at unknown; they reappear after a firmware upgrade that reports them (fixes #280)
 
 ## [1.9.1] - 2026-07-29
 
