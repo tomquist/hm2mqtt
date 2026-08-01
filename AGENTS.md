@@ -59,6 +59,26 @@ For every new or changed config option, treat the following as mandatory complet
 - Changelog entry under `[Next]` in `CHANGELOG.md`
 - Updates to all TypeScript test fixtures that construct `MqttConfig`
 
+## Changelog Style
+
+`CHANGELOG.md` is read by users of the Home Assistant add-on, not by developers.
+Write every entry from the perspective of someone who noticed the problem in
+Home Assistant or in the add-on log and has never seen the source.
+
+- Lead with the symptom the user saw: the wrong entity value, the log message,
+  the device that went unavailable. Name entities as they appear in Home
+  Assistant (*Battery Percentage*) and quote log lines verbatim.
+- Then say what changed for them now.
+- End with `(fixes #123)` / `(see discussion #123)` when there is an issue.
+- Keep it to a few sentences. A follow-up fix of the same kind gets its own
+  one-line bullet rather than a longer first entry.
+
+Keep out of the changelog: file, function and variable names, class or module
+internals, data structures, protocol/spec references, the name of the library
+that was patched, and any description of the code path that was changed. If a
+sentence would only make sense with the diff open, it does not belong here.
+Implementation reasoning goes in the commit message and the PR description.
+
 ## Coding & Change Style
 
 - Prefer minimal, surgical changes over broad refactors.
