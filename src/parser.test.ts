@@ -175,6 +175,40 @@ describe('MQTT Message Parser', () => {
     expect((without['data'] as B2500V2DeviceData).wifiSignalStrength).toBeUndefined();
   });
 
+  test('should drop out-of-range state of charge readings (issue #97)', () => {
+    const base = 'pe=75,kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0';
+    const soc = (keys: string) =>
+      parseMessage(`${base},${keys}`, 'HMA-1', '12345')['data'] as B2500V2DeviceData;
+
+    // Plausible readings pass through unchanged, including both boundaries.
+    const valid = soc('a0=14,a1=0,a2=100');
+    expect(valid.batteryCapacities).toHaveProperty('host', 14);
+    expect(valid.batteryCapacities).toHaveProperty('extra1', 0);
+    expect(valid.batteryCapacities).toHaveProperty('extra2', 100);
+
+    // The firmware occasionally reports impossible percentages for the extra
+    // batteries. Those are dropped so the sensor goes unknown for that poll.
+    const spike = soc('a0=14,a1=56577,a2=2425');
+    expect(spike.batteryCapacities).toHaveProperty('host', 14);
+    expect(spike.batteryCapacities?.extra1).toBeUndefined();
+    expect(spike.batteryCapacities?.extra2).toBeUndefined();
+    // The published payload leaves the keys out entirely, so Home Assistant
+    // sees the sensors as unknown and keeps them out of the statistics.
+    expect(JSON.parse(JSON.stringify(spike.batteryCapacities))).toEqual({ host: 14 });
+
+    // Negative readings are rejected as well.
+    expect(soc('a0=-1,a1=0,a2=0').batteryCapacities?.host).toBeUndefined();
+
+    // The main battery percentage uses the same bounds.
+    const mainSpike = parseMessage(
+      'pe=4873,kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0',
+      'HMA-1',
+      '12345',
+    )['data'] as B2500V2DeviceData;
+    expect(mainSpike.batteryPercentage).toBeUndefined();
+    expect(soc('a0=0').batteryPercentage).toBe(75);
+  });
+
   test('should parse all 16 cell voltages per pack', () => {
     const cells = (prefix: string, mv: number) =>
       Array.from({ length: 16 }, (_, i) => `${prefix}${i.toString(16)}=${mv + i}`).join(',');
