@@ -635,16 +635,20 @@ describe('MQTT Message Parser', () => {
     // Cell voltages (vol0-vol15)
     expect(result).toHaveProperty('cells');
 
-    // Battery cell voltages: 4 batteries, each using 4 volX values
-    // Battery 0 (internal): vol0, vol1, vol2, vol3
-    // Battery 1 (external 1): vol4, vol5, vol6, vol7
-    // Battery 2 (external 2): vol8, vol9, vol10, vol11
-    // Battery 3 (external 3): vol12, vol13, vol14, vol15
+    // Battery cell voltages: 4 batteries, each using 3 volX values
+    // Battery 0 (internal): vol0, vol1, vol2
+    // Battery 1 (external 1): vol3, vol4, vol5
+    // Battery 2 (external 2): vol6, vol7, vol8
+    // Battery 3 (external 3): vol9, vol10, vol11
+    //
+    // NOTE: The volX values in this message are synthetic (all 16 are non-zero
+    // and in the same range), so they only exercise the field indexing. See the
+    // "multiple battery packs" test below for a real-world message.
     expect(result).toHaveProperty('batteries');
     expect(Array.isArray(result.batteries)).toBe(true);
     expect(result.batteries).toHaveLength(4);
 
-    // Battery 0 (internal): vol0=3280 (0x0CD0), vol1=3281, vol2=3283, vol3=3283
+    // Battery 0 (internal): vol0=3280 (0x0CD0), vol1=3281, vol2=3283
     expect(result.batteries?.[0]).toHaveProperty('cellVoltages');
     expect(result.batteries?.[0]?.cellVoltages?.maxVoltage).toBe(3281);
     expect(result.batteries?.[0]?.cellVoltages?.minVoltage).toBe(3283);
@@ -655,30 +659,30 @@ describe('MQTT Message Parser', () => {
     // Drift (difference) between highest and lowest cell voltage
     expect(result.batteries?.[0]?.cellVoltages?.voltageDiff).toBe(2);
 
-    // Battery 1 (external 1): vol4=3283 (0x0CD3), vol5=3283, vol6=3280, vol7=3284
+    // Battery 1 (external 1): vol3=3283 (0x0CD3), vol4=3283, vol5=3283
     expect(result.batteries?.[1]).toHaveProperty('cellVoltages');
     expect(result.batteries?.[1]?.cellVoltages?.maxVoltage).toBe(3283);
-    expect(result.batteries?.[1]?.cellVoltages?.minVoltage).toBe(3280);
+    expect(result.batteries?.[1]?.cellVoltages?.minVoltage).toBe(3283);
     // Low byte: 0xD3 = 211
     expect(result.batteries?.[1]?.cellVoltages?.maxVoltageCell).toBe(211);
     // High byte: 0x0C = 12
     expect(result.batteries?.[1]?.cellVoltages?.minVoltageCell).toBe(12);
 
-    // Battery 2 (external 2): vol8=3283 (0x0CD3), vol9=3284, vol10=3282, vol11=3286
+    // Battery 2 (external 2): vol6=3280 (0x0CD0), vol7=3284, vol8=3283
     expect(result.batteries?.[2]).toHaveProperty('cellVoltages');
     expect(result.batteries?.[2]?.cellVoltages?.maxVoltage).toBe(3284);
-    expect(result.batteries?.[2]?.cellVoltages?.minVoltage).toBe(3282);
-    // Low byte: 0xD3 = 211
-    expect(result.batteries?.[2]?.cellVoltages?.maxVoltageCell).toBe(211);
+    expect(result.batteries?.[2]?.cellVoltages?.minVoltage).toBe(3283);
+    // Low byte: 0xD0 = 208
+    expect(result.batteries?.[2]?.cellVoltages?.maxVoltageCell).toBe(208);
     // High byte: 0x0C = 12
     expect(result.batteries?.[2]?.cellVoltages?.minVoltageCell).toBe(12);
 
-    // Battery 3 (external 3): vol12=3277 (0x0CCD), vol13=3286, vol14=3283, vol15=3284
+    // Battery 3 (external 3): vol9=3284 (0x0CD4), vol10=3282, vol11=3286
     expect(result.batteries?.[3]).toHaveProperty('cellVoltages');
-    expect(result.batteries?.[3]?.cellVoltages?.maxVoltage).toBe(3286);
-    expect(result.batteries?.[3]?.cellVoltages?.minVoltage).toBe(3283);
-    // Low byte: 0xCD = 205
-    expect(result.batteries?.[3]?.cellVoltages?.maxVoltageCell).toBe(205);
+    expect(result.batteries?.[3]?.cellVoltages?.maxVoltage).toBe(3282);
+    expect(result.batteries?.[3]?.cellVoltages?.minVoltage).toBe(3286);
+    // Low byte: 0xD4 = 212
+    expect(result.batteries?.[3]?.cellVoltages?.maxVoltageCell).toBe(212);
     // High byte: 0x0C = 12
     expect(result.batteries?.[3]?.cellVoltages?.minVoltageCell).toBe(12);
 
@@ -747,6 +751,46 @@ describe('MQTT Message Parser', () => {
     expect(result.inverter).toHaveProperty('gridPower', 119);
     expect(result.inverter).toHaveProperty('gridPowerFactor', 0);
     expect(result.inverter).toHaveProperty('gridFrequency', 50.02);
+  });
+
+  test('should parse Jupiter BMS cell voltages for multiple battery packs', () => {
+    // Real-world message from a Jupiter C Plus (JPLS-8H) with four battery
+    // packs (`b_num=4`), see https://github.com/tomquist/hm2mqtt/discussions/393
+    // Each pack occupies three volX fields: packed cell numbers, maximum cell
+    // voltage, minimum cell voltage. The trailing vol12-vol15 are unused.
+    const message =
+      'inv:g_state=1,w_state1=1,w_state2=1,i_err=0,i_war=0,g_vol=2436,g_cur=0,g_pf=0,g_fre=5000,b_vol=536,g_power=0,i_temp=40,mppt:m_state=148,m_err=0,m_temp=38,m_war=0,pv1=429|26|1121,pv2=114|0|0,pv3=114|0|0,pv4=435|27|1179,b_vol=532,b_cur=43,base_v=220,pe_v=161,fail_t=0,bms:c_vol=584,c_cur=500,d_cur=500,soc=81,soh=0,b_cap=10240,b_vol=5340,b_cur=48,b_temp=290,b_err=0,b_war=0,b_err2=0,b_war2=0,c_flag=192,s_flag=0,b_num=4,vol0=1039,vol1=3353,vol2=3326,vol3=1,vol4=3320,vol5=3319,vol6=2063,vol7=3362,vol8=3328,vol9=774,vol10=3338,vol11=3327,vol12=0,vol13=0,vol14=0,vol15=0,b_temp0=28,b_temp1=28,b_temp2=28,b_temp3=29,env_t=36,mos_t=28,lck=0';
+    const deviceType = 'JPLS-8H';
+    const deviceId = 'jupiter123';
+
+    const parsed = parseMessage(message, deviceType, deviceId);
+    const result = parsed['bms'] as JupiterBMSInfo;
+
+    expect(result.bms).toHaveProperty('bmsNumber', 4);
+    expect(result.batteries).toHaveLength(4);
+
+    // All decoded cell numbers must be within range of a 16-cell pack, and all
+    // voltages must be plausible cell voltages. This is what rules out a
+    // 4-field block, which would decode voltages as cell numbers (e.g. 248).
+    const expected = [
+      // vol0=1039 (0x040F), vol1=3353, vol2=3326
+      { maxVoltageCell: 15, minVoltageCell: 4, maxVoltage: 3353, minVoltage: 3326, diff: 27 },
+      // vol3=1 (0x0001), vol4=3320, vol5=3319
+      { maxVoltageCell: 1, minVoltageCell: 0, maxVoltage: 3320, minVoltage: 3319, diff: 1 },
+      // vol6=2063 (0x080F), vol7=3362, vol8=3328
+      { maxVoltageCell: 15, minVoltageCell: 8, maxVoltage: 3362, minVoltage: 3328, diff: 34 },
+      // vol9=774 (0x0306), vol10=3338, vol11=3327
+      { maxVoltageCell: 6, minVoltageCell: 3, maxVoltage: 3338, minVoltage: 3327, diff: 11 },
+    ];
+
+    expected.forEach((values, index) => {
+      const cellVoltages = result.batteries?.[index]?.cellVoltages;
+      expect(cellVoltages?.maxVoltageCell).toBe(values.maxVoltageCell);
+      expect(cellVoltages?.minVoltageCell).toBe(values.minVoltageCell);
+      expect(cellVoltages?.maxVoltage).toBe(values.maxVoltage);
+      expect(cellVoltages?.minVoltage).toBe(values.minVoltage);
+      expect(cellVoltages?.voltageDiff).toBe(values.diff);
+    });
   });
 
   test('should convert negative Jupiter BMS temperatures correctly', () => {

@@ -1232,21 +1232,28 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
       // byte encodes the cell with the maximum voltage.
       //
       // In addition to that, Marstek Jupiter C Plus can have up to 3 extra
-      // batteries attached, and the remaining `volX` fields should provide
-      // voltages for those batteries in the same way. However, we don't know
-      // where the block of values for the next battery starts. When no external
-      // batteries are attached, `vol3` to `vol15` are all `0`.
+      // batteries attached, and the remaining `volX` fields provide the same
+      // information for those batteries. Each battery gets a block of *three*
+      // `volX` fields, so battery N starts at `vol${N * 3}`. When fewer
+      // batteries are attached, the trailing fields are all `0`.
       //
-      // For now, we will assume that four `volX` fields correspond to each
-      // battery, as it nicely aligns with 16 being divisible by 4 (1 internal
-      // battery + up to 3 external batteries). I don't have external batteries,
-      // so I can't verify this assumption.
+      // This was confirmed by a dump from a device with four battery packs
+      // (`b_num=4`), where each 3-field block decodes into plausible values,
+      // while a 4-field block does not (it yields cell numbers such as 248,
+      // which is way out of range for a 16-cell pack):
+      //
+      //   vol0=1039 (cells 15/4)   vol1=3353   vol2=3326
+      //   vol3=1    (cells 1/0)    vol4=3320   vol5=3319
+      //   vol6=2063 (cells 15/8)   vol7=3362   vol8=3328
+      //   vol9=774  (cells 6/3)    vol10=3338  vol11=3327
+      //   vol12=vol13=vol14=vol15=0
       //
       // See: https://github.com/tomquist/hm2mqtt/discussions/253
+      //      https://github.com/tomquist/hm2mqtt/discussions/393
 
       // Batteries: 1 internal (battery 0) + up to 3 external (batteries 1-3)
       for (let batteryIndex = 0; batteryIndex < 4; batteryIndex++) {
-        const baseIndex = batteryIndex * 4;
+        const baseIndex = batteryIndex * 3;
         const batteryLabel =
           batteryIndex === 0 ? 'Internal Battery' : `External Battery ${batteryIndex}`;
         const volNumberKey = `vol${baseIndex}`;

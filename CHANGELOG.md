@@ -5,6 +5,7 @@
 
 - B2500 V2/V3, Venus & Jupiter: Stop Home Assistant flooding the log with `Template variable warning: 'dict object' has no attribute 'meterType'` (and the same for `meterMac`) on every poll once the *Meter Type* or *Meter MAC* entity was enabled. The device never reports either setting back, so both entities now simply show the last value that was set. *Meter MAC* also no longer fails with `Value "" … doesn't match pattern ^[0-9A-Fa-f]{12}$` (fixes #346)
 - B2500 V2/V3: *Recharge Mode* was affected the same way and got the same fix
+- Jupiter: Fix the cell voltage sensors for external battery packs. Each pack occupies three `volX` fields, not four, so every external pack was read from the wrong offset: the *Cell With Highest/Lowest Voltage* sensors showed nonsensical cell numbers (such as 157 or 248, well beyond the 16 cells a pack has) and the *Highest/Lowest Cell Voltage* sensors mixed up voltages with packed cell numbers. The internal battery was unaffected. Confirmed against a device with four packs, see discussion #393
 
 ## [1.9.1] - 2026-07-29
 
