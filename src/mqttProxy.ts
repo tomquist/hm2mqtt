@@ -79,7 +79,12 @@ export class MqttProxy {
           );
         }
 
-        this.trackClientId(client, packet.clientId);
+        // An empty client ID is not an identity - Aedes generates a unique one
+        // for those, and tracking `''` would only make the next anonymous
+        // client look like a conflict.
+        if (packet.clientId) {
+          this.trackClientId(client, packet.clientId);
+        }
         callback(null, true);
       },
     });

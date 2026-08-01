@@ -106,7 +106,13 @@ function connectClient(
       reconnectPeriod: 0, // no auto-reconnect in tests
       ...options,
     });
-    client.once('connect', () => resolve(client));
+    client.once('connect', () => {
+      // The broker closes stale sessions on takeover, which makes the client
+      // emit `error` later on. An `error` without a listener would take the
+      // Jest worker down.
+      client.on('error', () => {});
+      resolve(client);
+    });
     client.once('error', reject);
   });
 }
