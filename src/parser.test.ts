@@ -199,14 +199,18 @@ describe('MQTT Message Parser', () => {
     // Negative readings are rejected as well.
     expect(soc('a0=-1,a1=0,a2=0').batteryCapacities?.host).toBeUndefined();
 
-    // The main battery percentage uses the same bounds.
-    const mainSpike = parseMessage(
-      'pe=4873,kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0',
-      'HMA-1',
-      '12345',
-    )['data'] as B2500V2DeviceData;
-    expect(mainSpike.batteryPercentage).toBeUndefined();
-    expect(soc('a0=0').batteryPercentage).toBe(75);
+    expect(soc('a0=0').batteryCapacities).toHaveProperty('host', 0);
+
+    // The main battery percentage uses the same bounds, boundaries included.
+    const main = (pe: string) =>
+      parseMessage(
+        `pe=${pe},kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0`,
+        'HMA-1',
+        '12345',
+      )['data'] as B2500V2DeviceData;
+    expect(main('4873').batteryPercentage).toBeUndefined();
+    expect(main('0').batteryPercentage).toBe(0);
+    expect(main('100').batteryPercentage).toBe(100);
   });
 
   test('should parse all 16 cell voltages per pack', () => {
