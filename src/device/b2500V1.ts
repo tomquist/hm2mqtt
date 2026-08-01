@@ -190,6 +190,12 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 }
 
 function isB2500CD16Message(message: Record<string, string>): boolean {
+  // None of the keys below are exclusive to cd=16, so a complete cd=01 runtime
+  // response can satisfy them as well. Such a response is never extra battery
+  // data.
+  if (isB2500RuntimeInfoMessage(message)) {
+    return false;
+  }
   const cd16VoltageInfo = ['p1', 'p2', 'm1', 'm2', 'w1', 'w2', 'e1', 'e2', 'o1', 'o2', 'g1', 'g2'];
   const forbiddenKeys = ['m3', 'cj'];
   if (cd16VoltageInfo.every(k => k in message) && !forbiddenKeys.some(k => k in message)) {

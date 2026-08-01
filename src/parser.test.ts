@@ -4,6 +4,7 @@ import { parseMessage } from './parser.js';
 import logger from './logger.js';
 import {
   B2500CellData,
+  B2500V2CD16Data,
   B2500V2DeviceData,
   CT002DeviceData,
   CT002PhaseEnergyInfo,
@@ -211,6 +212,46 @@ describe('MQTT Message Parser', () => {
     expect(main('4873').batteryPercentage).toBeUndefined();
     expect(main('0').batteryPercentage).toBe(0);
     expect(main('100').batteryPercentage).toBe(100);
+  });
+
+  test('should not read a runtime poll as extra battery data', () => {
+    const runtime =
+      'pe=75,kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0';
+    const paths = (message: string, deviceType = 'HMA-1') =>
+      Object.keys(parseMessage(message, deviceType, '12345')).sort();
+
+    // A runtime response from a device with a CT meter attached carries the
+    // clip power readings (m0/m1/m2) and a second time period. In a cd=16
+    // response m1/m2 are the input voltages instead, so this used to be
+    // published as extra battery data too, turning a 200 W clip reading into an
+    // input voltage of 0.2 V.
+    expect(paths(runtime)).toEqual(['data']);
+    expect(paths(`${runtime},m0=100,m1=200,m2=300,e2=0:0`)).toEqual(['data']);
+    expect(paths(`${runtime},m0=100,m1=200,m2=300,e2=0:0`, 'HMB-1')).toEqual(['data']);
+    // A micro-inverter power reading or the scene field already kept those
+    // messages out before, and still does.
+    expect(paths(`${runtime},m0=100,m1=200,m2=300,e2=0:0,m3=50`)).toEqual(['data']);
+    expect(paths(`${runtime},m0=100,m1=200,m2=300,e2=0:0,cj=1`)).toEqual(['data']);
+
+    // Genuine cd=16 responses are still recognised: the full payload with the
+    // per-pack battery measurements ...
+    const full =
+      'm1=32000,m2=0,c1=1000,c2=0,w1=32,w2=0,i1=230000,i2=0,c3=100,c4=0,g1=23,g2=0,' +
+      'bb=100,bv=52000,bc=1900,sb=0,sv=0,sc=0,lb=0,lv=0,lc=0';
+    expect(paths(full)).toEqual(['extraBatteryData']);
+    const fullData = parseMessage(full, 'HMA-1', '12345')['extraBatteryData'] as B2500V2CD16Data;
+    expect(fullData.input1?.voltage).toBeCloseTo(32, 5);
+    expect(fullData.batteryData?.host?.voltage).toBeCloseTo(52, 5);
+
+    // ... and the input/output-only payload.
+    const inputsOnly = 'p1=0,p2=0,m1=32000,m2=0,w1=32,w2=0,e1=0,e2=0,o1=0,o2=0,g1=23,g2=0';
+    expect(paths(inputsOnly)).toEqual(['extraBatteryData']);
+    const inputsOnlyData = parseMessage(inputsOnly, 'HMA-1', '12345')[
+      'extraBatteryData'
+    ] as B2500V2CD16Data;
+    expect(inputsOnlyData.input1?.voltage).toBeCloseTo(32, 5);
+    expect(inputsOnlyData.output1?.power).toBe(23);
+    expect(paths(inputsOnly, 'HMB-1')).toEqual(['extraBatteryData']);
   });
 
   test('should parse all 16 cell voltages per pack', () => {
