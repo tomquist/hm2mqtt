@@ -35,7 +35,28 @@ import {
   switchComponent,
   textComponent,
 } from '../homeAssistantDiscovery.js';
-import { number, boolean, map, timeString, equalsBoolean, divide } from '../transforms.js';
+import { number, boolean, map, timeString, equalsBoolean, divide, inRange } from '../transforms.js';
+
+/**
+ * The CT sensor reports a sentinel instead of a reading when it has no valid
+ * measurement (typically 65535, the top of its 16-bit range). The Marstek app
+ * checks every CT power field against 60000 and discards anything at or above
+ * it, so the same cut-off is applied here to `st`, `m0`, `m1`, `m2` and `m3` —
+ * the exact five fields the app guards. `sp` is deliberately not guarded: the
+ * app does not guard it either.
+ *
+ * Out-of-range readings are dropped rather than reported as 0 W, so the sensor
+ * keeps its last real value instead of a fabricated zero.
+ */
+const CT_POWER_SENTINEL = 60000;
+
+/**
+ * A CT power reading in watts, ignoring the sensor's no-reading sentinel.
+ *
+ * The app applies no lower bound; the one here exists only because `inRange`
+ * requires it, and -60 kW is far outside what a B2500 CT clamp can measure.
+ */
+const ctPower = () => inRange(-(CT_POWER_SENTINEL - 1), CT_POWER_SENTINEL - 1);
 
 /**
  * Create a time period handler for a specific setting
@@ -457,7 +478,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'st',
       path: ['ctInfo', 'transmittedPower'],
-      transform: number(),
+      transform: ctPower(),
     });
     advertise(
       ['ctInfo', 'transmittedPower'],
@@ -557,7 +578,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'm0',
       path: ['ctInfo', 'phase1'],
-      transform: number(),
+      transform: ctPower(),
     });
     advertise(
       ['ctInfo', 'phase1'],
@@ -572,7 +593,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'm1',
       path: ['ctInfo', 'phase2'],
-      transform: number(),
+      transform: ctPower(),
     });
     advertise(
       ['ctInfo', 'phase2'],
@@ -587,7 +608,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'm2',
       path: ['ctInfo', 'phase3'],
-      transform: number(),
+      transform: ctPower(),
     });
     advertise(
       ['ctInfo', 'phase3'],
@@ -640,7 +661,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'm3',
       path: ['ctInfo', 'microInverterPower'],
-      transform: number(),
+      transform: ctPower(),
     });
     advertise(
       ['ctInfo', 'microInverterPower'],
