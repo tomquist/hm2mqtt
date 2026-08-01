@@ -978,8 +978,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const params: CommandParams = { md, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
-            params.bt = period.startTime;
-            params.et = period.endTime;
+            params.bt = formatTimePeriodTime(period.startTime);
+            params.et = formatTimePeriodTime(period.endTime);
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
@@ -1032,8 +1032,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const params: CommandParams = { md, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
-            params.bt = period.startTime;
-            params.et = period.endTime;
+            params.bt = formatTimePeriodTime(period.startTime);
+            params.et = formatTimePeriodTime(period.endTime);
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
@@ -1080,8 +1080,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const params: CommandParams = { md, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
-            params.bt = period.startTime;
-            params.et = period.endTime;
+            params.bt = formatTimePeriodTime(period.startTime);
+            params.et = formatTimePeriodTime(period.endTime);
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = enabled ? 1 : 0;
@@ -1136,8 +1136,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const params: CommandParams = { md, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
-            params.bt = period.startTime;
-            params.et = period.endTime;
+            params.bt = formatTimePeriodTime(period.startTime);
+            params.et = formatTimePeriodTime(period.endTime);
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
@@ -1191,8 +1191,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const params: CommandParams = { md, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
-            params.bt = period.startTime;
-            params.et = period.endTime;
+            params.bt = formatTimePeriodTime(period.startTime);
+            params.et = formatTimePeriodTime(period.endTime);
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
@@ -1696,6 +1696,31 @@ function bitMaskToWeekdaySet(weekdayBitMask: number): JupiterTimePeriod['weekday
 
 function weekdaySetToBitMask(weekday: JupiterTimePeriod['weekday']): number {
   return weekday.split('').reduce((mask, day) => mask | (1 << parseInt(day, 10)), 0);
+}
+
+/**
+ * Format a time period boundary as the zero-padded `HH:MM` the device expects in
+ * `bt=`/`et=`.
+ *
+ * The device parses these positionally rather than splitting on `:`, so an
+ * unpadded hour shifts the minutes by one character and drops their tens digit:
+ * `bt=2:43` is read back as `02:03` and `bt=4:25` as `04:05` (fixes #184). The
+ * Marstek app pads both halves — `All_little_Sun_NewSetTimeMode` builds the
+ * payload as `hour.toString().padLeft(2, '0') + ':' +
+ * minute.toString().padLeft(2, '0')`.
+ *
+ * Note this is the opposite of the B2500, which wants unpadded `H:M` in its
+ * `cd=7` timer payload; the app pads for Venus/Jupiter only.
+ */
+function formatTimePeriodTime(time: string): string {
+  const [hourPart, minutePart] = time.split(':');
+  if (hourPart == null || minutePart == null) return time;
+
+  const hours = parseInt(hourPart, 10);
+  const minutes = parseInt(minutePart, 10);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return time;
+
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 }
 
 function parseMPPTPVInfo(value: string): JupiterMPPTPVInfo {
