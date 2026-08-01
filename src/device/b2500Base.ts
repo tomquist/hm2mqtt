@@ -77,10 +77,13 @@ export function registerBaseMessage({
   );
 
   // Battery information
+  // State of charge is a percentage, so anything outside 0-100 is a corrupt
+  // reading. Drop it so the sensor goes unknown for that poll instead of
+  // writing an implausible spike into the long-term statistics.
   field({
     key: 'pe',
     path: ['batteryPercentage'],
-    transform: number(),
+    transform: inRange(0, 100),
   });
   advertise(
     ['batteryPercentage'],
@@ -567,10 +570,14 @@ export function registerBaseMessage({
   );
 
   // Battery capacity values
+  // The host and the attached extra batteries report their state of charge as
+  // a percentage. The firmware occasionally emits garbage here (values such as
+  // 2425 or 56577, see issue #97), so readings outside 0-100 are dropped and
+  // the sensor goes unknown for that poll rather than polluting the statistics.
   field({
     key: 'a0',
     path: ['batteryCapacities', 'host'],
-    transform: number(),
+    transform: inRange(0, 100),
   });
   advertise(
     ['batteryCapacities', 'host'],
@@ -585,7 +592,7 @@ export function registerBaseMessage({
   field({
     key: 'a1',
     path: ['batteryCapacities', 'extra1'],
-    transform: number(),
+    transform: inRange(0, 100),
   });
   advertise(
     ['batteryCapacities', 'extra1'],
@@ -601,7 +608,7 @@ export function registerBaseMessage({
   field({
     key: 'a2',
     path: ['batteryCapacities', 'extra2'],
-    transform: number(),
+    transform: inRange(0, 100),
   });
   advertise(
     ['batteryCapacities', 'extra2'],
