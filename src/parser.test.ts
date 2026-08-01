@@ -793,6 +793,36 @@ describe('MQTT Message Parser', () => {
     });
   });
 
+  test('should parse Jupiter BMS cell voltages with one external battery pack', () => {
+    // Real-world message from a Jupiter C Plus with one external battery pack
+    // (`b_num=2`), see https://github.com/tomquist/hm2mqtt/discussions/393
+    // Only vol0-vol5 are populated, which is what pins the block size down to
+    // three: a block size of four would need vol4-vol7 for the second pack.
+    const message =
+      'bms:c_vol=584,c_cur=500,d_cur=500,soc=38,soh=0,b_cap=5120,b_vol=5420,b_cur=300,b_temp=290,b_err=0,b_war=0,b_err2=0,b_war2=0,c_flag=192,s_flag=0,b_num=2,vol0=526,vol1=3241,vol2=3237,vol3=256,vol4=3390,vol5=3386,vol6=0,vol7=0,vol8=0,vol9=0,vol10=0,vol11=0,vol12=0,vol13=0,vol14=0,vol15=0,b_temp0=29,b_temp1=28,b_temp2=28,b_temp3=28,env_t=37,mos_t=30,lck=0';
+    const deviceType = 'JPLS-1';
+    const deviceId = 'jupiter123';
+
+    const parsed = parseMessage(message, deviceType, deviceId);
+    const result = parsed['bms'] as JupiterBMSInfo;
+
+    expect(result.bms).toHaveProperty('bmsNumber', 2);
+
+    // Internal battery: vol0=526 (0x020E), vol1=3241, vol2=3237
+    expect(result.batteries?.[0]?.cellVoltages?.maxVoltageCell).toBe(14);
+    expect(result.batteries?.[0]?.cellVoltages?.minVoltageCell).toBe(2);
+    expect(result.batteries?.[0]?.cellVoltages?.maxVoltage).toBe(3241);
+    expect(result.batteries?.[0]?.cellVoltages?.minVoltage).toBe(3237);
+    expect(result.batteries?.[0]?.cellVoltages?.voltageDiff).toBe(4);
+
+    // External battery 1: vol3=256 (0x0100), vol4=3390, vol5=3386
+    expect(result.batteries?.[1]?.cellVoltages?.maxVoltageCell).toBe(0);
+    expect(result.batteries?.[1]?.cellVoltages?.minVoltageCell).toBe(1);
+    expect(result.batteries?.[1]?.cellVoltages?.maxVoltage).toBe(3390);
+    expect(result.batteries?.[1]?.cellVoltages?.minVoltage).toBe(3386);
+    expect(result.batteries?.[1]?.cellVoltages?.voltageDiff).toBe(4);
+  });
+
   test('should convert negative Jupiter BMS temperatures correctly', () => {
     const message =
       'inv:g_state=1,w_state1=1,w_state2=1,i_err=0,i_war=0,g_vol=2340,g_cur=0,g_pf=0,g_fre=4997,b_vol=544,g_power=0,i_temp=-31,mppt:m_state=244,m_err=0,m_temp=5,m_war=0,pv1=377|3|146,pv2=389|6|258,pv3=387|6|236,pv4=376|3|141,b_vol=545,b_cur=14,base_v=222,pe_v=165,bms:c_vol=600,c_cur=75,d_cur=100,soc=44,soh=0,b_cap=2560,b_vol=5420,b_cur=14,b_temp=-25,b_err=0,b_war=0,b_err2=0,b_war2=0,c_flag=192,s_flag=0,b_num=1,vol0=3343,vol1=3397,vol2=3320,vol3=0,vol4=0,vol5=0,vol6=0,vol7=0,vol8=0,vol9=0,vol10=0,vol11=0,vol12=0,vol13=0,vol14=0,vol15=0,b_temp0=255,b_temp1=254,b_temp2=253,b_temp3=252,env_t=128,mos_t=127';

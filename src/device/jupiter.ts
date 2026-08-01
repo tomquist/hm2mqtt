@@ -1248,6 +1248,13 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
       //   vol9=774  (cells 6/3)    vol10=3338  vol11=3327
       //   vol12=vol13=vol14=vol15=0
       //
+      // A dump from a device with one external pack (`b_num=2`) rules out a
+      // block size of four outright, as it only populates six fields:
+      //
+      //   vol0=526 (cells 14/2)    vol1=3241   vol2=3237
+      //   vol3=256 (cells 0/1)     vol4=3390   vol5=3386
+      //   vol6..vol15=0
+      //
       // See: https://github.com/tomquist/hm2mqtt/discussions/253
       //      https://github.com/tomquist/hm2mqtt/discussions/393
 
