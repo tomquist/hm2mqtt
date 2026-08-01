@@ -7,8 +7,7 @@
 - B2500 V2/V3: *Recharge Mode* was affected the same way and got the same fix
 - Jupiter: Fix the cell voltage sensors of external battery packs. *Cell With Highest Voltage* and *Cell With Lowest Voltage* showed cell numbers far beyond the 16 cells a pack has (such as 62 or 248), *Lowest Cell Voltage* could read 0 mV, and *Cell Voltage Difference* was correspondingly wrong. The sensors of the internal battery were not affected (see discussion #393)
 - B2500: On devices with a CT meter attached, an ordinary status poll was mistaken for an extra battery reading, so the *Input Voltage* and *Extra Battery 2 Voltage* sensors showed the meter's power readings scaled down to a few volts
-- MQTT Proxy: Stop the endless `Modified client ID … (conflict resolution)` messages and reconnects. A device reconnecting after it lost its connection was mistaken for a second device claiming the same client ID, so its old connection was kept alive next to the new one — this happened even with devices that already use distinct client IDs. Renaming is now limited to what it was meant for: two different devices sharing one client ID, as B2500 firmware 226.5/108.7 does (fixes #398)
-- MQTT Proxy: A device whose connection attempt failed no longer gets renamed on every later connect
+- MQTT Proxy: Stop logging `Modified client ID … (conflict resolution)` over and over for a single reconnecting device and leaving its old connection open. Only devices that really do share one client ID are renamed now (fixes #398)
 - B2500: Ignore state of charge readings outside 0-100%. The extra batteries occasionally report values like 4873% or 56577%, which ended up in Home Assistant's long-term statistics; the *Battery Percentage* and *Battery SoC* sensors now show unknown for that poll instead (fixes #97)
 
 ## [1.9.1] - 2026-07-29
