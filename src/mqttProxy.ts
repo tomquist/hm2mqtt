@@ -34,6 +34,8 @@ export class MqttProxy {
   private isRunning: boolean = false;
   private connectedClients: Set<string> = new Set();
   private usedClientIds: Set<string> = new Set();
+  /** Client ID handed out in preConnect, per connection attempt */
+  private assignedClientIds: WeakMap<AedesClient, string> = new WeakMap();
 
   constructor(
     private config: MqttProxyConfig,
@@ -51,7 +53,8 @@ export class MqttProxy {
 
         if (
           this.config.autoResolveClientIdConflicts !== false &&
-          this.usedClientIds.has(originalClientId)
+          this.usedClientIds.has(originalClientId) &&
+          !this.isSameDeviceReconnecting(client, originalClientId)
         ) {
           let uniqueId: string;
           let attempts = 0;
@@ -76,12 +79,102 @@ export class MqttProxy {
           );
         }
 
-        this.usedClientIds.add(packet.clientId);
+        this.trackClientId(client, packet.clientId);
         callback(null, true);
       },
     });
     this.tcpServer = net.createServer(this.aedesServer.handle.bind(this.aedesServer));
     this.setupAedesEventHandlers();
+  }
+
+  /**
+   * Look up the client currently registered under a client ID.
+   *
+   * `clients` is part of the Aedes runtime but is not declared in its type
+   * definitions, hence the cast.
+   */
+  private getRegisteredClient(clientId: string): AedesClient | undefined {
+    const clients = (
+      this.aedesServer as unknown as {
+        clients?: Record<string, AedesClient | undefined>;
+      }
+    )?.clients;
+    return clients?.[clientId];
+  }
+
+  /**
+   * Remote (peer) address of a connection, if it can be determined.
+   */
+  private getRemoteAddress(client: AedesClient | undefined): string | undefined {
+    // An empty address means the socket is already gone - treat it as unknown
+    return (client?.conn as net.Socket | undefined)?.remoteAddress || undefined;
+  }
+
+  /**
+   * Decide whether a CONNECT for an already known client ID comes from the very
+   * device that currently holds it.
+   *
+   * Devices on WiFi routinely reconnect while the broker still holds their
+   * previous, half-open session. MQTT-3.1.4-2 requires the new CONNECT to take
+   * over and the stale session to be closed, which Aedes does for us as long as
+   * the client ID stays untouched. Renaming instead keeps the zombie session
+   * alive until keepalive expiry, duplicates every control message to it and
+   * stacks another ghost session on each reconnect.
+   *
+   * Heuristic: compare the TCP peer address. Same address means the same
+   * physical device reconnecting, so let Aedes take the session over. A
+   * different (or unknown) address means genuinely different devices colliding
+   * on one ID - B2500 firmware 226.5/108.7 connects every device as `mst_` -
+   * so the conflict resolution rename still applies.
+   *
+   * This assumes devices reach the proxy from distinct addresses. Devices
+   * behind a shared NAT look like one device and would take each other over
+   * instead of being renamed.
+   */
+  private isSameDeviceReconnecting(client: AedesClient, clientId: string): boolean {
+    const existingClient = this.getRegisteredClient(clientId);
+    if (!existingClient) {
+      return false;
+    }
+
+    const incomingAddress = this.getRemoteAddress(client);
+    const existingAddress = this.getRemoteAddress(existingClient);
+    return incomingAddress !== undefined && incomingAddress === existingAddress;
+  }
+
+  /**
+   * Remember the client ID assigned to a connection attempt.
+   */
+  private trackClientId(client: AedesClient, clientId: string): void {
+    this.usedClientIds.add(clientId);
+    this.assignedClientIds.set(client, clientId);
+
+    // A connection can die before Aedes ever registers it (CONNECT rejected in
+    // `init`, socket reset mid-handshake). Those paths never emit
+    // `clientDisconnect`, so without releasing the ID here it would stay in
+    // `usedClientIds` forever and every later connect of that device would be
+    // renamed.
+    (client.conn as net.Socket | undefined)?.once('close', () => {
+      this.releaseClientId(client);
+    });
+  }
+
+  /**
+   * Release the client ID of a connection that went away, unless a different,
+   * still registered client owns that ID now (session takeover).
+   */
+  private releaseClientId(client: AedesClient): void {
+    const clientId = this.assignedClientIds.get(client) ?? client.id;
+    if (!clientId) {
+      return;
+    }
+
+    const owner = this.getRegisteredClient(clientId);
+    if (owner && owner !== client) {
+      return;
+    }
+
+    this.usedClientIds.delete(clientId);
   }
 
   /**
@@ -189,6 +282,10 @@ export class MqttProxy {
     this.aedesServer.on('client', client => {
       logger.info(`Client ${client.id} connected to MQTT proxy`);
       this.connectedClients.add(client.id);
+      // On a session takeover Aedes disconnects the stale session before
+      // registering this one, so the `clientDisconnect` handler below has just
+      // dropped an ID that this client actually holds. Re-add it.
+      this.usedClientIds.add(client.id);
     });
 
     this.aedesServer.on('clientDisconnect', client => {
@@ -196,6 +293,18 @@ export class MqttProxy {
       this.connectedClients.delete(client.id);
       // Remove the client ID from our tracking set when client disconnects
       this.usedClientIds.delete(client.id);
+    });
+
+    // Connections that error out (rejected CONNECT, protocol error, socket
+    // reset) never reach `clientDisconnect`, so release their client ID here.
+    this.aedesServer.on('clientError', (client, error) => {
+      logger.debug(`MQTT Proxy client ${client.id} error: ${error.message}`);
+      this.releaseClientId(client);
+    });
+
+    this.aedesServer.on('connectionError', (client, error) => {
+      logger.debug(`MQTT Proxy connection error before registration: ${error.message}`);
+      this.releaseClientId(client);
     });
 
     this.aedesServer.on('publish', (packet, client) => {
