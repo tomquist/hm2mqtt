@@ -31,7 +31,9 @@ function updatePackageJson(newVersion: string) {
 function updateConfigYaml(newVersion: string) {
   const configPath = path.join(__dirname, 'ha_addon', 'config.yaml');
   let config = fs.readFileSync(configPath, 'utf8');
-  config = config.replace(/version: *["']?[\d.]+["']?/, `version: "${newVersion}"`);
+  // Between releases develop carries `version: "next"`, so this has to match a
+  // non-numeric version too.
+  config = config.replace(/^version: *["']?[^"'\n]+["']?/m, `version: "${newVersion}"`);
   fs.writeFileSync(configPath, config);
   console.log(`Updated ha_addon/config.yaml to version ${newVersion}`);
 }
