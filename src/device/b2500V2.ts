@@ -949,6 +949,13 @@ function isB2500CD16Message(message: Record<string, string>): boolean {
   if (cd16BatteryInfo.every(k => k in message)) {
     return true;
   }
+  // None of the keys below are exclusive to cd=16: in a cd=01 runtime response
+  // `m1`/`m2` are the CT clip 2/3 measured power instead of the input voltages,
+  // so a status poll from a device with a CT meter attached looks the same. A
+  // complete runtime response is never extra battery data.
+  if (isB2500RuntimeInfoMessage(message)) {
+    return false;
+  }
   const cd16VoltageInfo = ['p1', 'p2', 'm1', 'm2', 'w1', 'w2', 'e1', 'e2', 'o1', 'o2', 'g1', 'g2'];
   const forbiddenKeys = ['m3', 'cj'];
   return cd16VoltageInfo.every(k => k in message) && !forbiddenKeys.some(k => k in message);
