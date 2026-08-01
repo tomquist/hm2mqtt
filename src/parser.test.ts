@@ -794,13 +794,14 @@ describe('MQTT Message Parser', () => {
   });
 
   test('should parse Jupiter BMS cell voltages with one external battery pack', () => {
-    // Real-world message from a Jupiter C Plus with one external battery pack
-    // (`b_num=2`), see https://github.com/tomquist/hm2mqtt/discussions/393
+    // Real-world message from a Jupiter C Plus (JPLS-8H) with one external
+    // battery pack (`b_num=2`), see
+    // https://github.com/tomquist/hm2mqtt/discussions/393
     // Only vol0-vol5 are populated, which is what pins the block size down to
     // three: a block size of four would need vol4-vol7 for the second pack.
     const message =
       'bms:c_vol=584,c_cur=500,d_cur=500,soc=38,soh=0,b_cap=5120,b_vol=5420,b_cur=300,b_temp=290,b_err=0,b_war=0,b_err2=0,b_war2=0,c_flag=192,s_flag=0,b_num=2,vol0=526,vol1=3241,vol2=3237,vol3=256,vol4=3390,vol5=3386,vol6=0,vol7=0,vol8=0,vol9=0,vol10=0,vol11=0,vol12=0,vol13=0,vol14=0,vol15=0,b_temp0=29,b_temp1=28,b_temp2=28,b_temp3=28,env_t=37,mos_t=30,lck=0';
-    const deviceType = 'JPLS-1';
+    const deviceType = 'JPLS-8H';
     const deviceId = 'jupiter123';
 
     const parsed = parseMessage(message, deviceType, deviceId);
