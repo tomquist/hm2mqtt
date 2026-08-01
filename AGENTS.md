@@ -67,7 +67,8 @@ For every new or changed config option, treat the following as mandatory complet
 - No internals: file, function or symbol names, data structures, code paths. If
   a sentence only makes sense with the diff open, it belongs in the commit
   message instead.
-- End with `(fixes #123)` when there is an issue.
+- End with the issue reference, plus the PR number once it exists:
+  `(fixes #123, PR #124)`.
 
 ## Coding & Change Style
 
