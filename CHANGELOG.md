@@ -10,6 +10,11 @@
 - B2500: On devices with a CT meter attached, an ordinary status poll was mistaken for an extra battery reading, so the *Input Voltage* and *Extra Battery 2 Voltage* sensors showed the meter's power readings scaled down to a few volts
 - MQTT Proxy: Stop logging `Modified client ID … (conflict resolution)` over and over for a single reconnecting device and leaving its old connection open. Only devices that really do share one client ID are renamed now (fixes #398, PR #400)
 - B2500: Ignore state of charge readings outside 0-100%. The extra batteries occasionally report values like 4873% or 56577%, which ended up in Home Assistant's long-term statistics; the *Battery Percentage* and *Battery SoC* sensors now show unknown for that poll instead (fixes #97)
+- B2500 V2/V3: Ignore implausible CT sensor readings. With nothing to measure the clamp reports 65535 W, which ended up in Home Assistant's long-term statistics; *CT Transmitted Power*, *CT Clip Power 1-3* and *Micro Inverter Power* now keep their previous value instead (PR #403)
+
+### Changed
+
+- Jupiter: *Daily Charging Capacity* reports today's solar production, not the energy charged into the battery, and is now called *Daily Power Generation*. If you added it to the Energy Dashboard, move it from a battery entry to *Solar production* (PR #403)
 
 ## [1.9.1] - 2026-07-29
 

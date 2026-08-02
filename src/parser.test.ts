@@ -176,6 +176,32 @@ describe('MQTT Message Parser', () => {
     expect((without['data'] as B2500V2DeviceData).wifiSignalStrength).toBeUndefined();
   });
 
+  test('should drop the CT sensor no-reading sentinel from the power fields', () => {
+    const base = 'pe=75,kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0';
+    const ctInfo = (fields: string) =>
+      (parseMessage(`${base},${fields}`, 'HMA-1', '12345')['data'] as B2500V2DeviceData).ctInfo;
+
+    // Real readings pass through unscaled, including negative ones.
+    const real = ctInfo('st=120,m0=230,m1=-45,m2=0,m3=310');
+    expect(real).toHaveProperty('transmittedPower', 120);
+    expect(real).toHaveProperty('phase1', 230);
+    expect(real).toHaveProperty('phase2', -45);
+    expect(real).toHaveProperty('phase3', 0);
+    expect(real).toHaveProperty('microInverterPower', 310);
+
+    // 65535 means "no reading", and the app's cut-off is 60000, so anything
+    // from there up is dropped rather than published as a real power value.
+    const sentinel = ctInfo('st=65535,m0=65535,m1=60000,m2=65535,m3=65535');
+    expect(sentinel?.transmittedPower).toBeUndefined();
+    expect(sentinel?.phase1).toBeUndefined();
+    expect(sentinel?.phase2).toBeUndefined();
+    expect(sentinel?.phase3).toBeUndefined();
+    expect(sentinel?.microInverterPower).toBeUndefined();
+
+    // Just below the cut-off is still a valid reading.
+    expect(ctInfo('st=59999')).toHaveProperty('transmittedPower', 59999);
+  });
+
   test('should drop out-of-range state of charge readings (issue #97)', () => {
     const base = 'pe=75,kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0';
     const soc = (keys: string) =>
@@ -617,7 +643,7 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('timestamp');
 
     // Energy statistics
-    expect(result).toHaveProperty('dailyChargingCapacity', 3.49);
+    expect(result).toHaveProperty('dailyPowerGeneration', 3.49);
     expect(result).toHaveProperty('monthlyChargingCapacity', 21.93);
     expect(result).toHaveProperty('yearlyChargingCapacity', 0);
     expect(result).toHaveProperty('dailyDischargeCapacity', 2.85);
