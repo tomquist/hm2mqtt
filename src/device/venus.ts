@@ -1000,10 +1000,13 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:cog',
         command: 'working-mode',
         valueMappings: {
-          // `wor_m=0` is the self-consumption mode. The internal value stays
-          // `automatic` (which is also what Marstek calls it internally), so
-          // the command topic keeps accepting the same payload.
-          automatic: 'Self Consumption',
+          // `wor_m=0` is the self-consumption mode, which the Marstek app shows
+          // as "Self Consumption". The option is left as "Automatic" because it
+          // is what an entity in this select reports as its state: renaming it
+          // would break automations that set or compare the mode by name, for
+          // no functional gain. Marstek's own internal name for the mode is
+          // "Auto".
+          automatic: 'Automatic',
           manual: 'Manual',
           trading: 'Trading',
           ai: 'AI',
