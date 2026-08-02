@@ -208,17 +208,21 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
+    // `ele_d` counts the energy the panels produced today, which the Marstek app
+    // shows as the day's power generation. It is not the energy charged into the
+    // battery, which is what this sensor used to claim to be.
     field({
       key: 'ele_d',
-      path: ['dailyChargingCapacity'],
+      path: ['dailyPowerGeneration'],
       transform: divide(100),
       monotonic: true,
     });
     advertise(
-      ['dailyChargingCapacity'],
+      ['dailyPowerGeneration'],
       sensorComponent<number>({
-        id: 'daily_charging_capacity',
-        name: 'Daily Charging Capacity',
+        id: 'daily_power_generation',
+        name: 'Daily Power Generation',
+        icon: 'mdi:solar-power-variant',
         device_class: 'energy',
         unit_of_measurement: 'kWh',
         state_class: 'total_increasing',

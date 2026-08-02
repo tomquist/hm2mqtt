@@ -673,7 +673,10 @@ export function isValidJupiterRechargeMode(mode: string): mode is JupiterRecharg
 }
 
 export interface JupiterDeviceData extends BaseDeviceData {
-  dailyChargingCapacity?: number; // ele_d
+  // `ele_d` is the day's solar production, not energy charged into the battery.
+  // The monthly and yearly counters below are almost certainly the same
+  // quantity, but that could not be established, so they keep their old names.
+  dailyPowerGeneration?: number; // ele_d
   monthlyChargingCapacity?: number; // ele_m
   yearlyChargingCapacity?: number; // ele_y
   pv1Power?: number; // pv1_p

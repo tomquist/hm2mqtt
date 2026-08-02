@@ -1000,7 +1000,10 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:cog',
         command: 'working-mode',
         valueMappings: {
-          automatic: 'Automatic',
+          // `wor_m=0` is the self-consumption mode. The internal value stays
+          // `automatic` (which is also what Marstek calls it internally), so
+          // the command topic keeps accepting the same payload.
+          automatic: 'Self Consumption',
           manual: 'Manual',
           trading: 'Trading',
           ai: 'AI',

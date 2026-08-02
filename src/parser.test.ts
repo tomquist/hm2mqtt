@@ -643,7 +643,7 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('timestamp');
 
     // Energy statistics
-    expect(result).toHaveProperty('dailyChargingCapacity', 3.49);
+    expect(result).toHaveProperty('dailyPowerGeneration', 3.49);
     expect(result).toHaveProperty('monthlyChargingCapacity', 21.93);
     expect(result).toHaveProperty('yearlyChargingCapacity', 0);
     expect(result).toHaveProperty('dailyDischargeCapacity', 2.85);

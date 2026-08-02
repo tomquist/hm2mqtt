@@ -12,6 +12,11 @@
 - B2500: Ignore state of charge readings outside 0-100%. The extra batteries occasionally report values like 4873% or 56577%, which ended up in Home Assistant's long-term statistics; the *Battery Percentage* and *Battery SoC* sensors now show unknown for that poll instead (fixes #97)
 - B2500 V2/V3: Ignore the CT sensor's "no reading" value on the *CT Transmitted Power*, *CT Clip Power 1-3* and *Micro Inverter Power* sensors. When the clamp has nothing to measure it reports 65535, which Home Assistant recorded as a real 65535 W spike in its long-term statistics and which distorted any average or maximum computed from those sensors. Such a poll is now skipped and the sensors keep their previous reading, matching what the Marstek app shows
 
+### Changed
+
+- Jupiter: The *Daily Charging Capacity* sensor measures the energy the solar panels produced today, not the energy charged into the battery, and has been renamed to *Daily Power Generation* (`daily_charging_capacity` becomes `daily_power_generation`). If you added it to the Energy Dashboard, move it from a battery entry to *Solar production*; its recorded history stays with the old entity. The monthly and yearly counters are unchanged for now
+- Venus: The *Working Mode* option *Automatic* is now called *Self Consumption*, the name the Marstek app uses for the same mode. Automations that select the mode by name need updating; sending `automatic` to the MQTT command topic still works
+
 ## [1.9.1] - 2026-07-29
 
 ### Fixed
