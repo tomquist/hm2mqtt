@@ -3,6 +3,7 @@
 
 ### Fixed
 
+- B2500 V2/V3: Fix *Sync Time* sending the local wall-clock time, which made every discharge timer fire early by the local UTC offset — two hours in CEST, one in CET. The device's clock is UTC and it applies the separately stored `wy` offset itself when it evaluates a timer, whose start and end are configured in local time. `cd=08` therefore takes UTC clock fields paired with the local offset, which is what is sent again now
 - Venus & Jupiter: Fix the tens digit of the minutes being dropped when setting a *Time Period X Time From/To* before 10:00. Setting `02:43` made the device store `02:03` and report that back to Home Assistant, and any later change to the same period (power, weekday, enabled) re-applied the mangled time (fixes #184, PR #401)
 - B2500 V2/V3, Venus & Jupiter: Stop Home Assistant flooding the log with `Template variable warning: 'dict object' has no attribute 'meterType'` (and the same for `meterMac`) on every poll once the *Meter Type* or *Meter MAC* entity was enabled. The device never reports either setting back, so both entities now simply show the last value that was set. *Meter MAC* also no longer fails with `Value "" … doesn't match pattern ^[0-9A-Fa-f]{12}$` (fixes #346)
 - B2500 V2/V3: *Recharge Mode* was affected the same way and got the same fix

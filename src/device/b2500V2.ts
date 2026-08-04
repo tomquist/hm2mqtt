@@ -734,18 +734,20 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           // If the message is "PRESS" or similar from Home Assistant button, generate current time
           if (message === 'PRESS' || message === 'press' || message === 'true' || message === '1') {
             const now = new Date();
-            // `cd=08` takes the local wall-clock time together with the offset
-            // of that same zone in `wy` — not UTC. Sending UTC components with
-            // a local `wy` left the device clock wrong by the offset. `mm` is
-            // 0-based and `yy` is the year minus 1900.
+            // `cd=08` takes UTC clock fields together with the local offset in
+            // `wy`. The device stores the clock as sent and applies the offset
+            // itself when it evaluates a discharge timer, whose start and end
+            // are configured in local time — so sending local wall-clock time
+            // makes every schedule fire `wy` minutes early.
+            // `mm` is 0-based and `yy` is the year minus 1900.
             const timeData = {
               wy: -now.getTimezoneOffset(),
-              yy: now.getFullYear() - 1900,
-              mm: now.getMonth(),
-              rr: now.getDate(),
-              hh: now.getHours(),
-              mn: now.getMinutes(),
-              ss: now.getSeconds(),
+              yy: now.getUTCFullYear() - 1900,
+              mm: now.getUTCMonth(),
+              rr: now.getUTCDate(),
+              hh: now.getUTCHours(),
+              mn: now.getUTCMinutes(),
+              ss: now.getUTCSeconds(),
             };
             publishCallback(
               processCommand(CommandType.SYNC_TIME, timeData, deviceState.useFlashCommands),

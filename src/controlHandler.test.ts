@@ -267,27 +267,22 @@ describe('ControlHandler', () => {
       jest.useRealTimers();
     });
 
-    test('should sync the local wall-clock time, not UTC', () => {
-      // The device expects the local date/time fields alongside the matching UTC
-      // offset. Simulate UTC+9, where 2023-01-01T12:30:45Z is local 21:30:45 on
-      // the same day: the payload must carry the local hour, not the UTC one.
-      // The local getters are stubbed rather than setting process.env.TZ, which
-      // Node does not re-read once the process has started.
+    test('should sync UTC clock fields together with the local offset', () => {
+      // The device's clock is UTC; `wy` tells it how far local time is ahead.
+      // Simulate UTC+9, where 2023-01-01T12:30:45Z is local 21:30:45 on the same
+      // day: the payload must carry the UTC hour (12), not the local one (21),
+      // paired with wy=540. The local getters are stubbed rather than setting
+      // process.env.TZ, which Node does not re-read once the process has started.
       jest.useFakeTimers().setSystemTime(new Date(Date.UTC(2023, 0, 1, 12, 30, 45)));
       jest.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-540);
-      jest.spyOn(Date.prototype, 'getFullYear').mockReturnValue(2023);
-      jest.spyOn(Date.prototype, 'getMonth').mockReturnValue(0);
-      jest.spyOn(Date.prototype, 'getDate').mockReturnValue(1);
       jest.spyOn(Date.prototype, 'getHours').mockReturnValue(21);
-      jest.spyOn(Date.prototype, 'getMinutes').mockReturnValue(30);
-      jest.spyOn(Date.prototype, 'getSeconds').mockReturnValue(45);
 
       try {
         handleControlTopic(testDeviceV2, 'sync-time', 'PRESS');
 
         expect(publishCallback).toHaveBeenCalledWith(
           testDeviceV2,
-          expect.stringContaining('cd=8,wy=540,yy=123,mm=0,rr=1,hh=21,mn=30,ss=45'),
+          expect.stringContaining('cd=8,wy=540,yy=123,mm=0,rr=1,hh=12,mn=30,ss=45'),
         );
       } finally {
         jest.useRealTimers();
