@@ -740,8 +740,19 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             // are configured in local time — so sending local wall-clock time
             // makes every schedule fire `wy` minutes early.
             // `mm` is 0-based and `yy` is the year minus 1900.
+            const wy = -now.getTimezoneOffset();
+            if (Math.abs(wy) > 720 || wy % 10 !== 0) {
+              // The device only stores offsets within ±720 minutes that are a
+              // whole multiple of 10; it drops anything else and keeps the one
+              // it already had. The clock fields are still accepted, so sync
+              // them anyway rather than letting the clock drift as well.
+              logger.warn(
+                'Timezone offset not supported by the device, it will keep its previous offset and the discharge timers may run at the wrong time:',
+                wy,
+              );
+            }
             const timeData = {
-              wy: -now.getTimezoneOffset(),
+              wy,
               yy: now.getUTCFullYear() - 1900,
               mm: now.getUTCMonth(),
               rr: now.getUTCDate(),

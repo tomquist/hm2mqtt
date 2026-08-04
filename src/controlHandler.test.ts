@@ -269,20 +269,26 @@ describe('ControlHandler', () => {
 
     test('should sync UTC clock fields together with the local offset', () => {
       // The device's clock is UTC; `wy` tells it how far local time is ahead.
-      // Simulate UTC+9, where 2023-01-01T12:30:45Z is local 21:30:45 on the same
-      // day: the payload must carry the UTC hour (12), not the local one (21),
-      // paired with wy=540. The local getters are stubbed rather than setting
-      // process.env.TZ, which Node does not re-read once the process has started.
-      jest.useFakeTimers().setSystemTime(new Date(Date.UTC(2023, 0, 1, 12, 30, 45)));
-      jest.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-540);
-      jest.spyOn(Date.prototype, 'getHours').mockReturnValue(21);
+      // Simulate UTC+5:30 at 2023-12-31T23:59:58Z, which is local 2024-01-01
+      // 05:29:58 — every field except the seconds differs between the two zones,
+      // so a regression to any single local getter changes the payload. The
+      // local getters are stubbed rather than setting process.env.TZ, which Node
+      // does not re-read once the process has started.
+      jest.useFakeTimers().setSystemTime(new Date(Date.UTC(2023, 11, 31, 23, 59, 58)));
+      jest.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-330);
+      jest.spyOn(Date.prototype, 'getFullYear').mockReturnValue(2024);
+      jest.spyOn(Date.prototype, 'getMonth').mockReturnValue(0);
+      jest.spyOn(Date.prototype, 'getDate').mockReturnValue(1);
+      jest.spyOn(Date.prototype, 'getHours').mockReturnValue(5);
+      jest.spyOn(Date.prototype, 'getMinutes').mockReturnValue(29);
+      jest.spyOn(Date.prototype, 'getSeconds').mockReturnValue(58);
 
       try {
         handleControlTopic(testDeviceV2, 'sync-time', 'PRESS');
 
         expect(publishCallback).toHaveBeenCalledWith(
           testDeviceV2,
-          expect.stringContaining('cd=8,wy=540,yy=123,mm=0,rr=1,hh=12,mn=30,ss=45'),
+          expect.stringContaining('cd=8,wy=330,yy=123,mm=11,rr=31,hh=23,mn=59,ss=58'),
         );
       } finally {
         jest.useRealTimers();
