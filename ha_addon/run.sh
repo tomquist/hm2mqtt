@@ -13,7 +13,7 @@ start_application() {
 output_env_for_testing() {
     bashio::log.info "Running in test mode, outputting environment variables"
     # Output all environment variables that start with MQTT_ or DEVICE_
-    env | grep -E "^(MQTT_|AUTODISCOVERY_|DEVICE_|POLL_|DEBUG=|LOG_LEVEL=)" | sort
+    env | grep -E "^(MQTT_|AUTODISCOVERY_|DEVICE_|POLL_|CELL_|DEBUG=|LOG_LEVEL=)" | sort
 }
 
 # Function to manually parse options.json
@@ -111,6 +111,7 @@ export MQTT_RESPONSE_TIMEOUT=$(bashio::config 'responseTimeout' "30")
 export POLL_CELL_DATA=$(bashio::config 'enableCellData' "false")
 export POLL_CALIBRATION_DATA=$(bashio::config 'enableCalibrationData' "false")
 export POLL_EXTRA_BATTERY_DATA=$(bashio::config 'enableExtraBatteryData' "false")
+export CELL_BALANCING_DIAGNOSTICS=$(bashio::config 'enableCellBalancingDiagnostics' "false")
 export DEBUG=$(bashio::config 'debug' "false")
 export MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS=$(bashio::config 'allowedConsecutiveTimeouts' "3")
 export MQTT_TOPIC_PREFIX=$(bashio::config 'topicPrefix' "hm2mqtt")
