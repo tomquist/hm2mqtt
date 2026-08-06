@@ -110,6 +110,33 @@ export function registerBaseMessage({
       state_class: 'measurement',
     }),
   );
+  // Per-pack status bitmasks (firmware >= 212.17; absent on older firmware, in
+  // which case these fields simply stay unset).
+  //
+  // `l0` carries the host pack, `l1` both extras packed into one byte: bits 0-3
+  // are extra2 and bits 4-7 extra1, each using the same layout as `l0`.
+  // See docs/b2500.md.
+  const packStatusFlags = [
+    { flag: 'discharging', bit: 0 },
+    { flag: 'charging', bit: 1 },
+    { flag: 'dodReached', bit: 2 },
+    { flag: 'undervoltage', bit: 3 },
+  ] as const;
+  const packStatusSources = [
+    { key: 'l0', battery: 'host', bitOffset: 0 },
+    { key: 'l1', battery: 'extra2', bitOffset: 0 },
+    { key: 'l1', battery: 'extra1', bitOffset: 4 },
+  ] as const;
+  for (const { key, battery, bitOffset } of packStatusSources) {
+    for (const { flag, bit } of packStatusFlags) {
+      field({
+        key,
+        path: ['packStatus', battery, flag],
+        transform: bitBoolean(bitOffset + bit),
+      });
+    }
+  }
+
   field({
     key: 'do',
     path: ['dischargeDepth'],
