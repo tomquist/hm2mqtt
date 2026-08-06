@@ -3,7 +3,7 @@
 
 ### Added
 
-- B2500 & Venus: New *Cell Balancing Diagnostics* option. The existing *Cell Voltage Difference* sensor is easy to misread: after a full charge it collapses overnight from tens of millivolts to one or two, which looks like the pack balancing itself but usually is not. At 100% with nothing to export the unit disconnects its solar input and runs off the battery, so every cell drains equally and slides off the steep top of the lithium-iron curve onto its flat middle, where the same imbalance shows up as a much smaller gap. Nothing was corrected. Switching the option on adds sensors that tell the two apart, including *Mean Cell Voltage Drift*, *Balance Conditions Met*, *Minutes Above 3400 mV Today* and — the ones worth comparing between days — *Cell Spread at 3450 mV* and *Rested Cell Spread*. Everything is inferred from voltage and current, since no device reports whether its balancer is actually on. Needs *Enable Cell Data*, and the day-to-day sensors need somewhere to store their history: the add-on has that already, under Docker mount a volume at `/data`
+- B2500 & Venus: New *Enable Cell Balancing Diagnostics* option, adding sensors that distinguish real balancing from a pack simply drifting down the discharge curve: *Cell Spread*, *Cell Voltage Standard Deviation*, *Mean Cell Voltage*, *Mean Cell Voltage Drift*, *Balance Conditions Met*, *Minutes Above 3400/3500 mV Today*, *Cell Spread at 3450 mV* and *Rested Cell Spread*. Requires *Enable Cell Data*; the last two also need a persistent data directory, which the add-on already has. See the README for which sensors to compare (PR #411)
 
 ### Fixed
 
@@ -12,7 +12,7 @@
 - Devices were polled more often than the configured *Polling Interval* (PR #414)
 - *Enable Cell Data*, *Enable Calibration Data* and *Enable Extra Battery Data* said B2500 only. All three also cover Greensolar storage, and *Enable Cell Data* also Venus and Jupiter (PR #414)
 - Venus: *BMS Current* was reported in milliamps and read 100x too low — a pack drawing 9.4 A showed 94 mA. It now reports amps, matching the same field on Jupiter. History recorded before this update keeps the old values
-
+- Settings in a `.env` file were ignored; only real environment variables took effect. Affects manual installations only (PR #411)
 - B2500 V2/V3: Fix *Sync Time* setting the device clock wrong, which made every discharge timer start and stop early by your timezone's offset from UTC — two hours in CEST, one in CET. A device that was synced by an affected version keeps the wrong clock until it is synced again, so press *Sync Time* once after updating (PR #405)
 - Venus & Jupiter: Fix the tens digit of the minutes being dropped when setting a *Time Period X Time From/To* before 10:00. Setting `02:43` made the device store `02:03` and report that back to Home Assistant, and any later change to the same period (power, weekday, enabled) re-applied the mangled time (fixes #184, PR #401)
 - B2500 V2/V3, Venus & Jupiter: Stop Home Assistant flooding the log with `Template variable warning: 'dict object' has no attribute 'meterType'` (and the same for `meterMac`) on every poll once the *Meter Type* or *Meter MAC* entity was enabled. The device never reports either setting back, so both entities now simply show the last value that was set. *Meter MAC* also no longer fails with `Value "" … doesn't match pattern ^[0-9A-Fa-f]{12}$` (fixes #346)
@@ -25,8 +25,7 @@
 
 ### Changed
 
-- Settings in a `.env` file were being ignored. Only real environment variables took effect, so anyone following the manual-installation instructions and setting *Enable Cell Data* or the polling interval there saw no effect and no error. Docker and Home Assistant App users were never affected
-- hm2mqtt now shuts down cleanly when stopped by Home Assistant or Docker, rather than only on Ctrl-C
+- hm2mqtt now shuts down cleanly when stopped by Home Assistant or Docker, not just on Ctrl-C
 - Jupiter: *Daily Charging Capacity* reports today's solar production, not the energy charged into the battery, and is now called *Daily Power Generation*. If you added it to the Energy Dashboard, move it from a battery entry to *Solar production* (PR #403)
 
 ## [1.9.1] - 2026-07-29
