@@ -432,6 +432,7 @@ These sensors are meant to tell the two apart:
 | Entity | What it tells you |
 |---|---|
 | *Cell Spread*, *Cell Voltage Standard Deviation* | Spread, plus a measure that is not at the mercy of one flaky cell |
+| *Highest Cell Share of Spread* | How much of the spread the highest cell owns. The sharpest signal here — see below |
 | *Mean Cell Voltage Drift* | How fast the pack is sagging. Falling means it is running off the battery; flat while full means it is genuinely being held there |
 | *Balance Conditions Met* | Cells high enough for the balancer to do something, with charge still going in |
 | *Minutes Above 3400 mV / 3500 mV Today* | How long those conditions held. Reported separately because an hour just over the line achieves far less than an hour well above it |
@@ -442,11 +443,13 @@ Real balancing shows up as *Cell Spread at 3450 mV* and *Rested Cell Spread*
 falling over successive days. A spread that only shrinks overnight and returns to
 its old value on the next charge is the illusion described above.
 
-The published state also carries `normalisedDeviations`, each cell's share of the
-spread. When the whole stack drifts together these stay put while the spread
-shrinks; when a cell is genuinely brought back into line, its share moves toward
-zero. That is the clearest signal of the two, and it is the one to check before
-concluding anything.
+*Highest Cell Share of Spread* deserves particular attention. When the whole
+stack drifts down together, every cell keeps its share of the spread even as the
+spread itself collapses — so a share that holds steady while *Cell Spread* falls
+is the illusion, plainly visible. A share that falls is a cell genuinely being
+brought back into line, which drifting cannot produce. Check it before concluding
+anything. The full per-cell vector is in the published state as
+`normalisedDeviations`, alongside *Highest Cell* naming the culprit.
 
 Two caveats. Everything here is inferred from voltage and current — no Marstek
 device reports whether its balancer is switched on. And the day-to-day sensors
