@@ -1,7 +1,6 @@
-import * as dotenv from 'dotenv';
-// Load environment variables
-dotenv.config();
-
+// Must stay the first import: it loads `.env`, and the device definitions read
+// environment variables while they are being imported.
+import './loadEnv.js';
 import './device/registry.js';
 import { Device, MqttConfig } from './types.js';
 import { DEFAULT_AUTODISCOVERY_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX } from './constants.js';
