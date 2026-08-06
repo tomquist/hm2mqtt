@@ -120,6 +120,15 @@ export interface MessageDefinition<T extends BaseDeviceData> {
   controlsDeviceAvailability: boolean;
   enabled?: boolean;
   /**
+   * Whether this message is requested from the device at all. Defaults to true.
+   *
+   * Derived messages compute their state locally from other messages' state, so
+   * they are never requested and never parsed. They must not contribute to the
+   * polling interval GCD (their `pollInterval` is meaningless) and must not have
+   * their `refreshDataPayload` sent.
+   */
+  polled?: boolean;
+  /**
    * Optional state-aware poll predicate. When provided, the message is only
    * polled if this returns true for the current (merged) device state. Used to
    * dynamically poll per-pack BMS details only for packs that are present.
@@ -175,6 +184,7 @@ export type BuildMessageFn = <T extends BaseDeviceData>(
     pollInterval: number;
     controlsDeviceAvailability: boolean;
     enabled?: boolean;
+    polled?: boolean;
     shouldPoll?: (state: BaseDeviceData) => boolean;
   },
   args: BuildMessageDefinitionFn<T>,
@@ -227,6 +237,7 @@ export function registerDeviceDefinition(
       commands,
       ...messageOptions,
       enabled: messageOptions.enabled !== false,
+      polled: messageOptions.polled !== false,
     } satisfies MessageDefinition<any>;
     messages.push(messageDefinition);
   };

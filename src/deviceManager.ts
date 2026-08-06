@@ -365,12 +365,14 @@ export class DeviceManager {
       throw new Error('No valid devices configured');
     }
 
-    // Only messages that are actually requested from the device get a say in
-    // the tick. A disabled message — POLL_CELL_DATA=false, say — is never sent,
-    // so letting it contribute drives the shared timer faster than anything
-    // needs. Fall back to the unfiltered set if that leaves nothing, so the tick
-    // stays defined.
-    const polledIntervals = collect(message => message.enabled !== false);
+    // Only messages that are actually requested from the device get a say in the
+    // tick. A disabled message (POLL_CELL_DATA=false) is never sent, and a
+    // derived message is never sent at all, so letting either contribute would
+    // drive the shared timer faster than anything needs. Fall back to the
+    // unfiltered set if that leaves nothing, so the tick stays defined.
+    const polledIntervals = collect(
+      message => message.enabled !== false && message.polled !== false,
+    );
     const intervals = polledIntervals.length > 0 ? polledIntervals : allPollingIntervals;
 
     function gcd2(a: number, b: number): number {

@@ -265,7 +265,7 @@ describe('DeviceManager', () => {
     // process. None of this was covered before.
     const defineType = (
       deviceType: string,
-      messages: { pollInterval: number; enabled?: boolean }[],
+      messages: { pollInterval: number; enabled?: boolean; polled?: boolean }[],
     ) => {
       registerDeviceDefinition({ deviceTypes: [deviceType] }, ({ message }) => {
         messages.forEach((options, idx) => {
@@ -306,10 +306,18 @@ describe('DeviceManager', () => {
       expect(intervalFor('TESTGCDDISABLED')).toBe(60000);
     });
 
+    it('ignores derived messages, which are never requested', () => {
+      defineType('TESTGCDDERIVED', [
+        { pollInterval: 60000 },
+        { pollInterval: 5000, polled: false },
+      ]);
+      expect(intervalFor('TESTGCDDERIVED')).toBe(60000);
+    });
+
     it('falls back to the unfiltered set rather than leaving the tick undefined', () => {
       defineType('TESTGCDNONE', [
         { pollInterval: 30000, enabled: false },
-        { pollInterval: 45000, enabled: false },
+        { pollInterval: 45000, polled: false },
       ]);
       expect(intervalFor('TESTGCDNONE')).toBe(15000);
     });
