@@ -107,3 +107,13 @@ export const LATCH_MEDIAN_SAMPLES = 5;
 
 /** Charge cycles kept in the persisted history. */
 export const CYCLE_HISTORY_LENGTH = 20;
+
+/**
+ * Least often the running counters are written to disk. Completed charge cycles
+ * bypass this and are written straight away; the counters change on every poll,
+ * and most add-on installs run from an SD card.
+ */
+export const PERSIST_THROTTLE_MS = 900000;
+
+/** Bumped whenever the stored record's shape changes incompatibly. */
+export const PERSIST_SCHEMA_VERSION = 1;

@@ -11,6 +11,7 @@ import logger from './logger.js';
 import { DataHandler } from './dataHandler.js';
 import { MqttProxy, MqttProxyConfig } from './mqttProxy.js';
 import { runShutdownStep } from './shutdown.js';
+import { flushPersistence } from './persistence.js';
 
 // MQTT Proxy configuration
 const MQTT_PROXY_ENABLED = process.env.MQTT_PROXY_ENABLED === 'true';
@@ -305,7 +306,8 @@ async function main() {
     // Handle process termination. SIGTERM matters as much as SIGINT: Docker and
     // the Home Assistant Supervisor both send it to stop a container, so without
     // a handler an ordinary restart or add-on update skipped this path entirely
-    // and the container was killed after the grace period instead.
+    // and the container was killed after the grace period instead — which is
+    // also exactly the case the cell balancing history has to survive.
     let shuttingDown = false;
     const shutdown = async (signal: string) => {
       if (shuttingDown) {
@@ -321,7 +323,11 @@ async function main() {
       // otherwise block the exit until the runtime killed us, which is the
       // outcome this handler exists to avoid. A failure to stop the proxy must
       // also not cost us the MQTT close, which is what publishes the offline
-      // availability.
+      // availability, nor the flush this whole path exists for.
+      await runShutdownStep('flushing the cell balancing history', async () =>
+        flushPersistence(),
+      );
+
       const proxy = mqttProxy;
       if (proxy) {
         logger.info('Stopping MQTT Proxy...');

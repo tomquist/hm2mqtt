@@ -117,6 +117,8 @@ export type DeriveContext<T extends BaseDeviceData> = {
    */
   stateByPath: Record<string, BaseDeviceData>;
   previous: T;
+  deviceType: string;
+  deviceId: string;
   /** Wall clock, for stamping. */
   at: number;
   /** Monotonic clock, for measuring durations across calls. */

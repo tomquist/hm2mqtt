@@ -4,6 +4,8 @@ import {
   BuildMessageFn,
 } from '../deviceDefinition.js';
 import logger from '../logger.js';
+import { extractB2500Sample } from '../cellBalancing.js';
+import { registerCellBalancingMessage } from './cellBalancingMessage.js';
 import {
   B2500BaseDeviceData,
   B2500CalibrationData,
@@ -766,6 +768,17 @@ function isB2500CellDataMessage(values: Record<string, string>) {
   return Array.from({ length: CELL_DETECT_COUNT }, (_, i) => `a${i.toString(16)}`).every(
     key => key in values,
   );
+}
+
+/**
+ * Cell balancing diagnostics for B2500. Registered next to the cell data
+ * message it consumes; it produces no traffic of its own.
+ */
+export function registerB2500CellBalancingMessage(message: BuildMessageFn) {
+  registerCellBalancingMessage(message, {
+    cellPath: 'cells',
+    extract: extractB2500Sample,
+  });
 }
 
 export function registerCellDataMessage(message: BuildMessageFn) {

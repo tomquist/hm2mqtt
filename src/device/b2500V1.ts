@@ -12,6 +12,7 @@ import {
   registerBaseMessage,
   registerCalibrationDataMessage,
   registerCellDataMessage,
+  registerB2500CellBalancingMessage,
 } from './b2500Base.js';
 import logger from '../logger.js';
 import {
@@ -30,6 +31,7 @@ registerDeviceDefinition(
     registerRuntimeInfoMessage(message);
     registerExtraBatteryData(message);
     registerCellDataMessage(message);
+    registerB2500CellBalancingMessage(message);
     registerCalibrationDataMessage(message);
   },
 );

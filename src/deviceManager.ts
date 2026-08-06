@@ -230,6 +230,8 @@ export class DeviceManager {
         update = message.derive?.({
           stateByPath: (this.deviceStates[deviceKey] ?? {}) as Record<string, any>,
           previous: previous as any,
+          deviceType: device.deviceType,
+          deviceId: device.deviceId,
           at: Date.now(),
           monotonicAt: performance.now(),
         });

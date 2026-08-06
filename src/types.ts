@@ -177,6 +177,37 @@ export interface B2500CellData extends BaseDeviceData {
   };
 }
 
+/**
+ * Derived cell balancing diagnostics. Shared by every family that reports
+ * individual cell voltages; the values themselves are computed in
+ * cellBalancing.ts and never come from a device payload.
+ *
+ * Everything lives under a single key so that the derived fields do not join
+ * the flat namespace that DeviceManager.getDeviceState() merges every path into.
+ */
+export interface CellBalancingData extends BaseDeviceData {
+  cellBalancing?: {
+    spreadMv?: number;
+    sigmaMv?: number;
+    meanMv?: number;
+    /** Each cell's share of the spread; the direct test for the slide artifact. */
+    normalisedDeviations?: number[];
+    driftMvPerHour?: number;
+    balanceConditionsMet?: boolean;
+    minutesAboveThreshold?: number;
+    minutesAboveHighThreshold?: number;
+    sessionMinutes?: number;
+    /** Comparable end-of-charge spread, interpolated at a fixed mean voltage. */
+    crossingSpreadMv?: number;
+    crossingSigmaMv?: number;
+    /** Spread an hour after charging stopped, free of IR contamination. */
+    restedSpreadMv?: number;
+    restedSigmaMv?: number;
+    lastCycleEndedAt?: string;
+    cycleCount?: number;
+  };
+}
+
 export interface B2500CalibrationData extends BaseDeviceData {
   charge?: number;
   discharge?: number;
