@@ -152,13 +152,18 @@ export function extractVenusSample(
     return undefined;
   }
 
-  // `b_cur` is published as milliamps by the BMS sensor, but that label is
-  // almost certainly wrong: -72 while discharging at night would be 3.7 W on a
-  // 51 V pack. Read as deci-amps it is -7.2 A, an ordinary night discharge, and
-  // Jupiter's identical key already uses that scale. Correcting the shipped
-  // sensor is a user-visible change and is handled separately; the diagnostics
-  // use the scale that makes physical sense.
-  const packCurrentA = typeof bms?.current === 'number' ? bms.current / 10 : undefined;
+  // Taken from the raw payload rather than the parsed `bms.current` field on
+  // purpose. That field exists to drive a sensor, and its scale is a
+  // presentation decision that can be corrected independently of this code —
+  // reading it here would silently change what the diagnostics mean the moment
+  // it was. b_cur is deci-amps, signed negative while discharging.
+  const rawCurrent = bmsState?.values?.['b_cur'];
+  const packCurrentA =
+    typeof rawCurrent === 'string' &&
+    rawCurrent.trim() !== '' &&
+    Number.isFinite(Number(rawCurrent))
+      ? Number(rawCurrent) / 10
+      : undefined;
 
   const temperatures = Array.isArray(bmsState?.cells?.temperatures)
     ? bmsState.cells.temperatures.filter((t: unknown): t is number => typeof t === 'number')

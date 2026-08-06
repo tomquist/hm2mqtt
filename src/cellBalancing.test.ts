@@ -391,6 +391,24 @@ describe('family adapters', () => {
       expect(extractVenusSample({ bms: bmsState() }, clock)!.staleMs).toBe(0);
     });
 
+    it('reads current from the payload, not from the sensor field', () => {
+      // The parsed `bms.current` field drives a sensor, and its scale is a
+      // presentation decision that can be corrected independently. If this read
+      // the field instead of the raw value, such a correction would silently
+      // rescale the current gate and the charging threshold.
+      const state = bmsState() as any;
+      state.bms.current = -9.4; // as if the sensor had been rescaled to amps
+      expect(extractVenusSample({ bms: state }, clock)!.packCurrentA).toBeCloseTo(-9.4, 6);
+    });
+
+    it('leaves current unknown when the payload does not carry it', () => {
+      const state = bmsState() as any;
+      delete state.values.b_cur;
+      const sampleOut = extractVenusSample({ bms: state }, clock)!;
+      expect(sampleOut.packCurrentA).toBeUndefined();
+      expect(sampleOut.chargingIn).toBeUndefined();
+    });
+
     it('picks up state of charge and the warmest cell temperature', () => {
       const sampleOut = extractVenusSample({ bms: bmsState() }, clock)!;
       expect(sampleOut.socPct).toBe(65); // b_soc
