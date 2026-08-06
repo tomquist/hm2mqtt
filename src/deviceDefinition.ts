@@ -107,6 +107,35 @@ export interface DeviceDefinition<T extends BaseDeviceData> {
   messages: MessageDefinition<T>[];
 }
 
+export type DeriveContext<T extends BaseDeviceData> = {
+  /**
+   * State keyed by publishPath, *not* the merged view from
+   * `DeviceManager.getDeviceState`. That merge is shallow and last-writer-wins,
+   * and every path contributes its own `timestamp`, so the merged one is
+   * ambiguous — which matters here, since deciding whether a derivation has
+   * anything new to do means comparing one specific path's timestamp.
+   */
+  stateByPath: Record<string, BaseDeviceData>;
+  previous: T;
+  /** Wall clock, for stamping. */
+  at: number;
+  /** Monotonic clock, for measuring durations across calls. */
+  monotonicAt: number;
+};
+
+/**
+ * Computes state from other messages' state instead of from a device payload.
+ *
+ * Returning undefined means "nothing changed": no state is written and nothing
+ * is published. That matters because derivations run after every inbound
+ * message — on a Venus with cell data enabled that is eight messages per poll
+ * cycle, and publishing each time would create a Home Assistant recorder row
+ * per sensor for a value that did not move.
+ */
+export type DeriveFn<T extends BaseDeviceData> = (
+  context: DeriveContext<T>,
+) => Partial<T> | undefined;
+
 export interface MessageDefinition<T extends BaseDeviceData> {
   commands: ControlHandlerDefinition<T>[];
   advertisements: HaAdvertisement<T, KeyPath<T> | []>[];
@@ -128,6 +157,12 @@ export interface MessageDefinition<T extends BaseDeviceData> {
    * their `refreshDataPayload` sent.
    */
   polled?: boolean;
+  /**
+   * Marks this as a derived message: its state is computed from other messages
+   * rather than parsed from a payload. Such a message should also set
+   * `polled: false` and an `isMessage` that never matches.
+   */
+  derive?: DeriveFn<T>;
   /**
    * Optional state-aware poll predicate. When provided, the message is only
    * polled if this returns true for the current (merged) device state. Used to
@@ -185,6 +220,7 @@ export type BuildMessageFn = <T extends BaseDeviceData>(
     controlsDeviceAvailability: boolean;
     enabled?: boolean;
     polled?: boolean;
+    derive?: DeriveFn<T>;
     shouldPoll?: (state: BaseDeviceData) => boolean;
   },
   args: BuildMessageDefinitionFn<T>,
@@ -220,7 +256,13 @@ export function registerDeviceDefinition(
     };
     const advertisements: HaAdvertisement<any, KeyPath<any> | []>[] = [];
     const advertise: AdvertiseComponentFn<any> = (keyPath, advertise, options = {}) => {
-      // If the message is disabled, override enabled to always return false
+      // Note the asymmetry: the message-level `enabled` below is collapsed to a
+      // boolean here, at registration time, whereas an advertisement's `enabled`
+      // predicate is called lazily on every discovery publish. Anything not yet
+      // known when the device modules are imported therefore has to be a
+      // predicate that reads the value when called — capturing it into a const
+      // at import time silently pins it to its starting value, and the two forms
+      // look identical in a diff.
       const enabled = messageOptions.enabled === false ? () => false : options.enabled;
 
       advertisements.push({

@@ -191,7 +191,77 @@ export class DeviceManager {
       [path]: newDeviceState,
     };
     this.onUpdateState(device, path, newDeviceState);
+    this.runDerivations(device, path);
     return newDeviceState as DeviceStateData & T;
+  }
+
+  /**
+   * Recompute any derived messages after a state update.
+   *
+   * A derivation that returns undefined writes nothing and publishes nothing.
+   * Derivations run after every inbound message, so publishing unconditionally
+   * would emit a state update per derived message per message received — eight
+   * per poll cycle on a Venus with cell data enabled — each one a Home Assistant
+   * recorder row per sensor for a value that has not changed.
+   */
+  private runDerivations(device: Device, triggeringPath: string): void {
+    const deviceDefinition = getDeviceDefinition(device.deviceType);
+    if (!deviceDefinition) {
+      return;
+    }
+
+    const derived = deviceDefinition.messages.filter(
+      message => message.derive != null && message.enabled !== false,
+    );
+    if (derived.length === 0) {
+      return;
+    }
+
+    // A derived write must not trigger another round of derivation.
+    if (derived.some(message => message.publishPath === triggeringPath)) {
+      return;
+    }
+
+    const deviceKey = this.getDeviceKey(device);
+    for (const message of derived) {
+      const previous = this.getDeviceStateForPath(device, message.publishPath);
+      let update;
+      try {
+        update = message.derive?.({
+          stateByPath: (this.deviceStates[deviceKey] ?? {}) as Record<string, any>,
+          previous: previous as any,
+          at: Date.now(),
+          monotonicAt: performance.now(),
+        });
+      } catch (error) {
+        // A broken derivation must never take the bridge down with it.
+        logger.warn(
+          `Derivation for ${device.deviceType}:${device.deviceId} ${message.publishPath} failed:`,
+          error,
+        );
+        continue;
+      }
+
+      if (update == null) {
+        continue;
+      }
+
+      const newDeviceState = {
+        ...previous,
+        ...update,
+        // Regenerated every time, so these win over whatever the previous
+        // derived state carried.
+        deviceType: device.deviceType,
+        deviceId: device.deviceId,
+        timestamp: new Date().toISOString(),
+      } as DeviceStateData;
+
+      this.deviceStates[deviceKey] = {
+        ...this.deviceStates[deviceKey],
+        [message.publishPath]: newDeviceState,
+      };
+      this.onUpdateState(device, message.publishPath, newDeviceState);
+    }
   }
 
   /**
