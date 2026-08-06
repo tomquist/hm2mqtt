@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
+import { createHash } from 'crypto';
 import logger from './logger.js';
-import { CycleRecord } from './cellBalancing.js';
+import { CycleRecord, LatchCandidate } from './cellBalancing.js';
 import { PERSIST_THROTTLE_MS, PERSIST_SCHEMA_VERSION } from './constants.js';
 
 /**
@@ -29,6 +30,13 @@ export interface PersistedRecord {
   msAboveHighThreshold: number;
   localDate?: string;
   minSocPct?: number;
+  /**
+   * The latched values themselves, not just the cycle history. Without these
+   * the sensors gated on persistence go unknown after every restart until the
+   * next full charge — which would make gating them on storage pointless.
+   */
+  crossing?: LatchCandidate;
+  rested?: LatchCandidate;
   savedAt: string;
 }
 
@@ -101,6 +109,9 @@ export function isPersistenceAvailable(): boolean {
 /** Test seam. */
 export function resetPersistenceProbe(override?: PersistenceProbe): void {
   probed = override;
+  pending.clear();
+  lastWriteAt.clear();
+  lastWritten.clear();
 }
 
 function fileFor(deviceType: string, deviceId: string): string | undefined {
@@ -109,10 +120,13 @@ function fileFor(deviceType: string, deviceId: string): string | undefined {
     return undefined;
   }
   // deviceId comes straight from a DEVICE_n environment variable, so it is
-  // arbitrary user input. Sanitised the same way topics are, which also stops a
-  // path separator escaping the directory the probe blessed.
+  // arbitrary user input. Sanitising stops a path separator escaping the
+  // directory the probe blessed, but it is many-to-one — 'ab:cd' and 'ab_cd'
+  // both become 'ab_cd' — so a short digest of the originals keeps two devices
+  // from silently sharing one history file.
   const safe = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, '_');
-  return path.join(dir, `${safe(deviceType)}_${safe(deviceId)}.json`);
+  const digest = createHash('sha1').update(`${deviceType}\u0000${deviceId}`).digest('hex');
+  return path.join(dir, `${safe(deviceType)}_${safe(deviceId)}-${digest.slice(0, 8)}.json`);
 }
 
 export function loadRecord(deviceType: string, deviceId: string): PersistedRecord | undefined {
@@ -140,6 +154,7 @@ export function loadRecord(deviceType: string, deviceId: string): PersistedRecor
 
 const pending = new Map<string, PersistedRecord>();
 const lastWriteAt = new Map<string, number>();
+const lastWritten = new Map<string, PersistedRecord>();
 
 function writeNow(file: string, record: PersistedRecord): void {
   const tmp = `${file}.tmp`;
@@ -167,10 +182,30 @@ function writeNow(file: string, record: PersistedRecord): void {
     }
 
     lastWriteAt.set(file, Date.now());
+    lastWritten.set(file, record);
     pending.delete(file);
   } catch (error) {
+    // Stamp the attempt even though it failed, so a permanently unwritable
+    // filesystem — the read-only mount or full SD card this throttle exists for
+    // — retries on the throttle interval rather than on every single poll, with
+    // a warning each time.
+    lastWriteAt.set(file, Date.now());
+    try {
+      fs.unlinkSync(tmp);
+    } catch {
+      // Nothing useful to do; the next write overwrites it anyway.
+    }
     logger.warn(`Could not write cell balancing history to ${file}:`, error);
   }
+}
+
+/** Compare two records ignoring the timestamp, which changes on every sample. */
+function sameContent(a: PersistedRecord | undefined, b: PersistedRecord): boolean {
+  if (a == null) {
+    return false;
+  }
+  const strip = ({ savedAt: _savedAt, ...rest }: PersistedRecord) => rest;
+  return JSON.stringify(strip(a)) === JSON.stringify(strip(b));
 }
 
 /**
@@ -186,6 +221,12 @@ export function saveRecord(
 ): void {
   const file = fileFor(deviceType, deviceId);
   if (file == null) {
+    return;
+  }
+
+  // A pack sitting idle produces an identical record every poll. Writing it
+  // would put an fsync on the SD card every throttle interval for nothing.
+  if (!immediate && sameContent(lastWritten.get(file), record)) {
     return;
   }
 

@@ -135,10 +135,24 @@ describe('computeDrift', () => {
   });
 
   it('rejects a single outlier rather than letting it bend the fit', () => {
+    // Near an endpoint, where an outlier has real leverage on the slope. In the
+    // middle of the window it sits at the mean and barely moves the fit at all,
+    // so a spike placed there would pass with the rejection removed entirely.
     const noise = Array.from({ length: 30 }, () => 0);
-    noise[15] = 3; // a brief load step between two samples
-    const drift = computeDrift(window(30, -4, { noise }));
-    expect(drift).toBeCloseTo(-4, 1);
+    noise[2] = 3;
+    const points = window(30, -4, { noise });
+    expect(computeDrift(points)).toBeCloseTo(-4, 1);
+
+    // Guard against the test going vacuous again: an independent plain fit of
+    // the same window, with no rejection, has to be visibly off. Otherwise
+    // deleting the rejection branch would leave the assertion above green.
+    const n = points.length;
+    const meanT = points.reduce((a, p) => a + p.t, 0) / n;
+    const meanY = points.reduce((a, p) => a + p.meanMv, 0) / n;
+    const sxy = points.reduce((a, p) => a + (p.t - meanT) * (p.meanMv - meanY), 0);
+    const sxx = points.reduce((a, p) => a + (p.t - meanT) ** 2, 0);
+    const unrejected = (sxy / sxx) * 3600000;
+    expect(Math.abs(unrejected + 4)).toBeGreaterThan(0.3);
   });
 
   it('refuses a window that is not moving linearly', () => {
@@ -238,18 +252,18 @@ describe('balancing state machine', () => {
     expect(state.crossing).toBeUndefined();
   });
 
-  it('latches the rested spread and emits a cycle', () => {
-    const chargeUp = [
-      charging(0, [3430, 3450, 3440, 3440]),
-      charging(MINUTE, [3440, 3480, 3460, 3460]),
-      charging(2 * MINUTE, [3440, 3480, 3460, 3460]),
-    ];
-
-    // Then the pack sits idle. Samples every minute so the gap guard is happy.
-    const restStart = 3 * MINUTE;
-    const restSamples: CellSample[] = [];
-    for (let t = restStart; t <= restStart + REST_LATCH_DELAY_MS + 5 * MINUTE; t += MINUTE) {
-      restSamples.push(
+  // A charge that crosses 3450 mV and then stops. The rest clock only starts on
+  // that transition, so every rest test needs it.
+  const restStart = 3 * MINUTE;
+  const chargeThenStop = (): CellSample[] => [
+    charging(0, [3430, 3450, 3440, 3440]),
+    charging(MINUTE, [3440, 3480, 3460, 3460]),
+    charging(2 * MINUTE, [3440, 3480, 3460, 3460]),
+  ];
+  const restingFor = (durationMs: number): CellSample[] => {
+    const out: CellSample[] = [];
+    for (let t = restStart; t <= restStart + durationMs; t += MINUTE) {
+      out.push(
         sample({
           cellsMv: [3299, 3301, 3300, 3300],
           chargingIn: false,
@@ -259,8 +273,14 @@ describe('balancing state machine', () => {
         }),
       );
     }
+    return out;
+  };
 
-    const { state, cycles } = feed(initialBalancingState(), [...chargeUp, ...restSamples]);
+  it('latches the rested spread and emits a cycle', () => {
+    const { state, cycles } = feed(initialBalancingState(), [
+      ...chargeThenStop(),
+      ...restingFor(REST_LATCH_DELAY_MS + 5 * MINUTE),
+    ]);
     expect(cycles).toHaveLength(1);
     expect(state.rested).toBeDefined();
     expect(cycles[0].restedSpreadMv).toBe(2);
@@ -270,30 +290,75 @@ describe('balancing state machine', () => {
   });
 
   it('takes the median at a latch so one corrupt reading cannot be recorded', () => {
-    const restStart = 0;
-    const restSamples: CellSample[] = [];
-    for (let t = restStart; t <= REST_LATCH_DELAY_MS + 5 * MINUTE; t += MINUTE) {
-      restSamples.push(
+    // The corrupt sample has to land on the latch itself. Placed after it, the
+    // latch has already fired and the assertion proves nothing.
+    const corruptAt = restStart + REST_LATCH_DELAY_MS;
+    const samples = [...chargeThenStop(), ...restingFor(REST_LATCH_DELAY_MS + 5 * MINUTE)].map(s =>
+      s.monotonicAt === corruptAt ? sample({ ...s, cellsMv: [3000, 3900, 3300, 3300] }) : s,
+    );
+
+    const { cycles } = feed(initialBalancingState(), samples);
+    expect(cycles).toHaveLength(1);
+    expect(cycles[0].restedSpreadMv).toBe(2);
+    // The whole record comes from one clean sample, so the shape stored beside
+    // the spread cannot be the corrupt one either.
+    expect(cycles[0].restedNormalisedDeviations).toHaveLength(4);
+    expect(Math.max(...(cycles[0].restedNormalisedDeviations as number[]))).toBeLessThan(0.6);
+    expect(LATCH_MEDIAN_SAMPLES).toBeGreaterThan(2);
+  });
+
+  it('does not latch a rested spread without a charge before it', () => {
+    // An evening discharge that ends leaves the pack idle at low state of
+    // charge. Latching there would record the flat middle of the curve — the
+    // exact artifact this feature exists to expose — every single night.
+    const idle: CellSample[] = [];
+    for (let t = 0; t <= REST_LATCH_DELAY_MS + 10 * MINUTE; t += MINUTE) {
+      idle.push(
         sample({
-          cellsMv: [3299, 3301, 3300, 3300],
+          cellsMv: [3199, 3201, 3200, 3200],
           chargingIn: false,
           packCurrentA: 0,
           monotonicAt: t,
         }),
       );
     }
-    // One wild sample right at the latch instant.
-    restSamples[restSamples.length - 2] = sample({
-      cellsMv: [3000, 3900, 3300, 3300],
-      chargingIn: false,
-      packCurrentA: 0,
-      monotonicAt: restSamples[restSamples.length - 2].monotonicAt,
-    });
+    const { state, cycles } = feed(initialBalancingState(), idle);
+    expect(cycles).toHaveLength(0);
+    expect(state.rested).toBeUndefined();
+  });
 
-    const { cycles } = feed(initialBalancingState(), restSamples);
-    expect(cycles).toHaveLength(1);
-    expect(cycles[0].restedSpreadMv).toBe(2);
-    expect(LATCH_MEDIAN_SAMPLES).toBeGreaterThan(2);
+  it('abandons the rest window if the pack starts supplying the house', () => {
+    const interrupted = [...chargeThenStop()];
+    for (let t = restStart; t <= restStart + REST_LATCH_DELAY_MS + 10 * MINUTE; t += MINUTE) {
+      // Twenty minutes in, a 900 W load comes on and never goes away.
+      const current = t >= restStart + 20 * MINUTE ? -18 : -0.1;
+      interrupted.push(
+        sample({
+          cellsMv: [3299, 3301, 3300, 3300],
+          chargingIn: false,
+          packCurrentA: current,
+          monotonicAt: t,
+        }),
+      );
+    }
+    const { state, cycles } = feed(initialBalancingState(), interrupted);
+    expect(cycles).toHaveLength(0);
+    expect(state.rested).toBeUndefined();
+  });
+
+  it('never latches a rested spread when the family reports no current', () => {
+    // B2500 V1 has no pack current at all, so "idle" and "discharging into the
+    // house at 800 W" are indistinguishable. Publishing nothing beats
+    // publishing a spread measured under load.
+    const noCurrent = [...chargeThenStop()].map(s => sample({ ...s, packCurrentA: undefined }));
+    for (let t = restStart; t <= restStart + REST_LATCH_DELAY_MS + 10 * MINUTE; t += MINUTE) {
+      noCurrent.push(
+        sample({ cellsMv: [3299, 3301, 3300, 3300], chargingIn: false, monotonicAt: t }),
+      );
+    }
+    const { state, cycles } = feed(initialBalancingState(), noCurrent);
+    expect(cycles).toHaveLength(0);
+    expect(state.rested).toBeUndefined();
   });
 
   it('survives a backwards wall clock without producing negative durations', () => {

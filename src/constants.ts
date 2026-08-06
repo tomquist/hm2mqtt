@@ -83,9 +83,6 @@ export const DRIFT_CURRENT_GATE_A = 1;
  */
 export const DRIFT_MAX_RESIDUAL_MV = 1.5;
 
-/** Below this magnitude a drift reading is indistinguishable from zero. */
-export const DRIFT_NOISE_FLOOR_MV_PER_H = 2;
-
 /**
  * A gap longer than this between two cell samples is treated as an observation
  * gap rather than elapsed time. Without it a device that drops off the network

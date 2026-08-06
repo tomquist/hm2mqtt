@@ -37,13 +37,11 @@ export interface CellBalancingSource {
 
 const states = new Map<string, BalancingState>();
 const lastCellTimestamps = new Map<string, string>();
-const restored = new Set<string>();
 
 /** Test seam; production never needs to forget a device. */
 export function resetCellBalancingState(): void {
   states.clear();
   lastCellTimestamps.clear();
-  restored.clear();
 }
 
 function stateFor(key: string, deviceType: string, deviceId: string): BalancingState {
@@ -58,16 +56,23 @@ function stateFor(key: string, deviceType: string, deviceId: string): BalancingS
   // drift window are deliberately not persisted: we have no idea what the pack
   // did while we were not running, and a slope measured across the downtime
   // would be meaningless.
-  if (!restored.has(key)) {
-    restored.add(key);
-    const stored = loadRecord(deviceType, deviceId);
-    if (stored != null) {
-      state.cycles = stored.cycles;
-      state.msAboveThreshold = stored.msAboveThreshold;
-      state.msAboveHighThreshold = stored.msAboveHighThreshold;
-      state.localDate = stored.localDate;
-      state.minSocPct = stored.minSocPct;
-    }
+  //
+  // The latched values are restored, though. They are the whole reason the file
+  // exists — leaving them out would send the very sensors that are gated on
+  // durable storage to unknown on every restart, until the next full charge.
+  const stored = loadRecord(deviceType, deviceId);
+  if (stored != null) {
+    state.cycles = stored.cycles;
+    state.msAboveThreshold = stored.msAboveThreshold;
+    state.msAboveHighThreshold = stored.msAboveHighThreshold;
+    state.localDate = stored.localDate;
+    state.minSocPct = stored.minSocPct;
+    state.crossing = stored.crossing;
+    state.rested = stored.rested;
+    // A restored crossing belongs to a charge that already finished, so the
+    // latch must not fire again for it.
+    state.crossingArmed = stored.crossing == null;
+    state.restedLatched = stored.rested != null;
   }
 
   states.set(key, state);
@@ -119,7 +124,11 @@ export function registerCellBalancingMessage(
         }
 
         const previousState = stateFor(key, deviceType, deviceId);
-        const { state, cycle } = advanceBalancingState(previousState, sample, localDateOf(at));
+        const { state, cycle, conditionsMet } = advanceBalancingState(
+          previousState,
+          sample,
+          localDateOf(at),
+        );
         states.set(key, state);
 
         saveRecord(
@@ -132,6 +141,8 @@ export function registerCellBalancingMessage(
             msAboveHighThreshold: state.msAboveHighThreshold,
             localDate: state.localDate,
             minSocPct: state.minSocPct,
+            crossing: state.crossing,
+            rested: state.rested,
             savedAt: new Date(at).toISOString(),
           },
           // A completed cycle is the thing worth keeping; the running counters
@@ -140,15 +151,21 @@ export function registerCellBalancingMessage(
         );
 
         const lastCycle = state.cycles[state.cycles.length - 1];
+        // The full vector goes in the payload, but a graph needs a scalar: the
+        // share owned by the highest cell is the one a passive balancer acts on.
+        const highestShare = Math.max(...stats.normalisedDeviations);
+        const highestIndex = stats.normalisedDeviations.indexOf(highestShare);
+
         return {
           cellBalancing: {
             spreadMv: stats.spreadMv,
             sigmaMv: stats.sigmaMv,
             meanMv: stats.meanMv,
             normalisedDeviations: stats.normalisedDeviations,
+            highestCellSharePct: highestShare * 100,
+            highestCell: highestIndex + 1,
             driftMvPerHour: computeDrift(state.driftPoints),
-            balanceConditionsMet:
-              sample.chargingIn === true && stats.maxMv >= CELL_BALANCE_THRESHOLD_MV,
+            balanceConditionsMet: conditionsMet,
             minutesAboveThreshold: state.msAboveThreshold / 60000,
             minutesAboveHighThreshold: state.msAboveHighThreshold / 60000,
             sessionMinutes: state.sessionMs / 60000,
@@ -191,6 +208,30 @@ export function registerCellBalancingMessage(
           device_class: 'voltage',
           unit_of_measurement: 'mV',
           state_class: 'measurement',
+        }),
+      );
+      // The sharpest of the lot. The slide artifact leaves every cell's share of
+      // the spread untouched while the spread itself collapses, so a falling
+      // share is the one thing that cannot be explained by the pack drifting
+      // down the curve.
+      advertise(
+        ['cellBalancing', 'highestCellSharePct'],
+        sensorComponent<number>({
+          id: 'highest_cell_share',
+          name: 'Highest Cell Share of Spread',
+          unit_of_measurement: '%',
+          state_class: 'measurement',
+          icon: 'mdi:chart-donut',
+        }),
+      );
+      advertise(
+        ['cellBalancing', 'highestCell'],
+        sensorComponent<number>({
+          id: 'highest_cell',
+          name: 'Highest Cell',
+          state_class: 'measurement',
+          icon: 'mdi:battery-high',
+          enabled_by_default: false,
         }),
       );
       advertise(

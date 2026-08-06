@@ -192,6 +192,14 @@ export interface CellBalancingData extends BaseDeviceData {
     meanMv?: number;
     /** Each cell's share of the spread; the direct test for the slide artifact. */
     normalisedDeviations?: number[];
+    /**
+     * How much of the spread the highest cell owns, as a percentage. Constant
+     * while the whole stack drifts down together, falling when that cell is
+     * actually brought back into line.
+     */
+    highestCellSharePct?: number;
+    /** Which cell that is, numbered from 1. */
+    highestCell?: number;
     driftMvPerHour?: number;
     balanceConditionsMet?: boolean;
     minutesAboveThreshold?: number;

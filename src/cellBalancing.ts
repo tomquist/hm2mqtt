@@ -225,7 +225,7 @@ interface DriftPoint {
   cellCount: number;
 }
 
-interface LatchCandidate {
+export interface LatchCandidate {
   spreadMv: number;
   sigmaMv: number;
   meanMv: number;
@@ -241,6 +241,7 @@ export interface BalancingState {
   lastMonotonicAt?: number;
   lastMeanMv?: number;
   lastCandidate?: LatchCandidate;
+  lastChargingIn?: boolean;
 
   msAboveThreshold: number;
   msAboveHighThreshold: number;
@@ -314,12 +315,6 @@ export function computeCellStats(rawCellsMv: number[]): CellStats | undefined {
     // rather than dividing by zero.
     normalisedDeviations: deviationsMv.map(d => (spreadMv > 0 ? d / spreadMv : 0)),
   };
-}
-
-function median(values: number[]): number {
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
 function leastSquaresSlope(points: DriftPoint[]): { slope: number; residualRms: number } {
@@ -438,14 +433,17 @@ function interpolateCandidate(
   };
 }
 
-function medianCandidate(candidates: LatchCandidate[]): LatchCandidate {
-  const last = candidates[candidates.length - 1];
-  return {
-    ...last,
-    spreadMv: median(candidates.map(c => c.spreadMv)),
-    sigmaMv: median(candidates.map(c => c.sigmaMv)),
-    meanMv: median(candidates.map(c => c.meanMv)),
-  };
+/**
+ * The candidate with the median spread, returned whole.
+ *
+ * Taking a median of each field separately would mix values from different
+ * samples, so a corrupt reading could still contribute the temperature or the
+ * deviation shape recorded next to a clean spread. Picking one real sample keeps
+ * the stored record internally consistent.
+ */
+function medoidCandidate(candidates: LatchCandidate[]): LatchCandidate {
+  const sorted = [...candidates].sort((a, b) => a.spreadMv - b.spreadMv);
+  return sorted[Math.floor(sorted.length / 2)];
 }
 
 /**
@@ -459,10 +457,10 @@ export function advanceBalancingState(
   state: BalancingState,
   sample: CellSample,
   localDate: string,
-): { state: BalancingState; cycle?: CycleRecord } {
+): { state: BalancingState; cycle?: CycleRecord; conditionsMet: boolean } {
   const stats = computeCellStats(sample.cellsMv);
   if (!stats) {
-    return { state };
+    return { state, conditionsMet: false };
   }
 
   const next: BalancingState = {
@@ -514,6 +512,7 @@ export function advanceBalancingState(
     next.conditionsUnmetSinceMonotonic ??= sample.monotonicAt;
     if (sample.monotonicAt - next.conditionsUnmetSinceMonotonic >= BALANCE_SESSION_END_GRACE_MS) {
       next.sessionActive = false;
+      next.sessionMs = 0;
       next.conditionsUnmetSinceMonotonic = undefined;
     }
   }
@@ -562,21 +561,40 @@ export function advanceBalancingState(
     next.crossingArmed = true;
   }
 
-  // Rested latch: an hour after charging stopped, with the pack actually idle.
-  const resting =
-    !charging &&
-    (sample.packCurrentA == null || Math.abs(sample.packCurrentA) <= REST_CURRENT_MAX_A);
-  if (resting) {
-    next.restingSinceMonotonic ??= sample.monotonicAt;
-    next.restCandidates.push(candidate);
-    if (next.restCandidates.length > LATCH_MEDIAN_SAMPLES) {
-      next.restCandidates.shift();
-    }
-  } else {
+  // Rested latch.
+  //
+  // The clock starts when charging *stops*, not whenever the pack happens to be
+  // idle. Starting it on idleness would fire an hour into every evening, at
+  // whatever state of charge the discharge left behind — the flat middle of the
+  // curve, which is the very artifact this feature exists to expose — and would
+  // even fire on a device that had never charged at all.
+  //
+  // The pack must also be measurably idle. With no current reading there is no
+  // way to tell resting from discharging into the house, so a family that does
+  // not report one never latches rather than latching something meaningless.
+  const idle = sample.packCurrentA != null && Math.abs(sample.packCurrentA) <= REST_CURRENT_MAX_A;
+
+  if (charging) {
+    // A new charge invalidates whatever the previous rest measured.
     next.restingSinceMonotonic = undefined;
     next.restCandidates = [];
-    if (charging) {
-      next.restedLatched = false;
+    next.restedLatched = false;
+  } else if (state.lastChargingIn === true && observedGap) {
+    // Charging has just stopped: this is where the rest period begins.
+    next.restingSinceMonotonic = sample.monotonicAt;
+    next.restCandidates = [];
+  } else if (next.restingSinceMonotonic != null) {
+    if (idle) {
+      next.restCandidates.push(candidate);
+      if (next.restCandidates.length > LATCH_MEDIAN_SAMPLES) {
+        next.restCandidates.shift();
+      }
+    } else {
+      // Something drew from the pack, so it was not resting after all. Wait for
+      // the next charge rather than restarting the clock, which would put the
+      // measurement at an arbitrary point on the curve.
+      next.restingSinceMonotonic = undefined;
+      next.restCandidates = [];
     }
   }
 
@@ -587,7 +605,7 @@ export function advanceBalancingState(
     sample.monotonicAt - next.restingSinceMonotonic >= REST_LATCH_DELAY_MS &&
     next.restCandidates.length >= LATCH_MEDIAN_SAMPLES
   ) {
-    next.rested = medianCandidate(next.restCandidates);
+    next.rested = medoidCandidate(next.restCandidates);
     next.restedLatched = true;
 
     cycle = {
@@ -613,6 +631,7 @@ export function advanceBalancingState(
   next.lastMonotonicAt = sample.monotonicAt;
   next.lastMeanMv = stats.meanMv;
   next.lastCandidate = candidate;
+  next.lastChargingIn = charging;
 
-  return { state: next, cycle };
+  return { state: next, cycle, conditionsMet };
 }

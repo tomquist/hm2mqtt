@@ -108,19 +108,37 @@ describe('record storage', () => {
     // deviceId comes from a DEVICE_n environment variable, so it is arbitrary.
     saveRecord('VNSD-0', '../../escape', record({ msAboveThreshold: 7 }), { immediate: true });
     const written = fs.readdirSync(dir);
-    expect(written).toEqual(['VNSD-0_______escape.json']);
+    expect(written).toHaveLength(1);
+    expect(written[0]).not.toContain('/');
+    expect(written[0]).not.toContain('..');
     expect(loadRecord('VNSD-0', '../../escape')?.msAboveThreshold).toBe(7);
   });
 
+  it('keeps devices apart even when sanitising collapses their ids', () => {
+    // Sanitising is many-to-one, so without a digest these two would share one
+    // history file and silently merge.
+    saveRecord('VNSD-0', 'ab:cd', record({ msAboveThreshold: 1 }), { immediate: true });
+    saveRecord('VNSD-0', 'ab_cd', record({ msAboveThreshold: 2 }), { immediate: true });
+    expect(fs.readdirSync(dir)).toHaveLength(2);
+    expect(loadRecord('VNSD-0', 'ab:cd')?.msAboveThreshold).toBe(1);
+    expect(loadRecord('VNSD-0', 'ab_cd')?.msAboveThreshold).toBe(2);
+  });
+
+  // The filename carries a digest, so tests that need the path ask the
+  // directory for it rather than hardcoding one.
+  const fileFor = (deviceType: string, deviceId: string) => {
+    saveRecord(deviceType, deviceId, record(), { immediate: true });
+    return path.join(dir, fs.readdirSync(dir)[0]);
+  };
+
   it('ignores a record written by a different schema version', () => {
-    saveRecord('VNSD-0', 'venus1', record(), { immediate: true });
-    const file = path.join(dir, 'VNSD-0_venus1.json');
+    const file = fileFor('VNSD-0', 'venus1');
     fs.writeFileSync(file, JSON.stringify({ schemaVersion: 999, cycles: [{}] }));
     expect(loadRecord('VNSD-0', 'venus1')).toBeUndefined();
   });
 
   it('survives a corrupt file', () => {
-    const file = path.join(dir, 'VNSD-0_venus1.json');
+    const file = fileFor('VNSD-0', 'venus1');
     fs.writeFileSync(file, '{not json');
     expect(() => loadRecord('VNSD-0', 'venus1')).not.toThrow();
     expect(loadRecord('VNSD-0', 'venus1')).toBeUndefined();
@@ -134,7 +152,7 @@ describe('record storage', () => {
     saveRecord('VNSD-0', 'venus1', record({ msAboveThreshold: 100 }), { immediate: true });
     // Simulate a half-finished write: the temp file exists, the real one is
     // untouched. This is the state a power cut mid-write leaves behind.
-    const file = path.join(dir, 'VNSD-0_venus1.json');
+    const file = path.join(dir, fs.readdirSync(dir)[0]);
     fs.writeFileSync(`${file}.tmp`, JSON.stringify(record({ msAboveThreshold: 999 })));
     expect(loadRecord('VNSD-0', 'venus1')?.msAboveThreshold).toBe(100);
   });
