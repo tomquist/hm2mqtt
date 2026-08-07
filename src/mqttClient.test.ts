@@ -280,18 +280,15 @@ describe('MqttClient forced refresh', () => {
     };
   }
 
-  /**
-   * Poll once so every message has a recent `lastRequestTime`, then return a
-   * client that is well inside its polling interval.
-   */
-  function setUpPolledClient(messages: any[], state: any = {}) {
+  function makeClient(messages: any[], state: any = {}) {
     mockGetDeviceDefinition.mockReturnValue({ messages } as any);
+    const setResponseTimeout = jest.fn();
     const deviceManager: any = {
       getDeviceTopics: () => topics,
       getDeviceState: () => state,
       getDevices: () => [],
       getResponseTimeout: () => 5000,
-      setResponseTimeout: jest.fn(),
+      setResponseTimeout,
       clearResponseTimeout: jest.fn(),
     };
     const config: any = {
@@ -300,7 +297,15 @@ describe('MqttClient forced refresh', () => {
       topicPrefix: 'homeassistant',
       autodiscoveryTopicPrefix: 'homeassistant',
     };
-    const mqttClient = new MqttClient(config, deviceManager, jest.fn());
+    return { mqttClient: new MqttClient(config, deviceManager, jest.fn()), setResponseTimeout };
+  }
+
+  /**
+   * Poll once so every message has a recent `lastRequestTime`, then return a
+   * client that is well inside its polling interval.
+   */
+  function setUpPolledClient(messages: any[], state: any = {}) {
+    const { mqttClient } = makeClient(messages, state);
     mqttClient.requestDeviceData(device);
     jest.advanceTimersByTime(1000);
     mockPublish.mockClear();
@@ -313,11 +318,12 @@ describe('MqttClient forced refresh', () => {
     return mockPublish.mock.calls.map((c: any[]) => c[1]);
   }
 
-  const runtime = () =>
+  const runtime = (overrides: any = {}) =>
     makeMessage({
       refreshDataPayload: 'cd=1',
       publishPath: 'data',
       controlsDeviceAvailability: true,
+      ...overrides,
     });
   const cells = (overrides: any = {}) =>
     makeMessage({ refreshDataPayload: 'cd=13', publishPath: 'cells', ...overrides });
@@ -344,16 +350,28 @@ describe('MqttClient forced refresh', () => {
   });
 
   test('re-anchors the poll schedule so a forced read is not followed by a due one', () => {
-    const mqttClient = setUpPolledClient([runtime()]);
+    // Not the availability message: advancing past its response timeout below
+    // would publish `offline` and pollute the payload assertion.
+    const mqttClient = setUpPolledClient([cells()]);
 
-    expect(payloadsAfter(() => mqttClient.requestDeviceData(device))).toEqual([]);
-    mockPublish.mockClear();
-
+    // The regular poll ran at t=0, so the next one is due at t=60000. Forcing a
+    // read at t=1000 has to move that deadline to t=61000.
     payloadsAfter(() => mqttClient.requestDeviceData(device, { forceMessageIndices: [0] }));
     mockPublish.mockClear();
 
-    // The forced read counts as this interval's poll
+    // Land at t=60500, between the two deadlines. Without re-anchoring the
+    // message reads as due here and this request would publish.
+    jest.advanceTimersByTime(58500);
     expect(payloadsAfter(() => mqttClient.requestDeviceData(device))).toEqual([]);
+  });
+
+  test('does not arm the availability timeout for a disabled message', () => {
+    // A disabled message is never requested, so nothing would ever arrive to
+    // clear a timeout armed on its behalf and the device would go offline.
+    const { mqttClient, setResponseTimeout } = makeClient([runtime({ enabled: false }), cells()]);
+
+    expect(payloadsAfter(() => mqttClient.requestDeviceData(device))).toEqual(['cd=13', 'cd=13']);
+    expect(setResponseTimeout).not.toHaveBeenCalled();
   });
 
   test('does not force a disabled message', () => {

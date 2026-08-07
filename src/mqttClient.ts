@@ -354,25 +354,24 @@ export class MqttClient {
     // (e.g. only polling per-pack BMS details for packs that are present).
     const pollState = (this.deviceManager.getDeviceState(device) ?? {}) as BaseDeviceData;
 
-    // A forced message is re-read regardless of when it was last requested, but
-    // it still has to be enabled and pass its poll predicate — forcing must not
-    // poll something the configuration or the device state rules out.
-    const forced = new Set(
-      (options?.forceMessageIndices ?? []).filter(idx => {
-        const message = deviseDefinition.messages[idx];
-        return (
-          message != null &&
-          message.enabled &&
-          (!message.shouldPoll || message.shouldPoll(pollState))
-        );
-      }),
-    );
+    // A forced message is re-read regardless of when it was last requested. Both
+    // loops below still skip disabled messages and messages their poll predicate
+    // rules out before consulting this set, so forcing can only bypass the
+    // timing gate, never the configuration or the device state.
+    const forced = new Set(options?.forceMessageIndices ?? []);
 
     // Find the first message that needs to be refreshed
     let now = Date.now();
     let needsRefresh = false;
     let shouldStartTimeout = false;
     for (const [idx, message] of deviseDefinition.messages.entries()) {
+      // A disabled message is never requested below, so it must not make the
+      // device look due for a refresh. It would otherwise arm the availability
+      // timeout on every poll without ever sending a request to clear it, and
+      // a responsive device would be marked offline.
+      if (!message.enabled) {
+        continue;
+      }
       if (message.shouldPoll && !message.shouldPoll(pollState)) {
         continue;
       }
