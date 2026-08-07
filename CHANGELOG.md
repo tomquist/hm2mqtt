@@ -3,10 +3,10 @@
 
 ### Fixed
 
-- Settings in a `.env` file were ignored; only real environment variables took effect. Affects manual installations only
-- hm2mqtt now shuts down cleanly when stopped by Home Assistant or Docker, which send a signal it did not handle. The MQTT connection is now closed properly instead of the process being killed after a grace period. With the MQTT proxy enabled, a device that was still connected could hold the shutdown open indefinitely; each step now gives up after a few seconds so the restart always completes
-- Devices were polled more often than configured. Options that are switched off still pulled the shared polling timer faster than any device needed, which showed up at *Polling Interval* values that are not a multiple of 60 seconds
-- The descriptions of *Enable Cell Data*, *Enable Calibration Data* and *Enable Extra Battery Data* said B2500 only. All three also work on Greensolar storage, and *Enable Cell Data* additionally covers Venus and Jupiter
+- Settings in a `.env` file were ignored; only real environment variables took effect. Manual installations only (PR #414)
+- hm2mqtt now shuts down cleanly when Home Assistant or Docker stops it, instead of being killed after the grace period (PR #414)
+- Devices were polled more often than the configured *Polling Interval* (PR #414)
+- *Enable Cell Data*, *Enable Calibration Data* and *Enable Extra Battery Data* said B2500 only. All three also cover Greensolar storage, and *Enable Cell Data* also Venus and Jupiter (PR #414)
 - Venus: *BMS Current* was reported in milliamps and read 100x too low — a pack drawing 9.4 A showed 94 mA. It now reports amps, matching the same field on Jupiter. History recorded before this update keeps the old values
 
 - B2500 V2/V3: Fix *Sync Time* setting the device clock wrong, which made every discharge timer start and stop early by your timezone's offset from UTC — two hours in CEST, one in CET. A device that was synced by an affected version keeps the wrong clock until it is synced again, so press *Sync Time* once after updating (PR #405)
