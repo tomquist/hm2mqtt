@@ -324,9 +324,7 @@ async function main() {
       // outcome this handler exists to avoid. A failure to stop the proxy must
       // also not cost us the MQTT close, which is what publishes the offline
       // availability, nor the flush this whole path exists for.
-      await runShutdownStep('flushing the cell balancing history', async () =>
-        flushPersistence(),
-      );
+      await runShutdownStep('flushing the cell balancing history', async () => flushPersistence());
 
       const proxy = mqttProxy;
       if (proxy) {

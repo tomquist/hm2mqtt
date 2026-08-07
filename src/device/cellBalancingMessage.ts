@@ -137,7 +137,6 @@ export function registerCellBalancingMessage(
         if (timestamp == null || lastCellTimestamps.get(key) === timestamp) {
           return undefined;
         }
-        lastCellTimestamps.set(key, timestamp);
 
         const sample = source.extract(stateByPath, { at, monotonicAt });
         if (sample == null) {
@@ -147,6 +146,10 @@ export function registerCellBalancingMessage(
         if (stats == null) {
           return undefined;
         }
+        // Only now, once the reading turned out to be usable. Marking it
+        // consumed any earlier would discard a sample whose other inputs are
+        // still on their way, rather than reconsidering it on the next update.
+        lastCellTimestamps.set(key, timestamp);
 
         const previousState = stateFor(key, deviceType, deviceId);
         const { state, cycle, conditionsMet } = advanceBalancingState(
