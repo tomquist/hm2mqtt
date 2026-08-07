@@ -1812,7 +1812,11 @@ describe('Device Commands', () => {
     deviceManager.updateDeviceState(device, 'data', () => baseState);
 
     publishCallback = jest.fn();
-    controlHandler = new ControlHandler(deviceManager, publishCallback);
+    // Record only `(device, payload)`; the message index the handler also passes
+    // is covered in controlHandler.test.ts and is not what these cases assert.
+    controlHandler = new ControlHandler(deviceManager, (device, payload) =>
+      publishCallback(device, payload),
+    );
 
     return device;
   }

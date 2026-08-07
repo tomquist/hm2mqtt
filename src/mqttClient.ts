@@ -327,8 +327,12 @@ export class MqttClient {
    * Request device data
    *
    * @param device - The device configuration
+   * @param options.forceMessageIndices - Indices of message definitions to re-read
+   *   even though their poll interval has not elapsed yet. Used after a control
+   *   command so the entity reflects what the device actually accepted instead of
+   *   waiting up to a full polling interval.
    */
-  requestDeviceData(device: Device): void {
+  requestDeviceData(device: Device, options?: { forceMessageIndices?: readonly number[] }): void {
     const topics = this.deviceManager.getDeviceTopics(device);
     const deviseDefinition = getDeviceDefinition(device.deviceType);
 
@@ -350,6 +354,20 @@ export class MqttClient {
     // (e.g. only polling per-pack BMS details for packs that are present).
     const pollState = (this.deviceManager.getDeviceState(device) ?? {}) as BaseDeviceData;
 
+    // A forced message is re-read regardless of when it was last requested, but
+    // it still has to be enabled and pass its poll predicate — forcing must not
+    // poll something the configuration or the device state rules out.
+    const forced = new Set(
+      (options?.forceMessageIndices ?? []).filter(idx => {
+        const message = deviseDefinition.messages[idx];
+        return (
+          message != null &&
+          message.enabled &&
+          (!message.shouldPoll || message.shouldPoll(pollState))
+        );
+      }),
+    );
+
     // Find the first message that needs to be refreshed
     let now = Date.now();
     let needsRefresh = false;
@@ -360,7 +378,11 @@ export class MqttClient {
       }
       let lastRequestTimeKey = `${device.deviceId}:${idx}`;
       const lastRequestTime = this.lastRequestTime.get(lastRequestTimeKey);
-      if (lastRequestTime == null || now > lastRequestTime + message.pollInterval) {
+      if (
+        forced.has(idx) ||
+        lastRequestTime == null ||
+        now > lastRequestTime + message.pollInterval
+      ) {
         needsRefresh = true;
         shouldStartTimeout = shouldStartTimeout || message.controlsDeviceAvailability;
       }
@@ -404,7 +426,13 @@ export class MqttClient {
 
       let lastRequestTimeKey = `${device.deviceId}:${idx}`;
       const lastRequestTime = this.lastRequestTime.get(lastRequestTimeKey);
-      if (lastRequestTime == null || now > lastRequestTime + message.pollInterval) {
+      if (
+        forced.has(idx) ||
+        lastRequestTime == null ||
+        now > lastRequestTime + message.pollInterval
+      ) {
+        // Re-anchor the schedule so a forced read does not leave a regular poll
+        // due a moment later.
         this.lastRequestTime.set(lastRequestTimeKey, now);
         const payload = message.refreshDataPayload;
         setTimeout(

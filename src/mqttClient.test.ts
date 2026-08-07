@@ -254,3 +254,129 @@ describe('MqttClient shouldPoll gating', () => {
     expect(payloads).not.toContain('cd=42,bms_idx=2');
   });
 });
+
+describe('MqttClient forced refresh', () => {
+  const topics = {
+    deviceTopicOld: 'hame_energy/HMA-1/device/b2500/ctrl',
+    deviceTopicNew: 'marstek_energy/HMA-1/device/b2500/ctrl',
+    publishTopic: 'homeassistant/HMA-1/device/b2500/data',
+    deviceControlTopicOld: 'hame_energy/HMA-1/App/b2500/ctrl',
+    deviceControlTopicNew: 'marstek_energy/HMA-1/App/b2500/ctrl',
+    controlSubscriptionTopic: 'homeassistant/HMA-1/control/b2500/control',
+    availabilityTopic: 'homeassistant/HMA-1/availability/b2500',
+  };
+
+  const device: Device = { deviceType: 'HMA-1', deviceId: 'b2500' };
+
+  function makeMessage(overrides: any) {
+    return {
+      isMessage: () => true,
+      getAdditionalDeviceInfo: () => ({}),
+      // Long enough that nothing is ever due again during a test
+      pollInterval: 60000,
+      controlsDeviceAvailability: false,
+      enabled: true,
+      ...overrides,
+    };
+  }
+
+  /**
+   * Poll once so every message has a recent `lastRequestTime`, then return a
+   * client that is well inside its polling interval.
+   */
+  function setUpPolledClient(messages: any[], state: any = {}) {
+    mockGetDeviceDefinition.mockReturnValue({ messages } as any);
+    const deviceManager: any = {
+      getDeviceTopics: () => topics,
+      getDeviceState: () => state,
+      getDevices: () => [],
+      getResponseTimeout: () => 5000,
+      setResponseTimeout: jest.fn(),
+      clearResponseTimeout: jest.fn(),
+    };
+    const config: any = {
+      brokerUrl: 'mqtt://localhost:1883',
+      clientId: 'test-client',
+      topicPrefix: 'homeassistant',
+      autodiscoveryTopicPrefix: 'homeassistant',
+    };
+    const mqttClient = new MqttClient(config, deviceManager, jest.fn());
+    mqttClient.requestDeviceData(device);
+    jest.advanceTimersByTime(1000);
+    mockPublish.mockClear();
+    return mqttClient;
+  }
+
+  function payloadsAfter(fn: () => void): string[] {
+    fn();
+    jest.advanceTimersByTime(1000);
+    return mockPublish.mock.calls.map((c: any[]) => c[1]);
+  }
+
+  const runtime = () =>
+    makeMessage({
+      refreshDataPayload: 'cd=1',
+      publishPath: 'data',
+      controlsDeviceAvailability: true,
+    });
+  const cells = (overrides: any = {}) =>
+    makeMessage({ refreshDataPayload: 'cd=13', publishPath: 'cells', ...overrides });
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  test('re-reads only the forced message while the poll interval is still running', () => {
+    const mqttClient = setUpPolledClient([runtime(), cells()]);
+
+    // Without forcing, nothing is due yet
+    expect(payloadsAfter(() => mqttClient.requestDeviceData(device))).toEqual([]);
+
+    const payloads = payloadsAfter(() =>
+      mqttClient.requestDeviceData(device, { forceMessageIndices: [0] }),
+    );
+    expect(payloads).toContain('cd=1');
+    expect(payloads).not.toContain('cd=13');
+  });
+
+  test('re-anchors the poll schedule so a forced read is not followed by a due one', () => {
+    const mqttClient = setUpPolledClient([runtime()]);
+
+    expect(payloadsAfter(() => mqttClient.requestDeviceData(device))).toEqual([]);
+    mockPublish.mockClear();
+
+    payloadsAfter(() => mqttClient.requestDeviceData(device, { forceMessageIndices: [0] }));
+    mockPublish.mockClear();
+
+    // The forced read counts as this interval's poll
+    expect(payloadsAfter(() => mqttClient.requestDeviceData(device))).toEqual([]);
+  });
+
+  test('does not force a disabled message', () => {
+    const mqttClient = setUpPolledClient([runtime(), cells({ enabled: false })]);
+
+    expect(
+      payloadsAfter(() => mqttClient.requestDeviceData(device, { forceMessageIndices: [1] })),
+    ).toEqual([]);
+  });
+
+  test('does not force a message its poll predicate rules out', () => {
+    const mqttClient = setUpPolledClient([runtime(), cells({ shouldPoll: () => false })]);
+
+    expect(
+      payloadsAfter(() => mqttClient.requestDeviceData(device, { forceMessageIndices: [1] })),
+    ).toEqual([]);
+  });
+
+  test('ignores an out-of-range index', () => {
+    const mqttClient = setUpPolledClient([runtime()]);
+
+    expect(
+      payloadsAfter(() => mqttClient.requestDeviceData(device, { forceMessageIndices: [7] })),
+    ).toEqual([]);
+  });
+});

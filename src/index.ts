@@ -246,7 +246,7 @@ async function main() {
     mqttClient = new MqttClient(config, deviceManager, messageHandler);
 
     // Create control handler
-    const controlHandler = new ControlHandler(deviceManager, (device, payload) => {
+    const controlHandler = new ControlHandler(deviceManager, (device, payload, messageIndex) => {
       const topics = deviceManager.getDeviceTopics(device);
 
       if (!topics) {
@@ -263,7 +263,10 @@ async function main() {
           // Wait a short delay to allow the device to process the command
           setTimeout(() => {
             logger.debug(`Requesting updated device data for ${device.deviceId} after command`);
-            mqttClient.requestDeviceData(device);
+            // Force the message the command belongs to: without this the read-back
+            // is dropped whenever that message was polled less than one polling
+            // interval ago, which is most of the time.
+            mqttClient.requestDeviceData(device, { forceMessageIndices: [messageIndex] });
           }, 500);
         })
         .catch(err => {

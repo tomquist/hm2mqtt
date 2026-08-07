@@ -3,8 +3,19 @@ import './device/registry.js';
 import logger from './logger.js';
 import { ControlHandler } from './controlHandler.js';
 import { DeviceManager, DeviceStateData } from './deviceManager.js';
+import { getDeviceDefinition } from './deviceDefinition.js';
 import { MqttConfig, Device, B2500V2DeviceData, B2500BaseDeviceData } from './types.js';
 import { DEFAULT_TOPIC_PREFIX } from './constants.js';
+
+/**
+ * Build a ControlHandler whose publish callback records only `(device, payload)`.
+ * The handler also passes the index of the message definition owning the command,
+ * which is covered separately below; dropping it here keeps the payload
+ * assertions in this file exact.
+ */
+function controlHandlerFor(deviceManager: DeviceManager, publishCallback: jest.Mock) {
+  return new ControlHandler(deviceManager, (device, payload) => publishCallback(device, payload));
+}
 
 describe('ControlHandler', () => {
   let controlHandler: ControlHandler;
@@ -46,7 +57,7 @@ describe('ControlHandler', () => {
     deviceManager.updateDeviceState(testDeviceV1, 'data', () => ({ useFlashCommands: true }));
     deviceManager.updateDeviceState(testDeviceV2, 'data', () => ({ useFlashCommands: true }));
     publishCallback = jest.fn();
-    controlHandler = new ControlHandler(deviceManager, publishCallback);
+    controlHandler = controlHandlerFor(deviceManager, publishCallback);
   });
 
   afterEach(() => {
@@ -429,7 +440,7 @@ describe('ControlHandler', () => {
       };
       deviceManager = new DeviceManager(config, () => {});
       publishCallback = jest.fn();
-      controlHandler = new ControlHandler(deviceManager, publishCallback);
+      controlHandler = controlHandlerFor(deviceManager, publishCallback);
     });
 
     test('should fold the switched phase into the reported bitmask', () => {
@@ -467,7 +478,7 @@ describe('ControlHandler', () => {
         };
         deviceManager = new DeviceManager(config, () => {});
         publishCallback = jest.fn();
-        controlHandler = new ControlHandler(deviceManager, publishCallback);
+        controlHandler = controlHandlerFor(deviceManager, publishCallback);
 
         handleControlTopic(device, 'phase1-measurement-reversed', 'true');
         expect(publishCallback).toHaveBeenCalledWith(device, expected);
@@ -496,7 +507,7 @@ describe('ControlHandler', () => {
       };
       deviceManager = new DeviceManager(config, () => {});
       publishCallback = jest.fn();
-      controlHandler = new ControlHandler(deviceManager, publishCallback);
+      controlHandler = controlHandlerFor(deviceManager, publishCallback);
 
       handleControlTopic(smr, 'phase1-measurement-reversed', 'true');
 
@@ -518,7 +529,7 @@ describe('ControlHandler', () => {
       };
       deviceManager = new DeviceManager(config, () => {});
       publishCallback = jest.fn();
-      controlHandler = new ControlHandler(deviceManager, publishCallback);
+      controlHandler = controlHandlerFor(deviceManager, publishCallback);
     };
 
     test.each(['HME-4', 'TPM-CN', 'TPM2-0', 'SMR-0'])(
@@ -544,6 +555,33 @@ describe('ControlHandler', () => {
 
       handleControlTopic(device, 'factory-reset', 'off');
       expect(publishCallback).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('commanded message index', () => {
+    test('reports the message definition that declares the command', () => {
+      const indices: number[] = [];
+      const handler = new ControlHandler(deviceManager, (_device, _payload, messageIndex) => {
+        indices.push(messageIndex);
+      });
+      const deviceTopics = deviceManager.getDeviceTopics(testDeviceV2);
+      if (!deviceTopics) {
+        throw new Error('Device topics not found');
+      }
+      handler.handleControlTopic(
+        testDeviceV2,
+        `${deviceTopics.controlSubscriptionTopic}/discharge-depth`,
+        '75',
+      );
+
+      expect(indices).toHaveLength(1);
+      const messages = getDeviceDefinition(testDeviceV2.deviceType)?.messages ?? [];
+      const commanded = messages[indices[0]];
+      // It has to point at the runtime message that declares `discharge-depth`,
+      // not at the separately polled cell-voltage or calibration messages: the
+      // index is what decides which message gets re-read after the write.
+      expect(commanded.commands.map(c => c.command)).toContain('discharge-depth');
+      expect(commanded.refreshDataPayload).toBe('cd=1');
     });
   });
 });
