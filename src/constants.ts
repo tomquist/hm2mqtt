@@ -96,6 +96,13 @@ export const BALANCE_SESSION_END_GRACE_MS = 600000;
 /** How long the pack must have been resting before the rested spread is taken. */
 export const REST_LATCH_DELAY_MS = 3600000;
 
+/**
+ * Pack current above which the pack counts as charging, for families that infer
+ * it from the current rather than a status flag. Above the noise floor of a
+ * reading that is quantised in deci-amps, below any real charge.
+ */
+export const CHARGE_DETECT_MIN_A = 0.2;
+
 /** Pack current below which the pack counts as resting. */
 export const REST_CURRENT_MAX_A = 0.5;
 

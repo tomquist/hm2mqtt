@@ -11,9 +11,19 @@ import {
 } from './persistence.js';
 import { PERSIST_SCHEMA_VERSION } from './constants.js';
 
+const createdDirs: string[] = [];
+
 function tempDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'hm2mqtt-persist-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hm2mqtt-persist-'));
+  createdDirs.push(dir);
+  return dir;
 }
+
+afterAll(() => {
+  for (const dir of createdDirs) {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 function record(overrides: Partial<PersistedRecord> = {}): PersistedRecord {
   return {

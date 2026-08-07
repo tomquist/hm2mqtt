@@ -125,7 +125,7 @@ function fileFor(deviceType: string, deviceId: string): string | undefined {
   // both become 'ab_cd' — so a short digest of the originals keeps two devices
   // from silently sharing one history file.
   const safe = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, '_');
-  const digest = createHash('sha1').update(`${deviceType}\u0000${deviceId}`).digest('hex');
+  const digest = createHash('sha256').update(`${deviceType}\u0000${deviceId}`).digest('hex');
   return path.join(dir, `${safe(deviceType)}_${safe(deviceId)}-${digest.slice(0, 8)}.json`);
 }
 
@@ -145,7 +145,14 @@ export function loadRecord(deviceType: string, deviceId: string): PersistedRecor
       );
       return undefined;
     }
-    return { ...parsed, cycles: Array.isArray(parsed.cycles) ? parsed.cycles : [] };
+    const counter = (value: unknown) =>
+      typeof value === 'number' && Number.isFinite(value) ? value : 0;
+    return {
+      ...parsed,
+      cycles: Array.isArray(parsed.cycles) ? parsed.cycles : [],
+      msAboveThreshold: counter(parsed.msAboveThreshold),
+      msAboveHighThreshold: counter(parsed.msAboveHighThreshold),
+    };
   } catch (error) {
     logger.warn(`Could not read cell balancing history from ${file}:`, error);
     return undefined;

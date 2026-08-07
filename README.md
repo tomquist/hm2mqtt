@@ -417,7 +417,9 @@ services:
 ### Cell Balancing Diagnostics
 
 Available on B2500, Greensolar storage and Venus. Set `CELL_BALANCING_DIAGNOSTICS=true` (add-on:
-*Enable Cell Balancing Diagnostics*). Requires `POLL_CELL_DATA=true`.
+*Enable Cell Balancing Diagnostics*). Also requires `POLL_CELL_DATA=true` (add-on: *Enable Cell
+Data*) — that is what supplies the cell readings, and with it off no diagnostic entities are
+created and the log says why.
 
 *Cell Voltage Difference* — the gap between the highest and lowest cell — is easy
 to misread. Watch it after a full charge and it collapses from tens of millivolts
@@ -432,6 +434,7 @@ These sensors are meant to tell the two apart:
 | Entity | What it tells you |
 |---|---|
 | *Cell Spread*, *Cell Voltage Standard Deviation* | Spread, plus a measure that is not at the mercy of one flaky cell |
+| *Mean Cell Voltage* | Where on the curve the pack is sitting, which is what makes the spread readable |
 | *Highest Cell Share of Spread* | How much of the spread the highest cell owns. The sharpest signal here — see below |
 | *Mean Cell Voltage Drift* | How fast the pack is sagging. Falling means it is running off the battery; flat while full means it is genuinely being held there |
 | *Balance Conditions Met* | Cells high enough for the balancer to do something, with charge still going in |

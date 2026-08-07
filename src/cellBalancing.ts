@@ -2,6 +2,7 @@ import {
   BALANCE_SESSION_END_GRACE_MS,
   CELL_BALANCE_HIGH_THRESHOLD_MV,
   CELL_BALANCE_THRESHOLD_MV,
+  CHARGE_DETECT_MIN_A,
   CELL_KNEE_CROSSING_MV,
   CELL_KNEE_REARM_HYSTERESIS_MV,
   CELL_PLAUSIBLE_MAX_MV,
@@ -173,7 +174,7 @@ export function extractVenusSample(
     cellsMv,
     // Same message as the cells, so this cannot lag them — unlike the working
     // status in the runtime message, which can be a poll interval behind.
-    chargingIn: packCurrentA != null ? packCurrentA > 0.2 : undefined,
+    chargingIn: packCurrentA != null ? packCurrentA > CHARGE_DETECT_MIN_A : undefined,
     socPct: bms?.soc,
     packCurrentA,
     tempC: temperatures.length > 0 ? Math.max(...temperatures) : undefined,
@@ -185,6 +186,12 @@ export function extractVenusSample(
 
 export interface CellStats {
   count: number;
+  /**
+   * Where each surviving cell sat in the original array. Implausible readings
+   * are dropped from anywhere in the pack, so a position in `deviationsMv` is
+   * not a cell number — this maps back.
+   */
+  indices: number[];
   minMv: number;
   maxMv: number;
   meanMv: number;
@@ -284,17 +291,24 @@ export function initialBalancingState(): BalancingState {
  * permanently.
  */
 export function plausibleCells(cellsMv: number[]): number[] {
-  return cellsMv.filter(
-    mv => Number.isFinite(mv) && mv >= CELL_PLAUSIBLE_MIN_MV && mv <= CELL_PLAUSIBLE_MAX_MV,
-  );
+  return plausibleCellsWithIndices(cellsMv).map(c => c.mv);
+}
+
+function plausibleCellsWithIndices(cellsMv: number[]): { mv: number; index: number }[] {
+  return cellsMv
+    .map((mv, index) => ({ mv, index }))
+    .filter(
+      ({ mv }) => Number.isFinite(mv) && mv >= CELL_PLAUSIBLE_MIN_MV && mv <= CELL_PLAUSIBLE_MAX_MV,
+    );
 }
 
 export function computeCellStats(rawCellsMv: number[]): CellStats | undefined {
-  const cellsMv = plausibleCells(rawCellsMv);
-  if (cellsMv.length < 2) {
+  const present = plausibleCellsWithIndices(rawCellsMv);
+  if (present.length < 2) {
     return undefined;
   }
 
+  const cellsMv = present.map(c => c.mv);
   const count = cellsMv.length;
   const minMv = Math.min(...cellsMv);
   const maxMv = Math.max(...cellsMv);
@@ -305,6 +319,7 @@ export function computeCellStats(rawCellsMv: number[]): CellStats | undefined {
 
   return {
     count,
+    indices: present.map(c => c.index),
     minMv,
     maxMv,
     meanMv,

@@ -1,4 +1,5 @@
 import { BuildMessageFn } from '../deviceDefinition.js';
+import logger from '../logger.js';
 import { binarySensorComponent, sensorComponent } from '../homeAssistantDiscovery.js';
 import { CellBalancingData } from '../types.js';
 import {
@@ -37,6 +38,27 @@ export interface CellBalancingSource {
 
 const states = new Map<string, BalancingState>();
 const lastCellTimestamps = new Map<string, string>();
+
+let warnedAboutCellData = false;
+
+/**
+ * The diagnostics need their own flag *and* the cell data they are computed
+ * from. Asking for one without the other is a configuration mistake that would
+ * otherwise present as entities that never leave unknown, so say so once.
+ */
+function cellBalancingEnabled(): boolean {
+  const requested = process.env.CELL_BALANCING_DIAGNOSTICS === 'true';
+  const haveCellData = process.env.POLL_CELL_DATA === 'true';
+  if (requested && !haveCellData && !warnedAboutCellData) {
+    warnedAboutCellData = true;
+    logger.warn(
+      'Cell balancing diagnostics are enabled but cell data polling is not. ' +
+        'Set POLL_CELL_DATA=true (add-on: "Enable Cell Data") — without it there ' +
+        'are no cell readings to analyse, so no diagnostic entities are created.',
+    );
+  }
+  return requested && haveCellData;
+}
 
 /** Test seam; production never needs to forget a device. */
 export function resetCellBalancingState(): void {
@@ -102,7 +124,10 @@ export function registerCellBalancingMessage(
       pollInterval: 60000,
       controlsDeviceAvailability: false,
       polled: false,
-      enabled: process.env.CELL_BALANCING_DIAGNOSTICS === 'true',
+      // Both flags are required. The diagnostics are computed from the cell
+      // message, so with POLL_CELL_DATA off nothing is ever polled to feed them
+      // and every entity would sit at unknown forever.
+      enabled: cellBalancingEnabled(),
       derive: ({ stateByPath, deviceType, deviceId, at, monotonicAt }) => {
         const key = `${deviceType}:${deviceId}`;
 
@@ -154,7 +179,9 @@ export function registerCellBalancingMessage(
         // The full vector goes in the payload, but a graph needs a scalar: the
         // share owned by the highest cell is the one a passive balancer acts on.
         const highestShare = Math.max(...stats.normalisedDeviations);
-        const highestIndex = stats.normalisedDeviations.indexOf(highestShare);
+        // Map back through `indices`: a dropped reading mid-pack shifts every
+        // later position, so the array offset is not the cell number.
+        const highestIndex = stats.indices[stats.normalisedDeviations.indexOf(highestShare)];
 
         return {
           cellBalancing: {

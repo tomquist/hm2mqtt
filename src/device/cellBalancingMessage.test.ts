@@ -36,6 +36,20 @@ const topics = {
 
 const device = { deviceType: 'VNSD-0', deviceId: 'venus1' };
 
+const createdDirs: string[] = [];
+
+function tempDir(): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hm2mqtt-disc-'));
+  createdDirs.push(dir);
+  return dir;
+}
+
+afterAll(() => {
+  for (const dir of createdDirs) {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 function bmsPayload(cells: number[], current: number): string {
   const voltages = cells.map((mv, i) => `b_vo${i + 1}=${mv}`).join(',');
   return (
@@ -73,7 +87,7 @@ describe('cell balancing discovery', () => {
     const { generateDiscoveryConfigs, persistence } = await loadWithDiagnostics();
     persistence.resetPersistenceProbe({
       available: true,
-      dir: fs.mkdtempSync(path.join(os.tmpdir(), 'hm2mqtt-disc-')),
+      dir: tempDir(),
     });
 
     const configs = generateDiscoveryConfigs(device, topics as any, {}, 'hm2mqtt', 'homeassistant');
@@ -184,7 +198,7 @@ describe('cell balancing end to end', () => {
   });
 
   it('restores the cycle history from disk on restart', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hm2mqtt-e2e-'));
+    const dir = tempDir();
     const { DeviceManager, parseMessage, persistence, cellBalancingMessage } =
       await loadWithDiagnostics();
     persistence.resetPersistenceProbe({ available: true, dir });

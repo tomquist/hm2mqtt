@@ -48,6 +48,16 @@ describe('computeCellStats', () => {
     expect(stats.meanMv).toBe(3305);
   });
 
+  it('remembers where the surviving cells sat in the original array', () => {
+    // A dropped reading in the middle shifts every later position, so the offset
+    // within the filtered array is not a cell number.
+    const stats = computeCellStats([3300, 0, 3310, 3305])!;
+    expect(stats.indices).toEqual([0, 2, 3]);
+    // The highest reading is the third physical cell, at filtered position 1.
+    const highest = Math.max(...stats.normalisedDeviations);
+    expect(stats.indices[stats.normalisedDeviations.indexOf(highest)]).toBe(2);
+  });
+
   it('returns undefined when fewer than two cells survive', () => {
     expect(computeCellStats([3300, 0, 0])).toBeUndefined();
     expect(computeCellStats([])).toBeUndefined();
@@ -413,9 +423,8 @@ describe('family adapters', () => {
 
     it('reports how stale the cross-message inputs are', () => {
       const cells = { ...cellState(), timestamp: '2026-08-06T12:00:00.000Z' };
-      const data = { timestamp: '2026-08-05T11:59:00.000Z' } as any;
       const withData = extractB2500Sample(
-        { cells, data: { ...data, timestamp: '2026-08-06T11:59:00.000Z' } },
+        { cells, data: { timestamp: '2026-08-06T11:59:00.000Z' } },
         clock,
       )!;
       expect(withData.staleMs).toBe(60000);
