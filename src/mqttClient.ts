@@ -355,6 +355,14 @@ export class MqttClient {
     let needsRefresh = false;
     let shouldStartTimeout = false;
     for (const [idx, message] of deviseDefinition.messages.entries()) {
+      // Mirror the skip applied when actually sending, below. Without it a
+      // message that is never sent never gets a `lastRequestTime`, so it stays
+      // permanently "due" and `needsRefresh` is always true — which made the
+      // early return below dead code on every device that has a disabled
+      // message (i.e. all of them, whenever POLL_CELL_DATA is off).
+      if (!message.enabled) {
+        continue;
+      }
       if (message.shouldPoll && !message.shouldPoll(pollState)) {
         continue;
       }

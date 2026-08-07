@@ -253,4 +253,44 @@ describe('MqttClient shouldPoll gating', () => {
     expect(payloads).not.toContain('cd=42,bms_idx=1');
     expect(payloads).not.toContain('cd=42,bms_idx=2');
   });
+
+  function pollPayloadsFor(messages: any[]): string[] {
+    jest.useFakeTimers();
+    try {
+      mockGetDeviceDefinition.mockReturnValue({ messages } as any);
+      mockPublish.mockClear();
+
+      const device: Device = { deviceType: 'VNSD-0', deviceId: 'venus1' };
+      const deviceManager: any = {
+        getDeviceTopics: () => topics,
+        getDeviceState: () => ({}),
+        getDevices: () => [],
+        getResponseTimeout: () => 5000,
+        setResponseTimeout: jest.fn(),
+        clearResponseTimeout: jest.fn(),
+      };
+      const config: any = {
+        brokerUrl: 'mqtt://localhost:1883',
+        clientId: 'test-client',
+        topicPrefix: 'homeassistant',
+        autodiscoveryTopicPrefix: 'homeassistant',
+      };
+
+      const mqttClient = new MqttClient(config, deviceManager, jest.fn());
+      mqttClient.requestDeviceData(device);
+      jest.advanceTimersByTime(1000);
+
+      return mockPublish.mock.calls.map((c: any[]) => c[1]);
+    } finally {
+      jest.useRealTimers();
+    }
+  }
+
+  test('sends nothing at all when every message is disabled', () => {
+    const payloads = pollPayloadsFor([
+      makeMessage({ refreshDataPayload: 'cd=13', publishPath: 'cells', enabled: false }),
+      makeMessage({ refreshDataPayload: 'cd=21', publishPath: 'calibration', enabled: false }),
+    ]);
+    expect(payloads).toEqual([]);
+  });
 });

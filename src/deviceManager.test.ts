@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
 import './device/registry.js';
 import { DeviceManager } from './deviceManager.js';
+import { registerDeviceDefinition } from './deviceDefinition.js';
 import { MqttConfig } from './types.js';
 import { DEFAULT_TOPIC_PREFIX } from './constants.js';
 import { calculateNewVersionTopicId } from './utils/crypt.js';
@@ -255,6 +256,62 @@ describe('DeviceManager', () => {
       const stats = (b2500.getDeviceState(hma) as any).dailyStats;
       expect(stats.batteryChargingPower).toBe(100); // corrupt drop rejected
       expect(stats.batteryDischargePower).toBe(60); // sibling increase preserved
+    });
+  });
+
+  describe('getPollingInterval', () => {
+    // The shared polling timer runs at the GCD of every message's interval, so a
+    // single badly chosen interval speeds up polling for every device in the
+    // process. None of this was covered before.
+    const defineType = (
+      deviceType: string,
+      messages: { pollInterval: number; enabled?: boolean }[],
+    ) => {
+      registerDeviceDefinition({ deviceTypes: [deviceType] }, ({ message }) => {
+        messages.forEach((options, idx) => {
+          message(
+            {
+              refreshDataPayload: `cd=${idx}`,
+              isMessage: () => false,
+              publishPath: `path${idx}`,
+              defaultState: {},
+              getAdditionalDeviceInfo: () => ({}),
+              controlsDeviceAvailability: false,
+              ...options,
+            },
+            () => {},
+          );
+        });
+      });
+    };
+
+    const intervalFor = (deviceType: string) =>
+      new DeviceManager(
+        { ...mockConfig, devices: [{ deviceType, deviceId: 'gcd' }] },
+        jest.fn(),
+      ).getPollingInterval();
+
+    it('returns the greatest common divisor of the polled intervals', () => {
+      defineType('TESTGCDPLAIN', [{ pollInterval: 60000 }, { pollInterval: 300000 }]);
+      expect(intervalFor('TESTGCDPLAIN')).toBe(60000);
+    });
+
+    it('ignores disabled messages', () => {
+      // 7000 is deliberately not a divisor of 60000: were it counted, the tick
+      // would collapse to 1000 ms for every device in the process.
+      defineType('TESTGCDDISABLED', [
+        { pollInterval: 60000 },
+        { pollInterval: 7000, enabled: false },
+      ]);
+      expect(intervalFor('TESTGCDDISABLED')).toBe(60000);
+    });
+
+    it('falls back to the unfiltered set rather than leaving the tick undefined', () => {
+      defineType('TESTGCDNONE', [
+        { pollInterval: 30000, enabled: false },
+        { pollInterval: 45000, enabled: false },
+      ]);
+      expect(intervalFor('TESTGCDNONE')).toBe(15000);
     });
   });
 });
