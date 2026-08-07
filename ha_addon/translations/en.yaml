@@ -7,13 +7,13 @@ configuration:
     description: "Timeout in seconds for device responses before considering the device to be offline (default: 30)"
   enableCellData:
     name: Enable Cell Data
-    description: "Enable cell voltage (only available on B2500 devices)"
+    description: "Enable cell voltage data (B2500, Greensolar, Venus and Jupiter). On Venus it also adds detailed per-pack BMS data"
   enableCalibrationData:
     name: Enable Calibration Data
-    description: "Enable calibration data reporting (only available on B2500 devices)"
+    description: "Enable calibration data reporting (B2500 and Greensolar storage only)"
   enableExtraBatteryData:
     name: Enable Extra Battery Data
-    description: "Enable extra battery data reporting (only available on B2500 devices)"
+    description: "Enable extra battery data reporting (B2500 and Greensolar storage only)"
   allowedConsecutiveTimeouts:
     name: Allowed Consecutive Timeouts
     description: "Number of consecutive timeouts before a device is marked offline (default: 3)"

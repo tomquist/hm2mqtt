@@ -253,4 +253,64 @@ describe('MqttClient shouldPoll gating', () => {
     expect(payloads).not.toContain('cd=42,bms_idx=1');
     expect(payloads).not.toContain('cd=42,bms_idx=2');
   });
+
+  function pollFor(messages: any[]): { payloads: string[]; setResponseTimeout: jest.Mock } {
+    jest.useFakeTimers();
+    try {
+      mockGetDeviceDefinition.mockReturnValue({ messages } as any);
+      mockPublish.mockClear();
+
+      const device: Device = { deviceType: 'VNSD-0', deviceId: 'venus1' };
+      const setResponseTimeout = jest.fn();
+      const deviceManager: any = {
+        getDeviceTopics: () => topics,
+        getDeviceState: () => ({}),
+        getDevices: () => [],
+        getResponseTimeout: () => 5000,
+        setResponseTimeout,
+        clearResponseTimeout: jest.fn(),
+      };
+      const config: any = {
+        brokerUrl: 'mqtt://localhost:1883',
+        clientId: 'test-client',
+        topicPrefix: 'homeassistant',
+        autodiscoveryTopicPrefix: 'homeassistant',
+      };
+
+      const mqttClient = new MqttClient(config, deviceManager, jest.fn());
+      mqttClient.requestDeviceData(device);
+      jest.advanceTimersByTime(1000);
+
+      return { payloads: mockPublish.mock.calls.map((c: any[]) => c[1]), setResponseTimeout };
+    } finally {
+      jest.useRealTimers();
+    }
+  }
+
+  test('sends nothing at all when every message is disabled', () => {
+    const { payloads } = pollFor([
+      makeMessage({ refreshDataPayload: 'cd=13', publishPath: 'cells', enabled: false }),
+      makeMessage({ refreshDataPayload: 'cd=21', publishPath: 'calibration', enabled: false }),
+    ]);
+    expect(payloads).toEqual([]);
+  });
+
+  test('a disabled message does not arm a response timeout it can never answer', () => {
+    // The send loop always skipped disabled messages, so the assertion above
+    // held before this change too. This is the behaviour that actually moved:
+    // the due-check loop used to see the disabled message, mark the device as
+    // needing a refresh and — because the message controls availability — arm a
+    // response timeout for a request that is never sent. Nothing could answer
+    // it, so it would fire and count towards marking the device offline.
+    const { payloads, setResponseTimeout } = pollFor([
+      makeMessage({
+        refreshDataPayload: 'cd=1',
+        publishPath: 'data',
+        controlsDeviceAvailability: true,
+        enabled: false,
+      }),
+    ]);
+    expect(payloads).toEqual([]);
+    expect(setResponseTimeout).not.toHaveBeenCalled();
+  });
 });
