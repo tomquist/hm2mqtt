@@ -301,18 +301,35 @@ async function main() {
       logger.info('MQTT Proxy is disabled (set MQTT_PROXY_ENABLED=true to enable)');
     }
 
-    // Handle process termination
-    process.on('SIGINT', async () => {
-      logger.info('Shutting down...');
-
-      if (mqttProxy) {
-        logger.info('Stopping MQTT Proxy...');
-        await mqttProxy.stop();
+    // Handle process termination. SIGTERM matters as much as SIGINT: Docker and
+    // the Home Assistant Supervisor both send it to stop a container, so without
+    // a handler an ordinary restart or add-on update skipped this path entirely
+    // and the container was killed after the grace period instead.
+    let shuttingDown = false;
+    const shutdown = async (signal: string) => {
+      if (shuttingDown) {
+        return;
       }
+      shuttingDown = true;
+      logger.info(`Received ${signal}, shutting down...`);
 
-      await mqttClient.close();
-      process.exit();
-    });
+      // Best-effort: a rejection here must not stop the process exiting, or the
+      // container hangs until it is killed anyway.
+      try {
+        if (mqttProxy) {
+          logger.info('Stopping MQTT Proxy...');
+          await mqttProxy.stop();
+        }
+
+        await mqttClient.close();
+      } catch (error) {
+        logger.error('Error during shutdown:', error);
+      } finally {
+        process.exit();
+      }
+    };
+    process.on('SIGINT', () => shutdown('SIGINT'));
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
 
     logger.debug('Application initialized successfully');
   } catch (error) {
