@@ -10,6 +10,7 @@ import { ControlHandler } from './controlHandler.js';
 import logger from './logger.js';
 import { DataHandler } from './dataHandler.js';
 import { MqttProxy, MqttProxyConfig } from './mqttProxy.js';
+import { runShutdownStep } from './shutdown.js';
 
 // MQTT Proxy configuration
 const MQTT_PROXY_ENABLED = process.env.MQTT_PROXY_ENABLED === 'true';
@@ -313,20 +314,22 @@ async function main() {
       shuttingDown = true;
       logger.info(`Received ${signal}, shutting down...`);
 
-      // Best-effort: a rejection here must not stop the process exiting, or the
-      // container hangs until it is killed anyway.
-      try {
-        if (mqttProxy) {
-          logger.info('Stopping MQTT Proxy...');
-          await mqttProxy.stop();
-        }
-
-        await mqttClient.close();
-      } catch (error) {
-        logger.error('Error during shutdown:', error);
-      } finally {
-        process.exit();
+      // Each step is independent and time-bounded, because neither failing nor
+      // hanging may keep the process alive. MqttProxy.stop() waits for its TCP
+      // server to close, and a TCP server does not close while a client still
+      // holds a connection open — so a device that is still connected would
+      // otherwise block the exit until the runtime killed us, which is the
+      // outcome this handler exists to avoid. A failure to stop the proxy must
+      // also not cost us the MQTT close, which is what publishes the offline
+      // availability.
+      const proxy = mqttProxy;
+      if (proxy) {
+        logger.info('Stopping MQTT Proxy...');
+        await runShutdownStep('stopping the MQTT proxy', () => proxy.stop());
       }
+      await runShutdownStep('closing the MQTT connection', () => mqttClient.close());
+
+      process.exit();
     };
     process.on('SIGINT', () => shutdown('SIGINT'));
     process.on('SIGTERM', () => shutdown('SIGTERM'));

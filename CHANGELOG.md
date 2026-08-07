@@ -4,7 +4,7 @@
 ### Fixed
 
 - Settings in a `.env` file were ignored; only real environment variables took effect. Affects manual installations only
-- hm2mqtt now shuts down cleanly when stopped by Home Assistant or Docker, which send a signal it did not handle. The MQTT connection is now closed properly instead of the process being killed after a grace period
+- hm2mqtt now shuts down cleanly when stopped by Home Assistant or Docker, which send a signal it did not handle. The MQTT connection is now closed properly instead of the process being killed after a grace period. With the MQTT proxy enabled, a device that was still connected could hold the shutdown open indefinitely; each step now gives up after a few seconds so the restart always completes
 - Devices were polled more often than configured. Options that are switched off still pulled the shared polling timer faster than any device needed, which showed up at *Polling Interval* values that are not a multiple of 60 seconds
 - The descriptions of *Enable Cell Data*, *Enable Calibration Data* and *Enable Extra Battery Data* said B2500 only. All three also work on Greensolar storage, and *Enable Cell Data* additionally covers Venus and Jupiter
 - Venus: *BMS Current* was reported in milliamps and read 100x too low — a pack drawing 9.4 A showed 94 mA. It now reports amps, matching the same field on Jupiter. History recorded before this update keeps the old values
