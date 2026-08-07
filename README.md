@@ -286,7 +286,7 @@ services:
 | `POLL_CELL_DATA` | Enable cell-level battery data: individual cell voltages and temperatures, plus detailed per-pack BMS data on Venus. B2500, Greensolar, Venus and Jupiter | false |
 | `POLL_EXTRA_BATTERY_DATA` | Enable extra battery data reporting (B2500 and Greensolar storage only) | false |
 | `POLL_CALIBRATION_DATA` | Enable calibration data reporting (B2500 and Greensolar storage only) | false |
-| `CELL_BALANCING_DIAGNOSTICS` | Enable the cell balancing diagnostics (B2500 and Venus; requires `POLL_CELL_DATA`) | false |
+| `CELL_BALANCING_DIAGNOSTICS` | Enable the cell balancing diagnostics (B2500, Greensolar and Venus; requires `POLL_CELL_DATA`) | false |
 | `HM2MQTT_DATA_DIR` | Directory for data that must survive a restart, currently the cell balancing charge-cycle history | `/data` |
 | `DEVICE_n` | Device configuration in format `{type}:{mac}` | -                       |
 | `MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS` | Number of consecutive timeouts before a device is marked offline | `3` |
@@ -416,7 +416,7 @@ services:
 
 ### Cell Balancing Diagnostics
 
-Available on B2500 and Venus. Set `CELL_BALANCING_DIAGNOSTICS=true` (add-on:
+Available on B2500, Greensolar storage and Venus. Set `CELL_BALANCING_DIAGNOSTICS=true` (add-on:
 *Enable Cell Balancing Diagnostics*). Requires `POLL_CELL_DATA=true`.
 
 *Cell Voltage Difference* — the gap between the highest and lowest cell — is easy

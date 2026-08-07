@@ -16,7 +16,7 @@ configuration:
     description: "Aktiviere Abruf zusätzlicher Batteriedaten (nur B2500 und Greensolar)"
   enableCellBalancingDiagnostics:
     name: "Balancing-Diagnose"
-    description: "Zeigt an, ob der Speicher tatsächlich balanciert, statt nur die Entladekurve hinunterzuwandern. Benötigt Zellspannungen (nur B2500 und Venus)"
+    description: "Zeigt an, ob der Speicher tatsächlich balanciert, statt nur die Entladekurve hinunterzuwandern. Benötigt Zellspannungen (B2500, Greensolar und Venus)"
   allowedConsecutiveTimeouts:
     name: Maximale aufeinanderfolgende Timeouts
     description: "Anzahl aufeinanderfolgender Timeouts, bevor ein Gerät als offline markiert wird (Standard: 3)"
