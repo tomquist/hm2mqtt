@@ -283,9 +283,9 @@ services:
 | `MQTT_PASSWORD` | MQTT password | -                       |
 | `MQTT_POLLING_INTERVAL` | Interval between device polls in seconds | `60`                 |
 | `MQTT_RESPONSE_TIMEOUT` | Timeout for device responses in seconds | `15`                 |
-| `POLL_CELL_DATA` | Enable cell-level battery data (individual cell voltages, temperatures and, on Venus, detailed per-pack BMS data) | false |
-| `POLL_EXTRA_BATTERY_DATA` | Enable extra battery data reporting (only available on B2500 devices) | false |
-| `POLL_CALIBRATION_DATA` | Enable calibration data reporting (only available on B2500 devices) | false |
+| `POLL_CELL_DATA` | Enable cell-level battery data: individual cell voltages and temperatures, plus detailed per-pack BMS data on Venus. B2500, Greensolar, Venus and Jupiter | false |
+| `POLL_EXTRA_BATTERY_DATA` | Enable extra battery data reporting (B2500 and Greensolar storage only) | false |
+| `POLL_CALIBRATION_DATA` | Enable calibration data reporting (B2500 and Greensolar storage only) | false |
 | `DEVICE_n` | Device configuration in format `{type}:{mac}` | -                       |
 | `MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS` | Number of consecutive timeouts before a device is marked offline | `3` |
 | `MQTT_PROXY_ENABLED` | Enable MQTT proxy server for B2500 client ID conflict resolution | `false` |
