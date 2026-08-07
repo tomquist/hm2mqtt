@@ -1439,6 +1439,10 @@ describe('MQTT Message Parser', () => {
     const result = parsed['bms'] as VenusBMSInfo;
     expect(result.bms?.voltage).toBeCloseTo(52.23);
     expect(result.bms?.chargeVoltage).toBeCloseTo(57.1);
+    // Deci-amps, negative while discharging: -9.4 A across 52.23 V is about
+    // 490 W. Read as the milliamps this used to claim it would have been 4.9 W,
+    // which is not a pack under load at all.
+    expect(result.bms?.current).toBeCloseTo(-9.4);
     // Other Venus variants already report temperatures in whole degrees.
     expect(result.bms?.mosfetTemp).toBe(23);
     expect(result.cells?.temperatures?.[0]).toBe(18);

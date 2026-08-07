@@ -2295,12 +2295,16 @@ function registerBMSInfoMessage(
             stateClass: 'measurement',
           },
         ],
+        // Pack current is reported in deci-amps (e.g. -94 -> -9.4 A), signed
+        // negative while discharging. Jupiter's cd=14 response uses the same key
+        // at the same scale.
         [
           'b_cur',
           {
             id: 'current',
             deviceClass: 'current',
-            unitOfMeasurement: 'mA',
+            unitOfMeasurement: 'A',
+            transform: divide(10),
             stateClass: 'measurement',
           },
         ],
