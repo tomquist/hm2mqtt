@@ -45,11 +45,13 @@ export class ControlHandler {
    * Create a new ControlHandler
    *
    * @param deviceManager - Device manager instance
-   * @param publishCallback - Callback to publish messages
+   * @param publishCallback - Callback to publish messages. `messageIndex` is the
+   *   index of the message definition the command belongs to, so the caller can
+   *   re-read exactly that message after the write instead of every message.
    */
   constructor(
     private deviceManager: DeviceManager,
-    private publishCallback: (device: Device, payload: string) => void,
+    private publishCallback: (device: Device, payload: string, messageIndex: number) => void,
   ) {}
 
   /**
@@ -71,11 +73,13 @@ export class ControlHandler {
       const controlTopicBase = topics.controlSubscriptionTopic;
       const controlPath = topic.substring(controlTopicBase.length + 1); // +1 for the slash
       const deviceDefinition = getDeviceDefinition(device.deviceType);
-      for (const messageDefinition of deviceDefinition?.messages ?? []) {
+      for (const [messageIndex, messageDefinition] of (
+        deviceDefinition?.messages ?? []
+      ).entries()) {
         const handlerParams: ControlHandlerParams<any> = {
           device,
           message,
-          publishCallback: payload => this.publishCallback(device, payload),
+          publishCallback: payload => this.publishCallback(device, payload, messageIndex),
           deviceState: this.deviceManager.getDeviceState(device) as any,
           updateDeviceState: update =>
             this.deviceManager.updateDeviceState(
