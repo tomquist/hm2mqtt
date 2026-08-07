@@ -3,7 +3,7 @@
 
 ### Fixed
 
-- Settings you change from Home Assistant now show the value the device accepted within about a second. Changing something like *Discharge Depth*, *Charging Mode* or *Adaptive Mode* was supposed to trigger an immediate read-back, but that read-back was skipped whenever the device had been read recently — so whether the entity updated straight away or sat on its old value until the next poll (up to a minute with the default polling interval) depended on when you happened to change it
+- Settings you change from Home Assistant, such as *Discharge Depth* or *Charging Mode*, sometimes kept showing their old value for up to a minute. They now update within about a second
 - Venus: *BMS Current* was reported in milliamps and read 100x too low — a pack drawing 9.4 A showed 94 mA. It now reports amps, matching the same field on Jupiter. History recorded before this update keeps the old values
 
 - B2500 V2/V3: Fix *Sync Time* setting the device clock wrong, which made every discharge timer start and stop early by your timezone's offset from UTC — two hours in CEST, one in CET. A device that was synced by an affected version keeps the wrong clock until it is synced again, so press *Sync Time* once after updating (PR #405)
