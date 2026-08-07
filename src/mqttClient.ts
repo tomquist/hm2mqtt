@@ -365,10 +365,11 @@ export class MqttClient {
     let needsRefresh = false;
     let shouldStartTimeout = false;
     for (const [idx, message] of deviseDefinition.messages.entries()) {
-      // A disabled message is never requested below, so it must not make the
-      // device look due for a refresh. It would otherwise arm the availability
-      // timeout on every poll without ever sending a request to clear it, and
-      // a responsive device would be marked offline.
+      // Mirror the skip applied when actually sending, below. Without it a
+      // message that is never sent never gets a `lastRequestTime`, so it stays
+      // permanently "due" and `needsRefresh` is always true — which made the
+      // early return below dead code on every device that has a disabled
+      // message (i.e. all of them, whenever POLL_CELL_DATA is off).
       if (!message.enabled) {
         continue;
       }

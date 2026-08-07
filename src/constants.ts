@@ -18,3 +18,10 @@ export const DEFAULT_AUTODISCOVERY_TOPIC_PREFIX = 'homeassistant';
  * not lower this floor; a longer one wins.
  */
 export const MIN_PHASE_ENERGY_POLL_INTERVAL_MS = 300000;
+
+/**
+ * How long a single shutdown step may take before it is abandoned. Docker's
+ * default grace period before SIGKILL is 10s, so both steps together have to
+ * finish well inside it for the clean shutdown to be worth anything.
+ */
+export const SHUTDOWN_STEP_TIMEOUT_MS = 3000;

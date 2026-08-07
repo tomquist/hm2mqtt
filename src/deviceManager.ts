@@ -5,6 +5,7 @@ import {
   getSuggestedDeviceType,
   FieldDefinition,
   KeyPath,
+  MessageDefinition,
 } from './deviceDefinition.js';
 import { calculateNewVersionTopicId } from './utils/crypt.js';
 import logger from './logger.js';
@@ -348,20 +349,29 @@ export class DeviceManager {
    * @returns The polling interval in milliseconds
    */
   getPollingInterval(): number {
-    const allPollingIntervals = this.getDevices().flatMap(device => {
-      return (
-        getDeviceDefinition(device.deviceType)
-          ?.messages.map(message => {
-            return message.pollInterval;
-          })
-          ?.filter(n => n != null) ?? []
+    const collect = (filter: (message: MessageDefinition<any>) => boolean): number[] =>
+      this.getDevices().flatMap(
+        device =>
+          getDeviceDefinition(device.deviceType)
+            ?.messages.filter(filter)
+            .map(message => message.pollInterval)
+            .filter(n => n != null) ?? [],
       );
-    });
+
+    const allPollingIntervals = collect(() => true);
 
     // Check if there are any valid polling intervals
     if (allPollingIntervals.length === 0) {
       throw new Error('No valid devices configured');
     }
+
+    // Only messages that are actually requested from the device get a say in
+    // the tick. A disabled message — POLL_CELL_DATA=false, say — is never sent,
+    // so letting it contribute drives the shared timer faster than anything
+    // needs. Fall back to the unfiltered set if that leaves nothing, so the tick
+    // stays defined.
+    const polledIntervals = collect(message => message.enabled !== false);
+    const intervals = polledIntervals.length > 0 ? polledIntervals : allPollingIntervals;
 
     function gcd2(a: number, b: number): number {
       if (b === 0) {
@@ -370,7 +380,7 @@ export class DeviceManager {
       return gcd2(b, a % b);
     }
 
-    return allPollingIntervals.reduce(gcd2, allPollingIntervals[0]);
+    return intervals.reduce(gcd2, intervals[0]);
   }
 
   /**

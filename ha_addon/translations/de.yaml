@@ -7,13 +7,13 @@ configuration:
     description: "Timeout in Sekunden für Geräteantworten bevor das Gerät als offline deklariert wird (Standard: 30)"
   enableCellData:
     name: "Zellspannung"
-    description: "Aktiviere Abruf der Zellenspannung (nur verfügbar für B2500)"
+    description: "Aktiviere Abruf der Zellenspannung (B2500, Greensolar, Venus und Jupiter). Bei Venus zusätzlich detaillierte BMS-Daten je Batteriepack"
   enableCalibrationData:
     name: "Kalibrierungsdaten"
-    description: "Aktiviere Abruf der Kalibrierungsdaten (nur verfügbar für B2500)"
+    description: "Aktiviere Abruf der Kalibrierungsdaten (nur B2500 und Greensolar)"
   enableExtraBatteryData:
     name: "Zusätzliche Batteriedaten"
-    description: "Aktiviere Abruf zusätzlicher Batteriedaten (nur verfügbar für B2500)"
+    description: "Aktiviere Abruf zusätzlicher Batteriedaten (nur B2500 und Greensolar)"
   allowedConsecutiveTimeouts:
     name: Maximale aufeinanderfolgende Timeouts
     description: "Anzahl aufeinanderfolgender Timeouts, bevor ein Gerät als offline markiert wird (Standard: 3)"

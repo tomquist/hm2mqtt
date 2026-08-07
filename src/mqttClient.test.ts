@@ -253,6 +253,66 @@ describe('MqttClient shouldPoll gating', () => {
     expect(payloads).not.toContain('cd=42,bms_idx=1');
     expect(payloads).not.toContain('cd=42,bms_idx=2');
   });
+
+  function pollFor(messages: any[]): { payloads: string[]; setResponseTimeout: jest.Mock } {
+    jest.useFakeTimers();
+    try {
+      mockGetDeviceDefinition.mockReturnValue({ messages } as any);
+      mockPublish.mockClear();
+
+      const device: Device = { deviceType: 'VNSD-0', deviceId: 'venus1' };
+      const setResponseTimeout = jest.fn();
+      const deviceManager: any = {
+        getDeviceTopics: () => topics,
+        getDeviceState: () => ({}),
+        getDevices: () => [],
+        getResponseTimeout: () => 5000,
+        setResponseTimeout,
+        clearResponseTimeout: jest.fn(),
+      };
+      const config: any = {
+        brokerUrl: 'mqtt://localhost:1883',
+        clientId: 'test-client',
+        topicPrefix: 'homeassistant',
+        autodiscoveryTopicPrefix: 'homeassistant',
+      };
+
+      const mqttClient = new MqttClient(config, deviceManager, jest.fn());
+      mqttClient.requestDeviceData(device);
+      jest.advanceTimersByTime(1000);
+
+      return { payloads: mockPublish.mock.calls.map((c: any[]) => c[1]), setResponseTimeout };
+    } finally {
+      jest.useRealTimers();
+    }
+  }
+
+  test('sends nothing at all when every message is disabled', () => {
+    const { payloads } = pollFor([
+      makeMessage({ refreshDataPayload: 'cd=13', publishPath: 'cells', enabled: false }),
+      makeMessage({ refreshDataPayload: 'cd=21', publishPath: 'calibration', enabled: false }),
+    ]);
+    expect(payloads).toEqual([]);
+  });
+
+  test('a disabled message does not arm a response timeout it can never answer', () => {
+    // The send loop always skipped disabled messages, so the assertion above
+    // held before this change too. This is the behaviour that actually moved:
+    // the due-check loop used to see the disabled message, mark the device as
+    // needing a refresh and — because the message controls availability — arm a
+    // response timeout for a request that is never sent. Nothing could answer
+    // it, so it would fire and count towards marking the device offline.
+    const { payloads, setResponseTimeout } = pollFor([
+      makeMessage({
+        refreshDataPayload: 'cd=1',
+        publishPath: 'data',
+        controlsDeviceAvailability: true,
+        enabled: false,
+      }),
+    ]);
+    expect(payloads).toEqual([]);
+    expect(setResponseTimeout).not.toHaveBeenCalled();
+  });
 });
 
 describe('MqttClient forced refresh', () => {
@@ -280,15 +340,18 @@ describe('MqttClient forced refresh', () => {
     };
   }
 
-  function makeClient(messages: any[], state: any = {}) {
+  /**
+   * Poll once so every message has a recent `lastRequestTime`, then return a
+   * client that is well inside its polling interval.
+   */
+  function setUpPolledClient(messages: any[], state: any = {}) {
     mockGetDeviceDefinition.mockReturnValue({ messages } as any);
-    const setResponseTimeout = jest.fn();
     const deviceManager: any = {
       getDeviceTopics: () => topics,
       getDeviceState: () => state,
       getDevices: () => [],
       getResponseTimeout: () => 5000,
-      setResponseTimeout,
+      setResponseTimeout: jest.fn(),
       clearResponseTimeout: jest.fn(),
     };
     const config: any = {
@@ -297,15 +360,7 @@ describe('MqttClient forced refresh', () => {
       topicPrefix: 'homeassistant',
       autodiscoveryTopicPrefix: 'homeassistant',
     };
-    return { mqttClient: new MqttClient(config, deviceManager, jest.fn()), setResponseTimeout };
-  }
-
-  /**
-   * Poll once so every message has a recent `lastRequestTime`, then return a
-   * client that is well inside its polling interval.
-   */
-  function setUpPolledClient(messages: any[], state: any = {}) {
-    const { mqttClient } = makeClient(messages, state);
+    const mqttClient = new MqttClient(config, deviceManager, jest.fn());
     mqttClient.requestDeviceData(device);
     jest.advanceTimersByTime(1000);
     mockPublish.mockClear();
@@ -318,12 +373,11 @@ describe('MqttClient forced refresh', () => {
     return mockPublish.mock.calls.map((c: any[]) => c[1]);
   }
 
-  const runtime = (overrides: any = {}) =>
+  const runtime = () =>
     makeMessage({
       refreshDataPayload: 'cd=1',
       publishPath: 'data',
       controlsDeviceAvailability: true,
-      ...overrides,
     });
   const cells = (overrides: any = {}) =>
     makeMessage({ refreshDataPayload: 'cd=13', publishPath: 'cells', ...overrides });
@@ -363,15 +417,6 @@ describe('MqttClient forced refresh', () => {
     // message reads as due here and this request would publish.
     jest.advanceTimersByTime(58500);
     expect(payloadsAfter(() => mqttClient.requestDeviceData(device))).toEqual([]);
-  });
-
-  test('does not arm the availability timeout for a disabled message', () => {
-    // A disabled message is never requested, so nothing would ever arrive to
-    // clear a timeout armed on its behalf and the device would go offline.
-    const { mqttClient, setResponseTimeout } = makeClient([runtime({ enabled: false }), cells()]);
-
-    expect(payloadsAfter(() => mqttClient.requestDeviceData(device))).toEqual(['cd=13', 'cd=13']);
-    expect(setResponseTimeout).not.toHaveBeenCalled();
   });
 
   test('does not force a disabled message', () => {
