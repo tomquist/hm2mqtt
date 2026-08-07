@@ -416,50 +416,37 @@ services:
 
 ### Cell Balancing Diagnostics
 
-Available on B2500, Greensolar storage and Venus. Set `CELL_BALANCING_DIAGNOSTICS=true` (add-on:
-*Enable Cell Balancing Diagnostics*). Also requires `POLL_CELL_DATA=true` (add-on: *Enable Cell
-Data*) — that is what supplies the cell readings, and with it off no diagnostic entities are
-created and the log says why.
+B2500, Greensolar storage and Venus. Set `CELL_BALANCING_DIAGNOSTICS=true` and
+`POLL_CELL_DATA=true` (add-on: *Enable Cell Balancing Diagnostics* and *Enable Cell Data*).
+Without the second one there are no cell readings to work from, so no entities are created
+and the log says why.
 
-*Cell Voltage Difference* — the gap between the highest and lowest cell — is easy
-to misread. Watch it after a full charge and it collapses from tens of millivolts
-to one or two overnight, which looks like the pack balancing itself. Usually it
-isn't. At 100% with nothing to export, the unit disconnects its solar input and
-runs off the battery. Every cell drains equally and slides off the steep top of
-the lithium-iron curve onto its flat middle, where the same imbalance simply
-shows up as a much smaller voltage gap. Nothing was corrected; the ruler changed.
+*Cell Voltage Difference* collapses from tens of millivolts to one or two overnight after a
+full charge, which looks like the pack balancing itself. Usually it isn't: at 100% with
+nothing to export the unit runs off its own battery, and the whole stack slides off the steep
+top of the lithium-iron curve onto the flat middle, where the same imbalance shows a smaller
+gap.
 
-These sensors are meant to tell the two apart:
-
-| Entity | What it tells you |
+| Entity | Meaning |
 |---|---|
-| *Cell Spread*, *Cell Voltage Standard Deviation* | Spread, plus a measure that is not at the mercy of one flaky cell |
-| *Mean Cell Voltage* | Where on the curve the pack is sitting, which is what makes the spread readable |
-| *Highest Cell Share of Spread* | How much of the spread the highest cell owns. The sharpest signal here — see below |
-| *Mean Cell Voltage Drift* | How fast the pack is sagging. Falling means it is running off the battery; flat while full means it is genuinely being held there |
-| *Balance Conditions Met* | Cells high enough for the balancer to do something, with charge still going in |
-| *Minutes Above 3400 mV / 3500 mV Today* | How long those conditions held. Reported separately because an hour just over the line achieves far less than an hour well above it |
-| *Cell Spread at 3450 mV* | The number to compare between days. Always sampled at the same point of the charge, so it is not distorted by when charging happened to stop |
+| *Cell Spread* | Highest cell minus lowest |
+| *Cell Voltage Standard Deviation* | Spread that one flaky cell cannot dominate |
+| *Mean Cell Voltage* | Where on the curve the pack is sitting |
+| *Highest Cell Share of Spread* | The highest cell's share of the spread. Steady while *Cell Spread* falls means the stack is drifting; falling means that cell is being brought back into line |
+| *Mean Cell Voltage Drift* | How fast the pack is sagging, in mV/h |
+| *Balance Conditions Met* | Cells above 3400 mV with charge still going in |
+| *Minutes Above 3400 mV / 3500 mV Today* | How long those conditions held. Counted separately because an hour just over the line achieves far less than an hour well above it |
+| *Cell Spread at 3450 mV* | Spread at a fixed point of the charge, so it is comparable between days |
 | *Rested Cell Spread* | Spread an hour after charging stopped, with no load skewing it |
 
-Real balancing shows up as *Cell Spread at 3450 mV* and *Rested Cell Spread*
-falling over successive days. A spread that only shrinks overnight and returns to
-its old value on the next charge is the illusion described above.
+Real balancing shows as *Cell Spread at 3450 mV* and *Rested Cell Spread* falling over
+successive days. The per-cell vector is published as `normalisedDeviations`, with *Highest
+Cell* naming the outlier.
 
-*Highest Cell Share of Spread* deserves particular attention. When the whole
-stack drifts down together, every cell keeps its share of the spread even as the
-spread itself collapses — so a share that holds steady while *Cell Spread* falls
-is the illusion, plainly visible. A share that falls is a cell genuinely being
-brought back into line, which drifting cannot produce. Check it before concluding
-anything. The full per-cell vector is in the published state as
-`normalisedDeviations`, alongside *Highest Cell* naming the culprit.
-
-Two caveats. Everything here is inferred from voltage and current — no Marstek
-device reports whether its balancer is switched on. And the day-to-day sensors
-need somewhere to keep their history: the add-on has this already, while under
-Docker you need a volume mounted at `/data` (or `HM2MQTT_DATA_DIR` pointing
-somewhere that survives a restart). Without it those entities are not created and
-the log says why.
+No Marstek device reports whether its balancer is running, so all of this is inferred from
+voltage and current. The two day-to-day sensors also need storage that survives a restart:
+the add-on has it, under Docker mount a volume at `/data` or point `HM2MQTT_DATA_DIR`
+somewhere else.
 
 ## Frequently Asked Questions (FAQ)
 
