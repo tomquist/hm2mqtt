@@ -3,7 +3,11 @@
 import './loadEnv.js';
 import './device/registry.js';
 import { Device, MqttConfig } from './types.js';
-import { DEFAULT_AUTODISCOVERY_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX } from './constants.js';
+import {
+  DEFAULT_AUTODISCOVERY_ENABLED,
+  DEFAULT_AUTODISCOVERY_TOPIC_PREFIX,
+  DEFAULT_TOPIC_PREFIX,
+} from './constants.js';
 import { DeviceManager, DeviceStateData } from './deviceManager.js';
 import { MqttClient } from './mqttClient.js';
 import { ControlHandler } from './controlHandler.js';
@@ -100,6 +104,29 @@ function parseDeviceConfigurations(): Device[] {
 }
 
 /**
+ * Read a boolean environment variable that is on unless it is explicitly turned
+ * off. The usual spellings are accepted, so `=0` and `=no` work as well as
+ * `=false`; anything else (including an empty value) keeps the default.
+ *
+ * @param name - Name of the environment variable
+ * @param defaultValue - Value used when the variable is unset or empty
+ */
+function readBooleanEnv(name: string, defaultValue: boolean): boolean {
+  const value = process.env[name]?.trim().toLowerCase();
+  if (value == null || value === '') {
+    return defaultValue;
+  }
+  if (['false', '0', 'no', 'off'].includes(value)) {
+    return false;
+  }
+  if (['true', '1', 'yes', 'on'].includes(value)) {
+    return true;
+  }
+  logger.warn(`Ignoring unrecognized value for ${name}: "${process.env[name]}"`);
+  return defaultValue;
+}
+
+/**
  * Create MQTT configuration from environment variables
  *
  * @param devices - Array of device configurations
@@ -114,6 +141,7 @@ function createMqttConfig(devices: Device[]): MqttConfig {
     topicPrefix: process.env.MQTT_TOPIC_PREFIX || DEFAULT_TOPIC_PREFIX,
     autodiscoveryTopicPrefix:
       process.env.AUTODISCOVERY_TOPIC_PREFIX || DEFAULT_AUTODISCOVERY_TOPIC_PREFIX,
+    autodiscoveryEnabled: readBooleanEnv('AUTODISCOVERY_ENABLED', DEFAULT_AUTODISCOVERY_ENABLED),
     devices,
     responseTimeout: parseInt(process.env.MQTT_RESPONSE_TIMEOUT || '15', 10) * 1000,
     allowedConsecutiveTimeouts: parseInt(process.env.MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS || '3', 10),
@@ -171,6 +199,11 @@ async function main() {
     const config = createMqttConfig(devices);
     logger.debug(`MQTT Broker: ${config.brokerUrl}`);
     logger.debug(`MQTT Client ID: ${config.clientId}`);
+    logger.info(
+      config.autodiscoveryEnabled
+        ? `Home Assistant auto discovery enabled, publishing to ${config.autodiscoveryTopicPrefix}`
+        : 'Home Assistant auto discovery is disabled (set AUTODISCOVERY_ENABLED=true to enable)',
+    );
     logger.debug(
       'Full MQTT config:',
       JSON.stringify(config, (key, value) => (key === 'password' ? '***' : value), 2),

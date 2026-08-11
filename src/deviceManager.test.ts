@@ -13,6 +13,7 @@ describe('DeviceManager', () => {
     clientId: 'test-client',
     topicPrefix: DEFAULT_TOPIC_PREFIX,
     autodiscoveryTopicPrefix: 'homeassistant',
+    autodiscoveryEnabled: true,
     devices: [
       {
         deviceType: 'HMA-1',
@@ -65,6 +66,7 @@ describe('DeviceManager', () => {
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
       autodiscoveryTopicPrefix: 'homeassistant',
+      autodiscoveryEnabled: true,
       devices: [
         {
           deviceType: 'INVALID-TYPE',
@@ -85,6 +87,7 @@ describe('DeviceManager', () => {
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
       autodiscoveryTopicPrefix: 'homeassistant',
+      autodiscoveryEnabled: true,
       devices: [
         {
           deviceType: 'INVALID-TYPE',
@@ -118,6 +121,7 @@ describe('DeviceManager', () => {
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
       autodiscoveryTopicPrefix: 'homeassistant',
+      autodiscoveryEnabled: true,
       devices: [
         { deviceType: 'HWJ-2', deviceId: 'typo123' },
         { deviceType: 'HMA-1', deviceId: 'valid123' },
@@ -138,6 +142,7 @@ describe('DeviceManager', () => {
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
       autodiscoveryTopicPrefix: 'homeassistant',
+      autodiscoveryEnabled: true,
       devices: [
         { deviceType: 'ZZZZZ-1', deviceId: 'bad123' },
         { deviceType: 'HMA-1', deviceId: 'valid123' },
@@ -155,6 +160,7 @@ describe('DeviceManager', () => {
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
       autodiscoveryTopicPrefix: 'homeassistant',
+      autodiscoveryEnabled: true,
       devices: [{ deviceType: 'hma-1', deviceId: 'case123' }],
     };
 
@@ -169,6 +175,7 @@ describe('DeviceManager', () => {
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
       autodiscoveryTopicPrefix: 'homeassistant',
+      autodiscoveryEnabled: true,
       devices: [
         {
           deviceType: 'HMB-1',
@@ -190,6 +197,7 @@ describe('DeviceManager', () => {
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
       autodiscoveryTopicPrefix: 'homeassistant',
+      autodiscoveryEnabled: true,
       devices: [{ deviceType: 'VNSE3-0', deviceId: 'venus123' }],
     };
 

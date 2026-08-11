@@ -66,6 +66,7 @@ describe('MqttClient discovery re-publish', () => {
       clientId: 'test-client',
       topicPrefix: 'homeassistant',
       autodiscoveryTopicPrefix: 'homeassistant',
+      autodiscoveryEnabled: true,
     };
 
     const mqttClient = new MqttClient(config, deviceManager, jest.fn());
@@ -118,6 +119,7 @@ describe('MqttClient discovery re-publish', () => {
       clientId: 'test-client',
       topicPrefix: 'homeassistant',
       autodiscoveryTopicPrefix: 'homeassistant',
+      autodiscoveryEnabled: true,
     };
 
     const mqttClient = new MqttClient(config, deviceManager, jest.fn());
@@ -134,6 +136,58 @@ describe('MqttClient discovery re-publish', () => {
     mqttClient.onDeviceDataReceived(device, 'bms');
     expect(mockPublishDiscoveryConfigs).toHaveBeenCalledTimes(2);
   });
+
+  test('publishes no discovery configs when auto discovery is disabled', () => {
+    mockPublishDiscoveryConfigs.mockClear();
+    // Cleared so the connect handler picked up below is the one this test registers
+    mockOn.mockClear();
+    jest.useFakeTimers();
+
+    try {
+      const device: Device = { deviceType: 'HMJ-2', deviceId: 'abc123' };
+      const topics = {
+        deviceTopicOld: 'hame_energy/HMJ-2/device/abc123/ctrl',
+        deviceTopicNew: 'marstek_energy/HMJ-2/device/abc123/ctrl',
+        publishTopic: 'hm2mqtt/HMJ-2/device/abc123/data',
+        deviceControlTopicOld: 'hame_energy/HMJ-2/App/abc123/ctrl',
+        deviceControlTopicNew: 'marstek_energy/HMJ-2/App/abc123/ctrl',
+        controlSubscriptionTopic: 'hm2mqtt/HMJ-2/control/abc123/control',
+        availabilityTopic: 'hm2mqtt/HMJ-2/availability/abc123',
+      };
+
+      const deviceManager: any = {
+        getDeviceTopics: jest.fn(() => topics),
+        getDeviceState: jest.fn(() => ({})),
+        getDevices: jest.fn(() => [device]),
+        getControlTopics: jest.fn(() => []),
+        getPollingInterval: jest.fn(() => 60000),
+      };
+
+      const config: any = {
+        brokerUrl: 'mqtt://localhost:1883',
+        clientId: 'test-client',
+        topicPrefix: 'hm2mqtt',
+        autodiscoveryTopicPrefix: 'homeassistant',
+        autodiscoveryEnabled: false,
+      };
+
+      const mqttClient = new MqttClient(config, deviceManager, jest.fn());
+
+      // The first cd=1 response would normally announce the device
+      mqttClient.onDeviceDataReceived(device, 'data');
+      expect(mockPublishDiscoveryConfigs).not.toHaveBeenCalled();
+
+      // Neither the connect handler nor the hourly re-publish announce anything
+      const connectHandler = mockOn.mock.calls.find(
+        ([event]) => event === 'connect',
+      )?.[1] as () => void;
+      connectHandler();
+      jest.advanceTimersByTime(3600000);
+      expect(mockPublishDiscoveryConfigs).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
 
 describe('MqttClient subscribe', () => {
@@ -148,6 +202,7 @@ describe('MqttClient subscribe', () => {
       clientId: 'test-client',
       topicPrefix: 'homeassistant',
       autodiscoveryTopicPrefix: 'homeassistant',
+      autodiscoveryEnabled: true,
     };
 
     const mqttClient = new MqttClient(config, deviceManager, jest.fn());
@@ -228,6 +283,7 @@ describe('MqttClient shouldPoll gating', () => {
         clientId: 'test-client',
         topicPrefix: 'homeassistant',
         autodiscoveryTopicPrefix: 'homeassistant',
+        autodiscoveryEnabled: true,
       };
 
       const mqttClient = new MqttClient(config, deviceManager, jest.fn());
@@ -275,6 +331,7 @@ describe('MqttClient shouldPoll gating', () => {
         clientId: 'test-client',
         topicPrefix: 'homeassistant',
         autodiscoveryTopicPrefix: 'homeassistant',
+        autodiscoveryEnabled: true,
       };
 
       const mqttClient = new MqttClient(config, deviceManager, jest.fn());
@@ -359,6 +416,7 @@ describe('MqttClient forced refresh', () => {
       clientId: 'test-client',
       topicPrefix: 'homeassistant',
       autodiscoveryTopicPrefix: 'homeassistant',
+      autodiscoveryEnabled: true,
     };
     const mqttClient = new MqttClient(config, deviceManager, jest.fn());
     mqttClient.requestDeviceData(device);

@@ -43,6 +43,7 @@ describe('ControlHandler', () => {
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
       autodiscoveryTopicPrefix: 'homeassistant',
+      autodiscoveryEnabled: true,
       devices: [testDeviceV1, testDeviceV2],
       responseTimeout: 15000,
     };
@@ -435,6 +436,7 @@ describe('ControlHandler', () => {
         clientId: 'test-client',
         topicPrefix: DEFAULT_TOPIC_PREFIX,
         autodiscoveryTopicPrefix: 'homeassistant',
+        autodiscoveryEnabled: true,
         devices: [ct002],
         responseTimeout: 15000,
       };
@@ -473,6 +475,7 @@ describe('ControlHandler', () => {
           clientId: 'test-client',
           topicPrefix: DEFAULT_TOPIC_PREFIX,
           autodiscoveryTopicPrefix: 'homeassistant',
+          autodiscoveryEnabled: true,
           devices: [device],
           responseTimeout: 15000,
         };
@@ -502,6 +505,7 @@ describe('ControlHandler', () => {
         clientId: 'test-client',
         topicPrefix: DEFAULT_TOPIC_PREFIX,
         autodiscoveryTopicPrefix: 'homeassistant',
+        autodiscoveryEnabled: true,
         devices: [smr],
         responseTimeout: 15000,
       };
@@ -524,6 +528,7 @@ describe('ControlHandler', () => {
         clientId: 'test-client',
         topicPrefix: DEFAULT_TOPIC_PREFIX,
         autodiscoveryTopicPrefix: 'homeassistant',
+        autodiscoveryEnabled: true,
         devices: [device],
         responseTimeout: 15000,
       };

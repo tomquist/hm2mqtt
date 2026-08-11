@@ -231,6 +231,11 @@ export class MqttClient {
     // Clear any existing discovery interval
     if (this.discoveryInterval) {
       clearInterval(this.discoveryInterval);
+      this.discoveryInterval = null;
+    }
+
+    if (!this.config.autodiscoveryEnabled) {
+      return;
     }
 
     // Republish Home Assistant discovery configurations every hour, but only for
@@ -247,6 +252,10 @@ export class MqttClient {
   }
 
   private publishDiscoveryConfigs(device: Device) {
+    if (!this.config.autodiscoveryEnabled) {
+      return;
+    }
+
     const topics = this.deviceManager.getDeviceTopics(device);
 
     if (topics) {

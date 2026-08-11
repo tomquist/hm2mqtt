@@ -279,6 +279,7 @@ services:
 | `MQTT_CLIENT_ID` | MQTT client ID | `hm2mqtt-{random}`      |
 | `MQTT_TOPIC_PREFIX` | Base MQTT topic prefix for published data | `hm2mqtt` |
 | `AUTODISCOVERY_TOPIC_PREFIX` | Base MQTT topic prefix for Home Assistant auto discovery topics | `homeassistant` |
+| `AUTODISCOVERY_ENABLED` | Publish Home Assistant auto discovery configs. Set to `false` to stop announcing entities altogether | `true` |
 | `MQTT_USERNAME` | MQTT username | -                       |
 | `MQTT_PASSWORD` | MQTT password | -                       |
 | `MQTT_POLLING_INTERVAL` | Interval between device polls in seconds | `60`                 |
@@ -298,13 +299,14 @@ pollingInterval: 60  # Interval between device polls in seconds
 responseTimeout: 30  # Timeout for device responses in seconds
 allowedConsecutiveTimeouts: 3  # Number of consecutive timeouts before a device is marked offline
 topicPrefix: hm2mqtt  # Base MQTT topic prefix for published data
-autodiscoveryTopicPrefix: homeassistant  # Base MQTT topic prefix for HA auto discovery
 devices:
   - deviceType: "HMA-1"
     deviceId: "your-device-mac"
 ```
 
 The device id is the MAC address of the device in lowercase, without colons.
+
+`AUTODISCOVERY_TOPIC_PREFIX` and `AUTODISCOVERY_ENABLED` are not add-on options. The add-on always announces its entities to Home Assistant under the standard `homeassistant` prefix; both settings only exist for Docker and manual installations, where they are set as environment variables.
 
 **Important Note for B2500 Devices:**
 - Use the MAC address shown in the Marstek/PowerZero app's device list or in the Bluetooth configuration tool
@@ -379,7 +381,6 @@ DEVICE_2=HMB-1:device3mac
 ```yaml
 mqttProxyEnabled: true
 topicPrefix: hm2mqtt
-autodiscoveryTopicPrefix: homeassistant
 devices:
   - deviceType: "HMA-1"
     deviceId: "device1-mac"
@@ -599,6 +600,8 @@ Home Assistant discovery config is published under this prefix (configurable via
 ```
 homeassistant/{component}/{node_id}/{object_id}/config
 ```
+
+Set `AUTODISCOVERY_ENABLED=false` to skip publishing discovery configs entirely, for example when the device topics are consumed by something other than Home Assistant. Device data and control topics are unaffected. Discovery configs are published retained, so entities announced by an earlier run stay in Home Assistant until those retained messages are cleared from the broker.
 
 ### Common Commands (All Devices)
 - `refresh`: Refreshes the device data

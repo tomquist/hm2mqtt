@@ -273,6 +273,11 @@ export interface MqttConfig {
    * (default: 'homeassistant')
    */
   autodiscoveryTopicPrefix: string;
+  /**
+   * Whether Home Assistant auto discovery configs are published at all
+   * (default: true)
+   */
+  autodiscoveryEnabled: boolean;
   useFlashCommands?: boolean;
   responseTimeout?: number; // Timeout for device responses in milliseconds
   /**

@@ -12,6 +12,12 @@ export const DEFAULT_TOPIC_PREFIX = 'hm2mqtt';
 export const DEFAULT_AUTODISCOVERY_TOPIC_PREFIX = 'homeassistant';
 
 /**
+ * Whether Home Assistant MQTT discovery configs are published at all. This value
+ * is used when `AUTODISCOVERY_ENABLED` is not provided.
+ */
+export const DEFAULT_AUTODISCOVERY_ENABLED = true;
+
+/**
  * Lower bound for how often the CT002 per-phase charge/discharge counters are
  * polled. They are cumulative and move slowly, so there is no point requesting
  * them at the runtime polling interval. A shorter `MQTT_POLLING_INTERVAL` does

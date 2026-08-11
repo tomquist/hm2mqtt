@@ -1796,6 +1796,7 @@ describe('Device Commands', () => {
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
       autodiscoveryTopicPrefix: 'homeassistant',
+      autodiscoveryEnabled: true,
       devices: [device],
       responseTimeout: 15000,
     };

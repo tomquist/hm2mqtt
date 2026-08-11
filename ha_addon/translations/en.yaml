@@ -20,9 +20,6 @@ configuration:
   topicPrefix:
     name: MQTT Topic Prefix
     description: "Base MQTT topic prefix for published data (default: hm2mqtt)"
-  autodiscoveryTopicPrefix:
-    name: MQTT Auto Discovery Topic Prefix
-    description: "Base MQTT topic prefix for Home Assistant auto discovery topics (default: homeassistant)"
   mqttProxyEnabled:
     name: Enable MQTT Proxy
     description: "Enable MQTT proxy server to resolve B2500 client ID conflicts (default: false)"

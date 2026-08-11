@@ -39,7 +39,6 @@ schema:
   enableExtraBatteryData: bool
   allowedConsecutiveTimeouts: int?
   topicPrefix: str?
-  autodiscoveryTopicPrefix: str?
   debug: bool?
   mqttProxyEnabled: bool?
   log_level: list(trace|debug|info|notice|warning|error|fatal)?

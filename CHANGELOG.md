@@ -1,6 +1,14 @@
 # Changelog
 ## [Next]
 
+### Added
+
+- Home Assistant auto discovery can now be switched off entirely with `AUTODISCOVERY_ENABLED=false`, for setups where the device data is consumed by something other than Home Assistant. Device data and control topics keep working as before. Entities that were already announced stay in Home Assistant until you clear the retained discovery messages from your broker. Docker and manual installations only
+
+### Changed
+
+- The *MQTT Auto Discovery Topic Prefix* add-on option was removed. The add-on always announces its entities under the standard `homeassistant` prefix, which is what Home Assistant listens on, so the option only ever risked hiding your devices. If you had set it, remove it from the add-on configuration — the add-on will not start while an unknown option is present. Docker and manual installations can still set the prefix with `AUTODISCOVERY_TOPIC_PREFIX`
+
 ### Fixed
 
 - Settings in a `.env` file were ignored; only real environment variables took effect. Manual installations only (PR #414)
