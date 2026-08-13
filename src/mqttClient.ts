@@ -14,6 +14,9 @@ export class MqttClient {
   private devicePathsWithData: Set<string> = new Set();
   private lastDiscoveryInfoSignatureByDevice: Map<string, string> = new Map();
   private devicesRespondedToCd1: Set<string> = new Set();
+  // Discovery topics that have already been cleared, so a disabled component is
+  // only retracted once instead of on every discovery round.
+  private clearedDiscoveryTopics: Set<string> = new Set();
 
   constructor(
     private config: MqttConfig,
@@ -260,6 +263,7 @@ export class MqttClient {
         this.config.topicPrefix,
         this.config.autodiscoveryTopicPrefix,
         deviceState,
+        this.clearedDiscoveryTopics,
       );
       this.lastDiscoveryInfoSignatureByDevice.set(
         this.getDeviceKey(device),

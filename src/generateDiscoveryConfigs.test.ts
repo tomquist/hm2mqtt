@@ -290,6 +290,103 @@ describe('Home Assistant Discovery', () => {
     );
   });
 
+  test('should only retract a disabled discovery topic once', () => {
+    const publishedTopics = () =>
+      mockClient.publish.mock.calls.filter(([, message]) => message === '').map(([topic]) => topic);
+
+    const mockClient = {
+      publish: jest.fn((_topic, _message, _options, callback) => {
+        callback(null);
+      }),
+    };
+
+    // POLL_CELL_DATA is unset, so the cell data component configs are retracted.
+    const device: Device = { deviceType: 'HMB-1', deviceId: 'retract1' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/HMB-1/device/retract1/ctrl',
+      deviceTopicNew: 'marstek_energy/HMB-1/device/retract1/ctrl',
+      deviceControlTopicOld: 'hame_energy/HMB-1/App/retract1/ctrl',
+      deviceControlTopicNew: 'marstek_energy/HMB-1/App/retract1/ctrl',
+      availabilityTopic: 'hame_energy/HMB-1/availability/retract1',
+      controlSubscriptionTopic: 'hame_energy/HMB-1/control/retract1/control',
+      publishTopic: 'hame_energy/HMB-1/device/retract1/data',
+    };
+
+    const clearedTopics = new Set<string>();
+    const publish = () =>
+      publishDiscoveryConfigs(
+        mockClient,
+        device,
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        {},
+        clearedTopics,
+      );
+
+    publish();
+    const firstRound = publishedTopics();
+    expect(firstRound.length).toBeGreaterThan(0);
+
+    // A second round must not repeat the empty payloads: an empty discovery
+    // payload means "entity removed" and is delivered to subscribers again.
+    mockClient.publish.mockClear();
+    publish();
+    expect(publishedTopics()).toEqual([]);
+
+    // Real configs are still re-published on every round.
+    expect(mockClient.publish).toHaveBeenCalled();
+  });
+
+  test('should retract again after a component was re-enabled', () => {
+    const mockClient = {
+      publish: jest.fn((_topic, _message, _options, callback) => {
+        callback(null);
+      }),
+    };
+
+    // Surplus feed-in is gated on the firmware version, so it flips between
+    // retracted and published as the device reports a different version.
+    const device: Device = { deviceType: 'HMA', deviceId: 'surplus1' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/HMA/device/surplus1/ctrl',
+      deviceTopicNew: 'marstek_energy/HMA/device/surplus1/ctrl',
+      deviceControlTopicOld: 'hame_energy/HMA/App/surplus1/ctrl',
+      deviceControlTopicNew: 'marstek_energy/HMA/App/surplus1/ctrl',
+      availabilityTopic: 'hame_energy/HMA/availability/surplus1',
+      controlSubscriptionTopic: 'hame_energy/HMA/control/surplus1/control',
+      publishTopic: 'hame_energy/HMA/device/surplus1/data',
+    };
+    const surplusTopic = 'homeassistant/switch/HMA_surplus1/surplus_feed_in/config';
+
+    const clearedTopics = new Set<string>();
+    const publish = (deviceVersion: number) =>
+      publishDiscoveryConfigs(
+        mockClient,
+        device,
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        { deviceType: 'HMA', deviceInfo: { deviceVersion } },
+        clearedTopics,
+      );
+
+    const surplusMessages = () =>
+      mockClient.publish.mock.calls
+        .filter(([topic]) => topic === surplusTopic)
+        .map(([, message]) => (message === '' ? 'retracted' : 'published'));
+
+    publish(200); // unsupported -> retracted once
+    publish(200); // still unsupported -> not repeated
+    expect(surplusMessages()).toEqual(['retracted']);
+
+    publish(230); // supported -> published again
+    publish(200); // unsupported again -> retracted again
+    expect(surplusMessages()).toEqual(['retracted', 'published', 'retracted']);
+  });
+
   test('should gate HMI PV3/PV4 discovery configs on data presence', () => {
     const device: Device = { deviceType: 'HMI-2000', deviceId: 'hmi2000' };
     const deviceTopics: DeviceTopics = {

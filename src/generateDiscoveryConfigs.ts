@@ -124,6 +124,7 @@ export function publishDiscoveryConfigs(
   topicPrefix: string,
   autodiscoveryTopicPrefix: string,
   deviceState: any = {},
+  clearedTopics: Set<string> = new Set(),
 ): void {
   const configs = generateDiscoveryConfigs(
     device,
@@ -135,10 +136,28 @@ export function publishDiscoveryConfigs(
   );
 
   configs.forEach(({ topic, config }) => {
+    if (config == null) {
+      // An empty payload on a discovery topic means "this entity is gone", and
+      // the broker forwards it to every current subscriber even when the topic
+      // is already empty. Re-sending it on every discovery round therefore
+      // repeats the removal over and over; Home Assistant ignores a removal for
+      // an entity it does not have, but other consumers act on it. Clear a
+      // topic once per process instead, which still covers a component that
+      // really did turn off.
+      if (clearedTopics.has(topic)) {
+        return;
+      }
+      clearedTopics.add(topic);
+    } else {
+      clearedTopics.delete(topic);
+    }
+
     let message = config == null ? '' : JSON.stringify(config);
     logger.trace(message);
     client.publish(topic, message, { qos: 1, retain: true }, err => {
       if (err) {
+        // The topic was not actually cleared, so allow a retry on the next round.
+        clearedTopics.delete(topic);
         logger.error(`Error publishing discovery config to ${topic}:`, err);
         return;
       }

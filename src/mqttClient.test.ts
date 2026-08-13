@@ -90,6 +90,7 @@ describe('MqttClient discovery re-publish', () => {
       'homeassistant',
       'homeassistant',
       expect.objectContaining({ fw: '116.6' }),
+      expect.any(Set),
     );
   });
 
