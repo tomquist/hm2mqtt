@@ -773,12 +773,49 @@ function isB2500CellDataMessage(values: Record<string, string>) {
 /**
  * Cell balancing diagnostics for B2500. Registered next to the cell data
  * message it consumes; it produces no traffic of its own.
+ *
+ * `hasPackCurrent` is false on V1, which has no message carrying a pack
+ * current at all.
  */
-export function registerB2500CellBalancingMessage(message: BuildMessageFn) {
+export function registerB2500CellBalancingMessage(
+  message: BuildMessageFn,
+  { hasPackCurrent }: { hasPackCurrent: boolean },
+) {
   registerCellBalancingMessage(message, {
     cellPath: 'cells',
     extract: extractB2500Sample,
+    warnIfIncomplete: () => warnAboutB2500PackCurrent(hasPackCurrent),
   });
+}
+
+let warnedAboutPackCurrent = false;
+
+/**
+ * The rested spread is measured an hour after charging stops, and "stopped"
+ * has to be confirmed by a current near zero — otherwise the pack could be
+ * quietly discharging into the house. B2500 only reports one in the cd=16
+ * payload, so without that poll the rested spread never latches and no charge
+ * cycle is ever recorded. Everything else still works, which is exactly why
+ * this is worth saying out loud.
+ */
+function warnAboutB2500PackCurrent(hasPackCurrent: boolean) {
+  if (warnedAboutPackCurrent) {
+    return;
+  }
+  if (hasPackCurrent && process.env.POLL_EXTRA_BATTERY_DATA === 'true') {
+    return;
+  }
+  warnedAboutPackCurrent = true;
+  logger.warn(
+    hasPackCurrent
+      ? 'Cell balancing diagnostics on B2500 also need POLL_EXTRA_BATTERY_DATA=true ' +
+          '(add-on: "Enable Extra Battery Data") for the pack current. Without it the ' +
+          'rested cell spread never latches and no charge cycle is recorded; the live ' +
+          'metrics are unaffected.'
+      : 'B2500 V1 does not report a pack current, so the cell balancing diagnostics ' +
+          'cannot latch a rested cell spread or record charge cycles on it. The live ' +
+          'metrics work as normal.',
+  );
 }
 
 export function registerCellDataMessage(message: BuildMessageFn) {

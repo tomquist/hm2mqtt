@@ -34,6 +34,12 @@ export interface CellBalancingSource {
   /** publishPath carrying the cell voltages; a new timestamp there is one sample. */
   cellPath: string;
   extract: (stateByPath: StateByPath, clock: SampleClock) => CellSample | undefined;
+  /**
+   * Called once at registration, and only when the diagnostics are actually
+   * on, so a family can point out that it is missing an input the flag alone
+   * cannot supply.
+   */
+  warnIfIncomplete?: () => void;
 }
 
 const states = new Map<string, BalancingState>();
@@ -110,6 +116,10 @@ export function registerCellBalancingMessage(
   message: BuildMessageFn,
   source: CellBalancingSource,
 ): void {
+  const enabled = cellBalancingEnabled();
+  if (enabled) {
+    source.warnIfIncomplete?.();
+  }
   message<CellBalancingData>(
     {
       // Never sent and never matched: this message is computed, not requested.
@@ -127,7 +137,7 @@ export function registerCellBalancingMessage(
       // Both flags are required. The diagnostics are computed from the cell
       // message, so with POLL_CELL_DATA off nothing is ever polled to feed them
       // and every entity would sit at unknown forever.
-      enabled: cellBalancingEnabled(),
+      enabled,
       derive: ({ stateByPath, deviceType, deviceId, at, monotonicAt }) => {
         const key = `${deviceType}:${deviceId}`;
 
@@ -264,6 +274,14 @@ export function registerCellBalancingMessage(
           enabled_by_default: false,
         }),
       );
+      // A drift slope needs a full quiet window before it means anything, and
+      // the latched values below do not exist until the pack has been through a
+      // charge. Those keys are therefore absent from the payload rather than
+      // null, so every one of them needs a default: without it Home Assistant
+      // renders the value template against a payload that has no such key and
+      // logs a `'dict object' has no attribute …` warning on every publish.
+      // `None` is the payload Home Assistant reads as "state unknown", which is
+      // exactly what these are until they have something to report.
       advertise(
         ['cellBalancing', 'driftMvPerHour'],
         sensorComponent<number>({
@@ -272,6 +290,7 @@ export function registerCellBalancingMessage(
           unit_of_measurement: 'mV/h',
           state_class: 'measurement',
           icon: 'mdi:trending-down',
+          defaultValue: 'None',
         }),
       );
       advertise(
@@ -329,6 +348,7 @@ export function registerCellBalancingMessage(
           device_class: 'voltage',
           unit_of_measurement: 'mV',
           state_class: 'measurement',
+          defaultValue: 'None',
         }),
         withPersistence,
       );
@@ -341,6 +361,7 @@ export function registerCellBalancingMessage(
           unit_of_measurement: 'mV',
           state_class: 'measurement',
           enabled_by_default: false,
+          defaultValue: 'None',
         }),
         withPersistence,
       );
@@ -352,6 +373,7 @@ export function registerCellBalancingMessage(
           device_class: 'voltage',
           unit_of_measurement: 'mV',
           state_class: 'measurement',
+          defaultValue: 'None',
         }),
         withPersistence,
       );
@@ -364,6 +386,7 @@ export function registerCellBalancingMessage(
           unit_of_measurement: 'mV',
           state_class: 'measurement',
           enabled_by_default: false,
+          defaultValue: 'None',
         }),
         withPersistence,
       );
@@ -375,6 +398,7 @@ export function registerCellBalancingMessage(
           device_class: 'timestamp',
           icon: 'mdi:calendar-clock',
           enabled_by_default: false,
+          defaultValue: 'None',
         }),
         withPersistence,
       );

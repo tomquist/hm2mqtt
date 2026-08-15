@@ -197,6 +197,68 @@ describe('cell balancing end to end', () => {
     expect(Math.max(...shares)).toBeCloseTo((3560 - 3537.5) / 40, 6);
   });
 
+  it('gives every optional key a default so discovery cannot outrun the payload', async () => {
+    const { DeviceManager, parseMessage, persistence, cellBalancingMessage } =
+      await loadWithDiagnostics();
+    const { generateDiscoveryConfigs } = await import('../generateDiscoveryConfigs.js');
+    persistence.resetPersistenceProbe({ available: true, dir: tempDir() });
+    cellBalancingMessage.resetCellBalancingState();
+
+    const onUpdate = jest.fn();
+    const dm = new DeviceManager(
+      {
+        brokerUrl: 'mqtt://localhost',
+        clientId: 'test',
+        topicPrefix: 'hm2mqtt',
+        autodiscoveryTopicPrefix: 'homeassistant',
+        devices: [device],
+      },
+      onUpdate as any,
+    );
+
+    const parsed = parseMessage(
+      bmsPayload([3300, 3302, 3301, 3300], 0),
+      device.deviceType,
+      device.deviceId,
+    );
+    for (const [publishPath, state] of Object.entries(parsed)) {
+      dm.updateDeviceState(device, publishPath, () => state as any);
+    }
+    const derived = onUpdate.mock.calls.filter((c: any[]) => c[1] === 'cellBalancing');
+    // Round-trip through JSON: what reaches the broker is not the object the
+    // derivation returned, because stringify silently drops undefined keys.
+    const payload = JSON.parse(
+      JSON.stringify((derived[derived.length - 1][2] as any).cellBalancing),
+    );
+
+    // The values that need a full quiet window or a completed charge before
+    // they exist. If one of these ever becomes unconditional the assertion
+    // below still holds, but this list is the reason it is worth having.
+    for (const key of [
+      'driftMvPerHour',
+      'crossingSpreadMv',
+      'crossingSigmaMv',
+      'restedSpreadMv',
+      'restedSigmaMv',
+      'lastCycleEndedAt',
+    ]) {
+      expect(payload).not.toHaveProperty(key);
+    }
+
+    const configs = generateDiscoveryConfigs(device, topics as any, {}, 'hm2mqtt', 'homeassistant');
+    const advertised = configs
+      .map(entry => (entry.config as any)?.value_template)
+      .filter((template): template is string => typeof template === 'string')
+      .map(template => ({ template, key: /value_json\.cellBalancing\.(\w+)/.exec(template)?.[1] }))
+      .filter((entry): entry is { template: string; key: string } => entry.key != null);
+
+    expect(advertised.length).toBeGreaterThan(10);
+    const missingDefault = advertised
+      .filter(({ key, template }) => !(key in payload) && !template.includes('| default('))
+      .map(({ key }) => key);
+    expect(missingDefault).toEqual([]);
+  });
+
   it('restores the cycle history from disk on restart', async () => {
     const dir = tempDir();
     const { DeviceManager, parseMessage, persistence, cellBalancingMessage } =

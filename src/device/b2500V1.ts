@@ -31,7 +31,7 @@ registerDeviceDefinition(
     registerRuntimeInfoMessage(message);
     registerExtraBatteryData(message);
     registerCellDataMessage(message);
-    registerB2500CellBalancingMessage(message);
+    registerB2500CellBalancingMessage(message, { hasPackCurrent: false });
     registerCalibrationDataMessage(message);
   },
 );

@@ -419,7 +419,9 @@ services:
 B2500, Greensolar storage and Venus. Set `CELL_BALANCING_DIAGNOSTICS=true` and
 `POLL_CELL_DATA=true` (add-on: *Enable Cell Balancing Diagnostics* and *Enable Cell Data*).
 Without the second one there are no cell readings to work from, so no entities are created
-and the log says why.
+and the log says why. On B2500 and Greensolar, also set `POLL_EXTRA_BATTERY_DATA=true`
+(*Enable Extra Battery Data*): that poll carries the pack current, and without it *Rested
+Cell Spread* never latches. B2500 V1 does not report a pack current at all.
 
 *Cell Voltage Difference* collapses from tens of millivolts to one or two overnight after a
 full charge, which looks like the pack balancing itself. Usually it isn't: at 100% with

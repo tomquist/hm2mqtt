@@ -208,6 +208,29 @@ describe('balancing state machine', () => {
     expect(state.msAboveHighThreshold).toBe(2 * MINUTE);
   });
 
+  it('does not credit a high resting pack, only one with charge going in', () => {
+    // The exact shape of the artifact: cells sitting above the threshold after
+    // a charge, with nothing going in. A passive balancer needs current, so
+    // this time must not be booked as balancing.
+    const idle = (monotonicAt: number) =>
+      sample({
+        cellsMv: [3520, 3520, 3520, 3520],
+        chargingIn: false,
+        monotonicAt,
+        packCurrentA: -0.1,
+      });
+    const { state } = feed(initialBalancingState(), [idle(0), idle(MINUTE), idle(2 * MINUTE)]);
+    expect(state.msAboveThreshold).toBe(0);
+    expect(state.msAboveHighThreshold).toBe(0);
+
+    // And with the same voltages the moment current resumes, it is booked.
+    const { state: charged } = feed(state, [
+      charging(3 * MINUTE, [3520, 3520, 3520, 3520]),
+      charging(4 * MINUTE, [3520, 3520, 3520, 3520]),
+    ]);
+    expect(charged.msAboveThreshold).toBe(2 * MINUTE);
+  });
+
   it('books only observed time, not an outage', () => {
     // Device charging at the threshold, then off the network for ten hours.
     const samples = [

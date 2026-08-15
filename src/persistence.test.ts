@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -116,12 +117,23 @@ describe('record storage', () => {
 
   it('cannot be made to write outside its directory', () => {
     // deviceId comes from a DEVICE_n environment variable, so it is arbitrary.
-    saveRecord('VNSD-0', '../../escape', record({ msAboveThreshold: 7 }), { immediate: true });
-    const written = fs.readdirSync(dir);
+    // Enough `..` segments to climb past the device type it is glued to and
+    // then out of the storage directory itself — a shorter run is swallowed by
+    // the prefix and would pass whether or not anything sanitises the name.
+    const parent = tempDir();
+    const inner = path.join(parent, 'cell-balancing');
+    fs.mkdirSync(inner);
+    resetPersistenceProbe({ available: true, dir: inner });
+
+    const deviceId = '../../../escape';
+    saveRecord('VNSD-0', deviceId, record({ msAboveThreshold: 7 }), { immediate: true });
+
+    expect(fs.readdirSync(parent)).toEqual(['cell-balancing']);
+    const written = fs.readdirSync(inner);
     expect(written).toHaveLength(1);
     expect(written[0]).not.toContain('/');
     expect(written[0]).not.toContain('..');
-    expect(loadRecord('VNSD-0', '../../escape')?.msAboveThreshold).toBe(7);
+    expect(loadRecord('VNSD-0', deviceId)?.msAboveThreshold).toBe(7);
   });
 
   it('keeps devices apart even when sanitising collapses their ids', () => {
@@ -158,12 +170,23 @@ describe('record storage', () => {
     expect(loadRecord('VNSD-0', 'never')).toBeUndefined();
   });
 
-  it('leaves the previous record intact if the process dies before the rename', () => {
+  it('leaves the previous record intact when a write cannot complete', () => {
     saveRecord('VNSD-0', 'venus1', record({ msAboveThreshold: 100 }), { immediate: true });
-    // Simulate a half-finished write: the temp file exists, the real one is
-    // untouched. This is the state a power cut mid-write leaves behind.
-    const file = path.join(dir, fs.readdirSync(dir)[0]);
-    fs.writeFileSync(`${file}.tmp`, JSON.stringify(record({ msAboveThreshold: 999 })));
+
+    // The whole point of writing to the side and renaming: if the new contents
+    // never make it into place, the old record is still there. Writing the file
+    // directly would instead truncate it and lose everything.
+    const rename = jest.spyOn(fs, 'renameSync').mockImplementation(() => {
+      throw Object.assign(new Error('no space left on device'), { code: 'ENOSPC' });
+    });
+    try {
+      expect(() =>
+        saveRecord('VNSD-0', 'venus1', record({ msAboveThreshold: 999 }), { immediate: true }),
+      ).not.toThrow();
+    } finally {
+      rename.mockRestore();
+    }
+
     expect(loadRecord('VNSD-0', 'venus1')?.msAboveThreshold).toBe(100);
   });
 
