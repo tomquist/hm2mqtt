@@ -414,7 +414,11 @@ services:
 
 > **📖 Background**: This issue was first reported in [GitHub Issue #41](https://github.com/tomquist/hm2mqtt/issues/41) where users experienced problems with multiple B2500 devices after firmware update 226.5.
 
-### Cell Balancing Diagnostics
+### Cell Balancing Diagnostics (experimental)
+
+**Experimental.** Which sensors exist, and the thresholds behind them, may still change
+between releases, so an entity you build a dashboard or automation on could be renamed or
+dropped. Feedback on whether the numbers match what your pack actually does is welcome.
 
 B2500, Greensolar storage and Venus. Set `CELL_BALANCING_DIAGNOSTICS=true` and
 `POLL_CELL_DATA=true` (add-on: *Enable Cell Balancing Diagnostics* and *Enable Cell Data*).
