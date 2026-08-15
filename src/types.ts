@@ -52,12 +52,34 @@ export function isValidB2500RechargeMode(mode: string): mode is B2500RechargeMod
 export type B2500V1ChargingMode = 'chargeThenDischarge' | 'pv2PassThrough';
 export type B2500V2ChargingMode = 'chargeDischargeSimultaneously' | 'chargeThenDischarge';
 
+/**
+ * Per-pack status flags decoded from the `l0`/`l1` bitmasks (firmware 212.17
+ * and later). Reported per battery pack, unlike the combined `pe` state of
+ * charge.
+ */
+export interface B2500PackStatus {
+  discharging?: boolean;
+  charging?: boolean;
+  dodReached?: boolean;
+  undervoltage?: boolean;
+}
+
 export interface B2500BaseDeviceData extends BaseDeviceData {
   // Battery information
   batteryPercentage?: number;
   batteryCapacity?: number;
   batteryOutputThreshold?: number;
   dischargeDepth?: number;
+
+  /**
+   * Per-pack charge/discharge status. Absent on firmware older than 212.17,
+   * which does not report `l0`/`l1` at all.
+   */
+  packStatus?: {
+    host?: B2500PackStatus;
+    extra1?: B2500PackStatus;
+    extra2?: B2500PackStatus;
+  };
 
   // Solar input information
   solarInputStatus?: {
@@ -152,6 +174,45 @@ export interface B2500CellData extends BaseDeviceData {
     host?: CellVoltageInfo;
     extra1?: CellVoltageInfo;
     extra2?: CellVoltageInfo;
+  };
+}
+
+/**
+ * Derived cell balancing diagnostics. Shared by every family that reports
+ * individual cell voltages; the values themselves are computed in
+ * cellBalancing.ts and never come from a device payload.
+ *
+ * Everything lives under a single key so that the derived fields do not join
+ * the flat namespace that DeviceManager.getDeviceState() merges every path into.
+ */
+export interface CellBalancingData extends BaseDeviceData {
+  cellBalancing?: {
+    spreadMv?: number;
+    sigmaMv?: number;
+    meanMv?: number;
+    /** Each cell's share of the spread; the direct test for the slide artifact. */
+    normalisedDeviations?: number[];
+    /**
+     * How much of the spread the highest cell owns, as a percentage. Constant
+     * while the whole stack drifts down together, falling when that cell is
+     * actually brought back into line.
+     */
+    highestCellSharePct?: number;
+    /** Which cell that is, numbered from 1. */
+    highestCell?: number;
+    driftMvPerHour?: number;
+    balanceConditionsMet?: boolean;
+    minutesAboveThreshold?: number;
+    minutesAboveHighThreshold?: number;
+    sessionMinutes?: number;
+    /** Comparable end-of-charge spread, interpolated at a fixed mean voltage. */
+    crossingSpreadMv?: number;
+    crossingSigmaMv?: number;
+    /** Spread an hour after charging stopped, free of IR contamination. */
+    restedSpreadMv?: number;
+    restedSigmaMv?: number;
+    lastCycleEndedAt?: string;
+    cycleCount?: number;
   };
 }
 

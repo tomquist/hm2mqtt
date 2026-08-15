@@ -20,6 +20,7 @@ import {
   registerBaseMessage,
   registerCalibrationDataMessage,
   registerCellDataMessage,
+  registerB2500CellBalancingMessage,
 } from './b2500Base.js';
 import {
   BuildMessageFn,
@@ -185,6 +186,7 @@ registerDeviceDefinition(
     registerRuntimeInfoMessage(message);
     registerExtraBatteryData(message);
     registerCellDataMessage(message);
+    registerB2500CellBalancingMessage(message, { hasPackCurrent: true });
     registerCalibrationDataMessage(message);
   },
 );

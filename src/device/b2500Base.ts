@@ -4,6 +4,8 @@ import {
   BuildMessageFn,
 } from '../deviceDefinition.js';
 import logger from '../logger.js';
+import { extractB2500Sample } from '../cellBalancing.js';
+import { registerCellBalancingMessage } from './cellBalancingMessage.js';
 import {
   B2500BaseDeviceData,
   B2500CalibrationData,
@@ -110,6 +112,33 @@ export function registerBaseMessage({
       state_class: 'measurement',
     }),
   );
+  // Per-pack status bitmasks (firmware >= 212.17; absent on older firmware, in
+  // which case these fields simply stay unset).
+  //
+  // `l0` carries the host pack, `l1` both extras packed into one byte: bits 0-3
+  // are extra2 and bits 4-7 extra1, each using the same layout as `l0`.
+  // See docs/b2500.md.
+  const packStatusFlags = [
+    { flag: 'discharging', bit: 0 },
+    { flag: 'charging', bit: 1 },
+    { flag: 'dodReached', bit: 2 },
+    { flag: 'undervoltage', bit: 3 },
+  ] as const;
+  const packStatusSources = [
+    { key: 'l0', battery: 'host', bitOffset: 0 },
+    { key: 'l1', battery: 'extra2', bitOffset: 0 },
+    { key: 'l1', battery: 'extra1', bitOffset: 4 },
+  ] as const;
+  for (const { key, battery, bitOffset } of packStatusSources) {
+    for (const { flag, bit } of packStatusFlags) {
+      field({
+        key,
+        path: ['packStatus', battery, flag],
+        transform: bitBoolean(bitOffset + bit),
+      });
+    }
+  }
+
   field({
     key: 'do',
     path: ['dischargeDepth'],
@@ -738,6 +767,49 @@ const CELL_DETECT_COUNT = 14;
 function isB2500CellDataMessage(values: Record<string, string>) {
   return Array.from({ length: CELL_DETECT_COUNT }, (_, i) => `a${i.toString(16)}`).every(
     key => key in values,
+  );
+}
+
+/**
+ * Cell balancing diagnostics for B2500. Registered next to the cell data
+ * message it consumes; it produces no traffic of its own.
+ *
+ * `hasPackCurrent` is false on V1, which has no message carrying a pack
+ * current at all.
+ */
+export function registerB2500CellBalancingMessage(
+  message: BuildMessageFn,
+  { hasPackCurrent }: { hasPackCurrent: boolean },
+) {
+  registerCellBalancingMessage(message, {
+    cellPath: 'cells',
+    extract: extractB2500Sample,
+    warnIfIncomplete: (deviceType, deviceId) =>
+      warnAboutB2500PackCurrent(hasPackCurrent, `${deviceType} ${deviceId}`),
+  });
+}
+
+/**
+ * The rested spread is measured an hour after charging stops, and "stopped"
+ * has to be confirmed by a current near zero — otherwise the pack could be
+ * quietly discharging into the house. B2500 only reports one in the cd=16
+ * payload, so without that poll the rested spread never latches and no charge
+ * cycle is ever recorded. Everything else still works, which is exactly why
+ * this is worth saying out loud.
+ */
+function warnAboutB2500PackCurrent(hasPackCurrent: boolean, device: string) {
+  if (hasPackCurrent && process.env.POLL_EXTRA_BATTERY_DATA === 'true') {
+    return;
+  }
+  logger.warn(
+    hasPackCurrent
+      ? `Cell balancing diagnostics on ${device} also need POLL_EXTRA_BATTERY_DATA=true ` +
+          '(add-on: "Enable Extra Battery Data") for the pack current. Without it the ' +
+          'rested cell spread never latches and no charge cycle is recorded; the live ' +
+          'metrics are unaffected.'
+      : `${device} does not report a pack current, so the cell balancing diagnostics ` +
+          'cannot latch a rested cell spread or record charge cycles on it. The live ' +
+          'metrics work as normal.',
   );
 }
 

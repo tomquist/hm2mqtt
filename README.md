@@ -286,6 +286,8 @@ services:
 | `POLL_CELL_DATA` | Enable cell-level battery data: individual cell voltages and temperatures, plus detailed per-pack BMS data on Venus. B2500, Greensolar, Venus and Jupiter | false |
 | `POLL_EXTRA_BATTERY_DATA` | Enable extra battery data reporting (B2500 and Greensolar storage only) | false |
 | `POLL_CALIBRATION_DATA` | Enable calibration data reporting (B2500 and Greensolar storage only) | false |
+| `CELL_BALANCING_DIAGNOSTICS` | Enable the cell balancing diagnostics (B2500, Greensolar and Venus; requires `POLL_CELL_DATA`) | false |
+| `HM2MQTT_DATA_DIR` | Directory for data that must survive a restart, currently the cell balancing charge-cycle history | `/data` |
 | `DEVICE_n` | Device configuration in format `{type}:{mac}` | -                       |
 | `MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS` | Number of consecutive timeouts before a device is marked offline | `3` |
 | `MQTT_PROXY_ENABLED` | Enable MQTT proxy server for B2500 client ID conflict resolution | `false` |
@@ -411,6 +413,42 @@ services:
 ```
 
 > **📖 Background**: This issue was first reported in [GitHub Issue #41](https://github.com/tomquist/hm2mqtt/issues/41) where users experienced problems with multiple B2500 devices after firmware update 226.5.
+
+### Cell Balancing Diagnostics
+
+B2500, Greensolar storage and Venus. Set `CELL_BALANCING_DIAGNOSTICS=true` and
+`POLL_CELL_DATA=true` (add-on: *Enable Cell Balancing Diagnostics* and *Enable Cell Data*).
+Without the second one there are no cell readings to work from, so no entities are created
+and the log says why. On B2500 and Greensolar, also set `POLL_EXTRA_BATTERY_DATA=true`
+(*Enable Extra Battery Data*): that poll carries the pack current, and without it *Rested
+Cell Spread* never latches. B2500 V1 does not report a pack current at all.
+
+*Cell Voltage Difference* collapses from tens of millivolts to one or two overnight after a
+full charge, which looks like the pack balancing itself. Usually it isn't: at 100% with
+nothing to export the unit runs off its own battery, and the whole stack slides off the steep
+top of the lithium-iron curve onto the flat middle, where the same imbalance shows a smaller
+gap.
+
+| Entity | Meaning |
+|---|---|
+| *Cell Spread* | Highest cell minus lowest |
+| *Cell Voltage Standard Deviation* | Spread that one flaky cell cannot dominate |
+| *Mean Cell Voltage* | Where on the curve the pack is sitting |
+| *Highest Cell Share of Spread* | The highest cell's share of the spread. Steady while *Cell Spread* falls means the stack is drifting; falling means that cell is being brought back into line |
+| *Mean Cell Voltage Drift* | How fast the pack is sagging, in mV/h |
+| *Balance Conditions Met* | Cells above 3400 mV with charge still going in |
+| *Minutes Above 3400 mV / 3500 mV Today* | How long those conditions held. Counted separately because an hour just over the line achieves far less than an hour well above it |
+| *Cell Spread at 3450 mV* | Spread at a fixed point of the charge, so it is comparable between days |
+| *Rested Cell Spread* | Spread an hour after charging stopped, with no load skewing it |
+
+Real balancing shows as *Cell Spread at 3450 mV* and *Rested Cell Spread* falling over
+successive days. The per-cell vector is published as `normalisedDeviations`, with *Highest
+Cell* naming the outlier.
+
+No Marstek device reports whether its balancer is running, so all of this is inferred from
+voltage and current. The two day-to-day sensors also need storage that survives a restart:
+the add-on has it, under Docker mount a volume at `/data` or point `HM2MQTT_DATA_DIR`
+somewhere else.
 
 ## Frequently Asked Questions (FAQ)
 

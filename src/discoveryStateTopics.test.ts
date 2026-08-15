@@ -24,6 +24,10 @@ function joinPath(keyPath: ReadonlyArray<string | number>): string {
 /**
  * The paths a message can actually publish: the base keys, the message's default
  * state and every field the parser fills in.
+ *
+ * A derived message has no fields — its values come from `derive()` — so its
+ * default state is what declares the shape it publishes. The paths themselves
+ * are already type-checked against the message's state type at registration.
  */
 function publishablePaths(message: MessageDefinition<BaseDeviceData>): string[] {
   return [

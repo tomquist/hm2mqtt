@@ -76,6 +76,44 @@ describe('MQTT Message Parser', () => {
     // The malformed part should be skipped
   });
 
+  describe('B2500 per-pack status flags (l0/l1)', () => {
+    const base =
+      'p1=0,p2=0,w1=0,w2=0,pe=14,vv=224,sv=3,cs=0,cd=0,am=0,o1=0,o2=0,do=90,lv=800,cj=1,kn=313,g1=0,g2=0,b1=0,b2=0,md=0,d1=1,e1=0:0,f1=23:59,h1=800,sg=0,sp=80,st=0,tl=12,th=13,tc=0,tf=0,fc=202310231502,id=5,a0=14,a1=0,a2=0';
+
+    const statusFor = (l0: number, l1: number) => {
+      const parsed = parseMessage(`${base},l0=${l0},l1=${l1}`, 'HMA-1', 'e88da6f35def');
+      return (parsed['data'] as B2500V2DeviceData).packStatus;
+    };
+
+    test('decodes the host pack from l0', () => {
+      // bit 1 = charging
+      expect(statusFor(0b0010, 0)?.host).toMatchObject({
+        discharging: false,
+        charging: true,
+        dodReached: false,
+        undervoltage: false,
+      });
+      // bit 0 = discharging, bit 2 = DoD reached
+      expect(statusFor(0b0101, 0)?.host).toMatchObject({
+        discharging: true,
+        charging: false,
+        dodReached: true,
+      });
+    });
+
+    test('splits l1 into extra2 (low nibble) and extra1 (high nibble)', () => {
+      // extra1 charging (bit 5), extra2 discharging (bit 0)
+      const status = statusFor(0, 0b0010_0001);
+      expect(status?.extra1).toMatchObject({ charging: true, discharging: false });
+      expect(status?.extra2).toMatchObject({ charging: false, discharging: true });
+    });
+
+    test('is absent on firmware that does not report the fields', () => {
+      const parsed = parseMessage(base, 'HMA-1', 'e88da6f35def');
+      expect((parsed['data'] as B2500V2DeviceData).packStatus).toBeUndefined();
+    });
+  });
+
   test('should parse a full device message correctly', () => {
     // Full message example from documentation
     const message =

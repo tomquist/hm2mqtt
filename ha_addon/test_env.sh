@@ -125,6 +125,7 @@ run_test "Additional configuration options" \
         "enableCellData": true,
         "enableCalibrationData": true,
         "enableExtraBatteryData": true,
+        "enableCellBalancingDiagnostics": true,
         "topicPrefix": "custom",
         "log_level": "debug",
         "devices": [
@@ -141,6 +142,7 @@ MQTT_RESPONSE_TIMEOUT=15
 POLL_CELL_DATA=true
 POLL_EXTRA_BATTERY_DATA=true
 POLL_CALIBRATION_DATA=true
+CELL_BALANCING_DIAGNOSTICS=true
 LOG_LEVEL=debug
 DEVICE_0=HMA-1:001a2b3c4d5e"
 

@@ -23,6 +23,8 @@ import {
   WeekdaySet,
 } from '../types.js';
 import { registerNetworkInfoMessage } from './networkInfoBase.js';
+import { registerCellBalancingMessage } from './cellBalancingMessage.js';
+import { extractVenusSample } from '../cellBalancing.js';
 import logger from '../logger.js';
 import {
   buttonComponent,
@@ -264,6 +266,7 @@ registerDeviceDefinition(
   ({ message }) => {
     registerRuntimeInfoMessage(message);
     registerBMSInfoMessage(message);
+    registerVenusCellBalancingMessage(message);
     registerBMSPackMessage(message);
     registerBMSPackDetailMessages(message);
     registerVenusNetworkInfoMessage(message);
@@ -279,6 +282,7 @@ registerDeviceDefinition(
   ({ message }) => {
     registerRuntimeInfoMessage(message);
     registerBMSInfoMessage(message, { scaleTemperatures: true });
+    registerVenusCellBalancingMessage(message);
     registerBMSPackMessage(message, { scaleTemperatures: true });
     registerBMSPackDetailMessages(message, { scaleTemperatures: true });
     registerVenusNetworkInfoMessage(message);
@@ -2151,6 +2155,18 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         publishCallback(processCommand(CommandType.DEPTH_OF_DISCHARGE, { dod: dodValue }));
       },
     });
+  });
+}
+
+/**
+ * Cell balancing diagnostics for Venus. The cd=14 payload carries the cell
+ * voltages, pack current, temperatures and state of charge together, so every
+ * sample is internally consistent.
+ */
+function registerVenusCellBalancingMessage(message: BuildMessageFn) {
+  registerCellBalancingMessage(message, {
+    cellPath: 'bms',
+    extract: extractVenusSample,
   });
 }
 

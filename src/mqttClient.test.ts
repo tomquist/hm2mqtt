@@ -287,10 +287,27 @@ describe('MqttClient shouldPoll gating', () => {
     }
   }
 
-  test('sends nothing at all when every message is disabled', () => {
+  test('never requests a derived message', () => {
+    const { payloads } = pollFor([
+      makeMessage({ refreshDataPayload: 'cd=1', publishPath: 'data' }),
+      makeMessage({
+        refreshDataPayload: 'cd=999',
+        publishPath: 'cellBalancing',
+        polled: false,
+      }),
+    ]);
+    expect(payloads).toContain('cd=1');
+    expect(payloads).not.toContain('cd=999');
+  });
+
+  test('sends nothing at all when every message is derived or disabled', () => {
     const { payloads } = pollFor([
       makeMessage({ refreshDataPayload: 'cd=13', publishPath: 'cells', enabled: false }),
-      makeMessage({ refreshDataPayload: 'cd=21', publishPath: 'calibration', enabled: false }),
+      makeMessage({
+        refreshDataPayload: 'cd=999',
+        publishPath: 'cellBalancing',
+        polled: false,
+      }),
     ]);
     expect(payloads).toEqual([]);
   });

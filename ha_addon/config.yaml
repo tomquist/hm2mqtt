@@ -23,6 +23,7 @@ options:
   enableCellData: false
   enableCalibrationData: false
   enableExtraBatteryData: false
+  enableCellBalancingDiagnostics: false
   allowedConsecutiveTimeouts: 3
   topicPrefix: hm2mqtt
   mqttProxyEnabled: false
@@ -37,6 +38,7 @@ schema:
   enableCellData: bool
   enableCalibrationData: bool
   enableExtraBatteryData: bool
+  enableCellBalancingDiagnostics: bool
   allowedConsecutiveTimeouts: int?
   topicPrefix: str?
   autodiscoveryTopicPrefix: str?
