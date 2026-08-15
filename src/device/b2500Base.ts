@@ -784,11 +784,10 @@ export function registerB2500CellBalancingMessage(
   registerCellBalancingMessage(message, {
     cellPath: 'cells',
     extract: extractB2500Sample,
-    warnIfIncomplete: () => warnAboutB2500PackCurrent(hasPackCurrent),
+    warnIfIncomplete: (deviceType, deviceId) =>
+      warnAboutB2500PackCurrent(hasPackCurrent, `${deviceType} ${deviceId}`),
   });
 }
-
-let warnedAboutPackCurrent = false;
 
 /**
  * The rested spread is measured an hour after charging stops, and "stopped"
@@ -798,21 +797,17 @@ let warnedAboutPackCurrent = false;
  * cycle is ever recorded. Everything else still works, which is exactly why
  * this is worth saying out loud.
  */
-function warnAboutB2500PackCurrent(hasPackCurrent: boolean) {
-  if (warnedAboutPackCurrent) {
-    return;
-  }
+function warnAboutB2500PackCurrent(hasPackCurrent: boolean, device: string) {
   if (hasPackCurrent && process.env.POLL_EXTRA_BATTERY_DATA === 'true') {
     return;
   }
-  warnedAboutPackCurrent = true;
   logger.warn(
     hasPackCurrent
-      ? 'Cell balancing diagnostics on B2500 also need POLL_EXTRA_BATTERY_DATA=true ' +
+      ? `Cell balancing diagnostics on ${device} also need POLL_EXTRA_BATTERY_DATA=true ` +
           '(add-on: "Enable Extra Battery Data") for the pack current. Without it the ' +
           'rested cell spread never latches and no charge cycle is recorded; the live ' +
           'metrics are unaffected.'
-      : 'B2500 V1 does not report a pack current, so the cell balancing diagnostics ' +
+      : `${device} does not report a pack current, so the cell balancing diagnostics ` +
           'cannot latch a rested cell spread or record charge cycles on it. The live ' +
           'metrics work as normal.',
   );

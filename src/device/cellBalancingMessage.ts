@@ -35,15 +35,19 @@ export interface CellBalancingSource {
   cellPath: string;
   extract: (stateByPath: StateByPath, clock: SampleClock) => CellSample | undefined;
   /**
-   * Called once at registration, and only when the diagnostics are actually
-   * on, so a family can point out that it is missing an input the flag alone
-   * cannot supply.
+   * Called the first time a given device produces a usable sample, so a family
+   * can point out an input the flag alone cannot supply.
+   *
+   * Deferred to here rather than to registration because every device type is
+   * registered on every start, whether or not the user owns one — warning at
+   * import time would tell a Venus owner what to configure on a B2500.
    */
-  warnIfIncomplete?: () => void;
+  warnIfIncomplete?: (deviceType: string, deviceId: string) => void;
 }
 
 const states = new Map<string, BalancingState>();
 const lastCellTimestamps = new Map<string, string>();
+const warnedDevices = new Set<string>();
 
 let warnedAboutCellData = false;
 
@@ -70,6 +74,7 @@ function cellBalancingEnabled(): boolean {
 export function resetCellBalancingState(): void {
   states.clear();
   lastCellTimestamps.clear();
+  warnedDevices.clear();
 }
 
 function stateFor(key: string, deviceType: string, deviceId: string): BalancingState {
@@ -116,10 +121,6 @@ export function registerCellBalancingMessage(
   message: BuildMessageFn,
   source: CellBalancingSource,
 ): void {
-  const enabled = cellBalancingEnabled();
-  if (enabled) {
-    source.warnIfIncomplete?.();
-  }
   message<CellBalancingData>(
     {
       // Never sent and never matched: this message is computed, not requested.
@@ -137,7 +138,7 @@ export function registerCellBalancingMessage(
       // Both flags are required. The diagnostics are computed from the cell
       // message, so with POLL_CELL_DATA off nothing is ever polled to feed them
       // and every entity would sit at unknown forever.
-      enabled,
+      enabled: cellBalancingEnabled(),
       derive: ({ stateByPath, deviceType, deviceId, at, monotonicAt }) => {
         const key = `${deviceType}:${deviceId}`;
 
@@ -160,6 +161,13 @@ export function registerCellBalancingMessage(
         // consumed any earlier would discard a sample whose other inputs are
         // still on their way, rather than reconsidering it on the next update.
         lastCellTimestamps.set(key, timestamp);
+
+        // A real device of this family has just reported, so anything the
+        // family still needs configured is worth saying — once, per device.
+        if (!warnedDevices.has(key)) {
+          warnedDevices.add(key);
+          source.warnIfIncomplete?.(deviceType, deviceId);
+        }
 
         const previousState = stateFor(key, deviceType, deviceId);
         const { state, cycle, conditionsMet } = advanceBalancingState(

@@ -8,13 +8,30 @@ import path from 'path';
  * modules are imported, so every test here has to load the registry itself with
  * the flag already set.
  */
-async function loadWithDiagnostics() {
+async function loadWithDiagnostics(env: NodeJS.ProcessEnv = {}) {
   jest.resetModules();
   process.env.CELL_BALANCING_DIAGNOSTICS = 'true';
   process.env.POLL_CELL_DATA = 'true';
+  for (const [key, value] of Object.entries(env)) {
+    if (value === '') {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+
+  // Captured from before the registry is imported: that import registers every
+  // device type there is, owned or not, so anything warned at that point has to
+  // be visible to a test that cares whether it was warned at all.
+  const logger = (await import('../logger.js')).default;
+  const warnings: string[] = [];
+  jest.spyOn(logger, 'warn').mockImplementation((...args: unknown[]) => {
+    warnings.push(String(args[0]));
+  });
 
   await import('./registry.js');
   return {
+    warnings,
     generateDiscoveryConfigs: (await import('../generateDiscoveryConfigs.js'))
       .generateDiscoveryConfigs,
     DeviceManager: (await import('../deviceManager.js')).DeviceManager,
@@ -195,6 +212,80 @@ describe('cell balancing end to end', () => {
     // Normalised: the 3560 cell owns most of the spread.
     const shares = state.cellBalancing.normalisedDeviations as number[];
     expect(Math.max(...shares)).toBeCloseTo((3560 - 3537.5) / 40, 6);
+  });
+
+  it('warns about a missing input only for a device that actually reported', async () => {
+    // Every device type is registered on every start, so a warning emitted at
+    // registration would tell this Venus owner what to configure on a B2500
+    // they do not own — and, with one shared warn-once flag, would also
+    // suppress the warning for someone who does.
+    const { DeviceManager, parseMessage, persistence, cellBalancingMessage, warnings } =
+      await loadWithDiagnostics({ POLL_EXTRA_BATTERY_DATA: '' });
+    persistence.resetPersistenceProbe({ available: false, reason: 'test' });
+    cellBalancingMessage.resetCellBalancingState();
+
+    const dm = new DeviceManager(
+      {
+        brokerUrl: 'mqtt://localhost',
+        clientId: 'test',
+        topicPrefix: 'hm2mqtt',
+        autodiscoveryTopicPrefix: 'homeassistant',
+        devices: [device],
+      },
+      jest.fn() as any,
+    );
+
+    const parsed = parseMessage(
+      bmsPayload([3300, 3302, 3301, 3300], 0),
+      device.deviceType,
+      device.deviceId,
+    );
+    for (const [publishPath, state] of Object.entries(parsed)) {
+      dm.updateDeviceState(device, publishPath, () => state as any);
+    }
+
+    expect(warnings.some(m => m.includes('POLL_EXTRA_BATTERY_DATA'))).toBe(false);
+    expect(warnings.some(m => m.includes('pack current'))).toBe(false);
+  });
+
+  it('does warn the B2500 owner whose pack current is not being polled', async () => {
+    const { DeviceManager, parseMessage, persistence, cellBalancingMessage, warnings } =
+      await loadWithDiagnostics({ POLL_EXTRA_BATTERY_DATA: '' });
+    persistence.resetPersistenceProbe({ available: false, reason: 'test' });
+    cellBalancingMessage.resetCellBalancingState();
+
+    const b2500 = { deviceType: 'HMA-1', deviceId: 'b2500a' };
+    const cells = (prefix: string, mv: number) =>
+      Array.from({ length: 16 }, (_, i) => `${prefix}${i.toString(16)}=${mv + i}`).join(',');
+
+    const dm = new DeviceManager(
+      {
+        brokerUrl: 'mqtt://localhost',
+        clientId: 'test',
+        topicPrefix: 'hm2mqtt',
+        autodiscoveryTopicPrefix: 'homeassistant',
+        devices: [b2500],
+      },
+      jest.fn() as any,
+    );
+
+    const apply = (mv: number) => {
+      const parsed = parseMessage(
+        [cells('a', mv), cells('b', 0), cells('c', 0)].join(','),
+        b2500.deviceType,
+        b2500.deviceId,
+      );
+      for (const [publishPath, state] of Object.entries(parsed)) {
+        dm.updateDeviceState(b2500, publishPath, () => state as any);
+      }
+    };
+    apply(3300);
+    // A second reading must not repeat it.
+    apply(3310);
+
+    const matching = warnings.filter(m => m.includes('POLL_EXTRA_BATTERY_DATA'));
+    expect(matching).toHaveLength(1);
+    expect(matching[0]).toContain('HMA-1 b2500a');
   });
 
   it('gives every optional key a default so discovery cannot outrun the payload', async () => {

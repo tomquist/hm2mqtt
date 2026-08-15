@@ -5,6 +5,7 @@ import {
   CellSample,
   computeCellStats,
   computeDrift,
+  CycleRecord,
   extractB2500Sample,
   extractVenusSample,
   initialBalancingState,
@@ -180,8 +181,8 @@ describe('balancing state machine', () => {
     state: BalancingState,
     samples: CellSample[],
     localDate = '2026-08-06',
-  ): { state: BalancingState; cycles: any[] } => {
-    const cycles: any[] = [];
+  ): { state: BalancingState; cycles: CycleRecord[] } => {
+    const cycles: CycleRecord[] = [];
     let current = state;
     for (const s of samples) {
       const result = advanceBalancingState(current, s, localDate);
