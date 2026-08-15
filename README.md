@@ -450,9 +450,25 @@ successive days. The per-cell vector is published as `normalisedDeviations`, wit
 Cell* naming the outlier.
 
 No Marstek device reports whether its balancer is running, so all of this is inferred from
-voltage and current. The two day-to-day sensors also need storage that survives a restart:
-the add-on has it, under Docker mount a volume at `/data` or point `HM2MQTT_DATA_DIR`
-somewhere else.
+voltage and current.
+
+*Cell Spread at 3450 mV* and *Rested Cell Spread* compare one day against the next, so they
+need storage that outlives a container rebuild. The add-on already has it. Under Docker,
+mount something at `/data` — without it those two entities are not created at all, and the
+log says why at startup:
+
+```yaml
+services:
+  hm2mqtt:
+    volumes:
+      - hm2mqtt-data:/data
+
+volumes:
+  hm2mqtt-data:
+```
+
+With `docker run` that is `-v hm2mqtt-data:/data`. A bind mount to a host directory works
+just as well, and `HM2MQTT_DATA_DIR` moves the location if `/data` does not suit.
 
 ## Frequently Asked Questions (FAQ)
 
