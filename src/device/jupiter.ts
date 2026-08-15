@@ -208,17 +208,21 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
+    // `ele_d` counts the energy the panels produced today, which the Marstek app
+    // shows as the day's power generation. It is not the energy charged into the
+    // battery, which is what this sensor used to claim to be.
     field({
       key: 'ele_d',
-      path: ['dailyChargingCapacity'],
+      path: ['dailyPowerGeneration'],
       transform: divide(100),
       monotonic: true,
     });
     advertise(
-      ['dailyChargingCapacity'],
+      ['dailyPowerGeneration'],
       sensorComponent<number>({
-        id: 'daily_charging_capacity',
-        name: 'Daily Charging Capacity',
+        id: 'daily_power_generation',
+        name: 'Daily Power Generation',
+        icon: 'mdi:solar-power-variant',
         device_class: 'energy',
         unit_of_measurement: 'kWh',
         state_class: 'total_increasing',
@@ -836,6 +840,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         command: 'meter-mac',
         // The device uses a plain 12 hex digit MAC without ':'/'-' separators.
         pattern: '^[0-9A-Fa-f]{12}$',
+        // Write-only: the device never reports the configured MAC back.
+        optimistic: true,
         enabled_by_default: false,
       }),
     );
@@ -873,6 +879,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:meter-electric',
         command: 'meter-type',
         valueMappings: meterTypeLabels,
+        // Write-only: the device never reports the configured meter type back.
+        optimistic: true,
         enabled_by_default: false,
       }),
     );
@@ -974,8 +982,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const params: CommandParams = { md, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
-            params.bt = period.startTime;
-            params.et = period.endTime;
+            params.bt = formatTimePeriodTime(period.startTime);
+            params.et = formatTimePeriodTime(period.endTime);
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
@@ -1028,8 +1036,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const params: CommandParams = { md, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
-            params.bt = period.startTime;
-            params.et = period.endTime;
+            params.bt = formatTimePeriodTime(period.startTime);
+            params.et = formatTimePeriodTime(period.endTime);
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
@@ -1076,8 +1084,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const params: CommandParams = { md, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
-            params.bt = period.startTime;
-            params.et = period.endTime;
+            params.bt = formatTimePeriodTime(period.startTime);
+            params.et = formatTimePeriodTime(period.endTime);
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = enabled ? 1 : 0;
@@ -1132,8 +1140,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const params: CommandParams = { md, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
-            params.bt = period.startTime;
-            params.et = period.endTime;
+            params.bt = formatTimePeriodTime(period.startTime);
+            params.et = formatTimePeriodTime(period.endTime);
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
@@ -1187,8 +1195,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const params: CommandParams = { md, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
-            params.bt = period.startTime;
-            params.et = period.endTime;
+            params.bt = formatTimePeriodTime(period.startTime);
+            params.et = formatTimePeriodTime(period.endTime);
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
@@ -1228,21 +1236,35 @@ function registerJupiterBMSInfoMessage(message: BuildMessageFn) {
       // byte encodes the cell with the maximum voltage.
       //
       // In addition to that, Marstek Jupiter C Plus can have up to 3 extra
-      // batteries attached, and the remaining `volX` fields should provide
-      // voltages for those batteries in the same way. However, we don't know
-      // where the block of values for the next battery starts. When no external
-      // batteries are attached, `vol3` to `vol15` are all `0`.
+      // batteries attached, and the remaining `volX` fields provide the same
+      // information for those batteries. Each battery gets a block of *three*
+      // `volX` fields, so battery N starts at `vol${N * 3}`. When fewer
+      // batteries are attached, the trailing fields are all `0`.
       //
-      // For now, we will assume that four `volX` fields correspond to each
-      // battery, as it nicely aligns with 16 being divisible by 4 (1 internal
-      // battery + up to 3 external batteries). I don't have external batteries,
-      // so I can't verify this assumption.
+      // This was confirmed by a dump from a device with four battery packs
+      // (`b_num=4`), where each 3-field block decodes into plausible values,
+      // while a 4-field block does not (it yields cell numbers such as 248,
+      // which is way out of range for a 16-cell pack):
+      //
+      //   vol0=1039 (cells 15/4)   vol1=3353   vol2=3326
+      //   vol3=1    (cells 1/0)    vol4=3320   vol5=3319
+      //   vol6=2063 (cells 15/8)   vol7=3362   vol8=3328
+      //   vol9=774  (cells 6/3)    vol10=3338  vol11=3327
+      //   vol12=vol13=vol14=vol15=0
+      //
+      // A dump from a device with one external pack (`b_num=2`) rules out a
+      // block size of four outright, as it only populates six fields:
+      //
+      //   vol0=526 (cells 14/2)    vol1=3241   vol2=3237
+      //   vol3=256 (cells 0/1)     vol4=3390   vol5=3386
+      //   vol6..vol15=0
       //
       // See: https://github.com/tomquist/hm2mqtt/discussions/253
+      //      https://github.com/tomquist/hm2mqtt/discussions/393
 
       // Batteries: 1 internal (battery 0) + up to 3 external (batteries 1-3)
       for (let batteryIndex = 0; batteryIndex < 4; batteryIndex++) {
-        const baseIndex = batteryIndex * 4;
+        const baseIndex = batteryIndex * 3;
         const batteryLabel =
           batteryIndex === 0 ? 'Internal Battery' : `External Battery ${batteryIndex}`;
         const volNumberKey = `vol${baseIndex}`;
@@ -1678,6 +1700,31 @@ function bitMaskToWeekdaySet(weekdayBitMask: number): JupiterTimePeriod['weekday
 
 function weekdaySetToBitMask(weekday: JupiterTimePeriod['weekday']): number {
   return weekday.split('').reduce((mask, day) => mask | (1 << parseInt(day, 10)), 0);
+}
+
+/**
+ * Format a time period boundary as the zero-padded `HH:MM` the device expects in
+ * `bt=`/`et=`.
+ *
+ * The device parses these positionally rather than splitting on `:`, so an
+ * unpadded hour shifts the minutes by one character and drops their tens digit:
+ * `bt=2:43` is read back as `02:03` and `bt=4:25` as `04:05` (fixes #184). The
+ * Marstek app pads both halves — `All_little_Sun_NewSetTimeMode` builds the
+ * payload as `hour.toString().padLeft(2, '0') + ':' +
+ * minute.toString().padLeft(2, '0')`.
+ *
+ * Note this is the opposite of the B2500, which wants unpadded `H:M` in its
+ * `cd=7` timer payload; the app pads for Venus/Jupiter only.
+ */
+function formatTimePeriodTime(time: string): string {
+  const [hourPart, minutePart] = time.split(':');
+  if (hourPart == null || minutePart == null) return time;
+
+  const hours = parseInt(hourPart, 10);
+  const minutes = parseInt(minutePart, 10);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return time;
+
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 }
 
 function parseMPPTPVInfo(value: string): JupiterMPPTPVInfo {

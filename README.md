@@ -283,9 +283,11 @@ services:
 | `MQTT_PASSWORD` | MQTT password | -                       |
 | `MQTT_POLLING_INTERVAL` | Interval between device polls in seconds | `60`                 |
 | `MQTT_RESPONSE_TIMEOUT` | Timeout for device responses in seconds | `15`                 |
-| `POLL_CELL_DATA` | Enable cell-level battery data (individual cell voltages, temperatures and, on Venus, detailed per-pack BMS data) | false |
-| `POLL_EXTRA_BATTERY_DATA` | Enable extra battery data reporting (only available on B2500 devices) | false |
-| `POLL_CALIBRATION_DATA` | Enable calibration data reporting (only available on B2500 devices) | false |
+| `POLL_CELL_DATA` | Enable cell-level battery data: individual cell voltages and temperatures, plus detailed per-pack BMS data on Venus. B2500, Greensolar, Venus and Jupiter | false |
+| `POLL_EXTRA_BATTERY_DATA` | Enable extra battery data reporting (B2500 and Greensolar storage only) | false |
+| `POLL_CALIBRATION_DATA` | Enable calibration data reporting (B2500 and Greensolar storage only) | false |
+| `CELL_BALANCING_DIAGNOSTICS` | Enable the cell balancing diagnostics (B2500, Greensolar and Venus; requires `POLL_CELL_DATA`) | false |
+| `HM2MQTT_DATA_DIR` | Directory for data that must survive a restart, currently the cell balancing charge-cycle history | `/data` |
 | `DEVICE_n` | Device configuration in format `{type}:{mac}` | -                       |
 | `MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS` | Number of consecutive timeouts before a device is marked offline | `3` |
 | `MQTT_PROXY_ENABLED` | Enable MQTT proxy server for B2500 client ID conflict resolution | `false` |
@@ -411,6 +413,62 @@ services:
 ```
 
 > **📖 Background**: This issue was first reported in [GitHub Issue #41](https://github.com/tomquist/hm2mqtt/issues/41) where users experienced problems with multiple B2500 devices after firmware update 226.5.
+
+### Cell Balancing Diagnostics (experimental)
+
+**Experimental.** Which sensors exist, and the thresholds behind them, may still change
+between releases, so an entity you build a dashboard or automation on could be renamed or
+dropped. Feedback on whether the numbers match what your pack actually does is welcome.
+
+B2500, Greensolar storage and Venus. Set `CELL_BALANCING_DIAGNOSTICS=true` and
+`POLL_CELL_DATA=true` (add-on: *Enable Cell Balancing Diagnostics* and *Enable Cell Data*).
+Without the second one there are no cell readings to work from, so no entities are created
+and the log says why. On B2500 and Greensolar, also set `POLL_EXTRA_BATTERY_DATA=true`
+(*Enable Extra Battery Data*): that poll carries the pack current, and without it *Rested
+Cell Spread* never latches. B2500 V1 does not report a pack current at all.
+
+*Cell Voltage Difference* collapses from tens of millivolts to one or two overnight after a
+full charge, which looks like the pack balancing itself. Usually it isn't: at 100% with
+nothing to export the unit runs off its own battery, and the whole stack slides off the steep
+top of the lithium-iron curve onto the flat middle, where the same imbalance shows a smaller
+gap.
+
+| Entity | Meaning |
+|---|---|
+| *Cell Spread* | Highest cell minus lowest |
+| *Cell Voltage Standard Deviation* | Spread that one flaky cell cannot dominate |
+| *Mean Cell Voltage* | Where on the curve the pack is sitting |
+| *Highest Cell Share of Spread* | The highest cell's share of the spread. Steady while *Cell Spread* falls means the stack is drifting; falling means that cell is being brought back into line |
+| *Mean Cell Voltage Drift* | How fast the pack is sagging, in mV/h |
+| *Balance Conditions Met* | Cells above 3400 mV with charge still going in |
+| *Minutes Above 3400 mV / 3500 mV Today* | How long those conditions held. Counted separately because an hour just over the line achieves far less than an hour well above it |
+| *Cell Spread at 3450 mV* | Spread at a fixed point of the charge, so it is comparable between days |
+| *Rested Cell Spread* | Spread an hour after charging stopped, with no load skewing it |
+
+Real balancing shows as *Cell Spread at 3450 mV* and *Rested Cell Spread* falling over
+successive days. The per-cell vector is published as `normalisedDeviations`, with *Highest
+Cell* naming the outlier.
+
+No Marstek device reports whether its balancer is running, so all of this is inferred from
+voltage and current.
+
+*Cell Spread at 3450 mV* and *Rested Cell Spread* compare one day against the next, so they
+need storage that outlives a container rebuild. The add-on already has it. Under Docker,
+mount something at `/data` — without it those two entities are not created at all, and the
+log says why at startup:
+
+```yaml
+services:
+  hm2mqtt:
+    volumes:
+      - hm2mqtt-data:/data
+
+volumes:
+  hm2mqtt-data:
+```
+
+With `docker run` that is `-v hm2mqtt-data:/data`. A bind mount to a host directory works
+just as well, and `HM2MQTT_DATA_DIR` moves the location if `/data` does not suit.
 
 ## Frequently Asked Questions (FAQ)
 
@@ -632,8 +690,8 @@ homeassistant/{component}/{node_id}/{object_id}/config
 ### Venus Device Commands
 - `working-mode`: Sets working mode (`automatic`, `manual`, `trading`, or `ai`). The `ai` value expands to `cd=2,md=5,nl=1` (AI mode requires both `md=5` and `nl=1`).
 - `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`)
-- `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped)
-- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50` or `ecoTracker`). For CT002/CT003 and the Shelly EM Gen3/Pro EM50, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC.
+- `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped). The device does not report this back, so the entity shows the last value set.
+- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50` or `ecoTracker`). For CT002/CT003 and the Shelly EM Gen3/Pro EM50, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC. The device does not report this back, so the entity shows the last value set.
 - `auto-switch-working-mode`: Toggles automatic mode switching (`on` or `off`)
 - `time-period/[0-9]/enabled`: Enables/disables time period (`on` or `off`)
 - `time-period/[0-9]/start-time`: Sets start time for period (HH:MM format)
@@ -684,8 +742,8 @@ The following commands are supported by both Jupiter C, Jupiter E and Jupiter Pl
 - `sync-time`: Synchronizes device time with server
 - `working-mode`: Sets working mode (`automatic`, `manual`, or `ai`). The `ai` value expands to `cd=2,md=5,nl=1` (AI mode requires both `md=5` and `nl=1`).
 - `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`)
-- `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped)
-- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50` or `ecoTracker`). For CT002/CT003 and the Shelly EM Gen3/Pro EM50, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC.
+- `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped). The device does not report this back, so the entity shows the last value set.
+- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50` or `ecoTracker`). For CT002/CT003 and the Shelly EM Gen3/Pro EM50, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC. The device does not report this back, so the entity shows the last value set.
 - `bluetooth-advertising`: Toggles Bluetooth advertising (`on` enables advertising, `off` disables it / "Bluetooth lock"). Requires firmware 141 or newer.
 - `phase-diagnosis`: Starts the grid-phase detection routine
 - `battery-pack-recovery`: Reactivates an unresponsive battery pack. Jupiter Plus only, firmware 135 or newer.

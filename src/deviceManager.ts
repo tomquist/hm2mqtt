@@ -5,6 +5,7 @@ import {
   getSuggestedDeviceType,
   FieldDefinition,
   KeyPath,
+  MessageDefinition,
 } from './deviceDefinition.js';
 import { calculateNewVersionTopicId } from './utils/crypt.js';
 import logger from './logger.js';
@@ -190,7 +191,79 @@ export class DeviceManager {
       [path]: newDeviceState,
     };
     this.onUpdateState(device, path, newDeviceState);
+    this.runDerivations(device, path);
     return newDeviceState as DeviceStateData & T;
+  }
+
+  /**
+   * Recompute any derived messages after a state update.
+   *
+   * A derivation that returns undefined writes nothing and publishes nothing.
+   * Derivations run after every inbound message, so publishing unconditionally
+   * would emit a state update per derived message per message received — eight
+   * per poll cycle on a Venus with cell data enabled — each one a Home Assistant
+   * recorder row per sensor for a value that has not changed.
+   */
+  private runDerivations(device: Device, triggeringPath: string): void {
+    const deviceDefinition = getDeviceDefinition(device.deviceType);
+    if (!deviceDefinition) {
+      return;
+    }
+
+    const derived = deviceDefinition.messages.filter(
+      message => message.derive != null && message.enabled !== false,
+    );
+    if (derived.length === 0) {
+      return;
+    }
+
+    // A derived write must not trigger another round of derivation.
+    if (derived.some(message => message.publishPath === triggeringPath)) {
+      return;
+    }
+
+    const deviceKey = this.getDeviceKey(device);
+    for (const message of derived) {
+      const previous = this.getDeviceStateForPath(device, message.publishPath);
+      let update;
+      try {
+        update = message.derive?.({
+          stateByPath: (this.deviceStates[deviceKey] ?? {}) as Record<string, any>,
+          previous: previous as any,
+          deviceType: device.deviceType,
+          deviceId: device.deviceId,
+          at: Date.now(),
+          monotonicAt: performance.now(),
+        });
+      } catch (error) {
+        // A broken derivation must never take the bridge down with it.
+        logger.warn(
+          `Derivation for ${device.deviceType}:${device.deviceId} ${message.publishPath} failed:`,
+          error,
+        );
+        continue;
+      }
+
+      if (update == null) {
+        continue;
+      }
+
+      const newDeviceState = {
+        ...previous,
+        ...update,
+        // Regenerated every time, so these win over whatever the previous
+        // derived state carried.
+        deviceType: device.deviceType,
+        deviceId: device.deviceId,
+        timestamp: new Date().toISOString(),
+      } as DeviceStateData;
+
+      this.deviceStates[deviceKey] = {
+        ...this.deviceStates[deviceKey],
+        [message.publishPath]: newDeviceState,
+      };
+      this.onUpdateState(device, message.publishPath, newDeviceState);
+    }
   }
 
   /**
@@ -348,20 +421,31 @@ export class DeviceManager {
    * @returns The polling interval in milliseconds
    */
   getPollingInterval(): number {
-    const allPollingIntervals = this.getDevices().flatMap(device => {
-      return (
-        getDeviceDefinition(device.deviceType)
-          ?.messages.map(message => {
-            return message.pollInterval;
-          })
-          ?.filter(n => n != null) ?? []
+    const collect = (filter: (message: MessageDefinition<any>) => boolean): number[] =>
+      this.getDevices().flatMap(
+        device =>
+          getDeviceDefinition(device.deviceType)
+            ?.messages.filter(filter)
+            .map(message => message.pollInterval)
+            .filter(n => n != null) ?? [],
       );
-    });
+
+    const allPollingIntervals = collect(() => true);
 
     // Check if there are any valid polling intervals
     if (allPollingIntervals.length === 0) {
       throw new Error('No valid devices configured');
     }
+
+    // Only messages that are actually requested from the device get a say in the
+    // tick. A disabled message (POLL_CELL_DATA=false) is never sent, and a
+    // derived message is never sent at all, so letting either contribute would
+    // drive the shared timer faster than anything needs. Fall back to the
+    // unfiltered set if that leaves nothing, so the tick stays defined.
+    const polledIntervals = collect(
+      message => message.enabled !== false && message.polled !== false,
+    );
+    const intervals = polledIntervals.length > 0 ? polledIntervals : allPollingIntervals;
 
     function gcd2(a: number, b: number): number {
       if (b === 0) {
@@ -370,7 +454,7 @@ export class DeviceManager {
       return gcd2(b, a % b);
     }
 
-    return allPollingIntervals.reduce(gcd2, allPollingIntervals[0]);
+    return intervals.reduce(gcd2, intervals[0]);
   }
 
   /**

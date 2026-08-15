@@ -59,6 +59,17 @@ For every new or changed config option, treat the following as mandatory complet
 - Changelog entry under `[Next]` in `CHANGELOG.md`
 - Updates to all TypeScript test fixtures that construct `MqttConfig`
 
+## Changelog Style
+
+`CHANGELOG.md` is read by users, not developers.
+
+- Describe what the user saw and what changed for them, in a few sentences.
+- No internals: file, function or symbol names, data structures, code paths. If
+  a sentence only makes sense with the diff open, it belongs in the commit
+  message instead.
+- End with the issue reference, plus the PR number once it exists:
+  `(fixes #123, PR #124)`.
+
 ## Coding & Change Style
 
 - Prefer minimal, surgical changes over broad refactors.

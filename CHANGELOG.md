@@ -1,4 +1,32 @@
 # Changelog
+## [1.10.0] - 2026-08-15
+
+### Added
+
+- B2500, Greensolar & Venus: New *Enable Cell Balancing Diagnostics* option, adding sensors that measure the cell spread at the same point of every charge, so it can be compared between days. Requires *Enable Cell Data*. Experimental: which sensors exist, and the thresholds behind them, may still change between releases. See the README for what each sensor means (PR #411, PR #416)
+
+### Fixed
+
+- Settings in a `.env` file were ignored; only real environment variables took effect. Manual installations only (PR #414)
+- hm2mqtt now shuts down cleanly when Home Assistant or Docker stops it, instead of being killed after the grace period (PR #414)
+- Devices were polled more often than the configured *Polling Interval* (PR #414)
+- *Enable Cell Data*, *Enable Calibration Data* and *Enable Extra Battery Data* said B2500 only. All three also cover Greensolar storage, and *Enable Cell Data* also Venus and Jupiter (PR #414)
+- Settings you change from Home Assistant, such as *Discharge Depth* or *Charging Mode*, sometimes kept showing their old value for up to a minute. They now update within about a second (PR #413)
+- Venus: *BMS Current* was reported in milliamps and read 100x too low — a pack drawing 9.4 A showed 94 mA. It now reports amps, matching the same field on Jupiter. History recorded before this update keeps the old values
+- B2500 V2/V3: Fix *Sync Time* setting the device clock wrong, which made every discharge timer start and stop early by your timezone's offset from UTC — two hours in CEST, one in CET. A device that was synced by an affected version keeps the wrong clock until it is synced again, so press *Sync Time* once after updating (PR #405)
+- Venus & Jupiter: Fix the tens digit of the minutes being dropped when setting a *Time Period X Time From/To* before 10:00. Setting `02:43` made the device store `02:03` and report that back to Home Assistant, and any later change to the same period (power, weekday, enabled) re-applied the mangled time (fixes #184, PR #401)
+- B2500 V2/V3, Venus & Jupiter: Stop Home Assistant flooding the log with `Template variable warning: 'dict object' has no attribute 'meterType'` (and the same for `meterMac`) on every poll once the *Meter Type* or *Meter MAC* entity was enabled. The device never reports either setting back, so both entities now simply show the last value that was set. *Meter MAC* also no longer fails with `Value "" … doesn't match pattern ^[0-9A-Fa-f]{12}$` (fixes #346)
+- B2500 V2/V3: *Recharge Mode* was affected the same way and got the same fix
+- Jupiter: Fix the cell voltage sensors of external battery packs. *Cell With Highest Voltage* and *Cell With Lowest Voltage* showed cell numbers far beyond the 16 cells a pack has (such as 62 or 248), *Lowest Cell Voltage* could read 0 mV, and *Cell Voltage Difference* was correspondingly wrong. The sensors of the internal battery were not affected (see discussion #393)
+- B2500: On devices with a CT meter attached, an ordinary status poll was mistaken for an extra battery reading, so the *Input Voltage* and *Extra Battery 2 Voltage* sensors showed the meter's power readings scaled down to a few volts
+- MQTT Proxy: Stop logging `Modified client ID … (conflict resolution)` over and over for a single reconnecting device and leaving its old connection open. Only devices that really do share one client ID are renamed now (fixes #398, PR #400)
+- B2500: Ignore state of charge readings outside 0-100%. The extra batteries occasionally report values like 4873% or 56577%, which ended up in Home Assistant's long-term statistics; the *Battery Percentage* and *Battery SoC* sensors now show unknown for that poll instead (fixes #97)
+- B2500 V2/V3: Ignore implausible CT sensor readings. With nothing to measure the clamp reports 65535 W, which ended up in Home Assistant's long-term statistics; *CT Transmitted Power*, *CT Clip Power 1-3* and *Micro Inverter Power* now keep their previous value instead (PR #403)
+
+### Changed
+
+- Jupiter: *Daily Charging Capacity* reports today's solar production, not the energy charged into the battery, and is now called *Daily Power Generation*. If you added it to the Energy Dashboard, move it from a battery entry to *Solar production* (PR #403)
+
 ## [1.9.1] - 2026-07-29
 
 ### Fixed

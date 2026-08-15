@@ -327,8 +327,12 @@ export class MqttClient {
    * Request device data
    *
    * @param device - The device configuration
+   * @param options.forceMessageIndices - Indices of message definitions to re-read
+   *   even though their poll interval has not elapsed yet. Used after a control
+   *   command so the entity reflects what the device actually accepted instead of
+   *   waiting up to a full polling interval.
    */
-  requestDeviceData(device: Device): void {
+  requestDeviceData(device: Device, options?: { forceMessageIndices?: readonly number[] }): void {
     const topics = this.deviceManager.getDeviceTopics(device);
     const deviseDefinition = getDeviceDefinition(device.deviceType);
 
@@ -350,17 +354,35 @@ export class MqttClient {
     // (e.g. only polling per-pack BMS details for packs that are present).
     const pollState = (this.deviceManager.getDeviceState(device) ?? {}) as BaseDeviceData;
 
+    // A forced message is re-read regardless of when it was last requested. Both
+    // loops below still skip disabled messages and messages their poll predicate
+    // rules out before consulting this set, so forcing can only bypass the
+    // timing gate, never the configuration or the device state.
+    const forced = new Set(options?.forceMessageIndices ?? []);
+
     // Find the first message that needs to be refreshed
     let now = Date.now();
     let needsRefresh = false;
     let shouldStartTimeout = false;
     for (const [idx, message] of deviseDefinition.messages.entries()) {
+      // Mirror the skips applied when actually sending, below. Without them a
+      // message that is never sent never gets a `lastRequestTime`, so it stays
+      // permanently "due" and `needsRefresh` is always true — which made the
+      // early return below dead code on every device that has a disabled
+      // message (i.e. all of them, whenever POLL_CELL_DATA is off).
+      if (!message.enabled || message.polled === false) {
+        continue;
+      }
       if (message.shouldPoll && !message.shouldPoll(pollState)) {
         continue;
       }
       let lastRequestTimeKey = `${device.deviceId}:${idx}`;
       const lastRequestTime = this.lastRequestTime.get(lastRequestTimeKey);
-      if (lastRequestTime == null || now > lastRequestTime + message.pollInterval) {
+      if (
+        forced.has(idx) ||
+        lastRequestTime == null ||
+        now > lastRequestTime + message.pollInterval
+      ) {
         needsRefresh = true;
         shouldStartTimeout = shouldStartTimeout || message.controlsDeviceAvailability;
       }
@@ -392,8 +414,9 @@ export class MqttClient {
 
     // Send requests for all messages that need to be refreshed, but only if no outstanding timeout
     for (const [idx, message] of deviseDefinition.messages.entries()) {
-      // Skip polling for disabled messages
-      if (!message.enabled) {
+      // Skip polling for disabled messages, and for derived messages which are
+      // computed locally and have no refresh payload to send.
+      if (!message.enabled || message.polled === false) {
         continue;
       }
 
@@ -404,7 +427,13 @@ export class MqttClient {
 
       let lastRequestTimeKey = `${device.deviceId}:${idx}`;
       const lastRequestTime = this.lastRequestTime.get(lastRequestTimeKey);
-      if (lastRequestTime == null || now > lastRequestTime + message.pollInterval) {
+      if (
+        forced.has(idx) ||
+        lastRequestTime == null ||
+        now > lastRequestTime + message.pollInterval
+      ) {
+        // Re-anchor the schedule so a forced read does not leave a regular poll
+        // due a moment later.
         this.lastRequestTime.set(lastRequestTimeKey, now);
         const payload = message.refreshDataPayload;
         setTimeout(

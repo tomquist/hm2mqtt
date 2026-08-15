@@ -42,6 +42,11 @@ VERSION="$1"
 RELEASE_BRANCH="release/v${VERSION}"
 CURRENT_DATE=$(date +%Y-%m-%d)
 
+# Add-on version that develop carries between releases. It doubles as the image
+# tag the Home Assistant Supervisor pulls, and matches the `next` tag CI pushes
+# for every commit on develop.
+DEV_ADDON_VERSION="next"
+
 # Validate version format (semantic versioning)
 if ! [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     print_error "Version must follow semantic versioning format (e.g., 1.2.3)"
@@ -233,6 +238,20 @@ if ! grep -q "\[Next\]" CHANGELOG.md; then
 
     git add CHANGELOG.md
     git commit -m "Add new [Next] section to CHANGELOG.md"
+fi
+
+# Point the add-on back at the development image. The Home Assistant Supervisor
+# uses the `version` from ha_addon/config.yaml as the tag of the prebuilt
+# `image`, so as long as develop carries the released version, installing the
+# add-on from the `#develop` repository pulls the released image instead of the
+# development build that CI publishes as `:next`.
+if ! grep -q "^version: \"${DEV_ADDON_VERSION}\"" ha_addon/config.yaml; then
+    print_info "Restoring add-on version '${DEV_ADDON_VERSION}' in ha_addon/config.yaml"
+    sed -i.bak "s/^version: \"[^\"]*\"/version: \"${DEV_ADDON_VERSION}\"/" ha_addon/config.yaml
+    rm ha_addon/config.yaml.bak
+
+    git add ha_addon/config.yaml
+    git commit -m "Point the add-on back at the ${DEV_ADDON_VERSION} image on develop"
 fi
 
 # ---------------------------------------------------------------------------

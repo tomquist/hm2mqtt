@@ -1325,7 +1325,7 @@ const commandTestCases: CommandTestCase[] = [
     },
     command: 'time-period/0/enabled',
     input: 'true',
-    expectedOutput: 'cd=3,md=1,nm=0,bt=8:00,et=20:00,wk=127,vv=500,as=1',
+    expectedOutput: 'cd=3,md=1,nm=0,bt=08:00,et=20:00,wk=127,vv=500,as=1',
   },
   {
     description: 'Venus time-period/0/start-time valid',
@@ -1337,7 +1337,7 @@ const commandTestCases: CommandTestCase[] = [
     },
     command: 'time-period/0/start-time',
     input: '6:30',
-    expectedOutput: 'cd=3,md=1,nm=0,bt=6:30,et=20:00,wk=127,vv=500,as=1',
+    expectedOutput: 'cd=3,md=1,nm=0,bt=06:30,et=20:00,wk=127,vv=500,as=1',
   },
   {
     description: 'Venus time-period/0/end-time valid',
@@ -1349,7 +1349,47 @@ const commandTestCases: CommandTestCase[] = [
     },
     command: 'time-period/0/end-time',
     input: '22:30',
-    expectedOutput: 'cd=3,md=1,nm=0,bt=8:00,et=22:30,wk=127,vv=500,as=1',
+    expectedOutput: 'cd=3,md=1,nm=0,bt=08:00,et=22:30,wk=127,vv=500,as=1',
+  },
+  {
+    // The device parses `bt`/`et` positionally, so a single-digit hour has to be
+    // zero-padded or it swallows the tens digit of the minutes (#184).
+    description: 'Venus time-period/0/start-time zero-pads a single-digit hour',
+    deviceType: 'HMG-1',
+    initialState: {
+      timePeriods: [
+        { enabled: true, startTime: '8:00', endTime: '20:00', weekday: '0123456', power: 500 },
+      ],
+    },
+    command: 'time-period/0/start-time',
+    input: '2:43',
+    expectedOutput: 'cd=3,md=1,nm=0,bt=02:43,et=20:00,wk=127,vv=500,as=1',
+  },
+  {
+    description: 'Venus time-period/0/end-time zero-pads a single-digit hour',
+    deviceType: 'HMG-1',
+    initialState: {
+      timePeriods: [
+        { enabled: true, startTime: '8:00', endTime: '20:00', weekday: '0123456', power: 500 },
+      ],
+    },
+    command: 'time-period/0/end-time',
+    input: '4:25',
+    expectedOutput: 'cd=3,md=1,nm=0,bt=08:00,et=04:25,wk=127,vv=500,as=1',
+  },
+  {
+    // A period whose stored state came back from the device as `9:05` must still
+    // go out padded when an unrelated field is changed.
+    description: 'Venus time-period/0/power zero-pads times carried over from device state',
+    deviceType: 'HMG-1',
+    initialState: {
+      timePeriods: [
+        { enabled: true, startTime: '9:05', endTime: '1:30', weekday: '0123456', power: 500 },
+      ],
+    },
+    command: 'time-period/0/power',
+    input: '800',
+    expectedOutput: 'cd=3,md=1,nm=0,bt=09:05,et=01:30,wk=127,vv=800,as=1',
   },
   {
     description: 'Venus time-period/0/power valid',
@@ -1361,7 +1401,7 @@ const commandTestCases: CommandTestCase[] = [
     },
     command: 'time-period/0/power',
     input: '800',
-    expectedOutput: 'cd=3,md=1,nm=0,bt=8:00,et=20:00,wk=127,vv=800,as=1',
+    expectedOutput: 'cd=3,md=1,nm=0,bt=08:00,et=20:00,wk=127,vv=800,as=1',
   },
   {
     description: 'Venus time-period/0/weekday valid (weekdays only)',
@@ -1373,7 +1413,7 @@ const commandTestCases: CommandTestCase[] = [
     },
     command: 'time-period/0/weekday',
     input: '12345', // Monday-Friday
-    expectedOutput: 'cd=3,md=1,nm=0,bt=8:00,et=20:00,wk=62,vv=500,as=1', // 62 = 0b111110
+    expectedOutput: 'cd=3,md=1,nm=0,bt=08:00,et=20:00,wk=62,vv=500,as=1', // 62 = 0b111110
   },
 
   // ============================================================
@@ -1572,7 +1612,7 @@ const commandTestCases: CommandTestCase[] = [
     },
     command: 'time-period/0/enabled',
     input: 'true',
-    expectedOutput: 'cd=3,md=1,nm=0,bt=8:00,et=20:00,wk=127,vv=500,as=1',
+    expectedOutput: 'cd=3,md=1,nm=0,bt=08:00,et=20:00,wk=127,vv=500,as=1',
   },
   {
     description: 'Jupiter time-period/0/enabled true (manual mode)',
@@ -1585,7 +1625,7 @@ const commandTestCases: CommandTestCase[] = [
     },
     command: 'time-period/0/enabled',
     input: 'true',
-    expectedOutput: 'cd=3,md=2,nm=0,bt=8:00,et=20:00,wk=127,vv=500,as=1',
+    expectedOutput: 'cd=3,md=2,nm=0,bt=08:00,et=20:00,wk=127,vv=500,as=1',
   },
   {
     description: 'Jupiter time-period/0/enabled true (ai mode preserves md=5)',
@@ -1598,7 +1638,7 @@ const commandTestCases: CommandTestCase[] = [
     },
     command: 'time-period/0/enabled',
     input: 'true',
-    expectedOutput: 'cd=3,md=5,nm=0,bt=8:00,et=20:00,wk=127,vv=500,as=1',
+    expectedOutput: 'cd=3,md=5,nm=0,bt=08:00,et=20:00,wk=127,vv=500,as=1',
   },
   {
     description: 'Jupiter time-period/0/power valid',
@@ -1611,7 +1651,20 @@ const commandTestCases: CommandTestCase[] = [
     },
     command: 'time-period/0/power',
     input: '750',
-    expectedOutput: 'cd=3,md=1,nm=0,bt=8:00,et=20:00,wk=127,vv=750,as=1',
+    expectedOutput: 'cd=3,md=1,nm=0,bt=08:00,et=20:00,wk=127,vv=750,as=1',
+  },
+  {
+    description: 'Jupiter time-period/0/start-time zero-pads a single-digit hour',
+    deviceType: 'HMN-1',
+    initialState: {
+      workingMode: 'automatic',
+      timePeriods: [
+        { enabled: true, startTime: '8:00', endTime: '20:00', weekday: '0123456', power: 500 },
+      ],
+    },
+    command: 'time-period/0/start-time',
+    input: '2:43',
+    expectedOutput: 'cd=3,md=1,nm=0,bt=02:43,et=20:00,wk=127,vv=500,as=1',
   },
   {
     description: 'Jupiter time-period/0/power above max (invalid)',
@@ -1759,7 +1812,11 @@ describe('Device Commands', () => {
     deviceManager.updateDeviceState(device, 'data', () => baseState);
 
     publishCallback = jest.fn();
-    controlHandler = new ControlHandler(deviceManager, publishCallback);
+    // Record only `(device, payload)`; the message index the handler also passes
+    // is covered in controlHandler.test.ts and is not what these cases assert.
+    controlHandler = new ControlHandler(deviceManager, (device, payload) =>
+      publishCallback(device, payload),
+    );
 
     return device;
   }

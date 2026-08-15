@@ -23,6 +23,8 @@ import {
   WeekdaySet,
 } from '../types.js';
 import { registerNetworkInfoMessage } from './networkInfoBase.js';
+import { registerCellBalancingMessage } from './cellBalancingMessage.js';
+import { extractVenusSample } from '../cellBalancing.js';
 import logger from '../logger.js';
 import {
   buttonComponent,
@@ -183,6 +185,30 @@ function weekdaySetToBitMask(weekday: VenusTimePeriod['weekday']): number {
 }
 
 /**
+ * Format a time period boundary as the zero-padded `HH:MM` the device expects in
+ * `bt=`/`et=`.
+ *
+ * The device parses these positionally rather than splitting on `:`, so an
+ * unpadded hour shifts the minutes by one character and drops their tens digit:
+ * `bt=2:43` is read back as `02:03` and `bt=4:25` as `04:05` (fixes #184). The
+ * Marstek app pads both halves — `setTimePower` builds the payload as
+ * `hour.toString().padLeft(2, '0') + ':' + minute.toString().padLeft(2, '0')`.
+ *
+ * Note this is the opposite of the B2500, which wants unpadded `H:M` in its
+ * `cd=7` timer payload; the app pads for Venus/Jupiter only.
+ */
+function formatTimePeriodTime(time: string): string {
+  const [hourPart, minutePart] = time.split(':');
+  if (hourPart == null || minutePart == null) return time;
+
+  const hours = parseInt(hourPart, 10);
+  const minutes = parseInt(minutePart, 10);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return time;
+
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+}
+
+/**
  * Extract additional device info for Home Assistant discovery
  *
  * @param state - Device state
@@ -240,6 +266,7 @@ registerDeviceDefinition(
   ({ message }) => {
     registerRuntimeInfoMessage(message);
     registerBMSInfoMessage(message);
+    registerVenusCellBalancingMessage(message);
     registerBMSPackMessage(message);
     registerBMSPackDetailMessages(message);
     registerVenusNetworkInfoMessage(message);
@@ -255,6 +282,7 @@ registerDeviceDefinition(
   ({ message }) => {
     registerRuntimeInfoMessage(message);
     registerBMSInfoMessage(message, { scaleTemperatures: true });
+    registerVenusCellBalancingMessage(message);
     registerBMSPackMessage(message, { scaleTemperatures: true });
     registerBMSPackDetailMessages(message, { scaleTemperatures: true });
     registerVenusNetworkInfoMessage(message);
@@ -976,6 +1004,12 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:cog',
         command: 'working-mode',
         valueMappings: {
+          // `wor_m=0` is the self-consumption mode, which the Marstek app shows
+          // as "Self Consumption". The option is left as "Automatic" because it
+          // is what an entity in this select reports as its state: renaming it
+          // would break automations that set or compare the mode by name, for
+          // no functional gain. Marstek's own internal name for the mode is
+          // "Auto".
           automatic: 'Automatic',
           manual: 'Manual',
           trading: 'Trading',
@@ -1682,8 +1716,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const params: CommandParams = { md: 1, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
-            params.bt = period.startTime;
-            params.et = period.endTime;
+            params.bt = formatTimePeriodTime(period.startTime);
+            params.et = formatTimePeriodTime(period.endTime);
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = enabled ? 1 : 0;
@@ -1721,8 +1755,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const params: CommandParams = { md: 1, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
-            params.bt = period.startTime;
-            params.et = period.endTime;
+            params.bt = formatTimePeriodTime(period.startTime);
+            params.et = formatTimePeriodTime(period.endTime);
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
@@ -1760,8 +1794,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const params: CommandParams = { md: 1, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
-            params.bt = period.startTime;
-            params.et = period.endTime;
+            params.bt = formatTimePeriodTime(period.startTime);
+            params.et = formatTimePeriodTime(period.endTime);
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
@@ -1797,8 +1831,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const params: CommandParams = { md: 1, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
-            params.bt = period.startTime;
-            params.et = period.endTime;
+            params.bt = formatTimePeriodTime(period.startTime);
+            params.et = formatTimePeriodTime(period.endTime);
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
@@ -1837,8 +1871,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             const params: CommandParams = { md: 1, nm: periodIndex };
             const period = timePeriods[periodIndex];
 
-            params.bt = period.startTime;
-            params.et = period.endTime;
+            params.bt = formatTimePeriodTime(period.startTime);
+            params.et = formatTimePeriodTime(period.endTime);
             params.wk = weekdaySetToBitMask(period.weekday);
             params.vv = period.power;
             params.as = period.enabled ? 1 : 0;
@@ -1967,6 +2001,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         command: 'meter-mac',
         // The device uses a plain 12 hex digit MAC without ':'/'-' separators.
         pattern: '^[0-9A-Fa-f]{12}$',
+        // Write-only: the device never reports the configured MAC back.
+        optimistic: true,
         enabled_by_default: false,
       }),
     );
@@ -2004,6 +2040,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:meter-electric',
         command: 'meter-type',
         valueMappings: meterTypeLabels,
+        // Write-only: the device never reports the configured meter type back.
+        optimistic: true,
         enabled_by_default: false,
       }),
     );
@@ -2117,6 +2155,18 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         publishCallback(processCommand(CommandType.DEPTH_OF_DISCHARGE, { dod: dodValue }));
       },
     });
+  });
+}
+
+/**
+ * Cell balancing diagnostics for Venus. The cd=14 payload carries the cell
+ * voltages, pack current, temperatures and state of charge together, so every
+ * sample is internally consistent.
+ */
+function registerVenusCellBalancingMessage(message: BuildMessageFn) {
+  registerCellBalancingMessage(message, {
+    cellPath: 'bms',
+    extract: extractVenusSample,
   });
 }
 
@@ -2261,12 +2311,16 @@ function registerBMSInfoMessage(
             stateClass: 'measurement',
           },
         ],
+        // Pack current is reported in deci-amps (e.g. -94 -> -9.4 A), signed
+        // negative while discharging. Jupiter's cd=14 response uses the same key
+        // at the same scale.
         [
           'b_cur',
           {
             id: 'current',
             deviceClass: 'current',
-            unitOfMeasurement: 'mA',
+            unitOfMeasurement: 'A',
+            transform: divide(10),
             stateClass: 'measurement',
           },
         ],

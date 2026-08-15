@@ -4,6 +4,7 @@ import { parseMessage } from './parser.js';
 import logger from './logger.js';
 import {
   B2500CellData,
+  B2500V2CD16Data,
   B2500V2DeviceData,
   CT002DeviceData,
   CT002PhaseEnergyInfo,
@@ -73,6 +74,44 @@ describe('MQTT Message Parser', () => {
 
     expect(result).toEqual({});
     // The malformed part should be skipped
+  });
+
+  describe('B2500 per-pack status flags (l0/l1)', () => {
+    const base =
+      'p1=0,p2=0,w1=0,w2=0,pe=14,vv=224,sv=3,cs=0,cd=0,am=0,o1=0,o2=0,do=90,lv=800,cj=1,kn=313,g1=0,g2=0,b1=0,b2=0,md=0,d1=1,e1=0:0,f1=23:59,h1=800,sg=0,sp=80,st=0,tl=12,th=13,tc=0,tf=0,fc=202310231502,id=5,a0=14,a1=0,a2=0';
+
+    const statusFor = (l0: number, l1: number) => {
+      const parsed = parseMessage(`${base},l0=${l0},l1=${l1}`, 'HMA-1', 'e88da6f35def');
+      return (parsed['data'] as B2500V2DeviceData).packStatus;
+    };
+
+    test('decodes the host pack from l0', () => {
+      // bit 1 = charging
+      expect(statusFor(0b0010, 0)?.host).toMatchObject({
+        discharging: false,
+        charging: true,
+        dodReached: false,
+        undervoltage: false,
+      });
+      // bit 0 = discharging, bit 2 = DoD reached
+      expect(statusFor(0b0101, 0)?.host).toMatchObject({
+        discharging: true,
+        charging: false,
+        dodReached: true,
+      });
+    });
+
+    test('splits l1 into extra2 (low nibble) and extra1 (high nibble)', () => {
+      // extra1 charging (bit 5), extra2 discharging (bit 0)
+      const status = statusFor(0, 0b0010_0001);
+      expect(status?.extra1).toMatchObject({ charging: true, discharging: false });
+      expect(status?.extra2).toMatchObject({ charging: false, discharging: true });
+    });
+
+    test('is absent on firmware that does not report the fields', () => {
+      const parsed = parseMessage(base, 'HMA-1', 'e88da6f35def');
+      expect((parsed['data'] as B2500V2DeviceData).packStatus).toBeUndefined();
+    });
   });
 
   test('should parse a full device message correctly', () => {
@@ -173,6 +212,110 @@ describe('MQTT Message Parser', () => {
     // Absent on devices that do not report it
     const without = parseMessage(base, 'HMA-1', '12345');
     expect((without['data'] as B2500V2DeviceData).wifiSignalStrength).toBeUndefined();
+  });
+
+  test('should drop the CT sensor no-reading sentinel from the power fields', () => {
+    const base = 'pe=75,kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0';
+    const ctInfo = (fields: string) =>
+      (parseMessage(`${base},${fields}`, 'HMA-1', '12345')['data'] as B2500V2DeviceData).ctInfo;
+
+    // Real readings pass through unscaled, including negative ones.
+    const real = ctInfo('st=120,m0=230,m1=-45,m2=0,m3=310');
+    expect(real).toHaveProperty('transmittedPower', 120);
+    expect(real).toHaveProperty('phase1', 230);
+    expect(real).toHaveProperty('phase2', -45);
+    expect(real).toHaveProperty('phase3', 0);
+    expect(real).toHaveProperty('microInverterPower', 310);
+
+    // 65535 means "no reading", and the app's cut-off is 60000, so anything
+    // from there up is dropped rather than published as a real power value.
+    const sentinel = ctInfo('st=65535,m0=65535,m1=60000,m2=65535,m3=65535');
+    expect(sentinel?.transmittedPower).toBeUndefined();
+    expect(sentinel?.phase1).toBeUndefined();
+    expect(sentinel?.phase2).toBeUndefined();
+    expect(sentinel?.phase3).toBeUndefined();
+    expect(sentinel?.microInverterPower).toBeUndefined();
+
+    // Just below the cut-off is still a valid reading.
+    expect(ctInfo('st=59999')).toHaveProperty('transmittedPower', 59999);
+  });
+
+  test('should drop out-of-range state of charge readings (issue #97)', () => {
+    const base = 'pe=75,kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0';
+    const soc = (keys: string) =>
+      parseMessage(`${base},${keys}`, 'HMA-1', '12345')['data'] as B2500V2DeviceData;
+
+    // Plausible readings pass through unchanged, including both boundaries.
+    const valid = soc('a0=14,a1=0,a2=100');
+    expect(valid.batteryCapacities).toHaveProperty('host', 14);
+    expect(valid.batteryCapacities).toHaveProperty('extra1', 0);
+    expect(valid.batteryCapacities).toHaveProperty('extra2', 100);
+
+    // The firmware occasionally reports impossible percentages for the extra
+    // batteries. Those are dropped so the sensor goes unknown for that poll.
+    const spike = soc('a0=14,a1=56577,a2=2425');
+    expect(spike.batteryCapacities).toHaveProperty('host', 14);
+    expect(spike.batteryCapacities?.extra1).toBeUndefined();
+    expect(spike.batteryCapacities?.extra2).toBeUndefined();
+    // The published payload leaves the keys out entirely, so Home Assistant
+    // sees the sensors as unknown and keeps them out of the statistics.
+    expect(JSON.parse(JSON.stringify(spike.batteryCapacities))).toEqual({ host: 14 });
+
+    // Negative readings are rejected as well.
+    expect(soc('a0=-1,a1=0,a2=0').batteryCapacities?.host).toBeUndefined();
+
+    expect(soc('a0=0').batteryCapacities).toHaveProperty('host', 0);
+
+    // The main battery percentage uses the same bounds, boundaries included.
+    const main = (pe: string) =>
+      parseMessage(
+        `pe=${pe},kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0`,
+        'HMA-1',
+        '12345',
+      )['data'] as B2500V2DeviceData;
+    expect(main('4873').batteryPercentage).toBeUndefined();
+    expect(main('0').batteryPercentage).toBe(0);
+    expect(main('100').batteryPercentage).toBe(100);
+  });
+
+  test('should not read a runtime poll as extra battery data', () => {
+    const runtime =
+      'pe=75,kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0';
+    const paths = (message: string, deviceType = 'HMA-1') =>
+      Object.keys(parseMessage(message, deviceType, '12345')).sort();
+
+    // A runtime response from a device with a CT meter attached carries the
+    // clip power readings (m0/m1/m2) and a second time period. In a cd=16
+    // response m1/m2 are the input voltages instead, so this used to be
+    // published as extra battery data too, turning a 200 W clip reading into an
+    // input voltage of 0.2 V.
+    expect(paths(runtime)).toEqual(['data']);
+    expect(paths(`${runtime},m0=100,m1=200,m2=300,e2=0:0`)).toEqual(['data']);
+    expect(paths(`${runtime},m0=100,m1=200,m2=300,e2=0:0`, 'HMB-1')).toEqual(['data']);
+    // A micro-inverter power reading or the scene field already kept those
+    // messages out before, and still does.
+    expect(paths(`${runtime},m0=100,m1=200,m2=300,e2=0:0,m3=50`)).toEqual(['data']);
+    expect(paths(`${runtime},m0=100,m1=200,m2=300,e2=0:0,cj=1`)).toEqual(['data']);
+
+    // Genuine cd=16 responses are still recognised: the full payload with the
+    // per-pack battery measurements ...
+    const full =
+      'm1=32000,m2=0,c1=1000,c2=0,w1=32,w2=0,i1=230000,i2=0,c3=100,c4=0,g1=23,g2=0,' +
+      'bb=100,bv=52000,bc=1900,sb=0,sv=0,sc=0,lb=0,lv=0,lc=0';
+    expect(paths(full)).toEqual(['extraBatteryData']);
+    const fullData = parseMessage(full, 'HMA-1', '12345')['extraBatteryData'] as B2500V2CD16Data;
+    expect(fullData.input1?.voltage).toBeCloseTo(32, 5);
+    expect(fullData.batteryData?.host?.voltage).toBeCloseTo(52, 5);
+
+    // ... and the input/output-only payload.
+    const inputsOnly = 'p1=0,p2=0,m1=32000,m2=0,w1=32,w2=0,e1=0,e2=0,o1=0,o2=0,g1=23,g2=0';
+    expect(paths(inputsOnly)).toEqual(['extraBatteryData']);
+    const inputsOnlyData = parseMessage(inputsOnly, 'HMA-1', '12345')[
+      'extraBatteryData'
+    ] as B2500V2CD16Data;
+    expect(inputsOnlyData.input1?.voltage).toBeCloseTo(32, 5);
+    expect(inputsOnlyData.output1?.power).toBe(23);
+    expect(paths(inputsOnly, 'HMB-1')).toEqual(['extraBatteryData']);
   });
 
   test('should parse all 16 cell voltages per pack', () => {
@@ -538,7 +681,7 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('timestamp');
 
     // Energy statistics
-    expect(result).toHaveProperty('dailyChargingCapacity', 3.49);
+    expect(result).toHaveProperty('dailyPowerGeneration', 3.49);
     expect(result).toHaveProperty('monthlyChargingCapacity', 21.93);
     expect(result).toHaveProperty('yearlyChargingCapacity', 0);
     expect(result).toHaveProperty('dailyDischargeCapacity', 2.85);
@@ -635,16 +778,20 @@ describe('MQTT Message Parser', () => {
     // Cell voltages (vol0-vol15)
     expect(result).toHaveProperty('cells');
 
-    // Battery cell voltages: 4 batteries, each using 4 volX values
-    // Battery 0 (internal): vol0, vol1, vol2, vol3
-    // Battery 1 (external 1): vol4, vol5, vol6, vol7
-    // Battery 2 (external 2): vol8, vol9, vol10, vol11
-    // Battery 3 (external 3): vol12, vol13, vol14, vol15
+    // Battery cell voltages: 4 batteries, each using 3 volX values
+    // Battery 0 (internal): vol0, vol1, vol2
+    // Battery 1 (external 1): vol3, vol4, vol5
+    // Battery 2 (external 2): vol6, vol7, vol8
+    // Battery 3 (external 3): vol9, vol10, vol11
+    //
+    // NOTE: The volX values in this message are synthetic (all 16 are non-zero
+    // and in the same range), so they only exercise the field indexing. See the
+    // "multiple battery packs" test below for a real-world message.
     expect(result).toHaveProperty('batteries');
     expect(Array.isArray(result.batteries)).toBe(true);
     expect(result.batteries).toHaveLength(4);
 
-    // Battery 0 (internal): vol0=3280 (0x0CD0), vol1=3281, vol2=3283, vol3=3283
+    // Battery 0 (internal): vol0=3280 (0x0CD0), vol1=3281, vol2=3283
     expect(result.batteries?.[0]).toHaveProperty('cellVoltages');
     expect(result.batteries?.[0]?.cellVoltages?.maxVoltage).toBe(3281);
     expect(result.batteries?.[0]?.cellVoltages?.minVoltage).toBe(3283);
@@ -655,30 +802,30 @@ describe('MQTT Message Parser', () => {
     // Drift (difference) between highest and lowest cell voltage
     expect(result.batteries?.[0]?.cellVoltages?.voltageDiff).toBe(2);
 
-    // Battery 1 (external 1): vol4=3283 (0x0CD3), vol5=3283, vol6=3280, vol7=3284
+    // Battery 1 (external 1): vol3=3283 (0x0CD3), vol4=3283, vol5=3283
     expect(result.batteries?.[1]).toHaveProperty('cellVoltages');
     expect(result.batteries?.[1]?.cellVoltages?.maxVoltage).toBe(3283);
-    expect(result.batteries?.[1]?.cellVoltages?.minVoltage).toBe(3280);
+    expect(result.batteries?.[1]?.cellVoltages?.minVoltage).toBe(3283);
     // Low byte: 0xD3 = 211
     expect(result.batteries?.[1]?.cellVoltages?.maxVoltageCell).toBe(211);
     // High byte: 0x0C = 12
     expect(result.batteries?.[1]?.cellVoltages?.minVoltageCell).toBe(12);
 
-    // Battery 2 (external 2): vol8=3283 (0x0CD3), vol9=3284, vol10=3282, vol11=3286
+    // Battery 2 (external 2): vol6=3280 (0x0CD0), vol7=3284, vol8=3283
     expect(result.batteries?.[2]).toHaveProperty('cellVoltages');
     expect(result.batteries?.[2]?.cellVoltages?.maxVoltage).toBe(3284);
-    expect(result.batteries?.[2]?.cellVoltages?.minVoltage).toBe(3282);
-    // Low byte: 0xD3 = 211
-    expect(result.batteries?.[2]?.cellVoltages?.maxVoltageCell).toBe(211);
+    expect(result.batteries?.[2]?.cellVoltages?.minVoltage).toBe(3283);
+    // Low byte: 0xD0 = 208
+    expect(result.batteries?.[2]?.cellVoltages?.maxVoltageCell).toBe(208);
     // High byte: 0x0C = 12
     expect(result.batteries?.[2]?.cellVoltages?.minVoltageCell).toBe(12);
 
-    // Battery 3 (external 3): vol12=3277 (0x0CCD), vol13=3286, vol14=3283, vol15=3284
+    // Battery 3 (external 3): vol9=3284 (0x0CD4), vol10=3282, vol11=3286
     expect(result.batteries?.[3]).toHaveProperty('cellVoltages');
-    expect(result.batteries?.[3]?.cellVoltages?.maxVoltage).toBe(3286);
-    expect(result.batteries?.[3]?.cellVoltages?.minVoltage).toBe(3283);
-    // Low byte: 0xCD = 205
-    expect(result.batteries?.[3]?.cellVoltages?.maxVoltageCell).toBe(205);
+    expect(result.batteries?.[3]?.cellVoltages?.maxVoltage).toBe(3282);
+    expect(result.batteries?.[3]?.cellVoltages?.minVoltage).toBe(3286);
+    // Low byte: 0xD4 = 212
+    expect(result.batteries?.[3]?.cellVoltages?.maxVoltageCell).toBe(212);
     // High byte: 0x0C = 12
     expect(result.batteries?.[3]?.cellVoltages?.minVoltageCell).toBe(12);
 
@@ -747,6 +894,77 @@ describe('MQTT Message Parser', () => {
     expect(result.inverter).toHaveProperty('gridPower', 119);
     expect(result.inverter).toHaveProperty('gridPowerFactor', 0);
     expect(result.inverter).toHaveProperty('gridFrequency', 50.02);
+  });
+
+  test('should parse Jupiter BMS cell voltages for multiple battery packs', () => {
+    // Real-world message from a Jupiter C Plus (JPLS-8H) with four battery
+    // packs (`b_num=4`), see https://github.com/tomquist/hm2mqtt/discussions/393
+    // Each pack occupies three volX fields: packed cell numbers, maximum cell
+    // voltage, minimum cell voltage. The trailing vol12-vol15 are unused.
+    const message =
+      'inv:g_state=1,w_state1=1,w_state2=1,i_err=0,i_war=0,g_vol=2436,g_cur=0,g_pf=0,g_fre=5000,b_vol=536,g_power=0,i_temp=40,mppt:m_state=148,m_err=0,m_temp=38,m_war=0,pv1=429|26|1121,pv2=114|0|0,pv3=114|0|0,pv4=435|27|1179,b_vol=532,b_cur=43,base_v=220,pe_v=161,fail_t=0,bms:c_vol=584,c_cur=500,d_cur=500,soc=81,soh=0,b_cap=10240,b_vol=5340,b_cur=48,b_temp=290,b_err=0,b_war=0,b_err2=0,b_war2=0,c_flag=192,s_flag=0,b_num=4,vol0=1039,vol1=3353,vol2=3326,vol3=1,vol4=3320,vol5=3319,vol6=2063,vol7=3362,vol8=3328,vol9=774,vol10=3338,vol11=3327,vol12=0,vol13=0,vol14=0,vol15=0,b_temp0=28,b_temp1=28,b_temp2=28,b_temp3=29,env_t=36,mos_t=28,lck=0';
+    const deviceType = 'JPLS-8H';
+    const deviceId = 'jupiter123';
+
+    const parsed = parseMessage(message, deviceType, deviceId);
+    const result = parsed['bms'] as JupiterBMSInfo;
+
+    expect(result.bms).toHaveProperty('bmsNumber', 4);
+    expect(result.batteries).toHaveLength(4);
+
+    // All decoded cell numbers must be within range of a 16-cell pack, and all
+    // voltages must be plausible cell voltages. This is what rules out a
+    // 4-field block, which would decode voltages as cell numbers (e.g. 248).
+    const expected = [
+      // vol0=1039 (0x040F), vol1=3353, vol2=3326
+      { maxVoltageCell: 15, minVoltageCell: 4, maxVoltage: 3353, minVoltage: 3326, diff: 27 },
+      // vol3=1 (0x0001), vol4=3320, vol5=3319
+      { maxVoltageCell: 1, minVoltageCell: 0, maxVoltage: 3320, minVoltage: 3319, diff: 1 },
+      // vol6=2063 (0x080F), vol7=3362, vol8=3328
+      { maxVoltageCell: 15, minVoltageCell: 8, maxVoltage: 3362, minVoltage: 3328, diff: 34 },
+      // vol9=774 (0x0306), vol10=3338, vol11=3327
+      { maxVoltageCell: 6, minVoltageCell: 3, maxVoltage: 3338, minVoltage: 3327, diff: 11 },
+    ];
+
+    expected.forEach((values, index) => {
+      const cellVoltages = result.batteries?.[index]?.cellVoltages;
+      expect(cellVoltages?.maxVoltageCell).toBe(values.maxVoltageCell);
+      expect(cellVoltages?.minVoltageCell).toBe(values.minVoltageCell);
+      expect(cellVoltages?.maxVoltage).toBe(values.maxVoltage);
+      expect(cellVoltages?.minVoltage).toBe(values.minVoltage);
+      expect(cellVoltages?.voltageDiff).toBe(values.diff);
+    });
+  });
+
+  test('should parse Jupiter BMS cell voltages with one external battery pack', () => {
+    // Real-world message from a Jupiter C Plus (JPLS-8H) with one external
+    // battery pack (`b_num=2`), see
+    // https://github.com/tomquist/hm2mqtt/discussions/393
+    // Only vol0-vol5 are populated, which is what pins the block size down to
+    // three: a block size of four would need vol4-vol7 for the second pack.
+    const message =
+      'bms:c_vol=584,c_cur=500,d_cur=500,soc=38,soh=0,b_cap=5120,b_vol=5420,b_cur=300,b_temp=290,b_err=0,b_war=0,b_err2=0,b_war2=0,c_flag=192,s_flag=0,b_num=2,vol0=526,vol1=3241,vol2=3237,vol3=256,vol4=3390,vol5=3386,vol6=0,vol7=0,vol8=0,vol9=0,vol10=0,vol11=0,vol12=0,vol13=0,vol14=0,vol15=0,b_temp0=29,b_temp1=28,b_temp2=28,b_temp3=28,env_t=37,mos_t=30,lck=0';
+    const deviceType = 'JPLS-8H';
+    const deviceId = 'jupiter123';
+
+    const parsed = parseMessage(message, deviceType, deviceId);
+    const result = parsed['bms'] as JupiterBMSInfo;
+
+    expect(result.bms).toHaveProperty('bmsNumber', 2);
+
+    // Internal battery: vol0=526 (0x020E), vol1=3241, vol2=3237
+    expect(result.batteries?.[0]?.cellVoltages?.maxVoltageCell).toBe(14);
+    expect(result.batteries?.[0]?.cellVoltages?.minVoltageCell).toBe(2);
+    expect(result.batteries?.[0]?.cellVoltages?.maxVoltage).toBe(3241);
+    expect(result.batteries?.[0]?.cellVoltages?.minVoltage).toBe(3237);
+    expect(result.batteries?.[0]?.cellVoltages?.voltageDiff).toBe(4);
+
+    // External battery 1: vol3=256 (0x0100), vol4=3390, vol5=3386
+    expect(result.batteries?.[1]?.cellVoltages?.maxVoltageCell).toBe(0);
+    expect(result.batteries?.[1]?.cellVoltages?.minVoltageCell).toBe(1);
+    expect(result.batteries?.[1]?.cellVoltages?.maxVoltage).toBe(3390);
+    expect(result.batteries?.[1]?.cellVoltages?.minVoltage).toBe(3386);
+    expect(result.batteries?.[1]?.cellVoltages?.voltageDiff).toBe(4);
   });
 
   test('should convert negative Jupiter BMS temperatures correctly', () => {
@@ -1259,6 +1477,10 @@ describe('MQTT Message Parser', () => {
     const result = parsed['bms'] as VenusBMSInfo;
     expect(result.bms?.voltage).toBeCloseTo(52.23);
     expect(result.bms?.chargeVoltage).toBeCloseTo(57.1);
+    // Deci-amps, negative while discharging: -9.4 A across 52.23 V is about
+    // 490 W. Read as the milliamps this used to claim it would have been 4.9 W,
+    // which is not a pack under load at all.
+    expect(result.bms?.current).toBeCloseTo(-9.4);
     // Other Venus variants already report temperatures in whole degrees.
     expect(result.bms?.mosfetTemp).toBe(23);
     expect(result.cells?.temperatures?.[0]).toBe(18);

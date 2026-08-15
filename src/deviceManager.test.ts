@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
 import './device/registry.js';
 import { DeviceManager } from './deviceManager.js';
+import { registerDeviceDefinition } from './deviceDefinition.js';
 import { MqttConfig } from './types.js';
 import { DEFAULT_TOPIC_PREFIX } from './constants.js';
 import { calculateNewVersionTopicId } from './utils/crypt.js';
@@ -255,6 +256,178 @@ describe('DeviceManager', () => {
       const stats = (b2500.getDeviceState(hma) as any).dailyStats;
       expect(stats.batteryChargingPower).toBe(100); // corrupt drop rejected
       expect(stats.batteryDischargePower).toBe(60); // sibling increase preserved
+    });
+  });
+
+  describe('derived messages', () => {
+    const defineDerived = (deviceType: string, derive: any) => {
+      registerDeviceDefinition({ deviceTypes: [deviceType] }, ({ message }) => {
+        message(
+          {
+            refreshDataPayload: 'cd=1',
+            isMessage: () => true,
+            publishPath: 'data',
+            defaultState: {},
+            getAdditionalDeviceInfo: () => ({}),
+            pollInterval: 60000,
+            controlsDeviceAvailability: true,
+          },
+          () => {},
+        );
+        message(
+          {
+            refreshDataPayload: '',
+            isMessage: () => false,
+            publishPath: 'derived',
+            defaultState: {},
+            getAdditionalDeviceInfo: () => ({}),
+            pollInterval: 60000,
+            controlsDeviceAvailability: false,
+            polled: false,
+            derive,
+          },
+          () => {},
+        );
+      });
+    };
+
+    const managerFor = (deviceType: string, onUpdate: any) =>
+      new DeviceManager({ ...mockConfig, devices: [{ deviceType, deviceId: 'd1' }] }, onUpdate);
+
+    it('publishes derived state when the derivation returns a value', () => {
+      defineDerived('TESTDERIVEA', ({ stateByPath }: any) => ({
+        doubled: (stateByPath['data']?.raw ?? 0) * 2,
+      }));
+      const onUpdate = jest.fn();
+      const dm = managerFor('TESTDERIVEA', onUpdate);
+      const device = { deviceType: 'TESTDERIVEA', deviceId: 'd1' };
+
+      dm.updateDeviceState(device, 'data', () => ({ raw: 21 }) as any);
+
+      const paths = onUpdate.mock.calls.map((c: any[]) => c[1]);
+      expect(paths).toEqual(['data', 'derived']);
+      expect((onUpdate.mock.calls[1][2] as any).doubled).toBe(42);
+    });
+
+    it('publishes nothing when the derivation returns undefined', () => {
+      // This is what keeps a Venus from emitting a derived state update per
+      // inbound message — eight per poll cycle — for a value that never moved.
+      defineDerived('TESTDERIVEB', () => undefined);
+      const onUpdate = jest.fn();
+      const dm = managerFor('TESTDERIVEB', onUpdate);
+      const device = { deviceType: 'TESTDERIVEB', deviceId: 'd1' };
+
+      dm.updateDeviceState(device, 'data', () => ({ raw: 1 }) as any);
+      dm.updateDeviceState(device, 'data', () => ({ raw: 2 }) as any);
+
+      const paths = onUpdate.mock.calls.map((c: any[]) => c[1]);
+      expect(paths).toEqual(['data', 'data']);
+    });
+
+    it('does not let a derived write trigger another derivation', () => {
+      let calls = 0;
+      defineDerived('TESTDERIVEC', () => {
+        calls += 1;
+        return { tick: calls };
+      });
+      const onUpdate = jest.fn();
+      const dm = managerFor('TESTDERIVEC', onUpdate);
+      const device = { deviceType: 'TESTDERIVEC', deviceId: 'd1' };
+
+      dm.updateDeviceState(device, 'data', () => ({ raw: 1 }) as any);
+      expect(calls).toBe(1);
+    });
+
+    it('survives a derivation that throws', () => {
+      defineDerived('TESTDERIVED', () => {
+        throw new Error('boom');
+      });
+      const onUpdate = jest.fn();
+      const dm = managerFor('TESTDERIVED', onUpdate);
+      const device = { deviceType: 'TESTDERIVED', deviceId: 'd1' };
+
+      expect(() => dm.updateDeviceState(device, 'data', () => ({ raw: 1 }) as any)).not.toThrow();
+      expect(onUpdate.mock.calls.map((c: any[]) => c[1])).toEqual(['data']);
+    });
+
+    it('sees per-path state rather than the flattened merge', () => {
+      // Every path carries its own `timestamp`, so the merged view cannot say
+      // which message a timestamp belongs to. Derivations get the real thing.
+      let seen: any;
+      defineDerived('TESTDERIVEE', ({ stateByPath }: any) => {
+        seen = stateByPath;
+        return { ok: true };
+      });
+      const dm = managerFor('TESTDERIVEE', jest.fn());
+      const device = { deviceType: 'TESTDERIVEE', deviceId: 'd1' };
+
+      dm.updateDeviceState(device, 'data', () => ({ raw: 1 }) as any);
+      expect(Object.keys(seen)).toContain('data');
+      expect(seen['data'].raw).toBe(1);
+    });
+  });
+
+  describe('getPollingInterval', () => {
+    // The shared polling timer runs at the GCD of every message's interval, so a
+    // single badly chosen interval speeds up polling for every device in the
+    // process. None of this was covered before.
+    const defineType = (
+      deviceType: string,
+      messages: { pollInterval: number; enabled?: boolean; polled?: boolean }[],
+    ) => {
+      registerDeviceDefinition({ deviceTypes: [deviceType] }, ({ message }) => {
+        messages.forEach((options, idx) => {
+          message(
+            {
+              refreshDataPayload: `cd=${idx}`,
+              isMessage: () => false,
+              publishPath: `path${idx}`,
+              defaultState: {},
+              getAdditionalDeviceInfo: () => ({}),
+              controlsDeviceAvailability: false,
+              ...options,
+            },
+            () => {},
+          );
+        });
+      });
+    };
+
+    const intervalFor = (deviceType: string) =>
+      new DeviceManager(
+        { ...mockConfig, devices: [{ deviceType, deviceId: 'gcd' }] },
+        jest.fn(),
+      ).getPollingInterval();
+
+    it('returns the greatest common divisor of the polled intervals', () => {
+      defineType('TESTGCDPLAIN', [{ pollInterval: 60000 }, { pollInterval: 300000 }]);
+      expect(intervalFor('TESTGCDPLAIN')).toBe(60000);
+    });
+
+    it('ignores disabled messages', () => {
+      // 7000 is deliberately not a divisor of 60000: were it counted, the tick
+      // would collapse to 1000 ms for every device in the process.
+      defineType('TESTGCDDISABLED', [
+        { pollInterval: 60000 },
+        { pollInterval: 7000, enabled: false },
+      ]);
+      expect(intervalFor('TESTGCDDISABLED')).toBe(60000);
+    });
+
+    it('ignores derived messages, which are never requested', () => {
+      defineType('TESTGCDDERIVED', [
+        { pollInterval: 60000 },
+        { pollInterval: 5000, polled: false },
+      ]);
+      expect(intervalFor('TESTGCDDERIVED')).toBe(60000);
+    });
+
+    it('falls back to the unfiltered set rather than leaving the tick undefined', () => {
+      defineType('TESTGCDNONE', [
+        { pollInterval: 30000, enabled: false },
+        { pollInterval: 45000, polled: false },
+      ]);
+      expect(intervalFor('TESTGCDNONE')).toBe(15000);
     });
   });
 });

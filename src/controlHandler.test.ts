@@ -3,8 +3,19 @@ import './device/registry.js';
 import logger from './logger.js';
 import { ControlHandler } from './controlHandler.js';
 import { DeviceManager, DeviceStateData } from './deviceManager.js';
+import { getDeviceDefinition } from './deviceDefinition.js';
 import { MqttConfig, Device, B2500V2DeviceData, B2500BaseDeviceData } from './types.js';
 import { DEFAULT_TOPIC_PREFIX } from './constants.js';
+
+/**
+ * Build a ControlHandler whose publish callback records only `(device, payload)`.
+ * The handler also passes the index of the message definition owning the command,
+ * which is covered separately below; dropping it here keeps the payload
+ * assertions in this file exact.
+ */
+function controlHandlerFor(deviceManager: DeviceManager, publishCallback: jest.Mock) {
+  return new ControlHandler(deviceManager, (device, payload) => publishCallback(device, payload));
+}
 
 describe('ControlHandler', () => {
   let controlHandler: ControlHandler;
@@ -46,7 +57,7 @@ describe('ControlHandler', () => {
     deviceManager.updateDeviceState(testDeviceV1, 'data', () => ({ useFlashCommands: true }));
     deviceManager.updateDeviceState(testDeviceV2, 'data', () => ({ useFlashCommands: true }));
     publishCallback = jest.fn();
-    controlHandler = new ControlHandler(deviceManager, publishCallback);
+    controlHandler = controlHandlerFor(deviceManager, publishCallback);
   });
 
   afterEach(() => {
@@ -267,27 +278,29 @@ describe('ControlHandler', () => {
       jest.useRealTimers();
     });
 
-    test('should sync the local wall-clock time, not UTC', () => {
-      // The device expects the local date/time fields alongside the matching UTC
-      // offset. Simulate UTC+9, where 2023-01-01T12:30:45Z is local 21:30:45 on
-      // the same day: the payload must carry the local hour, not the UTC one.
-      // The local getters are stubbed rather than setting process.env.TZ, which
-      // Node does not re-read once the process has started.
-      jest.useFakeTimers().setSystemTime(new Date(Date.UTC(2023, 0, 1, 12, 30, 45)));
-      jest.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-540);
-      jest.spyOn(Date.prototype, 'getFullYear').mockReturnValue(2023);
+    test('should sync UTC clock fields together with the local offset', () => {
+      // The device's clock is UTC; `wy` tells it how far local time is ahead.
+      // Simulate UTC+5:30 at 2023-12-31T23:59:58Z, which is local 2024-01-01
+      // 05:29:58 — every field except the seconds differs between the two zones,
+      // so a regression to any single local getter changes the payload. The
+      // local getters are stubbed rather than setting process.env.TZ, to keep
+      // the zone confined to this test instead of mutating process-wide state
+      // the rest of the suite shares.
+      jest.useFakeTimers().setSystemTime(new Date(Date.UTC(2023, 11, 31, 23, 59, 58)));
+      jest.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-330);
+      jest.spyOn(Date.prototype, 'getFullYear').mockReturnValue(2024);
       jest.spyOn(Date.prototype, 'getMonth').mockReturnValue(0);
       jest.spyOn(Date.prototype, 'getDate').mockReturnValue(1);
-      jest.spyOn(Date.prototype, 'getHours').mockReturnValue(21);
-      jest.spyOn(Date.prototype, 'getMinutes').mockReturnValue(30);
-      jest.spyOn(Date.prototype, 'getSeconds').mockReturnValue(45);
+      jest.spyOn(Date.prototype, 'getHours').mockReturnValue(5);
+      jest.spyOn(Date.prototype, 'getMinutes').mockReturnValue(29);
+      jest.spyOn(Date.prototype, 'getSeconds').mockReturnValue(58);
 
       try {
         handleControlTopic(testDeviceV2, 'sync-time', 'PRESS');
 
         expect(publishCallback).toHaveBeenCalledWith(
           testDeviceV2,
-          expect.stringContaining('cd=8,wy=540,yy=123,mm=0,rr=1,hh=21,mn=30,ss=45'),
+          expect.stringContaining('cd=8,wy=330,yy=123,mm=11,rr=31,hh=23,mn=59,ss=58'),
         );
       } finally {
         jest.useRealTimers();
@@ -427,7 +440,7 @@ describe('ControlHandler', () => {
       };
       deviceManager = new DeviceManager(config, () => {});
       publishCallback = jest.fn();
-      controlHandler = new ControlHandler(deviceManager, publishCallback);
+      controlHandler = controlHandlerFor(deviceManager, publishCallback);
     });
 
     test('should fold the switched phase into the reported bitmask', () => {
@@ -465,7 +478,7 @@ describe('ControlHandler', () => {
         };
         deviceManager = new DeviceManager(config, () => {});
         publishCallback = jest.fn();
-        controlHandler = new ControlHandler(deviceManager, publishCallback);
+        controlHandler = controlHandlerFor(deviceManager, publishCallback);
 
         handleControlTopic(device, 'phase1-measurement-reversed', 'true');
         expect(publishCallback).toHaveBeenCalledWith(device, expected);
@@ -494,7 +507,7 @@ describe('ControlHandler', () => {
       };
       deviceManager = new DeviceManager(config, () => {});
       publishCallback = jest.fn();
-      controlHandler = new ControlHandler(deviceManager, publishCallback);
+      controlHandler = controlHandlerFor(deviceManager, publishCallback);
 
       handleControlTopic(smr, 'phase1-measurement-reversed', 'true');
 
@@ -516,7 +529,7 @@ describe('ControlHandler', () => {
       };
       deviceManager = new DeviceManager(config, () => {});
       publishCallback = jest.fn();
-      controlHandler = new ControlHandler(deviceManager, publishCallback);
+      controlHandler = controlHandlerFor(deviceManager, publishCallback);
     };
 
     test.each(['HME-4', 'TPM-CN', 'TPM2-0', 'SMR-0'])(
@@ -542,6 +555,33 @@ describe('ControlHandler', () => {
 
       handleControlTopic(device, 'factory-reset', 'off');
       expect(publishCallback).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('commanded message index', () => {
+    test('reports the message definition that declares the command', () => {
+      const indices: number[] = [];
+      const handler = new ControlHandler(deviceManager, (_device, _payload, messageIndex) => {
+        indices.push(messageIndex);
+      });
+      const deviceTopics = deviceManager.getDeviceTopics(testDeviceV2);
+      if (!deviceTopics) {
+        throw new Error('Device topics not found');
+      }
+      handler.handleControlTopic(
+        testDeviceV2,
+        `${deviceTopics.controlSubscriptionTopic}/discharge-depth`,
+        '75',
+      );
+
+      expect(indices).toHaveLength(1);
+      const messages = getDeviceDefinition(testDeviceV2.deviceType)?.messages ?? [];
+      const commanded = messages[indices[0]];
+      // It has to point at the runtime message that declares `discharge-depth`,
+      // not at the separately polled cell-voltage or calibration messages: the
+      // index is what decides which message gets re-read after the write.
+      expect(commanded.commands.map(c => c.command)).toContain('discharge-depth');
+      expect(commanded.refreshDataPayload).toBe('cd=1');
     });
   });
 });

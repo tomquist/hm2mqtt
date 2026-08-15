@@ -1,7 +1,6 @@
-import * as dotenv from 'dotenv';
-// Load environment variables
-dotenv.config();
-
+// Must stay the first import: it loads `.env`, and the device definitions read
+// environment variables while they are being imported.
+import './loadEnv.js';
 import './device/registry.js';
 import { Device, MqttConfig } from './types.js';
 import { DEFAULT_AUTODISCOVERY_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX } from './constants.js';
@@ -11,6 +10,8 @@ import { ControlHandler } from './controlHandler.js';
 import logger from './logger.js';
 import { DataHandler } from './dataHandler.js';
 import { MqttProxy, MqttProxyConfig } from './mqttProxy.js';
+import { runShutdownStep } from './shutdown.js';
+import { flushPersistence } from './persistence.js';
 
 // MQTT Proxy configuration
 const MQTT_PROXY_ENABLED = process.env.MQTT_PROXY_ENABLED === 'true';
@@ -246,7 +247,7 @@ async function main() {
     mqttClient = new MqttClient(config, deviceManager, messageHandler);
 
     // Create control handler
-    const controlHandler = new ControlHandler(deviceManager, (device, payload) => {
+    const controlHandler = new ControlHandler(deviceManager, (device, payload, messageIndex) => {
       const topics = deviceManager.getDeviceTopics(device);
 
       if (!topics) {
@@ -263,7 +264,10 @@ async function main() {
           // Wait a short delay to allow the device to process the command
           setTimeout(() => {
             logger.debug(`Requesting updated device data for ${device.deviceId} after command`);
-            mqttClient.requestDeviceData(device);
+            // Force the message the command belongs to: without this the read-back
+            // is dropped whenever that message was polled less than one polling
+            // interval ago, which is most of the time.
+            mqttClient.requestDeviceData(device, { forceMessageIndices: [messageIndex] });
           }, 500);
         })
         .catch(err => {
@@ -302,18 +306,40 @@ async function main() {
       logger.info('MQTT Proxy is disabled (set MQTT_PROXY_ENABLED=true to enable)');
     }
 
-    // Handle process termination
-    process.on('SIGINT', async () => {
-      logger.info('Shutting down...');
-
-      if (mqttProxy) {
-        logger.info('Stopping MQTT Proxy...');
-        await mqttProxy.stop();
+    // Handle process termination. SIGTERM matters as much as SIGINT: Docker and
+    // the Home Assistant Supervisor both send it to stop a container, so without
+    // a handler an ordinary restart or add-on update skipped this path entirely
+    // and the container was killed after the grace period instead — which is
+    // also exactly the case the cell balancing history has to survive.
+    let shuttingDown = false;
+    const shutdown = async (signal: string) => {
+      if (shuttingDown) {
+        return;
       }
+      shuttingDown = true;
+      logger.info(`Received ${signal}, shutting down...`);
 
-      await mqttClient.close();
+      // Each step is independent and time-bounded, because neither failing nor
+      // hanging may keep the process alive. MqttProxy.stop() waits for its TCP
+      // server to close, and a TCP server does not close while a client still
+      // holds a connection open — so a device that is still connected would
+      // otherwise block the exit until the runtime killed us, which is the
+      // outcome this handler exists to avoid. A failure to stop the proxy must
+      // also not cost us the MQTT close, which is what publishes the offline
+      // availability, nor the flush this whole path exists for.
+      await runShutdownStep('flushing the cell balancing history', async () => flushPersistence());
+
+      const proxy = mqttProxy;
+      if (proxy) {
+        logger.info('Stopping MQTT Proxy...');
+        await runShutdownStep('stopping the MQTT proxy', () => proxy.stop());
+      }
+      await runShutdownStep('closing the MQTT connection', () => mqttClient.close());
+
       process.exit();
-    });
+    };
+    process.on('SIGINT', () => shutdown('SIGINT'));
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
 
     logger.debug('Application initialized successfully');
   } catch (error) {

@@ -20,6 +20,7 @@ import {
   registerBaseMessage,
   registerCalibrationDataMessage,
   registerCellDataMessage,
+  registerB2500CellBalancingMessage,
 } from './b2500Base.js';
 import {
   BuildMessageFn,
@@ -35,7 +36,28 @@ import {
   switchComponent,
   textComponent,
 } from '../homeAssistantDiscovery.js';
-import { number, boolean, map, timeString, equalsBoolean, divide } from '../transforms.js';
+import { number, boolean, map, timeString, equalsBoolean, divide, inRange } from '../transforms.js';
+
+/**
+ * The CT sensor reports a sentinel instead of a reading when it has no valid
+ * measurement (typically 65535, the top of its 16-bit range). The Marstek app
+ * checks every CT power field against 60000 and discards anything at or above
+ * it, so the same cut-off is applied here to `st`, `m0`, `m1`, `m2` and `m3` —
+ * the exact five fields the app guards. `sp` is deliberately not guarded: the
+ * app does not guard it either.
+ *
+ * Out-of-range readings are dropped rather than reported as 0 W, so the sensor
+ * keeps its last real value instead of a fabricated zero.
+ */
+const CT_POWER_SENTINEL = 60000;
+
+/**
+ * A CT power reading in watts, ignoring the sensor's no-reading sentinel.
+ *
+ * The app applies no lower bound; the one here exists only because `inRange`
+ * requires it, and -60 kW is far outside what a B2500 CT clamp can measure.
+ */
+const ctPower = () => inRange(-(CT_POWER_SENTINEL - 1), CT_POWER_SENTINEL - 1);
 
 /**
  * Create a time period handler for a specific setting
@@ -164,6 +186,7 @@ registerDeviceDefinition(
     registerRuntimeInfoMessage(message);
     registerExtraBatteryData(message);
     registerCellDataMessage(message);
+    registerB2500CellBalancingMessage(message, { hasPackCurrent: true });
     registerCalibrationDataMessage(message);
   },
 );
@@ -457,7 +480,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'st',
       path: ['ctInfo', 'transmittedPower'],
-      transform: number(),
+      transform: ctPower(),
     });
     advertise(
       ['ctInfo', 'transmittedPower'],
@@ -557,7 +580,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'm0',
       path: ['ctInfo', 'phase1'],
-      transform: number(),
+      transform: ctPower(),
     });
     advertise(
       ['ctInfo', 'phase1'],
@@ -572,7 +595,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'm1',
       path: ['ctInfo', 'phase2'],
-      transform: number(),
+      transform: ctPower(),
     });
     advertise(
       ['ctInfo', 'phase2'],
@@ -587,7 +610,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'm2',
       path: ['ctInfo', 'phase3'],
-      transform: number(),
+      transform: ctPower(),
     });
     advertise(
       ['ctInfo', 'phase3'],
@@ -640,7 +663,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'm3',
       path: ['ctInfo', 'microInverterPower'],
-      transform: number(),
+      transform: ctPower(),
     });
     advertise(
       ['ctInfo', 'microInverterPower'],
@@ -713,18 +736,31 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           // If the message is "PRESS" or similar from Home Assistant button, generate current time
           if (message === 'PRESS' || message === 'press' || message === 'true' || message === '1') {
             const now = new Date();
-            // `cd=08` takes the local wall-clock time together with the offset
-            // of that same zone in `wy` — not UTC. Sending UTC components with
-            // a local `wy` left the device clock wrong by the offset. `mm` is
-            // 0-based and `yy` is the year minus 1900.
+            // `cd=08` takes UTC clock fields together with the local offset in
+            // `wy`. The device stores the clock as sent and applies the offset
+            // itself when it evaluates a discharge timer, whose start and end
+            // are configured in local time — so sending local wall-clock time
+            // makes every schedule fire `wy` minutes early.
+            // `mm` is 0-based and `yy` is the year minus 1900.
+            const wy = -now.getTimezoneOffset();
+            if (Math.abs(wy) > 720 || wy % 10 !== 0) {
+              // The device only stores offsets within ±720 minutes that are a
+              // whole multiple of 10; it drops anything else and keeps the one
+              // it already had. The clock fields are still accepted, so sync
+              // them anyway rather than letting the clock drift as well.
+              logger.warn(
+                'Timezone offset not supported by the device, it will keep its previous offset and the discharge timers may run at the wrong time:',
+                wy,
+              );
+            }
             const timeData = {
-              wy: -now.getTimezoneOffset(),
-              yy: now.getFullYear() - 1900,
-              mm: now.getMonth(),
-              rr: now.getDate(),
-              hh: now.getHours(),
-              mn: now.getMinutes(),
-              ss: now.getSeconds(),
+              wy,
+              yy: now.getUTCFullYear() - 1900,
+              mm: now.getUTCMonth(),
+              rr: now.getUTCDate(),
+              hh: now.getUTCHours(),
+              mn: now.getUTCMinutes(),
+              ss: now.getUTCSeconds(),
             };
             publishCallback(
               processCommand(CommandType.SYNC_TIME, timeData, deviceState.useFlashCommands),
@@ -835,6 +871,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:identifier',
         command: 'meter-mac',
         pattern: '^[0-9A-Fa-f]{12}$',
+        // Write-only: the device never reports the configured MAC back.
+        optimistic: true,
         enabled_by_default: false,
       }),
     );
@@ -873,6 +911,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:meter-electric',
         command: 'meter-type',
         valueMappings: meterTypeLabels,
+        // Write-only: the device never reports the configured meter type back.
+        // The separate CT Type sensor shows what the device actually took.
+        optimistic: true,
         enabled_by_default: false,
       }),
     );
@@ -908,6 +949,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           singlePhase: 'Single Phase',
           threePhase: 'Three Phase',
         },
+        // Write-only: the device never reports the recharge mode back.
+        optimistic: true,
         enabled_by_default: false,
       }),
     );
@@ -941,6 +984,13 @@ function isB2500CD16Message(message: Record<string, string>): boolean {
   let cd16BatteryInfo = ['bb', 'bv', 'bc', 'sb', 'sv', 'sc', 'lb', 'lv', 'lc'];
   if (cd16BatteryInfo.every(k => k in message)) {
     return true;
+  }
+  // None of the keys below are exclusive to cd=16: in a cd=01 runtime response
+  // `m1`/`m2` are the CT clip 2/3 measured power instead of the input voltages,
+  // so a status poll from a device with a CT meter attached looks the same. A
+  // complete runtime response is never extra battery data.
+  if (isB2500RuntimeInfoMessage(message)) {
+    return false;
   }
   const cd16VoltageInfo = ['p1', 'p2', 'm1', 'm2', 'w1', 'w2', 'e1', 'e2', 'o1', 'o2', 'g1', 'g2'];
   const forbiddenKeys = ['m3', 'cj'];
