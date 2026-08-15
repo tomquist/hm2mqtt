@@ -3,7 +3,7 @@
 
 ### Added
 
-- B2500, Greensolar & Venus: New *Enable Cell Balancing Diagnostics* option, adding sensors that show whether the pack is really balancing or just drifting down the discharge curve. Requires *Enable Cell Data*. See the README for what each sensor means (PR #411)
+- B2500, Greensolar & Venus: New *Enable Cell Balancing Diagnostics* option, adding sensors that measure the cell spread at the same point of every charge, so it can be compared between days. Requires *Enable Cell Data*. See the README for what each sensor means (PR #411)
 
 ### Fixed
 

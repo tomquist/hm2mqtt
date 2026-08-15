@@ -16,7 +16,7 @@ configuration:
     description: "Enable extra battery data reporting (B2500 and Greensolar storage only)"
   enableCellBalancingDiagnostics:
     name: Enable Cell Balancing Diagnostics
-    description: "Report whether the pack is really balancing, rather than just drifting down the discharge curve. Requires cell data (B2500, Greensolar and Venus)"
+    description: "Enable cell balancing analysis, measuring the cell spread at the same point of every charge so it can be compared between days. Requires cell data (B2500, Greensolar and Venus)"
   allowedConsecutiveTimeouts:
     name: Allowed Consecutive Timeouts
     description: "Number of consecutive timeouts before a device is marked offline (default: 3)"
