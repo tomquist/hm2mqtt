@@ -25,13 +25,18 @@ async function loadWithDiagnostics(env: NodeJS.ProcessEnv = {}) {
   // be visible to a test that cares whether it was warned at all.
   const logger = (await import('../logger.js')).default;
   const warnings: string[] = [];
+  const notices: string[] = [];
   jest.spyOn(logger, 'warn').mockImplementation((...args: unknown[]) => {
     warnings.push(String(args[0]));
+  });
+  jest.spyOn(logger, 'info').mockImplementation((...args: unknown[]) => {
+    notices.push(String(args[0]));
   });
 
   await import('./registry.js');
   return {
     warnings,
+    notices,
     generateDiscoveryConfigs: (await import('../generateDiscoveryConfigs.js'))
       .generateDiscoveryConfigs,
     DeviceManager: (await import('../deviceManager.js')).DeviceManager,
@@ -112,6 +117,29 @@ describe('cell balancing discovery', () => {
 
     expect(published.some(t => t.includes('cell_spread_at_crossing'))).toBe(true);
     expect(published.some(t => t.includes('rested_cell_spread'))).toBe(true);
+  });
+
+  it('says once that the feature is experimental, not once per family', async () => {
+    // B2500 V1, B2500 V2 and Venus each register the derived message, so the
+    // notice has to be guarded — and it is about the feature, not about any
+    // battery, so unlike the pack-current warning it belongs at registration.
+    const { notices } = await loadWithDiagnostics();
+    expect(notices.filter(m => m.includes('experimental'))).toHaveLength(1);
+  });
+
+  it('stays quiet about the feature nobody turned on', async () => {
+    jest.resetModules();
+    delete process.env.CELL_BALANCING_DIAGNOSTICS;
+    process.env.POLL_CELL_DATA = 'true';
+    const logger = (await import('../logger.js')).default;
+    const notices: string[] = [];
+    jest.spyOn(logger, 'info').mockImplementation((...args: unknown[]) => {
+      notices.push(String(args[0]));
+    });
+
+    await import('./registry.js');
+
+    expect(notices.filter(m => m.includes('experimental'))).toHaveLength(0);
   });
 
   it('removes every diagnostic entity when the feature is off', async () => {

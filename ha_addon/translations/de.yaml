@@ -15,8 +15,8 @@ configuration:
     name: "Zusätzliche Batteriedaten"
     description: "Aktiviere Abruf zusätzlicher Batteriedaten (nur B2500 und Greensolar)"
   enableCellBalancingDiagnostics:
-    name: "Balancing-Diagnose"
-    description: "Aktiviere die Balancing-Analyse, die die Zellspannungsspreizung an einem festen Punkt jeder Ladung misst und so über Tage vergleichbar macht. Benötigt Zellspannungen (B2500, Greensolar und Venus)"
+    name: "Balancing-Diagnose (experimentell)"
+    description: "Experimentell: Welche Sensoren es gibt und welche Schwellwerte dahinterstehen, kann sich zwischen Releases noch ändern. Aktiviert die Balancing-Analyse, die die Zellspannungsspreizung an einem festen Punkt jeder Ladung misst und so über Tage vergleichbar macht. Benötigt Zellspannungen (B2500, Greensolar und Venus)"
   allowedConsecutiveTimeouts:
     name: Maximale aufeinanderfolgende Timeouts
     description: "Anzahl aufeinanderfolgender Timeouts, bevor ein Gerät als offline markiert wird (Standard: 3)"

@@ -414,7 +414,11 @@ services:
 
 > **📖 Background**: This issue was first reported in [GitHub Issue #41](https://github.com/tomquist/hm2mqtt/issues/41) where users experienced problems with multiple B2500 devices after firmware update 226.5.
 
-### Cell Balancing Diagnostics
+### Cell Balancing Diagnostics (experimental)
+
+**Experimental.** Which sensors exist, and the thresholds behind them, may still change
+between releases, so an entity you build a dashboard or automation on could be renamed or
+dropped. Feedback on whether the numbers match what your pack actually does is welcome.
 
 B2500, Greensolar storage and Venus. Set `CELL_BALANCING_DIAGNOSTICS=true` and
 `POLL_CELL_DATA=true` (add-on: *Enable Cell Balancing Diagnostics* and *Enable Cell Data*).
@@ -446,9 +450,25 @@ successive days. The per-cell vector is published as `normalisedDeviations`, wit
 Cell* naming the outlier.
 
 No Marstek device reports whether its balancer is running, so all of this is inferred from
-voltage and current. The two day-to-day sensors also need storage that survives a restart:
-the add-on has it, under Docker mount a volume at `/data` or point `HM2MQTT_DATA_DIR`
-somewhere else.
+voltage and current.
+
+*Cell Spread at 3450 mV* and *Rested Cell Spread* compare one day against the next, so they
+need storage that outlives a container rebuild. The add-on already has it. Under Docker,
+mount something at `/data` — without it those two entities are not created at all, and the
+log says why at startup:
+
+```yaml
+services:
+  hm2mqtt:
+    volumes:
+      - hm2mqtt-data:/data
+
+volumes:
+  hm2mqtt-data:
+```
+
+With `docker run` that is `-v hm2mqtt-data:/data`. A bind mount to a host directory works
+just as well, and `HM2MQTT_DATA_DIR` moves the location if `/data` does not suit.
 
 ## Frequently Asked Questions (FAQ)
 

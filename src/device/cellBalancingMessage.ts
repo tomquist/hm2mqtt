@@ -50,6 +50,7 @@ const lastCellTimestamps = new Map<string, string>();
 const warnedDevices = new Set<string>();
 
 let warnedAboutCellData = false;
+let announcedExperimental = false;
 
 /**
  * The diagnostics need their own flag *and* the cell data they are computed
@@ -65,6 +66,17 @@ function cellBalancingEnabled(): boolean {
       'Cell balancing diagnostics are enabled but cell data polling is not. ' +
         'Set POLL_CELL_DATA=true (add-on: "Enable Cell Data") — without it there ' +
         'are no cell readings to analyse, so no diagnostic entities are created.',
+    );
+  }
+  // Said at registration rather than per device, because it is true of the
+  // feature and not of any one battery — and only to someone who turned it on.
+  // Configuring by environment variable never shows the add-on's label, so
+  // without this a Docker user has only the README to go on.
+  if (requested && !announcedExperimental) {
+    announcedExperimental = true;
+    logger.info(
+      'Cell balancing diagnostics are experimental: which sensors exist, and ' +
+        'the thresholds behind them, may still change between releases.',
     );
   }
   return requested && haveCellData;
