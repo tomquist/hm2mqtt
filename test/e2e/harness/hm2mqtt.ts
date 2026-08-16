@@ -59,10 +59,16 @@ export async function startHm2mqtt(options: Hm2mqttOptions): Promise<Hm2mqttProc
 
   let exited = false;
   child.on('exit', () => (exited = true));
+  // A process that fails to spawn at all emits `error` and never `exit`.
+  let spawnError: Error | undefined;
+  child.on('error', error => (spawnError = error));
 
   await waitFor(
     'hm2mqtt to connect to the broker',
     () => {
+      if (spawnError) {
+        throw new WaitAbandoned(`hm2mqtt could not be started: ${spawnError.message}`);
+      }
       if (exited) {
         throw new WaitAbandoned(`hm2mqtt exited early:\n${tail(output)}`);
       }
@@ -81,7 +87,12 @@ export async function startHm2mqtt(options: Hm2mqttOptions): Promise<Hm2mqttProc
       await waitFor('hm2mqtt to exit', () => exited, {
         timeoutMs: 15_000,
         diagnose: () => `hm2mqtt output:\n${tail(output)}`,
-      }).catch(() => child.kill('SIGKILL'));
+      }).catch(async () => {
+        // As with Home Assistant: confirm the process is really gone, and fail
+        // teardown rather than leave one running against the broker.
+        child.kill('SIGKILL');
+        await waitFor('hm2mqtt to exit after SIGKILL', () => exited, { timeoutMs: 10_000 });
+      });
     },
   };
 }
