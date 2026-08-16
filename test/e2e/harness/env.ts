@@ -35,3 +35,21 @@ export function homeAssistantInstalled(): boolean {
  * than a wall of failures.
  */
 export const MISSING_HOME_ASSISTANT = `Home Assistant is not installed for the e2e suite. Run \`npm run e2e:setup\`.`;
+
+/**
+ * Whether the scenarios can run, warning once when they cannot.
+ *
+ * Skipping is only ever right on a developer's machine. In CI a skipped
+ * scenario looks exactly like a passing one, so a missing install has to fail
+ * the job instead of quietly proving nothing.
+ */
+export function canRunScenarios(): boolean {
+  if (homeAssistantInstalled()) {
+    return true;
+  }
+  if (process.env.CI) {
+    throw new Error(`${MISSING_HOME_ASSISTANT} Refusing to skip the scenarios in CI.`);
+  }
+  console.warn(MISSING_HOME_ASSISTANT);
+  return false;
+}

@@ -8,6 +8,7 @@ export {
   MISSING_HOME_ASSISTANT,
   REPO_ROOT,
   TMP_ROOT,
+  canRunScenarios,
   homeAssistantInstalled,
   pinnedVersions,
 } from './env.js';

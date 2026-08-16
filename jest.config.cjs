@@ -6,7 +6,7 @@ module.exports = {
   testPathIgnorePatterns: ['/node_modules/', '/.claude/'],
   injectGlobals: true,
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', { useESM: true, isolatedModules: true }],
+    '^.+\\.tsx?$': ['ts-jest', { useESM: true }],
   },
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',

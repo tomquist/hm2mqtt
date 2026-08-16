@@ -1,12 +1,5 @@
 import { deviceFixtures } from '../../fixtures/devices.js';
-import {
-  MISSING_HOME_ASSISTANT,
-  Rig,
-  entitySlug,
-  homeAssistantInstalled,
-  startRig,
-  waitFor,
-} from '../harness/index.js';
+import { Rig, entitySlug, canRunScenarios, startRig, waitFor } from '../harness/index.js';
 
 /**
  * A fresh installation: Home Assistant, a broker, three simulated devices and
@@ -17,10 +10,7 @@ import {
  * keeps hitting: entities that look correct in the code and make Home
  * Assistant log on every single message.
  */
-const describeE2e = homeAssistantInstalled() ? describe : describe.skip;
-if (!homeAssistantInstalled()) {
-  console.warn(MISSING_HOME_ASSISTANT);
-}
+const describeE2e = canRunScenarios() ? describe : describe.skip;
 
 /**
  * Known findings, not noise.
