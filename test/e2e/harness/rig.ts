@@ -36,8 +36,18 @@ export interface Rig {
   waitForEntity(fragment: string): Promise<string>;
   entityState(entityId: string): string | undefined;
   entityIds(): string[];
-  /** Discovery topics hm2mqtt has published so far. */
+  /** Every discovery topic seen so far, seeded ones included. */
   discoveryTopics(): string[];
+  /**
+   * A point in the broker's publish history, to ask what happened after it.
+   *
+   * Discovery topics alone cannot answer "did the new build announce itself":
+   * an upgrade scenario seeds the previous release's messages on the very same
+   * topics, so the set is already full before hm2mqtt starts.
+   */
+  publishMark(): number;
+  /** Discovery topics published after `mark`, in order, with repeats. */
+  discoveryPublishesSince(mark: number): string[];
   stop(): Promise<void>;
 }
 
@@ -161,6 +171,14 @@ export async function startRig(options: RigOptions): Promise<Rig> {
       },
       discoveryTopics() {
         return probe.topics(`${DEFAULT_AUTODISCOVERY_TOPIC_PREFIX}/`);
+      },
+      publishMark() {
+        return broker.published.length;
+      },
+      discoveryPublishesSince(mark) {
+        return broker.published
+          .slice(mark)
+          .filter(topic => topic.startsWith(`${DEFAULT_AUTODISCOVERY_TOPIC_PREFIX}/`));
       },
       stop: () => stack.stopAll(),
     };

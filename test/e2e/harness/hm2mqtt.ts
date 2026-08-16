@@ -2,7 +2,7 @@ import { ChildProcess, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { REPO_ROOT } from './env.js';
-import { tail, waitFor } from './waitFor.js';
+import { WaitAbandoned, tail, waitFor } from './waitFor.js';
 
 const ENTRY_POINT = resolve(REPO_ROOT, 'dist/index.js');
 
@@ -62,7 +62,12 @@ export async function startHm2mqtt(options: Hm2mqttOptions): Promise<Hm2mqttProc
 
   await waitFor(
     'hm2mqtt to connect to the broker',
-    () => !exited && /Connected to MQTT broker|Subscribed to/i.test(output),
+    () => {
+      if (exited) {
+        throw new WaitAbandoned(`hm2mqtt exited early:\n${tail(output)}`);
+      }
+      return /Connected to MQTT broker|Subscribed to/i.test(output);
+    },
     { diagnose: () => `hm2mqtt output:\n${tail(output)}` },
   );
 

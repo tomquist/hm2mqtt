@@ -6,7 +6,12 @@ import {
   generateAllBaselines,
   serializeBaseline,
 } from './baseline.js';
-import { CURRENT_BASELINE_DIR, RELEASED_BASELINE_DIR, latestReleasedVersion } from './paths.js';
+import {
+  CURRENT_BASELINE_DIR,
+  RELEASED_BASELINE_DIR,
+  latestReleasedVersion,
+  readBaselines,
+} from './paths.js';
 import { describeStateTopicRemovals, findStateTopicRemovals } from './rules.js';
 
 /**
@@ -63,9 +68,7 @@ describe('discovery baseline', () => {
 describe('upgrade safety', () => {
   const version = latestReleasedVersion();
   const releasedDir = join(RELEASED_BASELINE_DIR, version);
-  const released: DiscoveryBaseline[] = readdirSync(releasedDir)
-    .filter(name => name.endsWith('.json'))
-    .map(name => JSON.parse(readFileSync(join(releasedDir, name), 'utf8')));
+  const released: DiscoveryBaseline[] = readBaselines(releasedDir);
 
   test(`no entity loses the state topic it had in ${version}`, () => {
     const removals = findStateTopicRemovals(released, baselines);

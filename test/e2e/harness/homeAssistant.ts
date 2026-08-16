@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { HASS_BIN, REPO_ROOT } from './env.js';
 import { LogProblem, describeLogProblems, findLogProblems } from './logScan.js';
-import { tail, waitFor } from './waitFor.js';
+import { WaitAbandoned, tail, waitFor } from './waitFor.js';
 
 /**
  * Topic prefix the mirror automation publishes entity states under, so a
@@ -167,7 +167,7 @@ export async function startHomeAssistant(options: HomeAssistantOptions): Promise
     'Home Assistant to finish starting',
     () => {
       if (exited) {
-        throw new Error(`Home Assistant exited early:\n${tail(consoleOutput)}`);
+        throw new WaitAbandoned(`Home Assistant exited early:\n${tail(consoleOutput)}`);
       }
       return /Home Assistant initialized/.test(readLog());
     },
@@ -176,8 +176,7 @@ export async function startHomeAssistant(options: HomeAssistantOptions): Promise
 
   // A config entry that failed to load produces no entities at all, which would
   // otherwise show up much later as an unexplained timeout.
-  const entryFailure = /Error setting up entry .* for mqtt/.exec(readLog());
-  if (entryFailure) {
+  if (/Error setting up entry .* for mqtt/.test(readLog())) {
     throw new Error(
       `Home Assistant could not set up the MQTT integration:\n${tail(readLog(), 30)}`,
     );
@@ -204,7 +203,14 @@ export async function startHomeAssistant(options: HomeAssistantOptions): Promise
       await waitFor('Home Assistant to exit', () => exited, {
         timeoutMs: 60_000,
         diagnose: () => `Home Assistant log:\n${tail(readLog())}`,
-      }).catch(() => child.kill('SIGKILL'));
+      }).catch(async () => {
+        // Do not hand the next scenario a process that still holds the config
+        // directory and an MQTT connection.
+        child.kill('SIGKILL');
+        await waitFor('Home Assistant to exit after SIGKILL', () => exited, {
+          timeoutMs: 10_000,
+        }).catch(() => undefined);
+      });
     },
   };
   return homeAssistant;

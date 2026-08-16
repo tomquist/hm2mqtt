@@ -32,6 +32,9 @@ npm run build
 
 Use `npm run lint:fix` and `npm run format` to apply fixes.
 
+Requires Node `^20.19.0 || >=22.12.0` (see `engines` in `package.json`).
+Node 18 is not supported.
+
 If Home Assistant discovery changed (entities added, renamed, gated differently):
 
 ```bash
@@ -41,9 +44,8 @@ npm run test:e2e          # runs the shipped build against a real Home Assistant
 ```
 
 See `test/e2e/README.md`. At release time, freeze the current baseline under
-`test/fixtures/discovery/released/<version>/`.
-Requires Node `^20.19.0 || >=22.12.0` (see `engines` in `package.json`).
-Node 18 is not supported.
+`test/fixtures/discovery/released/<version>/`. The e2e suite needs Python 3.13
+or newer.
 
 If add-on behavior/config was changed, also validate add-on config consistency:
 

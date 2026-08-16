@@ -3,7 +3,7 @@
 Generated from the released source of `v1.10.0` (commit `f9948fb`), which is
 byte-identical under `src/` to the commit these files were written at:
 
-```
+```sh
 git diff --stat f9948fb origin/develop -- src/   # empty
 ```
 
