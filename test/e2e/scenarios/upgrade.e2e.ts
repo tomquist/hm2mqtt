@@ -56,11 +56,26 @@ describeE2e(`upgrading an installation that already ran ${releasedVersion}`, () 
     for (const device of rig.devices) {
       await rig.waitForEntity(entitySlug(device.deviceType, device.deviceId));
     }
-    // ...and only then does the new build announce itself over the top.
+    // ...and only then does the new build announce itself over the top. The
+    // mark is taken before it starts, because the seeded messages already used
+    // these very topics: only publishes after this point are the new build's.
+    const beforeUpgrade = rig.publishMark();
     await rig.startHm2mqtt();
-    await waitFor('the new build to republish discovery', () => rig.discoveryTopics().length > 0, {
-      diagnose: () => `Discovery topics seen: ${rig.discoveryTopics().length}`,
-    });
+    await waitFor(
+      'the new build to republish discovery for every device',
+      () => {
+        const republished = new Set(rig.discoveryPublishesSince(beforeUpgrade));
+        return rig.devices.every(device =>
+          [...republished].some(topic => topic.includes(`${device.deviceType}_${device.deviceId}`)),
+        );
+      },
+      {
+        timeoutMs: 90_000,
+        diagnose: () =>
+          `Discovery topics republished since the upgrade: ` +
+          `${new Set(rig.discoveryPublishesSince(beforeUpgrade)).size}`,
+      },
+    );
   });
 
   afterAll(async () => {

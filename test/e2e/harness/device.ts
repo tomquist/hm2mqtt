@@ -14,6 +14,8 @@ export interface SimulatedDevice {
   readonly deviceId: string;
   /** Every `cd=` value hm2mqtt asked for, in order. */
   readonly requests: string[];
+  /** Responses that could not be published, for diagnosing a quiet device. */
+  readonly failures: unknown[];
   /** Publish a reading without being asked, as a device does while running. */
   pushReading(command?: number): Promise<void>;
   stop(): Promise<void>;
@@ -28,9 +30,13 @@ export async function startSimulatedDevice(
   const requestTopic = `hame_energy/${deviceType}/App/${deviceId}/ctrl`;
   const responseTopic = `hame_energy/${deviceType}/device/${deviceId}/ctrl`;
   const requests: string[] = [];
+  const failures: unknown[] = [];
 
+  // The device id is unique within a scenario, so it alone keeps client ids
+  // apart — truncating a type-plus-id string could collide for two devices of
+  // the same type.
   const client: MqttClient = await mqtt.connectAsync(brokerUrl, {
-    clientId: `e2e-device-${deviceType}-${deviceId}`.slice(0, 23),
+    clientId: `e2e-device-${deviceId}`,
   });
 
   const respond = async (command: number) => {
@@ -45,7 +51,9 @@ export async function startSimulatedDevice(
     requests.push(request);
     const command = /(?:^|,)cd=(\d+)/.exec(request);
     if (command) {
-      void respond(Number(command[1]));
+      // The client can be closing while a response is in flight during
+      // teardown; an unhandled rejection there would fail an unrelated test.
+      respond(Number(command[1])).catch(error => failures.push(error));
     }
   });
   await client.subscribeAsync(requestTopic, { qos: 1 });
@@ -54,6 +62,7 @@ export async function startSimulatedDevice(
     deviceType,
     deviceId,
     requests,
+    failures,
     async pushReading(command = 1) {
       await respond(command);
     },

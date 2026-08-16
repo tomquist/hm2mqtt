@@ -1,11 +1,13 @@
 /**
  * What counts as Home Assistant complaining about hm2mqtt.
  *
- * The scan is deliberately narrow: only the two loggers that report a broken
- * entity or a template rendered against a payload that does not contain the
- * value. Everything else Home Assistant logs in a bare test install (a missing
- * optional dependency, an unavailable cloud component) is none of hm2mqtt's
- * business and must not make the suite flaky.
+ * The scan is deliberately narrow: only the patterns below, each of which means
+ * Home Assistant rejected or could not use something hm2mqtt published — a
+ * template rendered against a payload without the value, an entity that cannot
+ * process its messages, a discovery payload that was not accepted, or two
+ * entities claiming one unique id. Everything else Home Assistant logs in a bare
+ * test install (a missing optional dependency, an unavailable cloud component)
+ * is none of hm2mqtt's business and must not make the suite flaky.
  */
 const PROBLEM_PATTERNS: Array<{ pattern: RegExp; why: string }> = [
   {

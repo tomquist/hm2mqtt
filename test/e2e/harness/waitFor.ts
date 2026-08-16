@@ -13,6 +13,19 @@ export interface WaitOptions {
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
+ * Thrown by a probe when waiting longer cannot help — typically because the
+ * process being waited on has exited. `waitFor` gives up immediately instead of
+ * retrying into its timeout, so the run fails in seconds with the real reason
+ * rather than minutes later with "timed out".
+ */
+export class WaitAbandoned extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'WaitAbandoned';
+  }
+}
+
+/**
  * Poll until `probe` returns something other than undefined/false.
  *
  * Scenarios never sleep for a fixed time: they wait for the condition they
@@ -33,6 +46,9 @@ export async function waitFor<T>(
       }
       lastError = undefined;
     } catch (error) {
+      if (error instanceof WaitAbandoned) {
+        throw new Error(`Gave up waiting for ${description}: ${error.message}`);
+      }
       lastError = error;
     }
     if (Date.now() >= deadline) {

@@ -47,6 +47,9 @@ function deviceStateFromFixture(deviceType: string): { state: object; source: st
     // The baseline still captures every ungated component.
     return { state: {}, source: 'empty' };
   }
+  // Flattened across publish paths, because that is what the runtime hands to
+  // discovery generation: DeviceManager.getDeviceState reduces its per-path
+  // state with the same shallow assign.
   const merged: Record<string, unknown> = {};
   for (const payload of Object.values(fixture.responses)) {
     for (const parsed of Object.values(parseMessage(payload, deviceType, BASELINE_DEVICE_ID))) {
@@ -124,11 +127,12 @@ export function instantiateBaseline(
   // The type is a token in topics (`/HMA/`), node ids (`HMA_0123…`), the model
   // id and the device name. A word boundary is not enough: `_` is a word
   // character, so `\bHMA\b` would miss `HMA_0123…`.
-  const typePattern = new RegExp(`(?<![A-Za-z0-9])${baseline.deviceType}(?![A-Za-z0-9])`, 'g');
+  const escapedType = baseline.deviceType.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const typePattern = new RegExp(`(?<![A-Za-z0-9])${escapedType}(?![A-Za-z0-9])`, 'g');
   const rewritten = JSON.parse(
     JSON.stringify(baseline.components)
       .replace(typePattern, device.deviceType)
-      .replace(new RegExp(BASELINE_DEVICE_ID, 'g'), device.deviceId),
+      .replaceAll(BASELINE_DEVICE_ID, device.deviceId),
   ) as Record<string, unknown>;
   return { ...baseline, deviceType: device.deviceType, components: rewritten };
 }
