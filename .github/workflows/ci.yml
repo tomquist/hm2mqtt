@@ -94,14 +94,14 @@ jobs:
           cache: 'npm'
 
       - name: Set up Python
-        uses: actions/setup-python@e797f83bcb11b83ae66e0230d5156d420d1e889a # v6.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.13'
 
       # Installing Home Assistant takes far longer than running the scenarios,
       # and the pinned versions only change when someone edits versions.json.
       - name: Cache the Home Assistant environment
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: test/e2e/.venv-ha
           key: ha-venv-${{ runner.os }}-py3.13-${{ hashFiles('test/e2e/versions.json') }}
