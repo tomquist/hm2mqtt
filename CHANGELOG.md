@@ -1,6 +1,10 @@
 # Changelog
 ## [Next]
 
+### Changed
+
+- Development only, nothing changes for users: hm2mqtt is now tested against a real Home Assistant before release, with simulated Marstek devices, and the entities each device type creates are recorded in the repository so a change to them is visible when it is made rather than after someone's log fills up
+
 
 ## [1.10.0] - 2026-08-15
 
