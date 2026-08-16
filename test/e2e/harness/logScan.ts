@@ -12,7 +12,7 @@
 const PROBLEM_PATTERNS: Array<{ pattern: RegExp; why: string }> = [
   {
     pattern: /Template variable warning:/,
-    why: 'a value template was rendered against a payload without the value (issue #346)',
+    why: 'a value template was rendered against a payload without the value',
   },
   {
     pattern: /ERROR .*\[homeassistant\.components\.mqtt/,
@@ -20,7 +20,7 @@ const PROBLEM_PATTERNS: Array<{ pattern: RegExp; why: string }> = [
   },
   {
     pattern: /Exception in _message_received/,
-    why: 'an entity received a message it could not process (issue #418)',
+    why: 'an entity received a message it could not process',
   },
   {
     pattern: /Invalid config for|Invalid discovery payload/,
