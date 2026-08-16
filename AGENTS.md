@@ -31,6 +31,17 @@ npm run build
 ```
 
 Use `npm run lint:fix` and `npm run format` to apply fixes.
+
+If Home Assistant discovery changed (entities added, renamed, gated differently):
+
+```bash
+npm run baseline:update   # regenerate test/fixtures/discovery/current, then review the diff
+npm run e2e:setup         # once; installs Home Assistant for the e2e suite
+npm run test:e2e          # runs the shipped build against a real Home Assistant
+```
+
+See `test/e2e/README.md`. At release time, freeze the current baseline under
+`test/fixtures/discovery/released/<version>/`.
 Requires Node `^20.19.0 || >=22.12.0` (see `engines` in `package.json`).
 Node 18 is not supported.
 

@@ -76,6 +76,56 @@ jobs:
           path: ./test-results/junit.xml
           if-no-files-found: warn
 
+  e2e:
+    # Runs the shipped build against a real Home Assistant and a real broker.
+    # See test/e2e/README.md for what the scenarios cover.
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24.x'
+          cache: 'npm'
+
+      - name: Set up Python
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d5156d420d1e889a # v6.0.0
+        with:
+          python-version: '3.13'
+
+      # Installing Home Assistant takes far longer than running the scenarios,
+      # and the pinned versions only change when someone edits versions.json.
+      - name: Cache the Home Assistant environment
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: test/e2e/.venv-ha
+          key: ha-venv-${{ runner.os }}-py3.13-${{ hashFiles('test/e2e/versions.json') }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Home Assistant
+        run: npm run e2e:setup
+
+      - name: Run end-to-end scenarios
+        run: npm run test:e2e -- --ci
+
+      # The Home Assistant log is the evidence for any failure here.
+      - name: Upload scenario logs
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: e2e-logs
+          path: |
+            test/e2e/.tmp/**/home-assistant.log
+            test-results/junit-e2e.xml
+          if-no-files-found: warn
+
   test-addon:
     runs-on: ubuntu-latest
     needs: validate
@@ -103,7 +153,7 @@ jobs:
         run: npm run test:addon
 
   images:
-    needs: [lint, validate, test-addon]
+    needs: [lint, validate, test-addon, e2e]
     uses: ./.github/workflows/build-images.yml
     permissions:
       contents: read

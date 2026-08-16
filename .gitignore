@@ -21,3 +21,7 @@ coverage/
 reports/
 .env
 .claude/
+
+# End-to-end suite: Home Assistant install and per-run scratch directories
+test/e2e/.venv-ha/
+test/e2e/.tmp/

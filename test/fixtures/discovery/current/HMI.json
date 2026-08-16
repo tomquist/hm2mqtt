@@ -1,0 +1,894 @@
+{
+  "deviceType": "HMI",
+  "state": "empty",
+  "components": {
+    "homeassistant/binary_sensor/HMI_0123456789ab/grid_status/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "device_class": "connectivity",
+      "name": "Grid Connected",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_off": false,
+      "payload_on": true,
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_grid_status",
+      "value_template": "{{ value_json.gridStatus }}"
+    },
+    "homeassistant/binary_sensor/HMI_0123456789ab/pv1_status/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "device_class": "power",
+      "name": "PV1 Active",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_off": false,
+      "payload_on": true,
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_pv1_status",
+      "value_template": "{{ value_json.pv1Status }}"
+    },
+    "homeassistant/binary_sensor/HMI_0123456789ab/pv2_status/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "device_class": "power",
+      "name": "PV2 Active",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_off": false,
+      "payload_on": true,
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_pv2_status",
+      "value_template": "{{ value_json.pv2Status }}"
+    },
+    "homeassistant/number/HMI_0123456789ab/maximum_output_power/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/HMI/control/0123456789ab/max-output-power",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "max": 800,
+      "min": 0,
+      "name": "Maximum Output Power",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "step": 1,
+      "unique_id": "0123456789ab_maximum_output_power",
+      "unit_of_measurement": "W",
+      "value_template": "{{ value_json.maximumOutputPower }}"
+    },
+    "homeassistant/select/HMI_0123456789ab/mode/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "command_template": "{% set mapping = {\"Default\":\"default\",\"B2500 Boost\":\"b2500Boost\",\"Reverse Current Protection\":\"reverseCurrentProtection\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
+      "command_topic": "hm2mqtt/HMI/control/0123456789ab/mode",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "icon": "mdi:cog",
+      "name": "Mode",
+      "options": ["Default", "B2500 Boost", "Reverse Current Protection"],
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_mode",
+      "value_template": "{% set mapping = {\"default\":\"Default\",\"b2500Boost\":\"B2500 Boost\",\"reverseCurrentProtection\":\"Reverse Current Protection\"} %}{% set stringifiedValue = value_json.mode | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/bluetooth_signal/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "name": "Bluetooth Signal",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_bluetooth_signal",
+      "value_template": "{{ value_json.bluetoothSignal }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/chip_temperature/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "device_class": "temperature",
+      "name": "Chip Temperature",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_chip_temperature",
+      "unit_of_measurement": "°C",
+      "value_template": "{{ value_json.chipTemperature }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/daily_energy_generated/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "device_class": "energy",
+      "name": "Daily Energy Generated",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "total_increasing",
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_daily_energy_generated",
+      "unit_of_measurement": "kWh",
+      "value_template": "{{ value_json.dailyEnergyGenerated }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/error_count/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "icon": "mdi:counter",
+      "name": "Error Count",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_error_count",
+      "value_template": "{{ value_json.errorCount }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/error_details/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "icon": "mdi:information-outline",
+      "name": "Error Details",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_error_details",
+      "value_template": "{{ value_json.errorDetails }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/error_type/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "icon": "mdi:alert-circle",
+      "name": "Error Type",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_error_type",
+      "value_template": "{{ value_json.errorType }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/fc4_version/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "icon": "mdi:chip",
+      "name": "FC41D Firmware",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_fc4_version",
+      "value_template": "{{ value_json.fc4Version }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/firmware_version/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "icon": "mdi:chip",
+      "name": "Firmware Version",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_firmware_version",
+      "value_template": "{{ value_json.firmwareVersion }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/grid_frequency/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "device_class": "frequency",
+      "name": "Grid Frequency",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_grid_frequency",
+      "unit_of_measurement": "Hz",
+      "value_template": "{{ value_json.gridFrequency }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/grid_output_power/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "device_class": "power",
+      "name": "Grid Output Power",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_grid_output_power",
+      "unit_of_measurement": "W",
+      "value_template": "{{ value_json.gridOutputPower }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/grid_voltage/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "device_class": "voltage",
+      "name": "Grid Voltage",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_grid_voltage",
+      "unit_of_measurement": "V",
+      "value_template": "{{ value_json.gridVoltage }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/monthly_energy_generated/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "device_class": "energy",
+      "name": "Monthly Energy Generated",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "total_increasing",
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_monthly_energy_generated",
+      "unit_of_measurement": "kWh",
+      "value_template": "{{ value_json.monthlyEnergyGenerated }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/pv1_current/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "device_class": "current",
+      "name": "PV1 Current",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_pv1_current",
+      "unit_of_measurement": "A",
+      "value_template": "{{ value_json.pv1Current }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/pv1_power/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "device_class": "power",
+      "name": "PV1 Power",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_pv1_power",
+      "unit_of_measurement": "W",
+      "value_template": "{{ value_json.pv1Power }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/pv1_voltage/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "device_class": "voltage",
+      "name": "PV1 Voltage",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_pv1_voltage",
+      "unit_of_measurement": "V",
+      "value_template": "{{ value_json.pv1Voltage }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/pv2_current/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "device_class": "current",
+      "name": "PV2 Current",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_pv2_current",
+      "unit_of_measurement": "A",
+      "value_template": "{{ value_json.pv2Current }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/pv2_power/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "device_class": "power",
+      "name": "PV2 Power",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_pv2_power",
+      "unit_of_measurement": "W",
+      "value_template": "{{ value_json.pv2Power }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/pv2_voltage/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "device_class": "voltage",
+      "name": "PV2 Voltage",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_pv2_voltage",
+      "unit_of_measurement": "V",
+      "value_template": "{{ value_json.pv2Voltage }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/timestamp/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "device_class": "timestamp",
+      "icon": "mdi:clock-time-four-outline",
+      "name": "Last Update",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_timestamp",
+      "value_template": "{{ value_json.timestamp }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/total_energy_generated/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "device_class": "energy",
+      "name": "Total Energy Generated",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "total_increasing",
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_total_energy_generated",
+      "unit_of_measurement": "kWh",
+      "value_template": "{{ value_json.totalEnergyGenerated }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/weekly_energy_generated/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "device_class": "energy",
+      "name": "Weekly Energy Generated",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "total_increasing",
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_weekly_energy_generated",
+      "unit_of_measurement": "kWh",
+      "value_template": "{{ value_json.weeklyEnergyGenerated }}"
+    },
+    "homeassistant/sensor/HMI_0123456789ab/wifi_rssi/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "device_class": "signal_strength",
+      "name": "WiFi RSSI",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_wifi_rssi",
+      "unit_of_measurement": "dBm",
+      "value_template": "{{ value_json.wifiRssi }}"
+    },
+    "homeassistant/switch/HMI_0123456789ab/grid_connection_ban/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMI/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/HMI/control/0123456789ab/grid-connection-ban",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMI",
+        "name": "HAME Energy HMI 0123456789ab"
+      },
+      "icon": "mdi:transmission-tower-off",
+      "name": "Grid Connection Ban",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_off": "false",
+      "payload_on": "true",
+      "state_off": false,
+      "state_on": true,
+      "state_topic": "hm2mqtt/HMI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_grid_connection_ban",
+      "value_template": "{{ value_json.gridConnectionBan }}"
+    }
+  }
+}

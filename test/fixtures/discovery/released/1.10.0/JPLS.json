@@ -1,0 +1,2429 @@
+{
+  "deviceType": "JPLS",
+  "state": "fixture:JPLS-8H",
+  "components": {
+    "homeassistant/binary_sensor/JPLS_0123456789ab/pv1_status/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "device_class": "power",
+      "name": "PV1 Active",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_off": false,
+      "payload_on": true,
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_pv1_status",
+      "value_template": "{{ value_json.pv1Status }}"
+    },
+    "homeassistant/binary_sensor/JPLS_0123456789ab/pv2_status/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "device_class": "power",
+      "name": "PV2 Active",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_off": false,
+      "payload_on": true,
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_pv2_status",
+      "value_template": "{{ value_json.pv2Status }}"
+    },
+    "homeassistant/binary_sensor/JPLS_0123456789ab/pv3_status/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "device_class": "power",
+      "name": "PV3 Active",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_off": false,
+      "payload_on": true,
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_pv3_status",
+      "value_template": "{{ value_json.pv3Status }}"
+    },
+    "homeassistant/binary_sensor/JPLS_0123456789ab/pv4_status/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "device_class": "power",
+      "name": "PV4 Active",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_off": false,
+      "payload_on": true,
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_pv4_status",
+      "value_template": "{{ value_json.pv4Status }}"
+    },
+    "homeassistant/button/JPLS_0123456789ab/battery_pack_recovery/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/battery-pack-recovery",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:battery-sync",
+      "name": "Battery Pack Recovery",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_press": "PRESS",
+      "unique_id": "0123456789ab_battery_pack_recovery"
+    },
+    "homeassistant/button/JPLS_0123456789ab/factory_reset/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/factory-reset",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:delete-forever",
+      "name": "Factory Reset",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_press": "PRESS",
+      "unique_id": "0123456789ab_factory_reset"
+    },
+    "homeassistant/button/JPLS_0123456789ab/phase_diagnosis/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/phase-diagnosis",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:sine-wave",
+      "name": "Phase Diagnosis",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_press": "PRESS",
+      "unique_id": "0123456789ab_phase_diagnosis"
+    },
+    "homeassistant/button/JPLS_0123456789ab/refresh/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/refresh",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:refresh",
+      "name": "Refresh",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_press": "PRESS",
+      "unique_id": "0123456789ab_refresh"
+    },
+    "homeassistant/button/JPLS_0123456789ab/sync_time/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/sync-time",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:clock-sync",
+      "name": "Sync Time",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_press": "PRESS",
+      "unique_id": "0123456789ab_sync_time"
+    },
+    "homeassistant/number/JPLS_0123456789ab/depth_of_discharge/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/discharge-depth",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "device_class": "battery",
+      "max": 90,
+      "min": 30,
+      "name": "Depth of Discharge",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "step": 1,
+      "unique_id": "0123456789ab_depth_of_discharge",
+      "unit_of_measurement": "%",
+      "value_template": "{{ value_json.depthOfDischarge }}"
+    },
+    "homeassistant/number/JPLS_0123456789ab/time_period_0_power/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/0/power",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "icon": "mdi:flash",
+      "max": 800,
+      "min": 0,
+      "name": "Time Period 0 Power",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "step": 1,
+      "unique_id": "0123456789ab_time_period_0_power",
+      "unit_of_measurement": "W",
+      "value_template": "{{ value_json.timePeriods[0].power }}"
+    },
+    "homeassistant/number/JPLS_0123456789ab/time_period_1_power/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/1/power",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "icon": "mdi:flash",
+      "max": 800,
+      "min": 0,
+      "name": "Time Period 1 Power",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "step": 1,
+      "unique_id": "0123456789ab_time_period_1_power",
+      "unit_of_measurement": "W",
+      "value_template": "{{ value_json.timePeriods[1].power }}"
+    },
+    "homeassistant/number/JPLS_0123456789ab/time_period_2_power/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/2/power",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "icon": "mdi:flash",
+      "max": 800,
+      "min": 0,
+      "name": "Time Period 2 Power",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "step": 1,
+      "unique_id": "0123456789ab_time_period_2_power",
+      "unit_of_measurement": "W",
+      "value_template": "{{ value_json.timePeriods[2].power }}"
+    },
+    "homeassistant/number/JPLS_0123456789ab/time_period_3_power/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/3/power",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "icon": "mdi:flash",
+      "max": 800,
+      "min": 0,
+      "name": "Time Period 3 Power",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "step": 1,
+      "unique_id": "0123456789ab_time_period_3_power",
+      "unit_of_measurement": "W",
+      "value_template": "{{ value_json.timePeriods[3].power }}"
+    },
+    "homeassistant/number/JPLS_0123456789ab/time_period_4_power/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/4/power",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "icon": "mdi:flash",
+      "max": 800,
+      "min": 0,
+      "name": "Time Period 4 Power",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "step": 1,
+      "unique_id": "0123456789ab_time_period_4_power",
+      "unit_of_measurement": "W",
+      "value_template": "{{ value_json.timePeriods[4].power }}"
+    },
+    "homeassistant/select/JPLS_0123456789ab/meter_type/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_template": "{% set mapping = {\"CT001\":\"ct001\",\"Shelly Pro 3EM\":\"shellyPro3em\",\"CT002\":\"ct002\",\"CT003\":\"ct003\",\"Shelly EM Gen3\":\"shellyEmGen3\",\"Shelly Pro EM50\":\"shellyProEm50\",\"EcoTracker\":\"ecoTracker\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/meter-type",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:meter-electric",
+      "name": "Meter Type",
+      "options": [
+        "CT001",
+        "Shelly Pro 3EM",
+        "CT002",
+        "CT003",
+        "Shelly EM Gen3",
+        "Shelly Pro EM50",
+        "EcoTracker"
+      ],
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "unique_id": "0123456789ab_meter_type"
+    },
+    "homeassistant/select/JPLS_0123456789ab/recharge_mode/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_template": "{% set mapping = {\"Single Phase\":\"singlePhase\",\"Three Phase\":\"threePhase\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/recharge-mode",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "icon": "mdi:flash",
+      "name": "Recharge Mode",
+      "options": ["Single Phase", "Three Phase"],
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_recharge_mode",
+      "value_template": "{% set mapping = {\"singlePhase\":\"Single Phase\",\"threePhase\":\"Three Phase\"} %}{% set stringifiedValue = value_json.rechargeMode | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
+    },
+    "homeassistant/select/JPLS_0123456789ab/working_mode/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_template": "{% set mapping = {\"Automatic\":\"automatic\",\"Manual\":\"manual\",\"AI\":\"ai\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/working-mode",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "icon": "mdi:cog",
+      "name": "Working Mode",
+      "options": ["Automatic", "Manual", "AI"],
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_working_mode",
+      "value_template": "{% set mapping = {\"automatic\":\"Automatic\",\"manual\":\"Manual\",\"ai\":\"AI\"} %}{% set stringifiedValue = value_json.workingMode | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/alarm_code/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "icon": "mdi:alert",
+      "name": "Alarm Code",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_alarm_code",
+      "value_template": "{{ value_json.alarmCode }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/auto_switch_working_mode/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "Auto Switch Working Mode",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_auto_switch_working_mode",
+      "value_template": "{{ value_json.autoSwitchWorkingMode }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/battery_0_cell_number_voltage_max/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/battery_0_cell_number_voltage_min/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/battery_0_cell_voltage_diff/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/battery_0_cell_voltage_max/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/battery_0_cell_voltage_min/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/battery_1_cell_number_voltage_max/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/battery_1_cell_number_voltage_min/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/battery_1_cell_voltage_diff/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/battery_1_cell_voltage_max/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/battery_1_cell_voltage_min/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/battery_2_cell_number_voltage_max/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/battery_2_cell_number_voltage_min/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/battery_2_cell_voltage_diff/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/battery_2_cell_voltage_max/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/battery_2_cell_voltage_min/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/battery_3_cell_number_voltage_max/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/battery_3_cell_number_voltage_min/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/battery_3_cell_voltage_diff/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/battery_3_cell_voltage_max/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/battery_3_cell_voltage_min/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/battery_energy/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "device_class": "energy_storage",
+      "name": "Battery Energy",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_battery_energy",
+      "unit_of_measurement": "kWh",
+      "value_template": "{{ value_json.batteryEnergy }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/battery_packs/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "icon": "mdi:battery-high",
+      "name": "Battery Packs",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_battery_packs",
+      "value_template": "{{ value_json.batteryPacks }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/battery_soc/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "device_class": "battery",
+      "name": "Battery SOC",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_battery_soc",
+      "unit_of_measurement": "%",
+      "value_template": "{{ value_json.batterySoc }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/battery_working_status/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "icon": "mdi:battery",
+      "name": "Battery Working Status",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_battery_working_status",
+      "value_template": "{% set mapping = {\"keep\":\"Keep Level\",\"charging\":\"Charging\",\"discharging\":\"Discharging\",\"unknown\":\"Unknown\"} %}{% set stringifiedValue = value_json.batteryWorkingStatus | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/bms_version/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "BMS Version",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_bms_version",
+      "value_template": "{{ value_json.bmsVersion }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/bmsNumber/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/capacity/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/cell_temperature_1/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/cell_temperature_2/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/cell_temperature_3/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/cell_temperature_4/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/cellFlag/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/chargeCurrentLimit/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/chargeVoltage/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/combined_power/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "device_class": "power",
+      "name": "Combined Power",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_combined_power",
+      "unit_of_measurement": "W",
+      "value_template": "{{ value_json.combinedPower }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/ct_status/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "CT Status",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_ct_status",
+      "value_template": "{{ value_json.ctStatus }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/ct_type/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "CT Type",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_ct_type",
+      "value_template": "{{ value_json.ctType }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/current/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/daily_discharge_capacity/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "device_class": "energy",
+      "name": "Daily Discharge Capacity",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "total_increasing",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_daily_discharge_capacity",
+      "unit_of_measurement": "kWh",
+      "value_template": "{{ value_json.dailyDischargeCapacity }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/daily_power_generation/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "device_class": "energy",
+      "icon": "mdi:solar-power-variant",
+      "name": "Daily Power Generation",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "total_increasing",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_daily_power_generation",
+      "unit_of_measurement": "kWh",
+      "value_template": "{{ value_json.dailyPowerGeneration }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/device_version/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "EMS Version",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_device_version",
+      "value_template": "{{ value_json.deviceVersion }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/dischargeCurrentLimit/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/envTemp/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/error_code/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "Error Code",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_error_code",
+      "value_template": "{{ value_json.errorCode }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/error/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/error2/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/http_server_type/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "HTTP Server Type",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_http_server_type",
+      "value_template": "{{ value_json.httpServerType }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/inverter_error/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/inverter_gridCurrent/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/inverter_gridFrequency/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/inverter_gridPower/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/inverter_gridPowerFactor/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/inverter_gridVoltage/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/inverter_temperature/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/inverter_version/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "Inverter Version",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_inverter_version",
+      "value_template": "{{ value_json.inverterVersion }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/inverter_warning/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/monthly_charging_capacity/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "device_class": "energy",
+      "name": "Monthly Charging Capacity",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "total_increasing",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_monthly_charging_capacity",
+      "unit_of_measurement": "kWh",
+      "value_template": "{{ value_json.monthlyChargingCapacity }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/monthly_discharge_capacity/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "device_class": "energy",
+      "name": "Monthly Discharge Capacity",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "total_increasing",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_monthly_discharge_capacity",
+      "unit_of_measurement": "kWh",
+      "value_template": "{{ value_json.monthlyDischargeCapacity }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/mosfetTemp/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/mppt_error/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/mppt_pv1_current/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/mppt_pv1_power/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/mppt_pv1_voltage/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/mppt_pv2_current/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/mppt_pv2_power/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/mppt_pv2_voltage/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/mppt_pv3_current/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/mppt_pv3_power/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/mppt_pv3_voltage/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/mppt_pv4_current/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/mppt_pv4_power/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/mppt_pv4_voltage/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/mppt_temperature/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/mppt_version/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "MPPT Version",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_mppt_version",
+      "value_template": "{{ value_json.mpptVersion }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/mppt_warning/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/phase_diagnosis_status/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:sine-wave",
+      "name": "Phase Diagnosis Status",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_phase_diagnosis_status",
+      "value_template": "{{ value_json.phaseDiagnosisStatus }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/phase_type/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "Phase Type",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_phase_type",
+      "value_template": "{{ value_json.phaseType }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/pv1_power/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "device_class": "power",
+      "name": "PV1 Power",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_pv1_power",
+      "unit_of_measurement": "W",
+      "value_template": "{{ value_json.pv1Power }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/pv2_power/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "device_class": "power",
+      "name": "PV2 Power",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_pv2_power",
+      "unit_of_measurement": "W",
+      "value_template": "{{ value_json.pv2Power }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/pv3_power/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "device_class": "power",
+      "name": "PV3 Power",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_pv3_power",
+      "unit_of_measurement": "W",
+      "value_template": "{{ value_json.pv3Power }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/pv4_power/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "device_class": "power",
+      "name": "PV4 Power",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_pv4_power",
+      "unit_of_measurement": "W",
+      "value_template": "{{ value_json.pv4Power }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/screen_version/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "enabled_by_default": false,
+      "name": "Screen Version",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_screen_version",
+      "value_template": "{{ value_json.screenVersion }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/shelly_port/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:lan",
+      "name": "Shelly Port",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_shelly_port",
+      "value_template": "{{ value_json.shellyPort }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/soc/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/soh/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/statusFlag/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/temperature/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/timestamp/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "device_class": "timestamp",
+      "icon": "mdi:clock-time-four-outline",
+      "name": "Last Update",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_timestamp",
+      "value_template": "{{ value_json.timestamp }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/voltage/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/warning/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/warning2/config": null,
+    "homeassistant/sensor/JPLS_0123456789ab/wifi_name/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "icon": "mdi:wifi",
+      "name": "WiFi Name",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_wifi_name",
+      "value_template": "{{ value_json.wifiName }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/wifi_signal_strength/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "device_class": "signal_strength",
+      "name": "WiFi Signal Strength",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_wifi_signal_strength",
+      "unit_of_measurement": "dBm",
+      "value_template": "{{ value_json.wifiSignalStrength }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/working_status/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "Working Status",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_working_status",
+      "value_template": "{{ value_json.workingStatus }}"
+    },
+    "homeassistant/sensor/JPLS_0123456789ab/yearly_charging_capacity/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "device_class": "energy",
+      "name": "Yearly Charging Capacity",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "total_increasing",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_yearly_charging_capacity",
+      "unit_of_measurement": "kWh",
+      "value_template": "{{ value_json.yearlyChargingCapacity }}"
+    },
+    "homeassistant/switch/JPLS_0123456789ab/bluetooth_advertising/config": null,
+    "homeassistant/switch/JPLS_0123456789ab/surplus_feed_in/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/surplus-feed-in",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "icon": "mdi:transmission-tower-export",
+      "name": "Surplus Feed-in",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_off": "false",
+      "payload_on": "true",
+      "state_off": false,
+      "state_on": true,
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_surplus_feed_in",
+      "value_template": "{{ value_json.surplusFeedInEnabled }}"
+    },
+    "homeassistant/switch/JPLS_0123456789ab/time_period_0_enabled/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/0/enabled",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "icon": "mdi:clock-time-four-outline",
+      "name": "Time Period 0 Enabled",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_off": "false",
+      "payload_on": "true",
+      "state_off": false,
+      "state_on": true,
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_time_period_0_enabled",
+      "value_template": "{{ value_json.timePeriods[0].enabled }}"
+    },
+    "homeassistant/switch/JPLS_0123456789ab/time_period_1_enabled/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/1/enabled",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "icon": "mdi:clock-time-four-outline",
+      "name": "Time Period 1 Enabled",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_off": "false",
+      "payload_on": "true",
+      "state_off": false,
+      "state_on": true,
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_time_period_1_enabled",
+      "value_template": "{{ value_json.timePeriods[1].enabled }}"
+    },
+    "homeassistant/switch/JPLS_0123456789ab/time_period_2_enabled/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/2/enabled",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "icon": "mdi:clock-time-four-outline",
+      "name": "Time Period 2 Enabled",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_off": "false",
+      "payload_on": "true",
+      "state_off": false,
+      "state_on": true,
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_time_period_2_enabled",
+      "value_template": "{{ value_json.timePeriods[2].enabled }}"
+    },
+    "homeassistant/switch/JPLS_0123456789ab/time_period_3_enabled/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/3/enabled",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "icon": "mdi:clock-time-four-outline",
+      "name": "Time Period 3 Enabled",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_off": "false",
+      "payload_on": "true",
+      "state_off": false,
+      "state_on": true,
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_time_period_3_enabled",
+      "value_template": "{{ value_json.timePeriods[3].enabled }}"
+    },
+    "homeassistant/switch/JPLS_0123456789ab/time_period_4_enabled/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/4/enabled",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "icon": "mdi:clock-time-four-outline",
+      "name": "Time Period 4 Enabled",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_off": "false",
+      "payload_on": "true",
+      "state_off": false,
+      "state_on": true,
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_time_period_4_enabled",
+      "value_template": "{{ value_json.timePeriods[4].enabled }}"
+    },
+    "homeassistant/text/JPLS_0123456789ab/meter_mac/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/meter-mac",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:identifier",
+      "name": "Meter MAC",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "pattern": "^[0-9A-Fa-f]{12}$",
+      "unique_id": "0123456789ab_meter_mac"
+    },
+    "homeassistant/text/JPLS_0123456789ab/time_period_0_end_time/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/0/end-time",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "Time Period 0 Time To",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_time_period_0_end_time",
+      "value_template": "{{ value_json.timePeriods[0].endTime }}"
+    },
+    "homeassistant/text/JPLS_0123456789ab/time_period_0_start_time/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/0/start-time",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "Time Period 0 Time From",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_time_period_0_start_time",
+      "value_template": "{{ value_json.timePeriods[0].startTime }}"
+    },
+    "homeassistant/text/JPLS_0123456789ab/time_period_0_weekday/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/0/weekday",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "Time Period 0 Weekday",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "pattern": "^0?1?2?3?4?5?6?$",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_time_period_0_weekday",
+      "value_template": "{{ value_json.timePeriods[0].weekday }}"
+    },
+    "homeassistant/text/JPLS_0123456789ab/time_period_1_end_time/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/1/end-time",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "Time Period 1 Time To",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_time_period_1_end_time",
+      "value_template": "{{ value_json.timePeriods[1].endTime }}"
+    },
+    "homeassistant/text/JPLS_0123456789ab/time_period_1_start_time/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/1/start-time",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "Time Period 1 Time From",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_time_period_1_start_time",
+      "value_template": "{{ value_json.timePeriods[1].startTime }}"
+    },
+    "homeassistant/text/JPLS_0123456789ab/time_period_1_weekday/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/1/weekday",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "Time Period 1 Weekday",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "pattern": "^0?1?2?3?4?5?6?$",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_time_period_1_weekday",
+      "value_template": "{{ value_json.timePeriods[1].weekday }}"
+    },
+    "homeassistant/text/JPLS_0123456789ab/time_period_2_end_time/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/2/end-time",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "Time Period 2 Time To",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_time_period_2_end_time",
+      "value_template": "{{ value_json.timePeriods[2].endTime }}"
+    },
+    "homeassistant/text/JPLS_0123456789ab/time_period_2_start_time/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/2/start-time",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "Time Period 2 Time From",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_time_period_2_start_time",
+      "value_template": "{{ value_json.timePeriods[2].startTime }}"
+    },
+    "homeassistant/text/JPLS_0123456789ab/time_period_2_weekday/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/2/weekday",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "Time Period 2 Weekday",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "pattern": "^0?1?2?3?4?5?6?$",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_time_period_2_weekday",
+      "value_template": "{{ value_json.timePeriods[2].weekday }}"
+    },
+    "homeassistant/text/JPLS_0123456789ab/time_period_3_end_time/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/3/end-time",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "Time Period 3 Time To",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_time_period_3_end_time",
+      "value_template": "{{ value_json.timePeriods[3].endTime }}"
+    },
+    "homeassistant/text/JPLS_0123456789ab/time_period_3_start_time/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/3/start-time",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "Time Period 3 Time From",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_time_period_3_start_time",
+      "value_template": "{{ value_json.timePeriods[3].startTime }}"
+    },
+    "homeassistant/text/JPLS_0123456789ab/time_period_3_weekday/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/3/weekday",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "Time Period 3 Weekday",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "pattern": "^0?1?2?3?4?5?6?$",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_time_period_3_weekday",
+      "value_template": "{{ value_json.timePeriods[3].weekday }}"
+    },
+    "homeassistant/text/JPLS_0123456789ab/time_period_4_end_time/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/4/end-time",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "Time Period 4 Time To",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_time_period_4_end_time",
+      "value_template": "{{ value_json.timePeriods[4].endTime }}"
+    },
+    "homeassistant/text/JPLS_0123456789ab/time_period_4_start_time/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/4/start-time",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "Time Period 4 Time From",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_time_period_4_start_time",
+      "value_template": "{{ value_json.timePeriods[4].startTime }}"
+    },
+    "homeassistant/text/JPLS_0123456789ab/time_period_4_weekday/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/JPLS/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/JPLS/control/0123456789ab/time-period/4/weekday",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "JPLS",
+        "name": "HAME Energy JPLS 0123456789ab",
+        "sw_version": "140.36.213.110"
+      },
+      "name": "Time Period 4 Weekday",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "pattern": "^0?1?2?3?4?5?6?$",
+      "state_topic": "hm2mqtt/JPLS/device/0123456789ab/data",
+      "unique_id": "0123456789ab_time_period_4_weekday",
+      "value_template": "{{ value_json.timePeriods[4].weekday }}"
+    }
+  }
+}
