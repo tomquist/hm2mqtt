@@ -13,7 +13,7 @@ module.exports = {
   testMatch: ['**/test/e2e/scenarios/*.e2e.ts'],
   injectGlobals: true,
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', { useESM: true, isolatedModules: true }],
+    '^.+\\.tsx?$': ['ts-jest', { useESM: true }],
   },
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',

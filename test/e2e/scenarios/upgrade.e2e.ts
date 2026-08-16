@@ -7,14 +7,7 @@ import {
   readBaselines,
 } from '../../discovery/paths.js';
 import { deviceFixtures } from '../../fixtures/devices.js';
-import {
-  MISSING_HOME_ASSISTANT,
-  Rig,
-  entitySlug,
-  homeAssistantInstalled,
-  startRig,
-  waitFor,
-} from '../harness/index.js';
+import { Rig, entitySlug, canRunScenarios, startRig, waitFor } from '../harness/index.js';
 
 /**
  * An existing installation being upgraded.
@@ -30,10 +23,7 @@ import {
  * The scenario is only as good as the frozen baseline it replays, so the
  * release process has to add one per release.
  */
-const describeE2e = homeAssistantInstalled() ? describe : describe.skip;
-if (!homeAssistantInstalled()) {
-  console.warn(MISSING_HOME_ASSISTANT);
-}
+const describeE2e = canRunScenarios() ? describe : describe.skip;
 
 /** See the note on KNOWN_FINDINGS in smoke.e2e.ts. */
 const KNOWN_FINDINGS = [/has no attribute '(wifiSignalStrength|localApiEnabled|localApiPort)'/];
