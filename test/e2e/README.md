@@ -4,8 +4,7 @@ These scenarios run the shipped hm2mqtt build against a real Home Assistant and
 a real MQTT broker, with simulated Marstek devices answering its polls. They
 exist because the bugs that hurt users most are not wrong values — they are
 entities that look correct in the code and make Home Assistant log an error on
-every single message (issues [#346](https://github.com/tomquist/hm2mqtt/issues/346)
-and [#418](https://github.com/tomquist/hm2mqtt/issues/418)).
+every single message.
 
 ## Running them
 
@@ -45,7 +44,7 @@ without authenticating against the HTTP API.
   adopts those entities, and only then does the new build announce itself over
   the top. Applying a changed discovery message to an entity that already
   exists is a different code path in Home Assistant than creating one, and it
-  is the one that broke in #418.
+  is the one that has broken before.
 
 ## Discovery baselines
 
@@ -57,7 +56,8 @@ serves two masters on purpose:
   `npm run baseline:update` after an intentional change and review the result.
 - `released/<version>/` is frozen at what that release published. The upgrade
   scenario replays it, and `test/discovery/baseline.test.ts` fails if an entity
-  loses a state topic it used to have — the exact shape of #418.
+  loses a state topic it used to have, which breaks every installation that
+  already has that entity.
 
 **At release time**, copy `current/` to `released/<new version>/`. Without that,
 the upgrade scenario keeps testing an ever-older starting point.
@@ -79,5 +79,6 @@ when you do, re-check `CONFIG_ENTRY_STORAGE_MINOR_VERSION` in
 schema for the generated MQTT config entry.
 
 Note what a green run does and does not mean: it says hm2mqtt does not trip
-Home Assistant in the ways we know about. Both root causes behind #418 are
-Home Assistant bugs; the suite cannot vouch for Home Assistant itself.
+Home Assistant in the ways we know about. Some of what these scenarios guard
+against are Home Assistant bugs that hm2mqtt merely provokes; the suite cannot
+vouch for Home Assistant itself.

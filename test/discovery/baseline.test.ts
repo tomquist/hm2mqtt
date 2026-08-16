@@ -76,8 +76,8 @@ describe('upgrade safety', () => {
       removals.length === 0
         ? ''
         : `These entities keep existing but no longer read a state topic, which breaks every\n` +
-            `installation that already has them (see issue #418). Advertise the value again — a\n` +
-            `template guarded with \`is defined\` renders nothing until the value exists — or\n` +
+            `installation that already has them. Advertise the value again — a template\n` +
+            `guarded with \`is defined\` renders nothing until the value exists — or\n` +
             `remove the entity outright.\n\n${describeStateTopicRemovals(removals)}`,
     ).toBe('');
   });

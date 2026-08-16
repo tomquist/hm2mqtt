@@ -27,7 +27,7 @@ function stateTopicOf(config: unknown): string | undefined {
  * leaves an entity subscribed to nothing: it keeps the old subscription, drops
  * the value template that belonged with it, and hands the entity the whole
  * payload as its state. Every installation that already had the entity then
- * logs an error per message until Home Assistant is restarted (issue #418).
+ * logs an error per message until Home Assistant is restarted.
  *
  * Adding a state topic is fine, and so is removing the entity outright — only
  * the in-place removal of a state topic is caught here.

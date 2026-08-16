@@ -16,7 +16,7 @@ import { Rig, entitySlug, canRunScenarios, startRig, waitFor } from '../harness/
  * retained discovery messages are still in the broker — and then the new build
  * starts and announces its own. Applying a changed discovery message to an
  * entity that already exists is a different code path in Home Assistant than
- * creating one, and it is where issue #418 lived: the entity kept its
+ * creating one, and it is where this has gone wrong before: an entity kept its
  * subscription but lost the template that went with it, and every device
  * message became an error.
  *

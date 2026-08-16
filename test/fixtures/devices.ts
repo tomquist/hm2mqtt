@@ -52,7 +52,7 @@ const venus: DeviceFixture = {
 
 const jupiterPlus: DeviceFixture = {
   deviceType: 'JPLS-8H',
-  source: 'Jupiter Plus firmware 140 runtime reading (issue #418)',
+  source: 'Jupiter Plus firmware 140 runtime reading, from a user report',
   responses: {
     1:
       'cd=1,ele_d=365,ele_m=10919,ele_y=119149,pv1_p=322,pv1_s=1,pv2_p=325,pv2_s=1,pv3_p=330,' +
