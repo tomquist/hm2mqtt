@@ -205,11 +205,13 @@ export async function startHomeAssistant(options: HomeAssistantOptions): Promise
         diagnose: () => `Home Assistant log:\n${tail(readLog())}`,
       }).catch(async () => {
         // Do not hand the next scenario a process that still holds the config
-        // directory and an MQTT connection.
+        // directory and an MQTT connection. If even SIGKILL does not reap it,
+        // fail loudly: the Stack reports teardown failures, so the run says so
+        // instead of quietly overlapping the next scenario.
         child.kill('SIGKILL');
         await waitFor('Home Assistant to exit after SIGKILL', () => exited, {
           timeoutMs: 10_000,
-        }).catch(() => undefined);
+        });
       });
     },
   };
