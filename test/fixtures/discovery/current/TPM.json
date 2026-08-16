@@ -1,0 +1,437 @@
+{
+  "deviceType": "TPM",
+  "state": "empty",
+  "components": {
+    "homeassistant/button/TPM_0123456789ab/factory_reset/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/TPM/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/TPM/control/0123456789ab/factory-reset",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "TPM",
+        "name": "HAME Energy TPM 0123456789ab"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:delete-forever",
+      "name": "Factory Reset",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_press": "PRESS",
+      "unique_id": "0123456789ab_factory_reset"
+    },
+    "homeassistant/button/TPM_0123456789ab/hardware_reset/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/TPM/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/TPM/control/0123456789ab/hardware-reset",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "TPM",
+        "name": "HAME Energy TPM 0123456789ab"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:restart-alert",
+      "name": "Hardware Reset",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_press": "PRESS",
+      "unique_id": "0123456789ab_hardware_reset"
+    },
+    "homeassistant/button/TPM_0123456789ab/refresh/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/TPM/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/TPM/control/0123456789ab/refresh",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "TPM",
+        "name": "HAME Energy TPM 0123456789ab"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:refresh",
+      "name": "Refresh",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_press": "PRESS",
+      "unique_id": "0123456789ab_refresh"
+    },
+    "homeassistant/sensor/TPM_0123456789ab/bluetooth_signal/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/TPM/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "TPM",
+        "name": "HAME Energy TPM 0123456789ab"
+      },
+      "name": "Bluetooth Signal",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/TPM/device/0123456789ab/data",
+      "unique_id": "0123456789ab_bluetooth_signal",
+      "value_template": "{{ value_json.bluetoothSignal }}"
+    },
+    "homeassistant/sensor/TPM_0123456789ab/fc4_version/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/TPM/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "TPM",
+        "name": "HAME Energy TPM 0123456789ab"
+      },
+      "name": "FC41D Firmware",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/TPM/device/0123456789ab/data",
+      "unique_id": "0123456789ab_fc4_version",
+      "value_template": "{{ value_json.fc4Version }}"
+    },
+    "homeassistant/sensor/TPM_0123456789ab/firmware_version/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/TPM/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "TPM",
+        "name": "HAME Energy TPM 0123456789ab"
+      },
+      "name": "Firmware Version",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/TPM/device/0123456789ab/data",
+      "unique_id": "0123456789ab_firmware_version",
+      "value_template": "{{ value_json.firmwareVersion }}"
+    },
+    "homeassistant/sensor/TPM_0123456789ab/phase1_power/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/TPM/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "TPM",
+        "name": "HAME Energy TPM 0123456789ab"
+      },
+      "device_class": "power",
+      "name": "Phase 1 Power",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/TPM/device/0123456789ab/data",
+      "unique_id": "0123456789ab_phase1_power",
+      "unit_of_measurement": "W",
+      "value_template": "{{ value_json.phase1Power }}"
+    },
+    "homeassistant/sensor/TPM_0123456789ab/phase2_power/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/TPM/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "TPM",
+        "name": "HAME Energy TPM 0123456789ab"
+      },
+      "device_class": "power",
+      "name": "Phase 2 Power",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/TPM/device/0123456789ab/data",
+      "unique_id": "0123456789ab_phase2_power",
+      "unit_of_measurement": "W",
+      "value_template": "{{ value_json.phase2Power }}"
+    },
+    "homeassistant/sensor/TPM_0123456789ab/phase3_power/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/TPM/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "TPM",
+        "name": "HAME Energy TPM 0123456789ab"
+      },
+      "device_class": "power",
+      "name": "Phase 3 Power",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/TPM/device/0123456789ab/data",
+      "unique_id": "0123456789ab_phase3_power",
+      "unit_of_measurement": "W",
+      "value_template": "{{ value_json.phase3Power }}"
+    },
+    "homeassistant/sensor/TPM_0123456789ab/slave_count/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/TPM/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "TPM",
+        "name": "HAME Energy TPM 0123456789ab"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:counter",
+      "name": "Slave Count",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/TPM/device/0123456789ab/data",
+      "unique_id": "0123456789ab_slave_count",
+      "value_template": "{{ value_json.slaveCount }}"
+    },
+    "homeassistant/sensor/TPM_0123456789ab/timestamp/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/TPM/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "TPM",
+        "name": "HAME Energy TPM 0123456789ab"
+      },
+      "device_class": "timestamp",
+      "icon": "mdi:clock",
+      "name": "Last Update",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/TPM/device/0123456789ab/data",
+      "unique_id": "0123456789ab_timestamp",
+      "value_template": "{{ value_json.timestamp }}"
+    },
+    "homeassistant/sensor/TPM_0123456789ab/total_power/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/TPM/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "TPM",
+        "name": "HAME Energy TPM 0123456789ab"
+      },
+      "device_class": "power",
+      "name": "Total Power",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/TPM/device/0123456789ab/data",
+      "unique_id": "0123456789ab_total_power",
+      "unit_of_measurement": "W",
+      "value_template": "{{ value_json.totalPower }}"
+    },
+    "homeassistant/sensor/TPM_0123456789ab/wifi_rssi/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/TPM/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "TPM",
+        "name": "HAME Energy TPM 0123456789ab"
+      },
+      "device_class": "signal_strength",
+      "name": "WiFi RSSI",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "measurement",
+      "state_topic": "hm2mqtt/TPM/device/0123456789ab/data",
+      "unique_id": "0123456789ab_wifi_rssi",
+      "unit_of_measurement": "dBm",
+      "value_template": "{{ value_json.wifiRssi }}"
+    },
+    "homeassistant/sensor/TPM_0123456789ab/wifi_status/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/TPM/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "TPM",
+        "name": "HAME Energy TPM 0123456789ab"
+      },
+      "name": "WiFi Status",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/TPM/device/0123456789ab/data",
+      "unique_id": "0123456789ab_wifi_status",
+      "value_template": "{{ value_json.wifiStatus }}"
+    }
+  }
+}

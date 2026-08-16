@@ -1,0 +1,7 @@
+{
+  "_comment": "Home Assistant version the e2e suite runs against. Pinned so a failing scenario means hm2mqtt changed, not that Home Assistant released. Bump deliberately, and re-check both the config entry storage version in harness/homeAssistant.ts and paho-mqtt below (it is the MQTT integration's own requirement, which Home Assistant would normally pip-install at runtime — the suite runs with --skip-pip). The frontend and numpy are not used by the scenarios; without them Home Assistant falls back to recovery mode and never loads the MQTT entry.",
+  "homeassistant": "2026.2.3",
+  "home-assistant-frontend": "20260128.6",
+  "numpy": "2.5.2",
+  "paho-mqtt": "2.1.0"
+}
