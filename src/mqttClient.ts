@@ -4,6 +4,7 @@ import { DeviceManager } from './deviceManager.js';
 import { publishDiscoveryConfigs } from './generateDiscoveryConfigs.js';
 import { AdditionalDeviceInfo, BaseDeviceData, getDeviceDefinition } from './deviceDefinition.js';
 import logger from './logger.js';
+import { redactUrlCredentials } from './utils/redact.js';
 
 export class MqttClient {
   private client: mqtt.MqttClient;
@@ -47,7 +48,7 @@ export class MqttClient {
     };
 
     logger.info(
-      `Connecting to MQTT broker at ${this.config.brokerUrl} with client ID ${this.config.clientId}`,
+      `Connecting to MQTT broker at ${redactUrlCredentials(this.config.brokerUrl)} with client ID ${this.config.clientId}`,
     );
     logger.debug(`MQTT username: ${this.config.username ? this.config.username : 'not provided'}`);
     logger.debug(`MQTT password: ${this.config.password ? '******' : 'not provided'}`);

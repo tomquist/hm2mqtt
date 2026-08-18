@@ -38,6 +38,7 @@ jest.unstable_mockModule('./deviceDefinition.js', () => ({
 
 const { MqttClient } = await import('./mqttClient.js');
 import type { Device } from './types.js';
+import logger from './logger.js';
 
 describe('MqttClient discovery re-publish', () => {
   test('re-publishes discovery when additional device info changes after first data on same path (regression #235)', () => {
@@ -458,5 +459,29 @@ describe('MqttClient forced refresh', () => {
     expect(
       payloadsAfter(() => mqttClient.requestDeviceData(device, { forceMessageIndices: [7] })),
     ).toEqual([]);
+  });
+});
+
+describe('MqttClient connection logging', () => {
+  test('does not log the broker password (regression #424)', () => {
+    const infoSpy = jest.spyOn(logger, 'info').mockImplementation(() => {});
+
+    try {
+      const config: any = {
+        brokerUrl: 'mqtt://user:secret@broker:1883',
+        clientId: 'test-client',
+        topicPrefix: 'homeassistant',
+        autodiscoveryTopicPrefix: 'homeassistant',
+      };
+      const deviceManager: any = { getDevices: jest.fn(() => []) };
+
+      new MqttClient(config, deviceManager, jest.fn());
+
+      const logged = infoSpy.mock.calls.flat().join(' ');
+      expect(logged).not.toContain('secret');
+      expect(logged).toContain('mqtt://user:***@broker:1883');
+    } finally {
+      infoSpy.mockRestore();
+    }
   });
 });

@@ -1,5 +1,6 @@
 import pino, { type Logger } from 'pino';
 import { inspect } from 'util';
+import { redactUrlCredentials } from './utils/redact.js';
 
 /**
  * Loosely-typed log function.
@@ -59,10 +60,37 @@ export function consoleStyleLogMethod(
   method.apply(this, inputArgs);
 }
 
+/**
+ * Masks credentials embedded in URLs (`mqtt://user:pass@host`) in every logged
+ * string, so a broker URL cannot leak the broker password no matter which call
+ * site logs it (see issue #424).
+ */
+export function redactLogArgs(args: Parameters<pino.LogFn>): Parameters<pino.LogFn> {
+  return args.map(arg =>
+    typeof arg === 'string' ? redactUrlCredentials(arg) : arg,
+  ) as Parameters<pino.LogFn>;
+}
+
+/**
+ * The hook the application logger runs on every log call: surplus arguments are
+ * folded into the message first, then the finished message is redacted - that
+ * way credentials inside logged objects are masked as well.
+ */
+export function logMethodHook(
+  this: pino.Logger,
+  inputArgs: Parameters<pino.LogFn>,
+  method: pino.LogFn,
+): void {
+  const redactingMethod = ((...args: unknown[]) => {
+    method.apply(this, redactLogArgs(args as Parameters<pino.LogFn>));
+  }) as pino.LogFn;
+  consoleStyleLogMethod.call(this, inputArgs, redactingMethod);
+}
+
 const logger: LooseLogger = pino({
   level: resolvedLevel,
   hooks: {
-    logMethod: consoleStyleLogMethod,
+    logMethod: logMethodHook,
   },
   transport: {
     targets: [

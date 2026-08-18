@@ -9,11 +9,46 @@ start_application() {
     cd /app && node dist/index.js || bashio::log.error "Application crashed with exit code $?"
 }
 
+# Mask the password of a URL that carries its credentials inline
+# (e.g. mqtt://user:pass@host:1883), so broker URLs can be logged without
+# leaking the broker password. The username is kept, it is not a secret.
+redact_url_credentials() {
+    local text="$1"
+    local scheme rest userinfo host
+
+    if [[ "$text" != *"://"* ]]; then
+        echo "$text"
+        return
+    fi
+
+    scheme="${text%%://*}"
+    rest="${text#*://}"
+    userinfo="${rest%@*}"
+    host="${rest##*@}"
+
+    # No credentials, or the "@" belongs to the path rather than to userinfo
+    if [[ "$rest" != *"@"* || "$userinfo" == */* || "$userinfo" != *":"* ]]; then
+        echo "$text"
+        return
+    fi
+
+    echo "${scheme}://${userinfo%%:*}:***@${host}"
+}
+
+# Apply redact_url_credentials to every line read from stdin
+redact_credentials() {
+    local line
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        redact_url_credentials "$line"
+    done
+}
+
 # Function to output environment variables for testing
 output_env_for_testing() {
     bashio::log.info "Running in test mode, outputting environment variables"
     # Output all environment variables that start with MQTT_ or DEVICE_
-    env | grep -E "^(MQTT_|AUTODISCOVERY_|DEVICE_|POLL_|CELL_|DEBUG=|LOG_LEVEL=)" | sort
+    env | grep -E "^(MQTT_|AUTODISCOVERY_|DEVICE_|POLL_|CELL_|DEBUG=|LOG_LEVEL=)" | sort |
+        redact_credentials
 }
 
 # Function to manually parse options.json
@@ -91,7 +126,11 @@ if bashio::config.true 'debug' 2>/dev/null; then
     
     # Try to print configuration but don't fail if it errors
     bashio::log.debug "Attempting to print full addon configuration:"
-    (bashio::config 2>/dev/null | jq '.' 2>/dev/null) || bashio::log.warning "Failed to print configuration"
+    if ADDON_CONFIG=$(bashio::config 2>/dev/null | jq '.' 2>/dev/null); then
+        echo "$ADDON_CONFIG" | redact_credentials
+    else
+        bashio::log.warning "Failed to print configuration"
+    fi
 fi
 
 # Create config directory
@@ -99,7 +138,7 @@ mkdir -p /app/config
 
 # Get MQTT URI
 BROKER_URL=$(get_mqtt_uri)
-bashio::log.info "MQTT Broker URL: ${BROKER_URL}"
+bashio::log.info "MQTT Broker URL: $(redact_url_credentials "${BROKER_URL}")"
 
 # Set environment variables for the application
 export MQTT_BROKER_URL="${BROKER_URL}"
@@ -195,7 +234,7 @@ env | grep "^DEVICE_" | sort
 # In debug mode, show all environment variables (excluding passwords)
 if bashio::config.true 'debug'; then
     bashio::log.debug "All environment variables (excluding passwords):"
-    env | grep -v -i "password" | sort
+    env | grep -v -i "password" | sort | redact_credentials
 fi
 
 if [ "$DEVICE_COUNT" -eq 0 ]; then
