@@ -101,10 +101,30 @@ export type FieldDefinition<
     });
 
 /**
+ * An entity this device used to advertise and no longer does, identified by the
+ * Home Assistant platform and the object id it was published under.
+ *
+ * Home Assistant keeps a discovery-created entity for as long as its discovery
+ * config sits retained on the broker, so renaming or dropping an entity is not
+ * enough to make it disappear: the old entity stays behind forever, stuck at
+ * unknown, and its value template keeps logging `'dict object' has no attribute
+ * ...` on every poll because the field it reads no longer exists. Listing the
+ * old identity here clears that retained config, which is what makes Home
+ * Assistant delete the entity.
+ */
+export interface RetiredEntity {
+  /** Home Assistant platform, e.g. `sensor` — part of the discovery topic. */
+  platform: string;
+  /** Object id the entity was advertised under, e.g. `daily_charging_capacity`. */
+  id: string;
+}
+
+/**
  * Interface for message definition
  */
 export interface DeviceDefinition<T extends BaseDeviceData> {
   messages: MessageDefinition<T>[];
+  retiredEntities: RetiredEntity[];
 }
 
 export type DeriveContext<T extends BaseDeviceData> = {
@@ -228,8 +248,16 @@ export type BuildMessageFn = <T extends BaseDeviceData>(
   args: BuildMessageDefinitionFn<T>,
 ) => void;
 
+export type RetireEntityFn = (entity: RetiredEntity) => void;
+
 export type RegisterDeviceBuildArgs = {
   message: BuildMessageFn;
+  /**
+   * Declares an entity this device no longer advertises, so its retained
+   * discovery config is cleared and Home Assistant removes the leftover entity.
+   * See {@link RetiredEntity}.
+   */
+  retire: RetireEntityFn;
 };
 
 export function registerDeviceDefinition(
@@ -238,9 +266,13 @@ export function registerDeviceDefinition(
   }: {
     deviceTypes: string[];
   },
-  build: ({ message }: RegisterDeviceBuildArgs) => void,
+  build: ({ message, retire }: RegisterDeviceBuildArgs) => void,
 ): void {
   const messages: MessageDefinition<any>[] = [];
+  const retiredEntities: RetiredEntity[] = [];
+  const retire: RetireEntityFn = entity => {
+    retiredEntities.push(entity);
+  };
   const message: BuildMessageFn = (messageOptions, buildMessage) => {
     const fields: FieldDefinition<any, KeyPath<any>>[] = [];
     const registerField = <KP extends KeyPath<any>, K extends string | readonly string[]>(
@@ -285,11 +317,12 @@ export function registerDeviceDefinition(
     } satisfies MessageDefinition<any>;
     messages.push(messageDefinition);
   };
-  build({ message });
+  build({ message, retire });
 
   for (const deviceType of deviceTypes) {
     deviceDefinitionRegistry.set(deviceType, {
       messages,
+      retiredEntities,
     });
   }
 }

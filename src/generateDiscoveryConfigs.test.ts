@@ -733,4 +733,86 @@ describe('Home Assistant Discovery', () => {
     ).filter(c => /phase\d_charge/.test(c.topic));
     expect(smr).toHaveLength(0);
   });
+  test('should clear the discovery config of the renamed Jupiter daily energy sensor', () => {
+    const device: Device = { deviceType: 'HMN-1', deviceId: 'jupiter1' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'hame_energy/HMN-1/device/jupiter1/ctrl',
+      deviceTopicNew: 'marstek_energy/HMN-1/device/jupiter1/ctrl',
+      deviceControlTopicOld: 'hame_energy/HMN-1/App/jupiter1/ctrl',
+      deviceControlTopicNew: 'marstek_energy/HMN-1/App/jupiter1/ctrl',
+      availabilityTopic: 'hame_energy/HMN-1/availability/jupiter1',
+      controlSubscriptionTopic: 'hame_energy/HMN-1/control/jupiter1/control',
+      publishTopic: 'hame_energy/HMN-1/device/jupiter1/data',
+    };
+
+    const configs = generateDiscoveryConfigs(
+      device,
+      deviceTopics,
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
+    );
+
+    // The pre-1.10.0 identity is cleared, which is what removes the leftover
+    // entity from Home Assistant
+    const retired = configs.filter(
+      c => c.topic === 'homeassistant/sensor/HMN-1_jupiter1/daily_charging_capacity/config',
+    );
+    expect(retired).toHaveLength(1);
+    expect(retired[0].config).toBeNull();
+
+    // ...and the sensor it was renamed to is advertised as usual
+    const current = configs.find(
+      c => c.topic === 'homeassistant/sensor/HMN-1_jupiter1/daily_power_generation/config',
+    );
+    expect(current?.config).toMatchObject({
+      name: 'Daily Power Generation',
+      value_template: '{{ value_json.dailyPowerGeneration }}',
+    });
+
+    // Other devices keep their own daily charging capacity sensor
+    const venus = generateDiscoveryConfigs(
+      { deviceType: 'HMG-50', deviceId: 'venus1' },
+      deviceTopics,
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
+    ).find(c => /daily_charging_capacity/.test(c.topic));
+    expect(venus?.config).not.toBeNull();
+  });
+
+  test('should publish an empty retained payload for a retired entity', () => {
+    const published: Array<[string, string]> = [];
+    const mockClient = {
+      publish: jest.fn((topic: string, message: string, options: unknown, callback: any) => {
+        published.push([topic, message]);
+        callback(null);
+      }),
+    };
+
+    publishDiscoveryConfigs(
+      mockClient as never,
+      { deviceType: 'HMN-1', deviceId: 'jupiter1' },
+      {
+        deviceTopicOld: 'hame_energy/HMN-1/device/jupiter1/ctrl',
+        deviceTopicNew: 'marstek_energy/HMN-1/device/jupiter1/ctrl',
+        deviceControlTopicOld: 'hame_energy/HMN-1/App/jupiter1/ctrl',
+        deviceControlTopicNew: 'marstek_energy/HMN-1/App/jupiter1/ctrl',
+        availabilityTopic: 'hame_energy/HMN-1/availability/jupiter1',
+        controlSubscriptionTopic: 'hame_energy/HMN-1/control/jupiter1/control',
+        publishTopic: 'hame_energy/HMN-1/device/jupiter1/data',
+      },
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
+      {},
+    );
+
+    expect(
+      published.filter(
+        ([topic]) => topic === 'homeassistant/sensor/HMN-1_jupiter1/daily_charging_capacity/config',
+      ),
+    ).toEqual([['homeassistant/sensor/HMN-1_jupiter1/daily_charging_capacity/config', '']]);
+    expect(mockClient.publish.mock.calls[0][2]).toMatchObject({ retain: true });
+  });
 });

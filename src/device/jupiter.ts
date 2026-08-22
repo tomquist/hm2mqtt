@@ -160,7 +160,11 @@ registerDeviceDefinition(
   {
     deviceTypes: ['HMN', 'HMM', 'JPLS'],
   },
-  ({ message }) => {
+  ({ message, retire }) => {
+    // Renamed to `daily_power_generation` in 1.10.0. Home Assistant keeps the old
+    // sensor until its retained discovery config is cleared, so without this it
+    // stays behind at unknown and logs a template warning on every poll.
+    retire({ platform: 'sensor', id: 'daily_charging_capacity' });
     registerRuntimeInfoMessage(message);
     registerJupiterBMSInfoMessage(message);
     // The Jupiter answers `cd=26` with the same payload as the Venus, but only

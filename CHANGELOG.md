@@ -1,6 +1,10 @@
 # Changelog
 ## [Next]
 
+### Fixed
+
+- Jupiter: The *Daily Charging Capacity* sensor, which 1.10.0 renamed to *Daily Power Generation*, stayed behind in Home Assistant as a second entity that never got a value and filled the log with `Template variable warning: 'dict object' has no attribute 'dailyChargingCapacity'` on every poll. The leftover entity is now removed automatically; the history recorded under it is removed with it (fixes #428)
+
 
 ## [1.10.0] - 2026-08-15
 

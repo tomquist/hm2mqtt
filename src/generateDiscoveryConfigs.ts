@@ -113,6 +113,22 @@ export function generateDiscoveryConfigs(
       });
     }
   }
+
+  // Clear the retained discovery config of every entity this device used to
+  // advertise. An empty payload is what makes Home Assistant drop the entity;
+  // without it a renamed or removed entity lingers forever at unknown.
+  for (const retired of deviceDefinition?.retiredEntities ?? []) {
+    const objectId = retired.id.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const topic = `${autodiscoveryTopicPrefix}/${retired.platform}/${nodeId}/${objectId}/config`;
+    if (configs.some(config => config.topic === topic)) {
+      // The entity is still advertised under this identity, so clearing it would
+      // delete a live entity. Only a wrong device definition gets here.
+      logger.warn(`Skipping retirement of ${topic}: an advertised entity uses the same topic`);
+      continue;
+    }
+    configs.push({ topic, config: null });
+  }
+
   return configs;
 }
 
