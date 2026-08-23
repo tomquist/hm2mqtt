@@ -629,21 +629,40 @@ export interface VenusDeviceData extends BaseDeviceData {
   parallelMode?: VenusParallelMode | 'unknown'; // par
 }
 
+// Per-slot schedule direction reported by a Venus E Mini in ms{n}, confirmed
+// via live app testing (VENUS_MINI_IMPLEMENTATION_PROMPT.md). A 4th value
+// exists in the app UI for an "AI optimization" mode but is greyed out as
+// "coming soon" and not yet observed on the wire.
+export type VenusMiniScheduleDirection = 'charge' | 'discharge' | 'selfConsumption' | 'unknown';
+
 /**
  * A single charge/discharge schedule slot reported by a Venus E Mini. Unlike
  * the tim_0..tim_9 encoding used by the other Venus variants, each slot is
  * reported as its own set of numbered fields (m{n}, mp{n}, ms{n}, st{n},
- * et{n}, re{n}). The mode and repeat fields are captured but their exact
- * value semantics are unconfirmed (see VENUS_MINI_NOTES.md).
+ * et{n}, re{n}).
  */
 export interface VenusMiniTimePeriod {
   enabled?: boolean; // m{n}
   power?: number; // mp{n}
   startTime?: string; // st{n}
   endTime?: string; // et{n}
-  modeRaw?: number; // ms{n} (raw; meaning unconfirmed)
+  direction?: VenusMiniScheduleDirection; // ms{n}, mapped
+  modeRaw?: number; // ms{n} (raw, kept alongside direction for any future unmapped value)
   repeatRaw?: number; // re{n} (raw; meaning unconfirmed, possibly a weekday bitmask)
 }
+
+// Operating mode reported by a Venus E Mini in cm. Only 0 and 2 have been
+// observed; a 3rd "AI optimization" mode exists in the app UI but is greyed
+// out as "coming soon" and not yet observed on the wire.
+export type VenusMiniOperatingMode = 'selfConsumption' | 'manual' | 'unknown';
+
+// Device state reported by a Venus E Mini in dev_sta.
+export type VenusMiniDeviceState = 'standby' | 'charging' | 'discharging' | 'unknown';
+
+// Feed-in power limit preset reported by a Venus E Mini in gps. Not a literal
+// wattage value - it selects between Germany's simplified-registration cap
+// and the alternative limit.
+export type VenusMiniFeedInPowerLimit = '800W' | '1500W' | 'unknown';
 
 /**
  * Venus E Mini (VNSEMINI) device data. This model reports a `cd=1` payload
@@ -653,29 +672,44 @@ export interface VenusMiniTimePeriod {
  *
  * Only fields with a reasonably confident interpretation get a semantic name
  * here; everything else observed in the payload is preserved verbatim under
- * `raw` (see VENUS_MINI_NOTES.md for the confidence rationale per field).
+ * `raw` (see VENUS_MINI_NOTES.md and VENUS_MINI_IMPLEMENTATION_PROMPT.md for
+ * the confidence rationale per field).
  */
 export interface VenusMiniDeviceData extends BaseDeviceData {
-  gridPower?: number; // gp (W)
-  gridPowerAlt?: number; // ig (W) - matched gp exactly in every capture so far; kept separate in case it diverges on other units/firmware, mirroring the batteryPower/calculatedBatteryPower (bp/rp) precedent
-  loadPower?: number; // lp (W)
-  inverterPower?: number; // inv_p (W) - also matched gp exactly so far; see gridPowerAlt
+  gridPower?: number; // gp (W). Negative = importing from grid, positive = exporting
+  gridPowerAlt?: number; // ig (W) - always matched gp exactly so far; kept as a separate diagnostic in case it diverges on other units/firmware, mirroring the batteryPower/calculatedBatteryPower (bp/rp) precedent on the other Venus variants
+  inverterPower?: number; // inv_p (W) - also always matched gp exactly so far; see gridPowerAlt
+  backupPower?: number; // lp (W), matches the app's "Backup" reading
+  batteryPower?: number; // dpt (W). Negative = discharging, positive = charging
   batterySoc?: number; // soc, reported ×10 (%)
   batteryEnergyStored?: number; // be (Wh)
+  dischargeDepth?: number; // do (%), usable-discharge percentage; the app enforces 30-90%
   pmuFirmwareVersion?: number; // pmu
   inverterFirmwareVersion?: number; // inv
   dcdcFirmwareVersion?: number; // dcdc
   wifiStatus?: boolean; // wif_s (1 = ok)
   mqttStatus?: boolean; // mq_s (1 = ok)
+  wifiSignal?: number; // wifi_a, unitless (0-100ish scale, exact scale unconfirmed)
   ctType?: number; // ct_type (only 0 = "no external meter" observed so far, full enum unconfirmed)
   ctPhase?: number; // ct_ph (only 0 observed so far, meaning unconfirmed)
-  deviceTime?: string; // time, device-local "YYYY-M-D H:MM:SS" as reported
+  deviceTime?: string; // time, device-local timestamp, parsed to ISO-8601 assuming the device clock is in the host's local timezone (the same assumption the sync-time command makes)
+  ledEnabled?: boolean; // leds, inverted: leds=0 means the LED is on
+  bluetoothLockRaw?: number; // bbs, direction confirmed (higher = more locked) but the absolute mapping across every LED x Bluetooth-lock combination is not, so kept as a raw diagnostic rather than a binary sensor
+  feedInPowerLimit?: VenusMiniFeedInPowerLimit; // gps
+  operatingMode?: VenusMiniOperatingMode; // cm
+  deviceState?: VenusMiniDeviceState; // dev_sta
+  batteryDischargedEnergyToday?: number; // dbd (Wh)
+  batteryDischargedEnergyTotal?: number; // tbd (Wh)
+  batteryChargedEnergyToday?: number; // dbc (Wh) - supporting evidence but not an isolated before/after test
+  batteryChargedEnergyTotal?: number; // tbc (Wh) - same
+  gridSoldEnergyToday?: number; // dgs (Wh)
+  gridSoldEnergyTotal?: number; // tgs (Wh)
   timePeriods?: VenusMiniTimePeriod[];
   // Fields observed in the payload with no confirmed meaning, keyed by their
-  // raw MQTT field name (ls, eg, gs, cv, cm, ct, dpt, do, gn, ar, aw, apt,
-  // wifi_a, dev_sta, bbs, leds, gps, rechg_type, ser, e1-e7, dgb/dgs/dgp/
-  // dbc/dbd, tgb/tgs/tgp/tbc/tbd). Exposed as disabled-by-default sensors so
-  // the data is available for correlation without asserting semantics.
+  // raw MQTT field name (ls, eg, gs, cv, ct (bare, distinct from ct_type),
+  // gn, ar, aw, apt, rechg_type, ser, e1-e7, dgb/dgp, tgb/tgp). Exposed as
+  // disabled-by-default sensors so the data is available for correlation
+  // without asserting semantics.
   raw?: Record<string, number>;
 }
 

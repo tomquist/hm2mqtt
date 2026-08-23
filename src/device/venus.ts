@@ -19,6 +19,7 @@ import {
   VenusBMSPackDetail,
   VenusDeviceData,
   VenusMiniDeviceData,
+  VenusMiniTimePeriod,
   VenusTimePeriod,
   VenusVersionSet,
   WeekdaySet,
@@ -301,28 +302,40 @@ function extractMiniAdditionalDeviceInfo(state: VenusMiniDeviceData) {
   };
 }
 
+// Parses the Venus E Mini's device-local `time` field into an ISO-8601
+// timestamp. The device does not zero-pad the individual components (e.g.
+// "2026-8-23 7:47:40"), so passing it straight through made Home Assistant
+// show malformed-looking values like "13:1:45". The device's clock is
+// assumed to be in the host's local timezone - the same assumption the
+// sync-time command makes when setting it. Falls back to the raw value if it
+// doesn't match the expected shape.
+const venusMiniDeviceTimePattern = /^(\d{4})-(\d{1,2})-(\d{1,2}) (\d{1,2}):(\d{1,2}):(\d{1,2})$/;
+function parseVenusMiniDeviceTime(value: string): string {
+  const match = venusMiniDeviceTimePattern.exec(value);
+  if (!match) {
+    return value;
+  }
+  const [year, month, day, hour, minute, second] = match.slice(1).map(Number);
+  return new Date(year, month - 1, day, hour, minute, second).toISOString();
+}
+
 // Fields observed in the Venus E Mini's cd=1 payload with no confirmed
-// meaning (see VENUS_MINI_NOTES.md). Exposed verbatim as disabled-by-default
-// sensors, keyed by their raw MQTT field name, so the values are available
-// for correlation without asserting semantics.
+// meaning (see VENUS_MINI_NOTES.md and VENUS_MINI_IMPLEMENTATION_PROMPT.md).
+// Exposed verbatim as disabled-by-default sensors, keyed by their raw MQTT
+// field name, so the values are available for correlation without asserting
+// semantics. dgb/dgp and tgb/tgp: the daily-vs-lifetime pattern itself is
+// confirmed (see gridSoldEnergyToday/Total), but which of "bought"/"pass"
+// each suffix means is still just a hypothesis.
 const venusMiniRawFields = [
   'ls',
   'eg',
   'gs',
   'cv',
-  'cm',
   'ct',
-  'dpt',
-  'do',
   'gn',
   'ar',
   'aw',
   'apt',
-  'wifi_a',
-  'dev_sta',
-  'bbs',
-  'leds',
-  'gps',
   'rechg_type',
   'ser',
   'e1',
@@ -333,15 +346,9 @@ const venusMiniRawFields = [
   'e6',
   'e7',
   'dgb',
-  'dgs',
   'dgp',
-  'dbc',
-  'dbd',
   'tgb',
-  'tgs',
   'tgp',
-  'tbc',
-  'tbd',
 ];
 
 function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
@@ -365,6 +372,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
+    // Negative = importing from the grid, positive = exporting.
     field({ key: 'gp', path: ['gridPower'], transform: number() });
     advertise(
       ['gridPower'],
@@ -377,10 +385,10 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    // ig matched gp exactly in every capture so far; kept as a separate
-    // disabled-by-default sensor in case it diverges on other units or
-    // firmware, mirroring the batteryPower/calculatedBatteryPower (bp/rp)
-    // precedent above.
+    // ig always matched gp exactly, including sign flips, across every live
+    // sample checked so far; kept as a separate disabled-by-default sensor in
+    // case it diverges on other units or firmware, mirroring the
+    // batteryPower/calculatedBatteryPower (bp/rp) precedent above.
     field({ key: 'ig', path: ['gridPowerAlt'], transform: number() });
     advertise(
       ['gridPowerAlt'],
@@ -394,20 +402,20 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    field({ key: 'lp', path: ['loadPower'], transform: number() });
+    // Matches the app's own "Backup" reading exactly.
+    field({ key: 'lp', path: ['backupPower'], transform: number() });
     advertise(
-      ['loadPower'],
+      ['backupPower'],
       sensorComponent<number>({
-        id: 'load_power',
-        name: 'Load Power',
+        id: 'backup_power',
+        name: 'Backup Power',
         device_class: 'power',
         unit_of_measurement: 'W',
         state_class: 'measurement',
       }),
     );
 
-    // inv_p also matched gp exactly in every capture so far; see
-    // gridPowerAlt above.
+    // inv_p also always matched gp exactly so far; see gridPowerAlt above.
     field({ key: 'inv_p', path: ['inverterPower'], transform: number() });
     advertise(
       ['inverterPower'],
@@ -418,6 +426,21 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         unit_of_measurement: 'W',
         state_class: 'measurement',
         enabled_by_default: false,
+      }),
+    );
+
+    // Live battery charge/discharge power. Negative = discharging, positive =
+    // charging; confirmed against the app's own "Batterie" reading across
+    // multiple samples.
+    field({ key: 'dpt', path: ['batteryPower'], transform: number() });
+    advertise(
+      ['batteryPower'],
+      sensorComponent<number>({
+        id: 'battery_power',
+        name: 'Battery Power',
+        device_class: 'power',
+        unit_of_measurement: 'W',
+        state_class: 'measurement',
       }),
     );
 
@@ -443,6 +466,21 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Battery Energy Stored',
         device_class: 'energy_storage',
         unit_of_measurement: 'Wh',
+        state_class: 'measurement',
+      }),
+    );
+
+    // Usable-discharge percentage; the app enforces a 30-90% range and
+    // reserves the remainder as backup capacity. Confirmed at both 90% and
+    // 50% matching the app's own setting screen exactly.
+    field({ key: 'do', path: ['dischargeDepth'], transform: number() });
+    advertise(
+      ['dischargeDepth'],
+      sensorComponent<number>({
+        id: 'discharge_depth',
+        name: 'Discharge Depth',
+        device_class: 'battery',
+        unit_of_measurement: '%',
         state_class: 'measurement',
       }),
     );
@@ -505,6 +543,19 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
+    // Confirmed as a live/fluctuating reading rather than a static value; the
+    // exact 0-100ish scale it's reported on is unconfirmed.
+    field({ key: 'wifi_a', path: ['wifiSignal'], transform: number() });
+    advertise(
+      ['wifiSignal'],
+      sensorComponent<number>({
+        id: 'wifi_signal',
+        name: 'WiFi Signal',
+        icon: 'mdi:wifi',
+        state_class: 'measurement',
+      }),
+    );
+
     // Only ct_type=0 ("no external meter configured") has been observed so
     // far; the full enum is unconfirmed, so this is reported as a raw number
     // rather than mapped to labels.
@@ -529,15 +580,200 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    // Device-local time as reported by the device ("YYYY-M-D H:MM:SS", no
-    // leading zeros on month/day/hour), kept verbatim rather than parsed
-    // since it doesn't match a device_class: timestamp-compatible format.
-    field({ key: 'time', path: ['deviceTime'], transform: identity() });
+    // Only 0 (self-consumption) and 2 (manual) have been observed; a 3rd "AI
+    // optimization" mode exists in the app UI but is greyed out as "coming
+    // soon". In manual mode, actual charge/discharge behavior is driven by
+    // which schedule rule is enabled, not by this field itself.
+    field({
+      key: 'cm',
+      path: ['operatingMode'],
+      transform: map(
+        {
+          '0': 'selfConsumption',
+          '2': 'manual',
+        },
+        'unknown',
+      ),
+    });
+    advertise(
+      ['operatingMode'],
+      sensorComponent<NonNullable<VenusMiniDeviceData['operatingMode']>>({
+        id: 'operating_mode',
+        name: 'Operating Mode',
+        icon: 'mdi:cog',
+        valueMappings: {
+          selfConsumption: 'Self Consumption',
+          manual: 'Manual',
+          unknown: 'Unknown',
+        },
+      }),
+    );
+
+    field({
+      key: 'dev_sta',
+      path: ['deviceState'],
+      transform: map(
+        {
+          '0': 'standby',
+          '1': 'charging',
+          '2': 'discharging',
+        },
+        'unknown',
+      ),
+    });
+    advertise(
+      ['deviceState'],
+      sensorComponent<NonNullable<VenusMiniDeviceData['deviceState']>>({
+        id: 'device_state',
+        name: 'Device State',
+        icon: 'mdi:state-machine',
+        valueMappings: {
+          standby: 'Standby',
+          charging: 'Charging',
+          discharging: 'Discharging',
+          unknown: 'Unknown',
+        },
+      }),
+    );
+
+    // leds is inverted: 0 means the LED is on, 1 means it's off. Confirmed
+    // via a clean single-variable toggle test.
+    field({ key: 'leds', path: ['ledEnabled'], transform: equalsBoolean('0') });
+    advertise(
+      ['ledEnabled'],
+      binarySensorComponent({
+        id: 'led_enabled',
+        name: 'Status LED',
+        icon: 'mdi:led-on',
+      }),
+    );
+
+    // Bluetooth lock (Bluetooth-Sperre in the app). The direction is
+    // confirmed - enabling the lock increases the value - but the absolute
+    // mapping across every LED x lock combination isn't, so this stays a raw
+    // diagnostic rather than a binary sensor.
+    field({ key: 'bbs', path: ['bluetoothLockRaw'], transform: number() });
+    advertise(
+      ['bluetoothLockRaw'],
+      sensorComponent<number>({
+        id: 'bluetooth_lock_raw',
+        name: 'Bluetooth Lock (Raw)',
+        icon: 'mdi:bluetooth',
+        enabled_by_default: false,
+      }),
+    );
+
+    // A preset selector, not a literal wattage: 0 = Germany's 800W
+    // simplified-registration cap, 1 = the 1500W alternative. Confirmed both
+    // directions via a real settings change in the app.
+    field({
+      key: 'gps',
+      path: ['feedInPowerLimit'],
+      transform: map(
+        {
+          '0': '800W',
+          '1': '1500W',
+        },
+        'unknown',
+      ),
+    });
+    advertise(
+      ['feedInPowerLimit'],
+      sensorComponent<NonNullable<VenusMiniDeviceData['feedInPowerLimit']>>({
+        id: 'feed_in_power_limit',
+        name: 'Feed-in Power Limit',
+        icon: 'mdi:transmission-tower-export',
+        valueMappings: {
+          '800W': '800 W',
+          '1500W': '1500 W',
+          unknown: 'Unknown',
+        },
+      }),
+    );
+
+    // Confirmed incrementing during active discharge/charge and exactly when
+    // the device started net-exporting to the grid, matching the app.
+    field({ key: 'dbd', path: ['batteryDischargedEnergyToday'], transform: number() });
+    advertise(
+      ['batteryDischargedEnergyToday'],
+      sensorComponent<number>({
+        id: 'battery_discharged_energy_today',
+        name: 'Battery Discharged Energy Today',
+        device_class: 'energy',
+        unit_of_measurement: 'Wh',
+        state_class: 'total_increasing',
+      }),
+    );
+
+    field({ key: 'tbd', path: ['batteryDischargedEnergyTotal'], transform: number() });
+    advertise(
+      ['batteryDischargedEnergyTotal'],
+      sensorComponent<number>({
+        id: 'battery_discharged_energy_total',
+        name: 'Battery Discharged Energy Total',
+        device_class: 'energy',
+        unit_of_measurement: 'Wh',
+        state_class: 'total_increasing',
+      }),
+    );
+
+    // Supporting evidence (jumped noticeably during a real active-charging
+    // test) but not an isolated before/after test like the fields above.
+    field({ key: 'dbc', path: ['batteryChargedEnergyToday'], transform: number() });
+    advertise(
+      ['batteryChargedEnergyToday'],
+      sensorComponent<number>({
+        id: 'battery_charged_energy_today',
+        name: 'Battery Charged Energy Today',
+        device_class: 'energy',
+        unit_of_measurement: 'Wh',
+        state_class: 'total_increasing',
+      }),
+    );
+
+    field({ key: 'tbc', path: ['batteryChargedEnergyTotal'], transform: number() });
+    advertise(
+      ['batteryChargedEnergyTotal'],
+      sensorComponent<number>({
+        id: 'battery_charged_energy_total',
+        name: 'Battery Charged Energy Total',
+        device_class: 'energy',
+        unit_of_measurement: 'Wh',
+        state_class: 'total_increasing',
+      }),
+    );
+
+    field({ key: 'dgs', path: ['gridSoldEnergyToday'], transform: number() });
+    advertise(
+      ['gridSoldEnergyToday'],
+      sensorComponent<number>({
+        id: 'grid_sold_energy_today',
+        name: 'Grid Sold Energy Today',
+        device_class: 'energy',
+        unit_of_measurement: 'Wh',
+        state_class: 'total_increasing',
+      }),
+    );
+
+    field({ key: 'tgs', path: ['gridSoldEnergyTotal'], transform: number() });
+    advertise(
+      ['gridSoldEnergyTotal'],
+      sensorComponent<number>({
+        id: 'grid_sold_energy_total',
+        name: 'Grid Sold Energy Total',
+        device_class: 'energy',
+        unit_of_measurement: 'Wh',
+        state_class: 'total_increasing',
+      }),
+    );
+
+    field({ key: 'time', path: ['deviceTime'], transform: parseVenusMiniDeviceTime });
     advertise(
       ['deviceTime'],
       sensorComponent<string>({
         id: 'device_time',
         name: 'Device Time',
+        device_class: 'timestamp',
         icon: 'mdi:clock-time-four-outline',
       }),
     );
@@ -596,8 +832,37 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         }),
       );
 
-      // ms{n} ("mode"?) and re{n} (127 seen on every active-looking slot,
-      // possibly a bitmask or "always" sentinel) - meaning unconfirmed.
+      // ms{n} is the slot's charge/discharge direction: 1 = charge, 2 =
+      // discharge (fixed power), 3 = self-consumption (per-rule, distinct
+      // from the top-level operatingMode). modeRaw is kept alongside the
+      // mapped value for any future value outside this range.
+      field({
+        key: `ms${i}`,
+        path: ['timePeriods', idx, 'direction'],
+        transform: map(
+          {
+            '1': 'charge',
+            '2': 'discharge',
+            '3': 'selfConsumption',
+          },
+          'unknown',
+        ),
+      });
+      advertise(
+        ['timePeriods', idx, 'direction'],
+        sensorComponent<NonNullable<VenusMiniTimePeriod['direction']>>({
+          id: `schedule_${i}_direction`,
+          name: `Schedule Slot ${i} Direction`,
+          icon: 'mdi:swap-vertical',
+          valueMappings: {
+            charge: 'Charge',
+            discharge: 'Discharge',
+            selfConsumption: 'Self Consumption',
+            unknown: 'Unknown',
+          },
+        }),
+      );
+
       field({ key: `ms${i}`, path: ['timePeriods', idx, 'modeRaw'], transform: number() });
       advertise(
         ['timePeriods', idx, 'modeRaw'],
@@ -609,6 +874,8 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         }),
       );
 
+      // re{n} (127 seen on every active-looking slot, possibly a bitmask or
+      // "always" sentinel) - meaning unconfirmed.
       field({ key: `re${i}`, path: ['timePeriods', idx, 'repeatRaw'], transform: number() });
       advertise(
         ['timePeriods', idx, 'repeatRaw'],
