@@ -3,7 +3,7 @@
 
 ### Added
 
-- Support the `VNSEMINI-X` device type (e.g. `VNSEMINI-0`): the Marstek Venus E Mini. Monitoring only. Beta: some values may be wrong and the sensors may still change (discussion #425, PR #429)
+- Support the `VNSEMINI-X` device type (e.g. `VNSEMINI-0`): the Marstek Venus E Mini. Monitoring only. Beta: some values may be wrong and the sensors may still change (discussion #425, PR #429, PR #430)
 
 ## [1.10.0] - 2026-08-15
 
