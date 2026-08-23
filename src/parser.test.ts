@@ -1540,6 +1540,22 @@ describe('MQTT Message Parser', () => {
     expect(result.raw).not.toHaveProperty('tbc');
   });
 
+  test('parses the Venus E Mini per-phase CT payload (cd=19)', () => {
+    // Not from a real capture: the unit the cd=1 mappings were checked against
+    // reports ct_type=0, so it never answers cd=19. power_a/power_b/power_c are
+    // phases A/B/C and power_s the three-phase total, in watts.
+    const message = 'power_a=230,power_b=0,power_c=-45,power_s=185,d_p=0';
+    const parsed = parseMessage(message, 'VNSEMINI-0', 'venusMini123');
+
+    const result = parsed['ct'] as VenusMiniDeviceData;
+    expect(result.phaseAPower).toBe(230);
+    expect(result.phaseBPower).toBe(0);
+    expect(result.phaseCPower).toBe(-45);
+    expect(result.totalPhasePower).toBe(185);
+    // The cd=19 reply must not be mistaken for the cd=1 runtime message.
+    expect(parsed['data']).toBeUndefined();
+  });
+
   test('maps Venus E Mini enum branches not covered by the primary capture', () => {
     // Synthesized from the per-field confirmations in
     // VENUS_MINI_IMPLEMENTATION_PROMPT.md to cover enum values the single

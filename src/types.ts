@@ -705,6 +705,12 @@ export interface VenusMiniDeviceData extends BaseDeviceData {
   gridSoldEnergyToday?: number; // dgs (Wh)
   gridSoldEnergyTotal?: number; // tgs (Wh)
   timePeriods?: VenusMiniTimePeriod[];
+  // cd=19 per-phase CT readings, in W. Only reported by a unit with an external
+  // meter configured, so these stay unset on a device with ct_type=0.
+  phaseAPower?: number; // power_a
+  phaseBPower?: number; // power_b
+  phaseCPower?: number; // power_c
+  totalPhasePower?: number; // power_s
   // Fields observed in the payload with no confirmed meaning, keyed by their
   // raw MQTT field name (ls, eg, gs, cv, ct (bare, distinct from ct_type),
   // gn, ar, aw, apt, rechg_type, ser, e1-e7, dgb/dgp, tgb/tgp). Exposed as

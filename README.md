@@ -28,6 +28,7 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 - Marstek Venus E
 - Marstek Venus A
 - Marstek Venus D
+- Marstek Venus E Mini (beta)
 - Marstek Jupiter C
 - Marstek Jupiter E
 - Marstek Jupiter Plus
@@ -566,7 +567,7 @@ The device type can be one of the following:
 - **VNSE3-X**: (e.g. VNSE3-0) Venus E 3.0
 - **VNSA-X**: (e.g. VNSA-1) Venus A
 - **VNSD-X**: (e.g. VNSD-1) Venus D
-- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini (sensors only; see "Venus Device Commands" below for which write commands don't apply yet, and FAQ #7 for a data-reporting requirement specific to this model)
+- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini — **beta** (sensors only; see "Venus Device Commands" below for which write commands don't apply yet, and FAQ #7 for a data-reporting requirement specific to this model)
 - **HMN-X**: (e.g. HMN-1) Marstek Jupiter E
 - **HMM-X**: (e.g. HMM-1) Marstek Jupiter C
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus

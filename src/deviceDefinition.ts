@@ -105,6 +105,12 @@ export type FieldDefinition<
  */
 export interface DeviceDefinition<T extends BaseDeviceData> {
   messages: MessageDefinition<T>[];
+  /**
+   * Marks a device family whose field mapping has not been verified against
+   * real hardware yet. Only affects the notice logged when such a device is
+   * configured — the entities themselves behave the same either way.
+   */
+  beta?: boolean;
 }
 
 export type DeriveContext<T extends BaseDeviceData> = {
@@ -235,8 +241,10 @@ export type RegisterDeviceBuildArgs = {
 export function registerDeviceDefinition(
   {
     deviceTypes,
+    beta = false,
   }: {
     deviceTypes: string[];
+    beta?: boolean;
   },
   build: ({ message }: RegisterDeviceBuildArgs) => void,
 ): void {
@@ -290,6 +298,7 @@ export function registerDeviceDefinition(
   for (const deviceType of deviceTypes) {
     deviceDefinitionRegistry.set(deviceType, {
       messages,
+      beta,
     });
   }
 }

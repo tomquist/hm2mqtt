@@ -131,6 +131,29 @@ describe('DeviceManager', () => {
     warnSpy.mockRestore();
   });
 
+  it('warns that a beta device type is unverified', () => {
+    const warnSpy = jest.spyOn(logger, 'warn');
+    const betaConfig: MqttConfig = {
+      brokerUrl: 'mqtt://localhost',
+      clientId: 'test-client',
+      topicPrefix: DEFAULT_TOPIC_PREFIX,
+      autodiscoveryTopicPrefix: 'homeassistant',
+      devices: [{ deviceType: 'VNSEMINI-0', deviceId: 'mini123' }],
+    };
+
+    new DeviceManager(betaConfig, mockOnUpdateState);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('VNSEMINI-0 is in beta'));
+    warnSpy.mockRestore();
+  });
+
+  it('stays quiet about beta for a device type that is not marked beta', () => {
+    const warnSpy = jest.spyOn(logger, 'warn');
+
+    new DeviceManager(mockConfig, mockOnUpdateState);
+    expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining('is in beta'));
+    warnSpy.mockRestore();
+  });
+
   it('should not suggest for completely unrelated device type', () => {
     const warnSpy = jest.spyOn(logger, 'warn');
     const unrelatedConfig: MqttConfig = {

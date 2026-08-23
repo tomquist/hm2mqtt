@@ -27,6 +27,11 @@ function isVenusMiniRuntimeInfoMessage(values: Record<string, string>): boolean 
   return requiredMiniRuntimeInfoKeys.every(key => key in values);
 }
 
+const requiredCtPowerKeys = ['power_a', 'power_b', 'power_c'];
+function isVenusMiniCtPowerMessage(values: Record<string, string>): boolean {
+  return requiredCtPowerKeys.every(key => key in values);
+}
+
 function extractMiniAdditionalDeviceInfo(state: VenusMiniDeviceData) {
   return {
     firmwareVersion: state.pmuFirmwareVersion?.toString(),
@@ -635,13 +640,61 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
   });
 }
 
+/**
+ * Per-phase CT readings, requested with `cd=19` and answered with one key per
+ * phase plus the three-phase total, all in watts — where the other Venus models
+ * pack the same five values into a single pipe-separated `get_power` field.
+ *
+ * `power_a`/`power_b`/`power_c` are phases A/B/C and `power_s` the three-phase
+ * total; the phase order is established rather than inferred from the key
+ * names. Unlike the `cd=1` fields above this has not been seen from a real
+ * device — the unit these mappings were checked against reports `ct_type=0`,
+ * meaning no external meter is configured, so it never answers `cd=19`. The
+ * entities only appear once a device actually reports the keys.
+ */
+function registerVenusMiniCtPowerMessage(message: BuildMessageFn) {
+  const options = {
+    refreshDataPayload: 'cd=19',
+    isMessage: isVenusMiniCtPowerMessage,
+    publishPath: 'ct',
+    defaultState: {},
+    getAdditionalDeviceInfo: () => ({}),
+    pollInterval: globalPollInterval,
+    controlsDeviceAvailability: false,
+  };
+  message<VenusMiniDeviceData>(options, ({ field, advertise }) => {
+    const phases = [
+      { key: 'power_a', path: 'phaseAPower', id: 'phase_a_power', name: 'Phase A Power' },
+      { key: 'power_b', path: 'phaseBPower', id: 'phase_b_power', name: 'Phase B Power' },
+      { key: 'power_c', path: 'phaseCPower', id: 'phase_c_power', name: 'Phase C Power' },
+      { key: 'power_s', path: 'totalPhasePower', id: 'total_phase_power', name: 'Total CT Power' },
+    ] as const;
+
+    for (const phase of phases) {
+      field({ key: phase.key, path: [phase.path], transform: number() });
+      advertise(
+        [phase.path],
+        sensorComponent<number>({
+          id: phase.id,
+          name: phase.name,
+          device_class: 'power',
+          unit_of_measurement: 'W',
+          state_class: 'measurement',
+        }),
+      );
+    }
+  });
+}
+
 // See the file header for why this model has its own definition rather than
 // reusing anything in venus.ts.
 registerDeviceDefinition(
   {
     deviceTypes: ['VNSEMINI'],
+    beta: true,
   },
   ({ message }) => {
     registerVenusMiniRuntimeInfoMessage(message);
+    registerVenusMiniCtPowerMessage(message);
   },
 );
