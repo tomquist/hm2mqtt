@@ -52,7 +52,23 @@ function parseVenusMiniDeviceTime(value: string): string {
     return value;
   }
   const [year, month, day, hour, minute, second] = match.slice(1).map(Number);
-  return new Date(year, month - 1, day, hour, minute, second).toISOString();
+  const date = new Date(year, month - 1, day, hour, minute, second);
+  // Date silently normalizes out-of-range components rather than rejecting
+  // them: "2026-02-31" becomes March 3rd, hour 25 becomes 01:00 the next day.
+  // The pattern above accepts any one- or two-digit component, so a corrupt
+  // reading would otherwise be published as a plausible-looking wrong
+  // timestamp. Only accept a date that reads back as what was parsed.
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day ||
+    date.getHours() !== hour ||
+    date.getMinutes() !== minute ||
+    date.getSeconds() !== second
+  ) {
+    return value;
+  }
+  return date.toISOString();
 }
 
 // Fields observed in the Venus E Mini's cd=1 payload with no confirmed
