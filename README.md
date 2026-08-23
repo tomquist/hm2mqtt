@@ -554,6 +554,7 @@ The device type can be one of the following:
 - **HMK-X**: (e.g. HMK-1, HMK-2, ...) Greensolar storage v3
 - **HMG-X**: (e.g. HMG-50) Marstek Venus
 - **VNSE3-X**: (e.g. VNSE3-0) Venus E 3.0
+- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E mini
 - **VNSA-X**: (e.g. VNSA-1) Venus A
 - **VNSD-X**: (e.g. VNSD-1) Venus D
 - **HMN-X**: (e.g. HMN-1) Marstek Jupiter E

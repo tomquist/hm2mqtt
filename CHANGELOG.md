@@ -1,6 +1,10 @@
 # Changelog
 ## [Next]
 
+### Added
+
+- Support for the Marstek Venus E mini (`VNSEMINI-X`). It speaks a different protocol from the other Venus models, so configuring it as a Venus never produced any data. Reports battery state of charge, stored energy, battery, load and inverter power, working mode, discharge depth and a set of diagnostic states (#425)
+
 
 ## [1.10.0] - 2026-08-15
 

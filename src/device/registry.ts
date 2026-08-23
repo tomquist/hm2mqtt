@@ -5,3 +5,4 @@ import './jupiter.js';
 import './ct002.js';
 import './smr.js';
 import './hmiInverter.js';
+import './venusEMini.js';

@@ -953,3 +953,41 @@ export interface SmrMeterDeviceData extends MeterBaseDeviceData {
   infraredReadStatus?: number; // irs_f
   phaseReadStatus?: number; // pwr_f
 }
+
+export type VenusEMiniWorkingMode = 'selfConsumption' | 'manual' | 'ai';
+
+/**
+ * Marstek Venus E mini (device type `VNSEMINI-X`).
+ *
+ * The Venus E mini does not speak the Venus (`HMG`/`VNSE3`/`VNSA`/`VNSD`)
+ * protocol: it belongs to a newer device family — alongside the Venus X, Venus
+ * G and Venus G PV — whose runtime payload is requested with `cd=01` (note the
+ * leading zero) and uses an entirely different key set.
+ */
+export interface VenusEMiniDeviceData extends BaseDeviceData {
+  // Battery
+  batterySoc?: number; // soc, reported in 0.1 %
+  batteryEnergy?: number; // be, in Wh
+  batteryPower?: number; // dpt
+
+  // Power flow
+  loadPower?: number; // lp
+  inverterPower?: number; // inv_p
+
+  // Modes and states
+  workingMode?: VenusEMiniWorkingMode; // cm
+  dischargeDepth?: number; // do
+  loadState?: number; // ls
+  gridMode?: number; // gs
+  deviceState?: number; // dev_sta
+  rechargeType?: number; // rechg_type
+
+  // Diagnostics
+  wifiRssi?: number; // wifi_a, reported as an unsigned magnitude
+  mqttState?: number; // mq_s
+  serverState?: number; // ser
+  bluetoothState?: number; // bbs
+  ledState?: number; // leds
+  maxSendGridPowerState?: number; // gps
+  deviceTime?: string; // time
+}

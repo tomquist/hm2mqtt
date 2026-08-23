@@ -17,6 +17,7 @@ import {
   VenusBMSPackInfo,
   VenusBMSPackDetail,
   VenusDeviceData,
+  VenusEMiniDeviceData,
   VenusNetworkInfo,
 } from './types.js';
 
@@ -507,6 +508,57 @@ describe('MQTT Message Parser', () => {
 
     expect(data).toBeDefined();
     expect(data as SmrMeterDeviceData).toHaveProperty('p1DeviceConnected', false);
+  });
+
+  test('should parse Venus E mini message correctly', () => {
+    // The Venus E mini answers cd=01 with its own key set, unrelated to the
+    // cd=1 payload of the Venus family.
+    const message =
+      'soc=655,dpt=-320,be=1310,inv_p=280,lp=280,ls=1,gs=1,cm=0,ct=1,ct_type=1,do=20,wif_s=0,' +
+      'wifi_a=52,mq_s=1,dgb=0,dgs=0,dgp=0,dbc=0,dbd=0,dev_sta=2,bbs=1,leds=1,gps=0,ct_ph=1,ser=1,' +
+      'rechg_type=0';
+    const { data } = parseMessage(message, 'VNSEMINI-0', 'ccc837b3aaaa');
+
+    expect(data).toBeDefined();
+    const result = data as VenusEMiniDeviceData;
+
+    expect(result).toHaveProperty('deviceType', 'VNSEMINI-0');
+    // soc is reported in 0.1 %
+    expect(result).toHaveProperty('batterySoc', 65.5);
+    expect(result).toHaveProperty('batteryEnergy', 1310);
+    expect(result).toHaveProperty('batteryPower', -320);
+    expect(result).toHaveProperty('loadPower', 280);
+    expect(result).toHaveProperty('inverterPower', 280);
+    expect(result).toHaveProperty('workingMode', 'selfConsumption');
+    expect(result).toHaveProperty('dischargeDepth', 20);
+    // The device reports the WiFi signal as a magnitude
+    expect(result).toHaveProperty('wifiRssi', -52);
+    expect(result).toHaveProperty('deviceState', 2);
+    expect(result).toHaveProperty('loadState', 1);
+    expect(result).toHaveProperty('gridMode', 1);
+    expect(result).toHaveProperty('rechargeType', 0);
+
+    // Keys hm2mqtt does not map are still exposed raw
+    expect(result.values).toHaveProperty('dgb', '0');
+    expect(result.values).toHaveProperty('ct_type', '1');
+  });
+
+  test('should map the Venus E mini working modes', () => {
+    const base = 'soc=500,dpt=0,be=1000,inv_p=0,lp=0,dev_sta=0';
+    const mode = (cm: string) =>
+      (parseMessage(`${base},cm=${cm}`, 'VNSEMINI-0', 'ccc837b3aaaa').data as VenusEMiniDeviceData)
+        .workingMode;
+
+    expect(mode('0')).toBe('selfConsumption');
+    expect(mode('2')).toBe('manual');
+    expect(mode('3')).toBe('ai');
+  });
+
+  test('should not treat a Venus payload as a Venus E mini message', () => {
+    // A Venus cd=1 payload shares none of the keys the Venus E mini requires
+    const venusPayload =
+      'tot_i=8848,tot_o=7097,ele_d=537,ele_m=8848,grd_d=328,grd_m=7097,inc_d=0,inc_m=0,grd_f=0';
+    expect(parseMessage(venusPayload, 'VNSEMINI-0', 'ccc837b3aaaa')).toEqual({});
   });
 
   test('should parse HMI inverter (2-PV) message correctly', () => {
