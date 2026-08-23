@@ -1,6 +1,9 @@
 # Changelog
 ## [Next]
 
+### Added
+
+- Marstek Venus E Mini (VNSEMINI): hm2mqtt no longer crashes on startup with this device configured. It now shows Grid Power, Load Power, Battery State of Charge, Battery Energy Stored, firmware versions, WiFi/MQTT status, CT type/phase and the six charge/discharge schedule slots in Home Assistant. Settings (schedule, working mode, discharge power, ...) cannot be changed from Home Assistant yet — that needs a follow-up once we've captured how this model's commands work (fixes #TODO)
 
 ## [1.10.0] - 2026-08-15
 

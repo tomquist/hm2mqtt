@@ -629,6 +629,56 @@ export interface VenusDeviceData extends BaseDeviceData {
   parallelMode?: VenusParallelMode | 'unknown'; // par
 }
 
+/**
+ * A single charge/discharge schedule slot reported by a Venus E Mini. Unlike
+ * the tim_0..tim_9 encoding used by the other Venus variants, each slot is
+ * reported as its own set of numbered fields (m{n}, mp{n}, ms{n}, st{n},
+ * et{n}, re{n}). The mode and repeat fields are captured but their exact
+ * value semantics are unconfirmed (see VENUS_MINI_NOTES.md).
+ */
+export interface VenusMiniTimePeriod {
+  enabled?: boolean; // m{n}
+  power?: number; // mp{n}
+  startTime?: string; // st{n}
+  endTime?: string; // et{n}
+  modeRaw?: number; // ms{n} (raw; meaning unconfirmed)
+  repeatRaw?: number; // re{n} (raw; meaning unconfirmed, possibly a weekday bitmask)
+}
+
+/**
+ * Venus E Mini (VNSEMINI) device data. This model reports a `cd=1` payload
+ * with almost no field names in common with the HMG/VNSE3/VNSA/VNSD family
+ * (see venus.ts's own registerRuntimeInfoMessage), so it gets its own shape
+ * and its own message registration rather than reusing VenusDeviceData.
+ *
+ * Only fields with a reasonably confident interpretation get a semantic name
+ * here; everything else observed in the payload is preserved verbatim under
+ * `raw` (see VENUS_MINI_NOTES.md for the confidence rationale per field).
+ */
+export interface VenusMiniDeviceData extends BaseDeviceData {
+  gridPower?: number; // gp (W)
+  gridPowerAlt?: number; // ig (W) - matched gp exactly in every capture so far; kept separate in case it diverges on other units/firmware, mirroring the batteryPower/calculatedBatteryPower (bp/rp) precedent
+  loadPower?: number; // lp (W)
+  inverterPower?: number; // inv_p (W) - also matched gp exactly so far; see gridPowerAlt
+  batterySoc?: number; // soc, reported ×10 (%)
+  batteryEnergyStored?: number; // be (Wh)
+  pmuFirmwareVersion?: number; // pmu
+  inverterFirmwareVersion?: number; // inv
+  dcdcFirmwareVersion?: number; // dcdc
+  wifiStatus?: boolean; // wif_s (1 = ok)
+  mqttStatus?: boolean; // mq_s (1 = ok)
+  ctType?: number; // ct_type (only 0 = "no external meter" observed so far, full enum unconfirmed)
+  ctPhase?: number; // ct_ph (only 0 observed so far, meaning unconfirmed)
+  deviceTime?: string; // time, device-local "YYYY-M-D H:MM:SS" as reported
+  timePeriods?: VenusMiniTimePeriod[];
+  // Fields observed in the payload with no confirmed meaning, keyed by their
+  // raw MQTT field name (ls, eg, gs, cv, cm, ct, dpt, do, gn, ar, aw, apt,
+  // wifi_a, dev_sta, bbs, leds, gps, rechg_type, ser, e1-e7, dgb/dgs/dgp/
+  // dbc/dbd, tgb/tgs/tgp/tbc/tbd). Exposed as disabled-by-default sensors so
+  // the data is available for correlation without asserting semantics.
+  raw?: Record<string, number>;
+}
+
 export interface VenusBMSInfo extends BaseDeviceData {
   cells?: {
     voltages?: number[];

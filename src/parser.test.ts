@@ -17,6 +17,7 @@ import {
   VenusBMSPackInfo,
   VenusBMSPackDetail,
   VenusDeviceData,
+  VenusMiniDeviceData,
   VenusNetworkInfo,
 } from './types.js';
 
@@ -1429,6 +1430,84 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('subnetMask', '255.255.255.0');
     expect(result).toHaveProperty('dns', '192.168.178.1');
     expect(result).toHaveProperty('ctConnectIp', '192.168.178.255');
+  });
+
+  test('parses a real Venus E Mini (VNSEMINI) cd=1 reading', () => {
+    // Real captured cd=1 response from a Venus E Mini (VENUS_MINI_NOTES.md).
+    // This model's field names share almost nothing with the other Venus
+    // variants' cd=1 responses.
+    const message =
+      'cd=1,gp=-13,lp=4,ls=1,eg=0,ig=-13,gs=5,cv=0,cm=2,ct=0,m1=0,mp1=1500,ms1=1,st1=00:00,et1=23:59,re1=127,m2=1,mp2=1500,ms2=1,st2=00:00,et2=23:59,re2=127,m3=0,mp3=100,ms3=2,st3=00:00,et3=23:59,re3=127,m4=0,mp4=0,ms4=0,st4=00:00,et4=00:00,re4=0,m5=0,mp5=0,ms5=0,st5=00:00,et5=00:00,re5=0,m6=0,mp6=0,ms6=0,st6=00:00,et6=00:00,re6=0,soc=966,be=1940,dpt=-7,do=90,gn=0,ar=1,aw=2,apt=0,e1=0,e2=0,e3=0,e4=0,e5=0,e6=0,e7=0,dgb=32,dgs=0,dgp=99,dbc=1,dbd=65,tgb=38,tgs=0,tgp=125,tbc=8,tbd=79,pmu=295,inv=268,dcdc=268,wif_s=1,mq_s=1,wifi_a=41,ct_type=0,dev_sta=0,bbs=0,leds=0,gps=0,inv_p=-13,ct_ph=0,rechg_type=0,ser=0,time=2026-8-23 7:47:40';
+    const parsed = parseMessage(message, 'VNSEMINI-0', 'venusMini123');
+
+    expect(parsed).toHaveProperty('data');
+    const result = parsed['data'] as VenusMiniDeviceData;
+
+    expect(result).toHaveProperty('gridPower', -13);
+    expect(result).toHaveProperty('gridPowerAlt', -13); // ig, matched gp
+    expect(result).toHaveProperty('loadPower', 4);
+    expect(result).toHaveProperty('inverterPower', -13); // inv_p, also matched gp
+    expect(result).toHaveProperty('batterySoc', 96.6); // soc reported ×10
+    expect(result).toHaveProperty('batteryEnergyStored', 1940);
+    expect(result).toHaveProperty('pmuFirmwareVersion', 295);
+    expect(result).toHaveProperty('inverterFirmwareVersion', 268);
+    expect(result).toHaveProperty('dcdcFirmwareVersion', 268);
+    expect(result).toHaveProperty('wifiStatus', true);
+    expect(result).toHaveProperty('mqttStatus', true);
+    expect(result).toHaveProperty('ctType', 0);
+    expect(result).toHaveProperty('ctPhase', 0);
+    expect(result).toHaveProperty('deviceTime', '2026-8-23 7:47:40');
+
+    // Schedule slot 1: present but disabled (m1=0).
+    expect(result.timePeriods?.[0]).toEqual({
+      enabled: false,
+      power: 1500,
+      startTime: '00:00',
+      endTime: '23:59',
+      modeRaw: 1,
+      repeatRaw: 127,
+    });
+    // Schedule slot 2: the only enabled slot in this capture (m2=1).
+    expect(result.timePeriods?.[1]).toEqual({
+      enabled: true,
+      power: 1500,
+      startTime: '00:00',
+      endTime: '23:59',
+      modeRaw: 1,
+      repeatRaw: 127,
+    });
+    // Schedule slot 4: unused slot, all zeros.
+    expect(result.timePeriods?.[3]).toEqual({
+      enabled: false,
+      power: 0,
+      startTime: '00:00',
+      endTime: '00:00',
+      modeRaw: 0,
+      repeatRaw: 0,
+    });
+
+    // Fields with no confirmed meaning are preserved verbatim under `raw`.
+    expect(result.raw).toMatchObject({
+      gs: 5,
+      dev_sta: 0,
+      dgb: 32,
+      dgs: 0,
+      dgp: 99,
+      dbc: 1,
+      dbd: 65,
+      tgb: 38,
+      tgs: 0,
+      tgp: 125,
+      tbc: 8,
+      tbd: 79,
+      e1: 0,
+      e2: 0,
+      e3: 0,
+      e4: 0,
+      e5: 0,
+      e6: 0,
+      e7: 0,
+    });
   });
 
   test('scales Venus A (VNSA) BMS voltages and temperatures (issue #218)', () => {
