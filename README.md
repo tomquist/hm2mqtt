@@ -545,16 +545,6 @@ This is typically stale MQTT Discovery state in Home Assistant.
 2. Delete the MQTT-discovered device/entities in Home Assistant.
 3. Start hm2mqtt and wait for Discovery to republish.
 
-### 7) Venus E Mini (VNSEMINI) shows no data / stays unavailable
-
-Unlike the other Venus models, the Venus E Mini only pushes telemetry to Marstek's cloud (and from there, via hame-relay, to your local broker) while the official Marstek app has an active session open on a phone/tablet. It does not respond to on-demand polling with the app closed.
-
-**Requirements:**
-1. Keep the Marstek app open on the device's screen (or at least running) on a phone/tablet that stays in range.
-2. **Turn off Bluetooth on that phone/tablet.** If Bluetooth is on, the app talks to the Venus E Mini directly over BLE and the cloud MQTT channel — the one hame-relay/hm2mqtt read from — stays silent.
-
-See [this gist](https://gist.github.com/breadcan/b59f7a45e04ed945074d199852adcb61) for the full reverse-engineering notes behind this device's support, including this limitation.
-
 ## Device Types
 
 The device type can be one of the following:
@@ -567,7 +557,7 @@ The device type can be one of the following:
 - **VNSE3-X**: (e.g. VNSE3-0) Venus E 3.0
 - **VNSA-X**: (e.g. VNSA-1) Venus A
 - **VNSD-X**: (e.g. VNSD-1) Venus D
-- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini — **beta** (sensors only; see "Venus Device Commands" below for which write commands don't apply yet, and FAQ #7 for a data-reporting requirement specific to this model)
+- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini — **beta**; sensors only, none of the Venus write commands apply to it yet
 - **HMN-X**: (e.g. HMN-1) Marstek Jupiter E
 - **HMM-X**: (e.g. HMM-1) Marstek Jupiter C
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus

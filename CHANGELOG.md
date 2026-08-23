@@ -3,7 +3,7 @@
 
 ### Added
 
-- Support the `VNSEMINI-X` device type (e.g. `VNSEMINI-0`): the Marstek Venus E Mini. Monitoring only for now — its settings cannot be changed from Home Assistant yet. This model also needs the Marstek app running to report anything; see the README's Venus E Mini FAQ entry. Beta: not all of its readings are confirmed, so some values may be wrong, and which sensors appear may change in a later release (discussion #425)
+- Support the `VNSEMINI-X` device type (e.g. `VNSEMINI-0`): the Marstek Venus E Mini. Monitoring only for now — its settings cannot be changed from Home Assistant yet. Beta: not all of its readings are confirmed, so some values may be wrong, and which sensors appear may change in a later release (discussion #425)
 
 ## [1.10.0] - 2026-08-15
 
