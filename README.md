@@ -544,6 +544,16 @@ This is typically stale MQTT Discovery state in Home Assistant.
 2. Delete the MQTT-discovered device/entities in Home Assistant.
 3. Start hm2mqtt and wait for Discovery to republish.
 
+### 7) Venus E Mini (VNSEMINI) shows no data / stays unavailable
+
+Unlike the other Venus models, the Venus E Mini only pushes telemetry to Marstek's cloud (and from there, via hame-relay, to your local broker) while the official Marstek app has an active session open on a phone/tablet. It does not respond to on-demand polling with the app closed.
+
+**Requirements:**
+1. Keep the Marstek app open on the device's screen (or at least running) on a phone/tablet that stays in range.
+2. **Turn off Bluetooth on that phone/tablet.** If Bluetooth is on, the app talks to the Venus E Mini directly over BLE and the cloud MQTT channel — the one hame-relay/hm2mqtt read from — stays silent.
+
+See [this gist](https://gist.github.com/breadcan/b59f7a45e04ed945074d199852adcb61) for the full reverse-engineering notes behind this device's support, including this limitation.
+
 ## Device Types
 
 The device type can be one of the following:
@@ -556,6 +566,7 @@ The device type can be one of the following:
 - **VNSE3-X**: (e.g. VNSE3-0) Venus E 3.0
 - **VNSA-X**: (e.g. VNSA-1) Venus A
 - **VNSD-X**: (e.g. VNSD-1) Venus D
+- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini (sensors only; see "Venus Device Commands" below for which write commands don't apply yet, and FAQ #7 for a data-reporting requirement specific to this model)
 - **HMN-X**: (e.g. HMN-1) Marstek Jupiter E
 - **HMM-X**: (e.g. HMM-1) Marstek Jupiter C
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus
@@ -688,6 +699,7 @@ homeassistant/{component}/{node_id}/{object_id}/config
 - `phase-diagnosis`: Starts grid-phase detection. Progress shows up on the *CT Status* sensor.
 
 ### Venus Device Commands
+Applies to HMG/VNSE3/VNSA/VNSD. The Venus E Mini (VNSEMINI) only exposes sensors for now; none of the commands below are available on it yet.
 - `working-mode`: Sets working mode (`automatic`, `manual`, `trading`, or `ai`). The `ai` value expands to `cd=2,md=5,nl=1` (AI mode requires both `md=5` and `nl=1`).
 - `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`)
 - `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped). The device does not report this back, so the entity shows the last value set.
