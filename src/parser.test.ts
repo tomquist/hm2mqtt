@@ -1540,6 +1540,41 @@ describe('MQTT Message Parser', () => {
     expect(result.raw).not.toHaveProperty('tbc');
   });
 
+  test('leaves an out-of-range Venus E Mini device time alone', () => {
+    // Date normalizes rather than rejecting: February 31st would silently
+    // become March 3rd, and hour 25 the next day at 01:00. A corrupt reading
+    // should stay recognisably corrupt instead of becoming a plausible wrong
+    // timestamp.
+    const base =
+      'cd=1,gp=0,lp=0,ls=1,eg=0,ig=0,gs=5,cv=0,cm=0,ct=0,m1=0,mp1=0,ms1=0,st1=00:00,et1=00:00,re1=0,soc=966,be=1940,dpt=0,do=90,pmu=295,wif_s=1,mq_s=1,wifi_a=41,ct_type=0,dev_sta=0,bbs=0,leds=0,gps=0,inv_p=0,ct_ph=0';
+    for (const bad of ['2026-02-31 12:00:00', '2026-13-01 00:00:00', '2026-08-23 25:00:00']) {
+      const parsed = parseMessage(`${base},time=${bad}`, 'VNSEMINI-0', 'venusMini123');
+      expect((parsed['data'] as VenusMiniDeviceData).deviceTime).toBe(bad);
+    }
+
+    // A valid, unpadded reading still converts.
+    const good = parseMessage(`${base},time=2026-8-23 7:47:40`, 'VNSEMINI-0', 'venusMini123');
+    expect((good['data'] as VenusMiniDeviceData).deviceTime).toBe(
+      new Date(2026, 7, 23, 7, 47, 40).toISOString(),
+    );
+  });
+
+  test('parses the Venus E Mini per-phase CT payload (cd=19)', () => {
+    // Not from a real capture: the unit the cd=1 mappings were checked against
+    // reports ct_type=0, so it never answers cd=19. power_a/power_b/power_c are
+    // phases A/B/C and power_s the three-phase total, in watts.
+    const message = 'power_a=230,power_b=0,power_c=-45,power_s=185,d_p=0';
+    const parsed = parseMessage(message, 'VNSEMINI-0', 'venusMini123');
+
+    const result = parsed['ct'] as VenusMiniDeviceData;
+    expect(result.phaseAPower).toBe(230);
+    expect(result.phaseBPower).toBe(0);
+    expect(result.phaseCPower).toBe(-45);
+    expect(result.totalPhasePower).toBe(185);
+    // The cd=19 reply must not be mistaken for the cd=1 runtime message.
+    expect(parsed['data']).toBeUndefined();
+  });
+
   test('maps Venus E Mini enum branches not covered by the primary capture', () => {
     // Synthesized from the per-field confirmations in
     // VENUS_MINI_IMPLEMENTATION_PROMPT.md to cover enum values the single

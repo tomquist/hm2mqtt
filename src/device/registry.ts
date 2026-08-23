@@ -4,4 +4,5 @@ import './venus.js';
 import './jupiter.js';
 import './ct002.js';
 import './smr.js';
+import './venusEMini.js';
 import './hmiInverter.js';
