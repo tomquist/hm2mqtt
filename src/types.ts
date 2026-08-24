@@ -710,8 +710,8 @@ export interface VenusMiniDeviceData extends BaseDeviceData {
   batteryDischargedEnergyTotal?: number; // tbd (Wh)
   batteryChargedEnergyToday?: number; // dbc (Wh) - supporting evidence but not an isolated before/after test
   batteryChargedEnergyTotal?: number; // tbc (Wh) - same
-  gridSoldEnergyToday?: number; // dgs (Wh) - direction unconfirmed, see venusEMini.ts
-  gridSoldEnergyTotal?: number; // tgs (Wh) - same
+  gridImportedEnergyToday?: number; // dgs (Wh) - energy taken from the grid, see venusEMini.ts
+  gridImportedEnergyTotal?: number; // tgs (Wh) - lifetime counterpart, named by symmetry
   loadConsumedEnergyToday?: number; // dgb (Wh)
   gridExportedEnergyToday?: number; // dgp (Wh)
   loadState?: number; // ls (raw; the app treats it as a load state, individual codes unknown)

@@ -520,51 +520,51 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    // Unresolved, and probably wrong: dgs lands in the vendor app's
-    // grid-import counter, which is the opposite of what these two are named
-    // here. That counter is one of six daily energy slots the app keeps -
-    // load consumption, grid import, grid export, generator input, battery
-    // charged, battery discharged - and the app's own naming of the slots was
-    // checked against the two ends we already know: the slots dbc and dbd
-    // land in are exactly the ones behind the app's Charged and Discharged
-    // readings, which match this file's device-confirmed names for those two
-    // keys. The app divides the same counters by 1000 to show kWh, which also
-    // confirms the Wh unit used here.
+    // dgs is energy taken FROM the grid, not sold to it - it was named the
+    // other way round when this file was written. It is one of six daily
+    // energy counters the vendor app keeps in one place: load consumption,
+    // grid import, grid export, generator input, battery charged, battery
+    // discharged, in that order. The order is not guesswork: the two
+    // counters dbc and dbd feed are exactly the ones behind the app's own
+    // Charged and Discharged readings, and those two keys already carry
+    // device-confirmed names here (see above), which pins the sequence at
+    // both ends. The app divides the same counters by 1000 to display kWh,
+    // confirming the Wh unit used here.
     //
-    // Against that: dgs=0/tgs=0 in the capture is at least consistent with
-    // import (the unit had been exporting), but no isolated before/after test
-    // has been run on a real device either way, and the lifetime keys are not
-    // read by the app at all. So the names stay until the direction is
-    // confirmed on hardware.
-    field({ key: 'dgs', path: ['gridSoldEnergyToday'], transform: number() });
+    // Still unconfirmed on hardware: no isolated import/export test has been
+    // run on a real unit, though dgs=0 next to dgp=99 in the capture fits an
+    // import counter on a unit that had been exporting all day. The lifetime
+    // tgs is inference too - the app reads no t* key at all - so it is named
+    // by symmetry with the other confirmed daily/lifetime pairs.
+    field({ key: 'dgs', path: ['gridImportedEnergyToday'], transform: number() });
     advertise(
-      ['gridSoldEnergyToday'],
+      ['gridImportedEnergyToday'],
       sensorComponent<number>({
-        id: 'grid_sold_energy_today',
-        name: 'Grid Sold Energy Today',
+        id: 'grid_imported_energy_today',
+        name: 'Grid Imported Energy Today',
         device_class: 'energy',
         unit_of_measurement: 'Wh',
         state_class: 'total_increasing',
       }),
     );
 
-    field({ key: 'tgs', path: ['gridSoldEnergyTotal'], transform: number() });
+    field({ key: 'tgs', path: ['gridImportedEnergyTotal'], transform: number() });
     advertise(
-      ['gridSoldEnergyTotal'],
+      ['gridImportedEnergyTotal'],
       sensorComponent<number>({
-        id: 'grid_sold_energy_total',
-        name: 'Grid Sold Energy Total',
+        id: 'grid_imported_energy_total',
+        name: 'Grid Imported Energy Total',
         device_class: 'energy',
         unit_of_measurement: 'Wh',
         state_class: 'total_increasing',
       }),
     );
 
-    // dgb and dgp are the app's daily load-consumption and daily
-    // exported-to-grid counters - two more of the six daily energy slots
-    // described above, from the same verified slot ordering. Their tgb/tgp
-    // siblings look like the lifetime totals of the same two, but the app
-    // never reads a t* key, so those stay unnamed under `raw`.
+    // dgb and dgp are the daily load-consumption and daily exported-to-grid
+    // counters from the same group, on the same evidence. Their tgb/tgp
+    // siblings look like the lifetime totals of the two, but with no t* key
+    // read by the app and no second confirmed pair to lean on, they stay
+    // unnamed under `raw`.
     field({ key: 'dgb', path: ['loadConsumedEnergyToday'], transform: number() });
     advertise(
       ['loadConsumedEnergyToday'],

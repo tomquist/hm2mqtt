@@ -1468,8 +1468,8 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('batteryDischargedEnergyTotal', 79); // tbd
     expect(result).toHaveProperty('batteryChargedEnergyToday', 1); // dbc
     expect(result).toHaveProperty('batteryChargedEnergyTotal', 8); // tbc
-    expect(result).toHaveProperty('gridSoldEnergyToday', 0); // dgs
-    expect(result).toHaveProperty('gridSoldEnergyTotal', 0); // tgs
+    expect(result).toHaveProperty('gridImportedEnergyToday', 0); // dgs
+    expect(result).toHaveProperty('gridImportedEnergyTotal', 0); // tgs
     expect(result).toHaveProperty('loadConsumedEnergyToday', 32); // dgb
     expect(result).toHaveProperty('gridExportedEnergyToday', 99); // dgp
     expect(result).toHaveProperty('loadState', 1); // ls
