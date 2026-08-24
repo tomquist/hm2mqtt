@@ -1456,7 +1456,7 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('dcdcFirmwareVersion', 268);
     expect(result).toHaveProperty('wifiStatus', true);
     expect(result).toHaveProperty('mqttStatus', true);
-    expect(result).toHaveProperty('wifiSignal', 41);
+    expect(result).toHaveProperty('wifiSignal', -41); // wifi_a=41 is an RSSI magnitude
     expect(result).toHaveProperty('ctType', 0);
     expect(result).toHaveProperty('ctPhase', 0);
     expect(result).toHaveProperty('operatingMode', 'manual'); // cm=2
@@ -1470,6 +1470,12 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('batteryChargedEnergyTotal', 8); // tbc
     expect(result).toHaveProperty('gridSoldEnergyToday', 0); // dgs
     expect(result).toHaveProperty('gridSoldEnergyTotal', 0); // tgs
+    expect(result).toHaveProperty('loadConsumedEnergyToday', 32); // dgb
+    expect(result).toHaveProperty('gridExportedEnergyToday', 99); // dgp
+    expect(result).toHaveProperty('loadState', 1); // ls
+    expect(result).toHaveProperty('gridMode', 5); // gs
+    expect(result).toHaveProperty('serverState', 0); // ser
+    expect(result).toHaveProperty('rechargeType', 0); // rechg_type
 
     // The device does not zero-pad "time" ("2026-8-23 7:47:40"); it's parsed
     // into a proper ISO-8601 timestamp assuming the host's local timezone.
@@ -1510,9 +1516,6 @@ describe('MQTT Message Parser', () => {
 
     // Fields with no confirmed meaning are preserved verbatim under `raw`.
     expect(result.raw).toMatchObject({
-      gs: 5,
-      dgb: 32,
-      dgp: 99,
       tgb: 38,
       tgp: 125,
       e1: 0,
@@ -1538,6 +1541,12 @@ describe('MQTT Message Parser', () => {
     expect(result.raw).not.toHaveProperty('tbd');
     expect(result.raw).not.toHaveProperty('dbc');
     expect(result.raw).not.toHaveProperty('tbc');
+    expect(result.raw).not.toHaveProperty('dgb');
+    expect(result.raw).not.toHaveProperty('dgp');
+    expect(result.raw).not.toHaveProperty('ls');
+    expect(result.raw).not.toHaveProperty('gs');
+    expect(result.raw).not.toHaveProperty('ser');
+    expect(result.raw).not.toHaveProperty('rechg_type');
   });
 
   test('leaves an out-of-range Venus E Mini device time alone', () => {
@@ -1596,6 +1605,34 @@ describe('MQTT Message Parser', () => {
     expect(result.timePeriods?.[0]).toMatchObject({ direction: 'selfConsumption', modeRaw: 3 });
     // Already zero-padded input should pass through unchanged.
     expect(result.deviceTime).toBe(new Date(2026, 7, 23, 8, 5, 9).toISOString());
+  });
+
+  test('maps the Venus E Mini states only the vendor app documents', () => {
+    // dev_sta 3/4/5 and cm=3 have not been seen from a real device: they come
+    // from the state and work-mode tables the vendor app keeps for this
+    // model. 4 is a second discharging state, deliberately sharing the label
+    // of 2 because what separates them is unknown.
+    const base =
+      'cd=1,gp=0,lp=0,ig=0,ct=0,m1=0,mp1=0,ms1=0,st1=00:00,et1=00:00,re1=0,soc=966,be=1940,dpt=0,do=90,pmu=295,wif_s=1,mq_s=1,wifi_a=41,ct_type=0,bbs=0,leds=0,gps=0,inv_p=0,ct_ph=0,time=2026-08-23 08:05:09';
+
+    const states: [string, string][] = [
+      ['3', 'bypass'],
+      ['4', 'discharging'],
+      ['5', 'fault'],
+      ['6', 'unknown'],
+    ];
+    for (const [code, expected] of states) {
+      const parsed = parseMessage(`${base},cm=0,dev_sta=${code}`, 'VNSEMINI-0', 'venusMini123');
+      expect((parsed['data'] as VenusMiniDeviceData).deviceState).toBe(expected);
+    }
+
+    // The app's AI mode is still greyed out as "coming soon", but 3 is the
+    // code it reports.
+    const ai = parseMessage(`${base},cm=3,dev_sta=0`, 'VNSEMINI-0', 'venusMini123');
+    expect((ai['data'] as VenusMiniDeviceData).operatingMode).toBe('ai');
+
+    // wifi_a is the magnitude of the RSSI, so the sensor reports it negated.
+    expect((ai['data'] as VenusMiniDeviceData).wifiSignal).toBe(-41);
   });
 
   test('scales Venus A (VNSA) BMS voltages and temperatures (issue #218)', () => {

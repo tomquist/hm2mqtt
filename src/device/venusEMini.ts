@@ -5,7 +5,7 @@ import {
 } from '../deviceDefinition.js';
 import { VenusMiniDeviceData, VenusMiniTimePeriod } from '../types.js';
 import { binarySensorComponent, sensorComponent } from '../homeAssistantDiscovery.js';
-import { divide, equalsBoolean, identity, map, number } from '../transforms.js';
+import { divide, equalsBoolean, identity, map, negate, number } from '../transforms.js';
 
 /**
  * Marstek Venus E Mini, device type `VNSEMINI-X` (e.g. `VNSEMINI-0`).
@@ -71,25 +71,33 @@ function parseVenusMiniDeviceTime(value: string): string {
   return date.toISOString();
 }
 
+// Fields the vendor app does parse, named after what it parses them into.
+// That says what each one is about, but none of the individual codes is
+// known - only ls=1, gs=5 and ser=0/rechg_type=0 have been seen at all - so
+// they are reported as plain numbers rather than mapped to labels, and stay
+// disabled by default until someone works out what the codes mean.
+const venusMiniNamedRawFields = [
+  { key: 'ls', path: 'loadState', id: 'load_state', name: 'Load State' },
+  { key: 'gs', path: 'gridMode', id: 'grid_mode', name: 'Grid Mode' },
+  { key: 'ser', path: 'serverState', id: 'server_state', name: 'Server State' },
+  { key: 'rechg_type', path: 'rechargeType', id: 'recharge_type', name: 'Recharge Type' },
+] as const;
+
 // Fields observed in the Venus E Mini's cd=1 payload with no confirmed
 // meaning (see VENUS_MINI_NOTES.md and VENUS_MINI_IMPLEMENTATION_PROMPT.md).
 // Exposed verbatim as disabled-by-default sensors, keyed by their raw MQTT
 // field name, so the values are available for correlation without asserting
-// semantics. dgb/dgp and tgb/tgp: the daily-vs-lifetime pattern itself is
-// confirmed (see gridSoldEnergyToday/Total), but which of "bought"/"pass"
-// each suffix means is still just a hypothesis.
+// semantics. tgb/tgp look like the lifetime totals of the named dgb/dgp
+// counters, but no t* key is read by the vendor app at all, so that reading
+// is still a hypothesis and they stay here.
 const venusMiniRawFields = [
-  'ls',
   'eg',
-  'gs',
   'cv',
   'ct',
   'gn',
   'ar',
   'aw',
   'apt',
-  'rechg_type',
-  'ser',
   'e1',
   'e2',
   'e3',
@@ -97,8 +105,6 @@ const venusMiniRawFields = [
   'e5',
   'e6',
   'e7',
-  'dgb',
-  'dgp',
   'tgb',
   'tgp',
 ];
@@ -295,14 +301,19 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    // Confirmed as a live/fluctuating reading rather than a static value; the
-    // exact 0-100ish scale it's reported on is unconfirmed.
-    field({ key: 'wifi_a', path: ['wifiSignal'], transform: number() });
+    // Confirmed as a live/fluctuating reading rather than a static value. The
+    // device reports the magnitude of the RSSI, not the RSSI itself: the
+    // vendor app flips the sign of any positive value before showing it as a
+    // WiFi signal strength, so a reported 41 is -41 dBm. Negated here to match
+    // the wifiRssi sensor on the other models.
+    field({ key: 'wifi_a', path: ['wifiSignal'], transform: negate() });
     advertise(
       ['wifiSignal'],
       sensorComponent<number>({
         id: 'wifi_signal',
         name: 'WiFi Signal',
+        device_class: 'signal_strength',
+        unit_of_measurement: 'dBm',
         icon: 'mdi:wifi',
         state_class: 'measurement',
       }),
@@ -334,7 +345,8 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
 
     // Only 0 (self-consumption) and 2 (manual) have been observed; a 3rd "AI
     // optimization" mode exists in the app UI but is greyed out as "coming
-    // soon". In manual mode, actual charge/discharge behavior is driven by
+    // soon" - 3 is the code it will report, from the app's own work-mode
+    // enum. In manual mode, actual charge/discharge behavior is driven by
     // which schedule rule is enabled, not by this field itself.
     field({
       key: 'cm',
@@ -343,6 +355,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         {
           '0': 'selfConsumption',
           '2': 'manual',
+          '3': 'ai',
         },
         'unknown',
       ),
@@ -356,11 +369,17 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         valueMappings: {
           selfConsumption: 'Self Consumption',
           manual: 'Manual',
+          ai: 'AI Optimization',
           unknown: 'Unknown',
         },
       }),
     );
 
+    // 0/1/2 are confirmed against a real device; 3, 4 and 5 come from the
+    // state table the vendor app builds for this model, which labels 3 as
+    // bypass, 5 as a fault and both 2 and 4 as discharging. What separates
+    // the two discharge states is not known, so 4 gets the same label as 2
+    // rather than a name that invents a distinction.
     field({
       key: 'dev_sta',
       path: ['deviceState'],
@@ -369,6 +388,9 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
           '0': 'standby',
           '1': 'charging',
           '2': 'discharging',
+          '3': 'bypass',
+          '4': 'discharging',
+          '5': 'fault',
         },
         'unknown',
       ),
@@ -383,6 +405,8 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
           standby: 'Standby',
           charging: 'Charging',
           discharging: 'Discharging',
+          bypass: 'Bypass',
+          fault: 'Fault',
           unknown: 'Unknown',
         },
       }),
@@ -495,6 +519,13 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
+    // Unresolved: the vendor app reads dgs into the slot it labels as energy
+    // taken FROM the grid, which is the opposite of what these two are named
+    // here. It fits the capture (dgs=0/tgs=0 on a unit that had exported
+    // energy that day), but no isolated before/after test has been run
+    // against a real device either way, and the lifetime keys are not read by
+    // the app at all - so the existing names stay until someone confirms the
+    // direction on hardware.
     field({ key: 'dgs', path: ['gridSoldEnergyToday'], transform: number() });
     advertise(
       ['gridSoldEnergyToday'],
@@ -513,6 +544,34 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       sensorComponent<number>({
         id: 'grid_sold_energy_total',
         name: 'Grid Sold Energy Total',
+        device_class: 'energy',
+        unit_of_measurement: 'Wh',
+        state_class: 'total_increasing',
+      }),
+    );
+
+    // dgb and dgp are the app's daily load-consumption and daily
+    // exported-to-grid counters. Their tgb/tgp siblings look like the
+    // lifetime totals of the same two, but the app never reads a t* key, so
+    // those stay unnamed under `raw`.
+    field({ key: 'dgb', path: ['loadConsumedEnergyToday'], transform: number() });
+    advertise(
+      ['loadConsumedEnergyToday'],
+      sensorComponent<number>({
+        id: 'load_consumed_energy_today',
+        name: 'Load Consumed Energy Today',
+        device_class: 'energy',
+        unit_of_measurement: 'Wh',
+        state_class: 'total_increasing',
+      }),
+    );
+
+    field({ key: 'dgp', path: ['gridExportedEnergyToday'], transform: number() });
+    advertise(
+      ['gridExportedEnergyToday'],
+      sensorComponent<number>({
+        id: 'grid_exported_energy_today',
+        name: 'Grid Exported Energy Today',
         device_class: 'energy',
         unit_of_measurement: 'Wh',
         state_class: 'total_increasing',
@@ -634,6 +693,19 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         sensorComponent<number>({
           id: `schedule_${i}_repeat_raw`,
           name: `Schedule Slot ${i} Repeat (Raw)`,
+          icon: 'mdi:help-circle-outline',
+          enabled_by_default: false,
+        }),
+      );
+    }
+
+    for (const raw of venusMiniNamedRawFields) {
+      field({ key: raw.key, path: [raw.path], transform: number() });
+      advertise(
+        [raw.path],
+        sensorComponent<number>({
+          id: raw.id,
+          name: raw.name,
           icon: 'mdi:help-circle-outline',
           enabled_by_default: false,
         }),
