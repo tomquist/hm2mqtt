@@ -651,13 +651,21 @@ export interface VenusMiniTimePeriod {
   repeatRaw?: number; // re{n} (raw; meaning unconfirmed, possibly a weekday bitmask)
 }
 
-// Operating mode reported by a Venus E Mini in cm. Only 0 and 2 have been
-// observed; a 3rd "AI optimization" mode exists in the app UI but is greyed
-// out as "coming soon" and not yet observed on the wire.
-export type VenusMiniOperatingMode = 'selfConsumption' | 'manual' | 'unknown';
+// Operating mode reported by a Venus E Mini in cm. Only 0 (self-consumption)
+// and 2 (manual) have been observed; the "AI optimization" mode is greyed out
+// as "coming soon" in the app UI, and 3 is the code it will report.
+export type VenusMiniOperatingMode = 'selfConsumption' | 'manual' | 'ai' | 'unknown';
 
-// Device state reported by a Venus E Mini in dev_sta.
-export type VenusMiniDeviceState = 'standby' | 'charging' | 'discharging' | 'unknown';
+// Device state reported by a Venus E Mini in dev_sta. 0/1/2 are confirmed
+// against a real device; bypass and fault are the app's own labels for 3 and
+// 5, and 4 is a second discharging state whose difference from 2 is unknown.
+export type VenusMiniDeviceState =
+  | 'standby'
+  | 'charging'
+  | 'discharging'
+  | 'bypass'
+  | 'fault'
+  | 'unknown';
 
 // Feed-in power limit preset reported by a Venus E Mini in gps. Not a literal
 // wattage value - it selects between Germany's simplified-registration cap
@@ -689,7 +697,7 @@ export interface VenusMiniDeviceData extends BaseDeviceData {
   dcdcFirmwareVersion?: number; // dcdc
   wifiStatus?: boolean; // wif_s (1 = ok)
   mqttStatus?: boolean; // mq_s (1 = ok)
-  wifiSignal?: number; // wifi_a, unitless (0-100ish scale, exact scale unconfirmed)
+  wifiSignal?: number; // wifi_a (dBm), reported as the magnitude and negated on the way in
   ctType?: number; // ct_type (only 0 = "no external meter" observed so far, full enum unconfirmed)
   ctPhase?: number; // ct_ph (only 0 observed so far, meaning unconfirmed)
   deviceTime?: string; // time, device-local timestamp, parsed to ISO-8601 assuming the device clock is in the host's local timezone (the same assumption the sync-time command makes)
@@ -702,8 +710,14 @@ export interface VenusMiniDeviceData extends BaseDeviceData {
   batteryDischargedEnergyTotal?: number; // tbd (Wh)
   batteryChargedEnergyToday?: number; // dbc (Wh) - supporting evidence but not an isolated before/after test
   batteryChargedEnergyTotal?: number; // tbc (Wh) - same
-  gridSoldEnergyToday?: number; // dgs (Wh)
-  gridSoldEnergyTotal?: number; // tgs (Wh)
+  gridImportedEnergyToday?: number; // dgs (Wh) - energy taken from the grid, see venusEMini.ts
+  gridImportedEnergyTotal?: number; // tgs (Wh) - lifetime counterpart, named by symmetry
+  loadConsumedEnergyToday?: number; // dgb (Wh)
+  gridExportedEnergyToday?: number; // dgp (Wh)
+  loadState?: number; // ls (raw; the app treats it as a load state, individual codes unknown)
+  gridMode?: number; // gs (raw; grid mode, individual codes unknown)
+  serverState?: number; // ser (raw; server state, individual codes unknown)
+  rechargeType?: number; // rechg_type (raw; recharge type, individual codes unknown)
   timePeriods?: VenusMiniTimePeriod[];
   // cd=19 per-phase CT readings, in W. Only reported by a unit with an external
   // meter configured, so these stay unset on a device with ct_type=0.
@@ -712,10 +726,9 @@ export interface VenusMiniDeviceData extends BaseDeviceData {
   phaseCPower?: number; // power_c
   totalPhasePower?: number; // power_s
   // Fields observed in the payload with no confirmed meaning, keyed by their
-  // raw MQTT field name (ls, eg, gs, cv, ct (bare, distinct from ct_type),
-  // gn, ar, aw, apt, rechg_type, ser, e1-e7, dgb/dgp, tgb/tgp). Exposed as
-  // disabled-by-default sensors so the data is available for correlation
-  // without asserting semantics.
+  // raw MQTT field name (eg, cv, ct (bare, distinct from ct_type), gn, ar,
+  // aw, apt, e1-e7, tgb/tgp). Exposed as disabled-by-default sensors so the
+  // data is available for correlation without asserting semantics.
   raw?: Record<string, number>;
 }
 
