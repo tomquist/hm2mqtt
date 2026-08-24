@@ -304,8 +304,9 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     // Confirmed as a live/fluctuating reading rather than a static value. The
     // device reports the magnitude of the RSSI, not the RSSI itself: the
     // vendor app flips the sign of any positive value before showing it as a
-    // WiFi signal strength, so a reported 41 is -41 dBm. Negated here to match
-    // the wifiRssi sensor on the other models.
+    // WiFi signal strength (a value that is already negative it leaves
+    // alone), so a reported 41 is -41 dBm. Negated here to match the wifiRssi
+    // sensor on the other models. Only positive values have been observed.
     field({ key: 'wifi_a', path: ['wifiSignal'], transform: negate() });
     advertise(
       ['wifiSignal'],
@@ -377,9 +378,9 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
 
     // 0/1/2 are confirmed against a real device; 3, 4 and 5 come from the
     // state table the vendor app builds for this model, which labels 3 as
-    // bypass, 5 as a fault and both 2 and 4 as discharging. What separates
-    // the two discharge states is not known, so 4 gets the same label as 2
-    // rather than a name that invents a distinction.
+    // bypass, 5 as a fault and both 2 and 4 as discharging - 4 maps to the
+    // very same state value as 2 there, so it gets the same label here rather
+    // than a name that invents a distinction.
     field({
       key: 'dev_sta',
       path: ['deviceState'],
@@ -519,13 +520,22 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    // Unresolved: the vendor app reads dgs into the slot it labels as energy
-    // taken FROM the grid, which is the opposite of what these two are named
-    // here. It fits the capture (dgs=0/tgs=0 on a unit that had exported
-    // energy that day), but no isolated before/after test has been run
-    // against a real device either way, and the lifetime keys are not read by
-    // the app at all - so the existing names stay until someone confirms the
-    // direction on hardware.
+    // Unresolved, and probably wrong: dgs lands in the vendor app's
+    // grid-import counter, which is the opposite of what these two are named
+    // here. That counter is one of six daily energy slots the app keeps -
+    // load consumption, grid import, grid export, generator input, battery
+    // charged, battery discharged - and the app's own naming of the slots was
+    // checked against the two ends we already know: the slots dbc and dbd
+    // land in are exactly the ones behind the app's Charged and Discharged
+    // readings, which match this file's device-confirmed names for those two
+    // keys. The app divides the same counters by 1000 to show kWh, which also
+    // confirms the Wh unit used here.
+    //
+    // Against that: dgs=0/tgs=0 in the capture is at least consistent with
+    // import (the unit had been exporting), but no isolated before/after test
+    // has been run on a real device either way, and the lifetime keys are not
+    // read by the app at all. So the names stay until the direction is
+    // confirmed on hardware.
     field({ key: 'dgs', path: ['gridSoldEnergyToday'], transform: number() });
     advertise(
       ['gridSoldEnergyToday'],
@@ -551,9 +561,10 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     );
 
     // dgb and dgp are the app's daily load-consumption and daily
-    // exported-to-grid counters. Their tgb/tgp siblings look like the
-    // lifetime totals of the same two, but the app never reads a t* key, so
-    // those stay unnamed under `raw`.
+    // exported-to-grid counters - two more of the six daily energy slots
+    // described above, from the same verified slot ordering. Their tgb/tgp
+    // siblings look like the lifetime totals of the same two, but the app
+    // never reads a t* key, so those stay unnamed under `raw`.
     field({ key: 'dgb', path: ['loadConsumedEnergyToday'], transform: number() });
     advertise(
       ['loadConsumedEnergyToday'],
