@@ -1633,6 +1633,15 @@ describe('MQTT Message Parser', () => {
 
     // wifi_a is the magnitude of the RSSI, so the sensor reports it negated.
     expect((ai['data'] as VenusMiniDeviceData).wifiSignal).toBe(-41);
+
+    // A reading that already carries its sign must be left alone rather than
+    // flipped back to a positive dBm value.
+    const signed = parseMessage(
+      `${base.replace('wifi_a=41', 'wifi_a=-41')},cm=0,dev_sta=0`,
+      'VNSEMINI-0',
+      'venusMini123',
+    );
+    expect((signed['data'] as VenusMiniDeviceData).wifiSignal).toBe(-41);
   });
 
   test('scales Venus A (VNSA) BMS voltages and temperatures (issue #218)', () => {

@@ -5,7 +5,7 @@ import {
 } from '../deviceDefinition.js';
 import { VenusMiniDeviceData, VenusMiniTimePeriod } from '../types.js';
 import { binarySensorComponent, sensorComponent } from '../homeAssistantDiscovery.js';
-import { divide, equalsBoolean, identity, map, negate, number } from '../transforms.js';
+import { divide, equalsBoolean, identity, map, negateIfPositive, number } from '../transforms.js';
 
 /**
  * Marstek Venus E Mini, device type `VNSEMINI-X` (e.g. `VNSEMINI-0`).
@@ -304,10 +304,12 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     // Confirmed as a live/fluctuating reading rather than a static value. The
     // device reports the magnitude of the RSSI, not the RSSI itself: the
     // vendor app flips the sign of any positive value before showing it as a
-    // WiFi signal strength (a value that is already negative it leaves
-    // alone), so a reported 41 is -41 dBm. Negated here to match the wifiRssi
-    // sensor on the other models. Only positive values have been observed.
-    field({ key: 'wifi_a', path: ['wifiSignal'], transform: negate() });
+    // WiFi signal strength, so a reported 41 is -41 dBm. Only positive values
+    // have been seen on the wire, but the app leaves an already-negative
+    // value alone, and so does this: negating unconditionally would turn a
+    // correctly signed -41 from some other firmware into +41. Reported in dBm
+    // to match the wifiRssi sensor on the other models.
+    field({ key: 'wifi_a', path: ['wifiSignal'], transform: negateIfPositive() });
     advertise(
       ['wifiSignal'],
       sensorComponent<number>({

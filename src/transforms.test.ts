@@ -10,6 +10,7 @@ import {
   temperature,
   timeString,
   negate,
+  negateIfPositive,
   parseIntTransform,
   identity,
   map,
@@ -196,6 +197,22 @@ describe('transforms', () => {
 
     it('should generate correct Jinja2 template', () => {
       expect(transformToJinja2(negate(), 'value')).toBe('{{ -(value | int(0)) }}');
+    });
+  });
+
+  describe('negateIfPositive transform', () => {
+    it('should negate only positive values', () => {
+      expect(executeTransform(negateIfPositive(), '41')).toBe(-41);
+      // An already-signed reading must survive untouched, not flip back.
+      expect(executeTransform(negateIfPositive(), '-41')).toBe(-41);
+      expect(executeTransform(negateIfPositive(), '0')).toBe(0);
+      expect(executeTransform(negateIfPositive(), 'not a number')).toBe(0);
+    });
+
+    it('should generate a Jinja2 template that only negates positives', () => {
+      expect(transformToJinja2(negateIfPositive(), 'value')).toBe(
+        '{% set n = value | int(0) %}{% if n > 0 %}{{ -n }}{% else %}{{ n }}{% endif %}',
+      );
     });
   });
 
