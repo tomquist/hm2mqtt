@@ -1,6 +1,6 @@
 import pino, { type Logger } from 'pino';
 import { inspect } from 'util';
-import { redactUrlCredentials } from './utils/redact.js';
+import { redactDeep } from './utils/redact.js';
 
 /**
  * Loosely-typed log function.
@@ -62,13 +62,15 @@ export function consoleStyleLogMethod(
 
 /**
  * Masks credentials embedded in URLs (`mqtt://user:pass@host`) in every logged
- * string, so a broker URL cannot leak the broker password no matter which call
+ * value, so a broker URL cannot leak the broker password no matter which call
  * site logs it (see issue #424).
+ *
+ * Objects are covered as well as strings: pino writes the properties of a
+ * leading object straight into the log line, and interpolates `%o`/`%j`
+ * arguments into the message after this hook has run.
  */
 export function redactLogArgs(args: Parameters<pino.LogFn>): Parameters<pino.LogFn> {
-  return args.map(arg =>
-    typeof arg === 'string' ? redactUrlCredentials(arg) : arg,
-  ) as Parameters<pino.LogFn>;
+  return args.map(arg => redactDeep(arg)) as Parameters<pino.LogFn>;
 }
 
 /**

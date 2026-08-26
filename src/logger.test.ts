@@ -153,6 +153,28 @@ describe('logMethodHook', () => {
     );
   });
 
+  it('masks credentials in a leading object, which pino writes as log fields', () => {
+    const lines: string[] = [];
+    const logger = createTestLogger(lines);
+    const bindings = { brokerUrl: 'mqtt://user:secret@broker:1883' };
+
+    logger.info(bindings, 'Connecting to MQTT broker');
+
+    const entry = JSON.parse(lines[lines.length - 1]);
+    expect(entry.brokerUrl).toBe('mqtt://user:***@broker:1883');
+    expect(bindings.brokerUrl).toBe('mqtt://user:secret@broker:1883');
+  });
+
+  it('masks credentials in an object interpolated through %o', () => {
+    const lines: string[] = [];
+    const logger = createTestLogger(lines);
+
+    logger.info('MQTT config: %o', { brokerUrl: 'mqtt://user:secret@broker:1883' });
+
+    expect(lastMessage(lines)).toContain('mqtt://user:***@broker:1883');
+    expect(lastMessage(lines)).not.toContain('secret');
+  });
+
   it('still folds surplus arguments into the message', () => {
     const lines: string[] = [];
     const logger = createTestLogger(lines);

@@ -32,6 +32,13 @@ redact_url_credentials() {
         return
     fi
 
+    # An empty password is left alone, matching the application side: masking it
+    # would suggest a password is set when none is
+    if [[ -z "${userinfo#*:}" ]]; then
+        echo "$text"
+        return
+    fi
+
     echo "${scheme}://${userinfo%%:*}:***@${host}"
 }
 
@@ -46,9 +53,10 @@ redact_credentials() {
 # Function to output environment variables for testing
 output_env_for_testing() {
     bashio::log.info "Running in test mode, outputting environment variables"
-    # Output all environment variables that start with MQTT_ or DEVICE_
-    env | grep -E "^(MQTT_|AUTODISCOVERY_|DEVICE_|POLL_|CELL_|DEBUG=|LOG_LEVEL=)" | sort |
-        redact_credentials
+    # Output all environment variables that start with MQTT_ or DEVICE_,
+    # skipping passwords the same way the debug output below does
+    env | grep -E "^(MQTT_|AUTODISCOVERY_|DEVICE_|POLL_|CELL_|DEBUG=|LOG_LEVEL=)" |
+        grep -v -i "password" | sort | redact_credentials
 }
 
 # Function to manually parse options.json

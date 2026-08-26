@@ -1,4 +1,4 @@
-import { redactSecrets, redactUrlCredentials } from './redact.js';
+import { redactDeep, redactSecrets, redactUrlCredentials } from './redact.js';
 
 describe('redactUrlCredentials', () => {
   it.each`
@@ -33,6 +33,45 @@ describe('redactUrlCredentials', () => {
   });
 });
 
+describe('redactDeep', () => {
+  it('masks credentials in nested strings without touching the input', () => {
+    const input = {
+      brokerUrl: 'mqtt://user:secret@broker:1883',
+      nested: { proxy: { mainBrokerUrl: 'mqtt://user:secret@broker:1883' } },
+      urls: ['mqtt://user:secret@broker:1883', 'mqtt://broker:1883'],
+      port: 1883,
+      enabled: true,
+      missing: null,
+    };
+
+    expect(redactDeep(input)).toEqual({
+      brokerUrl: 'mqtt://user:***@broker:1883',
+      nested: { proxy: { mainBrokerUrl: 'mqtt://user:***@broker:1883' } },
+      urls: ['mqtt://user:***@broker:1883', 'mqtt://broker:1883'],
+      port: 1883,
+      enabled: true,
+      missing: null,
+    });
+    expect(input.brokerUrl).toBe('mqtt://user:secret@broker:1883');
+  });
+
+  it('passes non-plain objects through untouched', () => {
+    const error = new Error('connect failed for mqtt://user:secret@broker:1883');
+
+    expect(redactDeep(error)).toBe(error);
+  });
+
+  it('survives a cyclic object', () => {
+    const cyclic: Record<string, unknown> = { brokerUrl: 'mqtt://user:secret@broker:1883' };
+    cyclic.self = cyclic;
+
+    expect(() => redactDeep(cyclic)).not.toThrow();
+    expect((redactDeep(cyclic) as Record<string, unknown>).brokerUrl).toBe(
+      'mqtt://user:***@broker:1883',
+    );
+  });
+});
+
 describe('redactSecrets', () => {
   it('masks passwords and credentials embedded in URLs', () => {
     const config = {
@@ -50,5 +89,9 @@ describe('redactSecrets', () => {
       mainBrokerPassword: '***',
       topicPrefix: 'hm2mqtt',
     });
+  });
+
+  it('leaves an empty password alone', () => {
+    expect(redactSecrets('password', '')).toBe('');
   });
 });
