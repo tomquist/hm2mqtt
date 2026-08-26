@@ -61,14 +61,46 @@ describe('redactDeep', () => {
     expect(redactDeep(error)).toBe(error);
   });
 
-  it('survives a cyclic object', () => {
+  it('masks password fields, at the top level and nested', () => {
+    expect(redactDeep({ password: 'secret', nested: { mainBrokerPassword: 'secret' } })).toEqual({
+      password: '***',
+      nested: { mainBrokerPassword: '***' },
+    });
+  });
+
+  it('leaves an empty or absent password alone', () => {
+    expect(redactDeep({ password: '', otherPassword: null })).toEqual({
+      password: '',
+      otherPassword: null,
+    });
+  });
+
+  it('replaces a cycle with a marker instead of passing it through', () => {
     const cyclic: Record<string, unknown> = { brokerUrl: 'mqtt://user:secret@broker:1883' };
     cyclic.self = cyclic;
 
-    expect(() => redactDeep(cyclic)).not.toThrow();
-    expect((redactDeep(cyclic) as Record<string, unknown>).brokerUrl).toBe(
-      'mqtt://user:***@broker:1883',
-    );
+    const redacted = redactDeep(cyclic) as Record<string, unknown>;
+
+    expect(redacted.brokerUrl).toBe('mqtt://user:***@broker:1883');
+    expect(redacted.self).toBe('[circular]');
+  });
+
+  it('keeps redacting the same object in two places of the same tree', () => {
+    const shared = { brokerUrl: 'mqtt://user:secret@broker:1883' };
+
+    expect(redactDeep({ first: shared, second: shared })).toEqual({
+      first: { brokerUrl: 'mqtt://user:***@broker:1883' },
+      second: { brokerUrl: 'mqtt://user:***@broker:1883' },
+    });
+  });
+
+  it('never lets a value deeper than it walks through unredacted', () => {
+    let deep: Record<string, unknown> = { brokerUrl: 'mqtt://user:secret@broker:1883' };
+    for (let i = 0; i < 40; i++) {
+      deep = { nested: deep };
+    }
+
+    expect(JSON.stringify(redactDeep(deep))).not.toContain('secret');
   });
 });
 

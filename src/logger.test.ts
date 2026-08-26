@@ -175,6 +175,19 @@ describe('logMethodHook', () => {
     expect(lastMessage(lines)).not.toContain('secret');
   });
 
+  it('masks credentials in an error logged the way this codebase logs errors', () => {
+    const lines: string[] = [];
+    const logger = createTestLogger(lines);
+
+    logger.error(
+      'MQTT client error:',
+      new Error('connect failed for mqtt://user:secret@broker:1883'),
+    );
+
+    expect(lastMessage(lines)).toContain('mqtt://user:***@broker:1883');
+    expect(lastMessage(lines)).not.toContain('secret');
+  });
+
   it('still folds surplus arguments into the message', () => {
     const lines: string[] = [];
     const logger = createTestLogger(lines);
