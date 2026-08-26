@@ -79,6 +79,17 @@ export class DeviceManager {
       }
       validDeviceCount++;
 
+      if (deviceDefinition.beta) {
+        // Said per device rather than once at startup, because it is true of
+        // this device and not of the installation — someone running a Venus
+        // alongside a beta device should not read it as applying to both.
+        logger.warn(
+          `Support for ${device.deviceType} is in beta: not all of its readings have been ` +
+            'confirmed, so some values may be wrong, and which sensors exist may change ' +
+            'between releases.',
+        );
+      }
+
       const deviceKey = this.getDeviceKey(device);
       logger.info(`Initializing topics for device: ${deviceKey}`);
       let deviceId = device.deviceId;

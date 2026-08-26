@@ -28,6 +28,7 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 - Marstek Venus E
 - Marstek Venus A
 - Marstek Venus D
+- Marstek Venus E Mini (beta)
 - Marstek Jupiter C
 - Marstek Jupiter E
 - Marstek Jupiter Plus
@@ -556,6 +557,7 @@ The device type can be one of the following:
 - **VNSE3-X**: (e.g. VNSE3-0) Venus E 3.0
 - **VNSA-X**: (e.g. VNSA-1) Venus A
 - **VNSD-X**: (e.g. VNSD-1) Venus D
+- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini — **beta**; sensors only, none of the Venus write commands apply to it yet
 - **HMN-X**: (e.g. HMN-1) Marstek Jupiter E
 - **HMM-X**: (e.g. HMM-1) Marstek Jupiter C
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus
@@ -688,6 +690,7 @@ homeassistant/{component}/{node_id}/{object_id}/config
 - `phase-diagnosis`: Starts grid-phase detection. Progress shows up on the *CT Status* sensor.
 
 ### Venus Device Commands
+Applies to HMG/VNSE3/VNSA/VNSD. The Venus E Mini (VNSEMINI) only exposes sensors for now; none of the commands below are available on it yet.
 - `working-mode`: Sets working mode (`automatic`, `manual`, `trading`, or `ai`). The `ai` value expands to `cd=2,md=5,nl=1` (AI mode requires both `md=5` and `nl=1`).
 - `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`)
 - `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped). The device does not report this back, so the entity shows the last value set.
