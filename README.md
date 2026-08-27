@@ -750,7 +750,16 @@ Venus commands above.
   someone confirms the direction on a device.
 
 **Beta.** This command was read out of the Marstek app rather than captured from
-a real device, so it has not been confirmed end to end.
+a real device, so it has not been confirmed end to end. The command number is
+confirmed for this model; the `adv=` parameter is borrowed from the older Venus
+line and still wants checking on a device — see below.
+
+The Venus E Mini belongs to a second generation of Marstek's Venus firmware,
+together with the Venus X and Venus G. It uses different command numbers from
+the Venus C/D/E this project already supports — depth of discharge, the LED,
+setting the time and reading network info all moved — and a different MQTT
+topic namespace. That is why it has its own command list here rather than
+sharing the Venus one.
 
 The app has three further commands for this model that hm2mqtt does not expose:
 

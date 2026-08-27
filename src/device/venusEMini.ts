@@ -768,10 +768,29 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     }
 
     // Bluetooth advertising, `cd=55,adv=1` to enable and `cd=55,adv=0` to
-    // disable. The Marstek app builds this command from the device type: the
-    // Venus variants take 55, Jupiter takes 57, and everything else — the Mini
-    // included — falls back to 55. The Mini's own command table names `cd=55`
-    // "set bluetooth advertising state", which agrees.
+    // disable.
+    //
+    // `cd=55` is solid: the Mini's own command table names it
+    // CMD_SET_BLUETOOTH_STATE, and CommonCommand.handleBleSwitch reaches the
+    // same number for a Mini through its fallback arm (Venus 55, Jupiter 57,
+    // everything else 55).
+    //
+    // The `adv=` parameter is NOT solid, and the reason matters. The app has
+    // two generations of Venus code. The first - Venus C/D/E, the HMG/VNSE3/
+    // VNSA/VNSD this repo already supports - lives in pages/Ac_Coupler with
+    // CommonCommand and talks over `hame_energy/…`. The second - Venus X,
+    // Venus G and this model - lives in modules/devices with its own
+    // DataVenus* command tables and talks over `marstek_energy/…` via
+    // VNXMqttStrategy. The two disagree on numbering wherever they both
+    // implement something: depth of discharge is 56 then 44, the LED 59 then
+    // 56, set-time 4 then 33, network info 26 then 03.
+    //
+    // `adv=` comes from handleBleSwitch, which is first-generation. The
+    // Mini's own second-generation descriptor is a bare `cd=55` whose
+    // parameter is filled in at the call site, and that call site has not been
+    // read. So the number is confirmed for this model and the parameter name
+    // is borrowed from the older line - worth confirming on a device before
+    // trusting it.
     //
     // Kept optimistic, but not because nothing reports the state back: `bbs`
     // in the cd=1 payload is the likely readback. The app's own label for
