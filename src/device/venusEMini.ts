@@ -764,10 +764,20 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     // included — falls back to 55. The Mini's own command table names `cd=55`
     // "set bluetooth advertising state", which agrees.
     //
-    // Unlike the other Venus models, the Mini reports no advertising state in
-    // its cd=1 payload (`bbs` is the Bluetooth *lock* reading and does not
-    // track this), so the switch shows the last value hm2mqtt wrote and only
-    // appears once something has been written.
+    // Kept optimistic, but not because nothing reports the state back: `bbs`
+    // in the cd=1 payload is the likely readback. The app's own label for
+    // cd=55 is "设置蓝牙广播状态" - set Bluetooth *broadcast state* - which is
+    // what bbs reads like, and it has only ever been seen as 0 or 1. What is
+    // missing is the polarity. The one hardware note on bbs (see
+    // bluetoothLockRaw above) says enabling the Bluetooth *lock* raises it,
+    // which would make it the inverse of advertising, and that the mapping
+    // across LED x lock combinations did not come out cleanly - so bbs may not
+    // be tracking this setting alone.
+    //
+    // A switch wired to the wrong polarity shows the opposite of reality,
+    // which is worse than showing nothing, so this stays optimistic until
+    // someone toggles it on a device and reports which way bbs moves. The
+    // other Venus models do report advertising back, in `ble` bit 2.
     advertise(
       ['bluetoothAdvertisingEnabled'],
       switchComponent({
@@ -775,8 +785,9 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Bluetooth Advertising',
         icon: 'mdi:bluetooth',
         command: 'bluetooth-advertising',
-        // Write-only: the Mini never reports advertising state, so the switch
-        // runs optimistic and shows the last value that was set.
+        // Optimistic: the readback is probably `bbs`, but its polarity is
+        // unconfirmed, so the switch shows the last value set instead of a
+        // state that might be inverted. See the note above.
         optimistic: true,
       }),
     );

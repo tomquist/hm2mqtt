@@ -3,7 +3,7 @@
 
 ### Added
 
-- Support the `VNSEMINI-X` device type (e.g. `VNSEMINI-0`): the Marstek Venus E Mini. Sensors plus a *Bluetooth Advertising* switch, which shows the last value you set because the device does not report it back. Beta: some values may be wrong, and the sensors and the switch may still change (discussion #425, PR #429, PR #430, PR #433, PR #437)
+- Support the `VNSEMINI-X` device type (e.g. `VNSEMINI-0`): the Marstek Venus E Mini. Sensors plus a *Bluetooth Advertising* switch, which shows the last value you set rather than the device's own state. Beta: some values may be wrong, and the sensors and the switch may still change (discussion #425, PR #429, PR #430, PR #433, PR #437)
 
 ### Fixed
 

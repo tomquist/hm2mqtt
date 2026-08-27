@@ -742,8 +742,12 @@ Applies to VNSEMINI. Despite the name this model shares almost nothing with the
 Venus commands above.
 
 - `bluetooth-advertising`: Turns the device's Bluetooth advertising on or off.
-  The Mini does not report the setting back, so the *Bluetooth Advertising*
-  switch shows the last value that was set rather than the device's own state.
+  The *Bluetooth Advertising* switch shows the last value that was set rather
+  than the device's own state. The Mini most likely does report the setting back
+  in the field behind the *Bluetooth Lock (Raw)* sensor, but which value means
+  "advertising on" is not established, and a switch wired the wrong way round
+  would show the opposite of reality — so it stays on the last value set until
+  someone confirms the direction on a device.
 
 **Beta.** This command was read out of the Marstek app rather than captured from
 a real device, so it has not been confirmed end to end. Three further commands

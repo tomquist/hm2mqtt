@@ -718,7 +718,7 @@ export interface VenusMiniDeviceData extends BaseDeviceData {
   gridMode?: number; // gs (raw; grid mode, individual codes unknown)
   serverState?: number; // ser (raw; server state, individual codes unknown)
   rechargeType?: number; // rechg_type (raw; recharge type, individual codes unknown)
-  bluetoothAdvertisingEnabled?: boolean; // last value written with the bluetooth-advertising command; the Mini does not report advertising state back, so this is hm2mqtt's own record of what was set
+  bluetoothAdvertisingEnabled?: boolean; // last value written with the bluetooth-advertising command. `bbs` is the likely readback but its polarity is unconfirmed, so nothing parses it into this field yet - see venusEMini.ts
   timePeriods?: VenusMiniTimePeriod[];
   // cd=59 per-phase CT readings, in W. Only reported by a unit with an external
   // meter configured, so these stay unset on a device with ct_type=0.
