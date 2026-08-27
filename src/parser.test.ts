@@ -1568,10 +1568,11 @@ describe('MQTT Message Parser', () => {
     );
   });
 
-  test('parses the Venus E Mini per-phase CT payload (cd=19)', () => {
+  test('parses the Venus E Mini per-phase CT payload (cd=59)', () => {
     // Not from a real capture: the unit the cd=1 mappings were checked against
-    // reports ct_type=0, so it never answers cd=19. power_a/power_b/power_c are
-    // phases A/B/C and power_s the three-phase total, in watts.
+    // reports ct_type=0, so it never answers a power request at all.
+    // power_a/power_b/power_c are phases A/B/C and power_s the three-phase
+    // total, in watts.
     const message = 'power_a=230,power_b=0,power_c=-45,power_s=185,d_p=0';
     const parsed = parseMessage(message, 'VNSEMINI-0', 'venusMini123');
 
@@ -1580,8 +1581,27 @@ describe('MQTT Message Parser', () => {
     expect(result.phaseBPower).toBe(0);
     expect(result.phaseCPower).toBe(-45);
     expect(result.totalPhasePower).toBe(185);
-    // The cd=19 reply must not be mistaken for the cd=1 runtime message.
+    // The cd=59 reply must not be mistaken for the cd=1 runtime message.
     expect(parsed['data']).toBeUndefined();
+  });
+
+  test('publishes the unnamed Venus E Mini CT keys without touching cd=1 raw', () => {
+    const message =
+      'power_a=230,power_b=0,power_c=-45,power_s=185,d_p=0,ct_st=1,gn_pwr=-13,gn_pwr1=-13,gf_pwr=0,bat_pwr=-7';
+    const parsed = parseMessage(message, 'VNSEMINI-0', 'venusMini123');
+
+    const result = parsed['ct'] as VenusMiniDeviceData;
+    expect(result.ctRaw).toEqual({
+      d_p: 0,
+      ct_st: 1,
+      gn_pwr: -13,
+      gn_pwr1: -13,
+      gf_pwr: 0,
+      bat_pwr: -7,
+    });
+    // These live in their own record so the cd=1 message's `raw` survives the
+    // per-path state merge.
+    expect(result.raw).toBeUndefined();
   });
 
   test('maps Venus E Mini enum branches not covered by the primary capture', () => {

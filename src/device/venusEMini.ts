@@ -4,7 +4,11 @@ import {
   registerDeviceDefinition,
 } from '../deviceDefinition.js';
 import { VenusMiniDeviceData, VenusMiniTimePeriod } from '../types.js';
-import { binarySensorComponent, sensorComponent } from '../homeAssistantDiscovery.js';
+import {
+  binarySensorComponent,
+  sensorComponent,
+  switchComponent,
+} from '../homeAssistantDiscovery.js';
 import { divide, equalsBoolean, identity, map, negateIfPositive, number } from '../transforms.js';
 
 /**
@@ -15,11 +19,22 @@ import { divide, equalsBoolean, identity, map, negateIfPositive, number } from '
  * HMG/VNSE3/VNSA/VNSD family, so it gets its own definition here rather than
  * reusing anything in `venus.ts`.
  *
- * Only `cd=1` has been captured for this model, and no write/set command
- * formats have been verified against a real device, so this definition is
- * read-only. Fields whose meaning is not confirmed are exposed verbatim as
- * disabled-by-default sensors under `raw` rather than being given a name that
- * asserts a meaning.
+ * Only `cd=1` has been captured from a real device. The command formats here
+ * are read out of the Marstek app's own command table for this model rather
+ * than observed on hardware, so they are the app's ground truth but not yet
+ * confirmed end to end. Fields whose meaning is not confirmed are exposed
+ * verbatim as disabled-by-default sensors under `raw`/`ctRaw` rather than being
+ * given a name that asserts a meaning.
+ *
+ * The app's table for this model lists five commands. Three are deliberately
+ * not implemented here:
+ *
+ * - `cd=60` (configure server) would repoint the device at a different broker.
+ * - `CMD_SET_WIFI` (configure device WiFi) carries network credentials.
+ * - `cd=63,ct_chg_type=<n>` (configure recharge type) takes a value whose
+ *   domain is not in the app; the device reports the setting back as
+ *   `rechg_type`, of which only 0 has ever been seen, so there is nothing to
+ *   map a control onto yet.
  */
 
 const requiredMiniRuntimeInfoKeys = ['gp', 'lp', 'soc', 'be', 'pmu', 'wif_s', 'mq_s', 'm1', 'time'];
@@ -31,6 +46,10 @@ const requiredCtPowerKeys = ['power_a', 'power_b', 'power_c'];
 function isVenusMiniCtPowerMessage(values: Record<string, string>): boolean {
   return requiredCtPowerKeys.every(key => key in values);
 }
+
+// Keys the vendor app parses alongside power_a..power_s, with no confirmed
+// meaning. See registerVenusMiniCtPowerMessage.
+const venusMiniCtRawFields = ['d_p', 'ct_st', 'gn_pwr', 'gn_pwr1', 'gf_pwr', 'bat_pwr'] as const;
 
 function extractMiniAdditionalDeviceInfo(state: VenusMiniDeviceData) {
   return {
@@ -119,7 +138,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     pollInterval: globalPollInterval,
     controlsDeviceAvailability: true,
   };
-  message<VenusMiniDeviceData>(options, ({ field, advertise }) => {
+  message<VenusMiniDeviceData>(options, ({ field, advertise, command }) => {
     advertise(
       ['timestamp'],
       sensorComponent<string>({
@@ -738,24 +757,61 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         { enabled: state => (state.raw?.[key] != null ? true : undefined) },
       );
     }
+
+    // Bluetooth advertising, `cd=55,adv=1` to enable and `cd=55,adv=0` to
+    // disable. The Marstek app builds this command from the device type: the
+    // Venus variants take 55, Jupiter takes 57, and everything else — the Mini
+    // included — falls back to 55. The Mini's own command table names `cd=55`
+    // "set bluetooth advertising state", which agrees.
+    //
+    // Unlike the other Venus models, the Mini reports no advertising state in
+    // its cd=1 payload (`bbs` is the Bluetooth *lock* reading and does not
+    // track this), so the switch shows the last value hm2mqtt wrote and only
+    // appears once something has been written.
+    advertise(
+      ['bluetoothAdvertisingEnabled'],
+      switchComponent({
+        id: 'bluetooth_advertising',
+        name: 'Bluetooth Advertising',
+        icon: 'mdi:bluetooth',
+        command: 'bluetooth-advertising',
+        // Write-only: the Mini never reports advertising state, so the switch
+        // runs optimistic and shows the last value that was set.
+        optimistic: true,
+      }),
+    );
+    command('bluetooth-advertising', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const enable =
+          message.toLowerCase() === 'true' || message.toLowerCase() === 'on' || message === '1';
+        updateDeviceState(() => ({ bluetoothAdvertisingEnabled: enable }));
+        publishCallback(`cd=55,adv=${enable ? 1 : 0}`);
+      },
+    });
   });
 }
 
 /**
- * Per-phase CT readings, requested with `cd=19` and answered with one key per
- * phase plus the three-phase total, all in watts — where the other Venus models
- * pack the same five values into a single pipe-separated `get_power` field.
+ * Per-phase CT readings, answered with one key per phase plus the three-phase
+ * total, all in watts — where the other Venus models pack the same five values
+ * into a single pipe-separated `get_power` field.
  *
  * `power_a`/`power_b`/`power_c` are phases A/B/C and `power_s` the three-phase
  * total; the phase order is established rather than inferred from the key
- * names. Unlike the `cd=1` fields above this has not been seen from a real
- * device — the unit these mappings were checked against reports `ct_type=0`,
- * meaning no external meter is configured, so it never answers `cd=19`. The
+ * names.
+ *
+ * Requested with `cd=59`. The Marstek app asks this model for power with
+ * `cd=59` ("get NOW statistics power") and never sends it `cd=19` at all —
+ * `cd=19` belongs to the other Venus variants, which declare both commands
+ * separately. hm2mqtt used to send `cd=19` here, which was a guess carried over
+ * from those variants. Neither number has been confirmed against a real Mini:
+ * the unit these mappings were checked against reports `ct_type=0`, meaning no
+ * external meter is configured, so it answers no power request at all. The
  * entities only appear once a device actually reports the keys.
  */
 function registerVenusMiniCtPowerMessage(message: BuildMessageFn) {
   const options = {
-    refreshDataPayload: 'cd=19',
+    refreshDataPayload: 'cd=59',
     isMessage: isVenusMiniCtPowerMessage,
     publishPath: 'ct',
     defaultState: {},
@@ -782,6 +838,26 @@ function registerVenusMiniCtPowerMessage(message: BuildMessageFn) {
           unit_of_measurement: 'W',
           state_class: 'measurement',
         }),
+      );
+    }
+
+    // The vendor app reads six more keys immediately after power_a..power_s in
+    // the same parser. The names suggest power readings — battery, grid, grid
+    // feed-in — but nothing in the app confirms a unit, a sign convention or
+    // what distinguishes gn_pwr from gn_pwr1, so they follow the same rule as
+    // the unconfirmed cd=1 fields above: published verbatim, disabled by
+    // default, no device_class that would assert a meaning.
+    for (const key of venusMiniCtRawFields) {
+      field({ key, path: ['ctRaw', key], transform: number() });
+      advertise(
+        ['ctRaw', key],
+        sensorComponent<number>({
+          id: `raw_${key}`,
+          name: `Raw ${key}`,
+          icon: 'mdi:help-circle-outline',
+          enabled_by_default: false,
+        }),
+        { enabled: state => (state.ctRaw?.[key] != null ? true : undefined) },
       );
     }
   });

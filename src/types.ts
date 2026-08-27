@@ -718,13 +718,19 @@ export interface VenusMiniDeviceData extends BaseDeviceData {
   gridMode?: number; // gs (raw; grid mode, individual codes unknown)
   serverState?: number; // ser (raw; server state, individual codes unknown)
   rechargeType?: number; // rechg_type (raw; recharge type, individual codes unknown)
+  bluetoothAdvertisingEnabled?: boolean; // last value written with the bluetooth-advertising command; the Mini does not report advertising state back, so this is hm2mqtt's own record of what was set
   timePeriods?: VenusMiniTimePeriod[];
-  // cd=19 per-phase CT readings, in W. Only reported by a unit with an external
+  // cd=59 per-phase CT readings, in W. Only reported by a unit with an external
   // meter configured, so these stay unset on a device with ct_type=0.
   phaseAPower?: number; // power_a
   phaseBPower?: number; // power_b
   phaseCPower?: number; // power_c
   totalPhasePower?: number; // power_s
+  // Further cd=59 keys the vendor app reads next to power_a..power_s, with no
+  // confirmed meaning. Kept in their own record rather than in `raw` below:
+  // device state is merged per publish path, so one shared record would let
+  // whichever of the two messages arrived last erase the other's keys.
+  ctRaw?: Record<string, number>;
   // Fields observed in the payload with no confirmed meaning, keyed by their
   // raw MQTT field name (eg, cv, ct (bare, distinct from ct_type), gn, ar,
   // aw, apt, e1-e7, tgb/tgp). Exposed as disabled-by-default sensors so the

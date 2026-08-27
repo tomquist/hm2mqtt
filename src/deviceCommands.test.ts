@@ -1773,6 +1773,42 @@ const commandTestCases: CommandTestCase[] = [
     input: '1',
     expectedOutput: 'cd=22,p1=1',
   },
+
+  // ============================================================
+  // VENUS E MINI COMMANDS
+  // ============================================================
+
+  // The Marstek app picks this command's number from the device type: the
+  // Venus variants take 55, Jupiter 57, and everything else — the Mini
+  // included — falls back to 55.
+  {
+    description: 'Venus E Mini bluetooth-advertising enable',
+    deviceType: 'VNSEMINI-0',
+    command: 'bluetooth-advertising',
+    input: 'true',
+    expectedOutput: 'cd=55,adv=1',
+  },
+  {
+    description: 'Venus E Mini bluetooth-advertising disable',
+    deviceType: 'VNSEMINI-0',
+    command: 'bluetooth-advertising',
+    input: 'false',
+    expectedOutput: 'cd=55,adv=0',
+  },
+  {
+    description: 'Venus E Mini bluetooth-advertising with on',
+    deviceType: 'VNSEMINI-0',
+    command: 'bluetooth-advertising',
+    input: 'on',
+    expectedOutput: 'cd=55,adv=1',
+  },
+  {
+    description: 'Venus E Mini bluetooth-advertising with 1',
+    deviceType: 'VNSEMINI-0',
+    command: 'bluetooth-advertising',
+    input: '1',
+    expectedOutput: 'cd=55,adv=1',
+  },
 ];
 
 describe('Device Commands', () => {

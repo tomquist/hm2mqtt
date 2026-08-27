@@ -557,7 +557,7 @@ The device type can be one of the following:
 - **VNSE3-X**: (e.g. VNSE3-0) Venus E 3.0
 - **VNSA-X**: (e.g. VNSA-1) Venus A
 - **VNSD-X**: (e.g. VNSD-1) Venus D
-- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini — **beta**; sensors only, none of the Venus write commands apply to it yet
+- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini — **beta**; sensors plus a single *Bluetooth Advertising* switch. None of the other Venus write commands apply to it.
 - **HMN-X**: (e.g. HMN-1) Marstek Jupiter E
 - **HMM-X**: (e.g. HMM-1) Marstek Jupiter C
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus
@@ -690,7 +690,7 @@ homeassistant/{component}/{node_id}/{object_id}/config
 - `phase-diagnosis`: Starts grid-phase detection. Progress shows up on the *CT Status* sensor.
 
 ### Venus Device Commands
-Applies to HMG/VNSE3/VNSA/VNSD. The Venus E Mini (VNSEMINI) only exposes sensors for now; none of the commands below are available on it yet.
+Applies to HMG/VNSE3/VNSA/VNSD. None of the commands below are available on the Venus E Mini (VNSEMINI), which has its own, much smaller command set — see [Venus E Mini Commands](#venus-e-mini-commands).
 - `working-mode`: Sets working mode (`automatic`, `manual`, `trading`, or `ai`). The `ai` value expands to `cd=2,md=5,nl=1` (AI mode requires both `md=5` and `nl=1`).
 - `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`)
 - `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped). The device does not report this back, so the entity shows the last value set.
@@ -735,6 +735,22 @@ The `wiringCheck` value is the app's own verification step — it runs that befo
 enabling. The matching *Parallel Mode* entity reports the current state (*Turned
 Off*, *Wiring Check*, *Turned On*, or *Unknown* on units that do not support
 parallel operation).
+
+### Venus E Mini Commands
+
+Applies to VNSEMINI. Despite the name this model shares almost nothing with the
+Venus commands above.
+
+- `bluetooth-advertising`: Turns the device's Bluetooth advertising on or off.
+  The Mini does not report the setting back, so the *Bluetooth Advertising*
+  switch shows the last value that was set rather than the device's own state.
+
+**Beta.** This command was read out of the Marstek app rather than captured from
+a real device, so it has not been confirmed end to end. Three further commands
+the app has for this model are deliberately not exposed: configuring the
+device's server (it would repoint the unit at a different broker), configuring
+its WiFi (it carries network credentials), and setting the recharge type (the
+accepted values are not known, and the device only ever reports `0` back).
 
 ### Jupiter Device Commands
 
