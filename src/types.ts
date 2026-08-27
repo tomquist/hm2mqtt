@@ -627,6 +627,16 @@ export interface VenusDeviceData extends BaseDeviceData {
   calculatedBatteryPower?: number; // rp
   gridPower?: number; // gp
   parallelMode?: VenusParallelMode | 'unknown'; // par
+  batteryHealth?: number; // soh, control firmware 149.2 and later
+  httpServerType?: number; // htt_p, same key and meaning as on Jupiter
+  /**
+   * Fields the control firmware sends in its cd=1 response that have no
+   * confirmed meaning. Keyed by their raw MQTT field name and published as
+   * disabled-by-default sensors, so the values are available for correlation
+   * without asserting semantics — the same treatment venusEMini.ts gives its
+   * unconfirmed fields.
+   */
+  raw?: Record<string, number>;
 }
 
 // Per-slot schedule direction reported by a Venus E Mini in ms{n}, confirmed

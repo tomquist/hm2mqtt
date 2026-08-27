@@ -736,6 +736,11 @@ enabling. The matching *Parallel Mode* entity reports the current state (*Turned
 Off*, *Wiring Check*, *Turned On*, or *Unknown* on units that do not support
 parallel operation).
 
+Venus devices also report a *Battery Health* sensor (state of health) on control
+firmware 149.2 and later, plus a set of raw diagnostic sensors for fields the
+device sends that have no confirmed meaning. All of the raw ones are disabled by
+default. See [docs/venus-generations.md](docs/venus-generations.md).
+
 ### Venus E Mini Commands
 
 Applies to VNSEMINI. Despite the name this model shares almost nothing with the

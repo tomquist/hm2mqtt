@@ -10,8 +10,10 @@ second-generation models.
 
 Everything here was read out of the Marstek Android app (`com.hamedata.marstek`
 1.6.72, snapshot `830f4f59e7969c70b595182826435c19`) with
-[marstool](https://github.com/tomquist/marstool). None of it has been confirmed
-against hardware — see [Confidence](#confidence).
+[marstool](https://github.com/tomquist/marstool). The first generation's half
+has since been cross-checked against real device firmware — see
+[Cross-checked against firmware](#cross-checked-against-firmware). The second
+generation's has not; see [Confidence](#confidence).
 
 ## Telling them apart
 
@@ -40,7 +42,7 @@ code while working on the other:
 | Set LED             | `cd=59,led=` | `cd=56,led=` |
 | Set device time     | `cd=4,yy=,mm=,rr=,hh=,mn=` | `cd=33` |
 | Network info        | `cd=26` | `cd=03` |
-| Restart / reboot    | `cd=10` | `cd=61` |
+| Reboot              | *(none — see below)* | `cd=61` |
 
 And these agree, which is why the split is easy to miss:
 
@@ -52,6 +54,11 @@ And these agree, which is why the split is easy to miss:
 | Set CT / meter type | `cd=18,meter=` |
 | Get CT power        | `cd=19` |
 | Bluetooth advertising | `cd=55,adv=` |
+
+The first generation has no reboot command at all, on Venus. `cd=10` is not one:
+on this family it is `GET_FC41D_INFO`, the WiFi module version query, and it is
+only the *B2500* that restarts with `cd=10`. Reaching for that number on a Venus
+queries the WiFi module instead.
 
 The second generation writes its numbers zero-padded (`cd=01`, `cd=05`) where
 hm2mqtt sends them bare. The first generation's B2500 code does the same, and
@@ -159,6 +166,38 @@ Of the second generation, only the Venus E Mini is supported, and only partly:
 
 Everything else in the tables above is unimplemented. Venus X and Venus G have
 no device definitions at all.
+
+## Cross-checked against firmware
+
+The first generation's side of this page has since been checked against real
+device firmware, from the community archive at
+[sphings79/marstek-firmware-archiv](https://github.com/sphings79/marstek-firmware-archiv).
+The Venus control firmware images are unencrypted ARM Cortex-M binaries whose
+strings include the `cd=1` response format string and the parameter names the
+MQTT handler parses, so they say what the *device* accepts rather than what one
+client happens to send.
+
+Three things that came out of it, from `VNSD-0` control 150:
+
+- **There is no reboot command on the first generation.** The only reboot string
+  in the image is `system will reboot!`, sitting next to `Reset, clear all…`,
+  `Reset, clear part…` and `Reset, clear cert…` — rebooting is a side effect of
+  the reset command, not a command of its own. `cd=61` really is new in the
+  second generation.
+- **`cd=5` has a third variant.** The image contains `rs=1`, `rs=2` *and*
+  `rs=3`, matching those three reset strings. Only `rs=1` and `rs=2` are
+  documented in [venus.md](venus.md), and the app never sends `rs=3`. It is
+  present in every archived build back to v147, and in `VNSA-0` and `VNSE3-0`
+  too. Which `rs` value maps to which variant is inferred from their order in
+  the binary, not proven — the strings have no literal-pool references to
+  follow.
+- **`ct_dev=` and `ip=` are real.** Both appear in the firmware's parameter
+  table, confirming the app-side readings of the conditional third meter
+  parameter and of `setP1MeterIp`.
+
+Feature timing lines up with the archive's own changelog: `soh` appears in
+control 149.2, `peak_status`/`peak_power` in 150 — the release that lists "Add
+Peak-shaving function".
 
 ## Confidence
 

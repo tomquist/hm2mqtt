@@ -87,6 +87,41 @@ enum CommandType {
   SET_PEAK_SHAVING = 63,
 }
 
+// Fields the control firmware sends in its cd=1 response that neither the
+// Marstek app nor this project has a meaning for. Read out of the firmware's
+// own response format string (see docs/venus-generations.md), so the device
+// really does send them - what is missing is what they mean. Published
+// verbatim and disabled by default, so the values can be correlated without
+// asserting semantics.
+//
+// Three more fields from that format string are deliberately left out, because
+// they are not plain integers and would be mangled by `number()`:
+//
+// - `id` is a pipe-separated 5-tuple (`id=%d|%d|%d|%d|%d`)
+// - `ei` is a 64-bit hex value (`ei=%llx`)
+// - `eb` is a hex value (`eb=%x`)
+//
+// `bl` is included here rather than wired to the Bluetooth Advertising switch:
+// that already reads bit 2 of `ble`, and nothing establishes that `bl` is the
+// same flag rather than a second, related one.
+const venusRawFields = [
+  'as',
+  'bl',
+  'bl_p',
+  'c_ratio',
+  'ctrl_r',
+  'gen',
+  'lf',
+  'lk',
+  'net',
+  'pl',
+  'tra_a',
+  'tra_i',
+  'tra_o',
+  'udp',
+  'vp',
+];
+
 // Minimum and maximum Depth of Discharge values based on Marstek app limits (30-88%).
 // NOTE: Experience has shown that these limits may change over time!
 const DOD_MIN = 30;
@@ -1255,6 +1290,55 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
       { enabled: state => (state.peakShavingPower != null ? true : undefined) },
     );
+
+    // State of health. Added to the cd=1 response in control firmware 149.2,
+    // so it only appears on units new enough to send it. The same quantity is
+    // reported as `b_soh` in the cd=14 BMS response, where a real capture read
+    // 100 on a healthy pack - hence the percentage. That capture is the whole
+    // basis for the unit: no cd=1 payload carrying `soh` has been seen, so if
+    // a device ever reports something like 1000 here, the scale is wrong and
+    // this wants dividing by 10.
+    //
+    // Deliberately not device_class 'battery': that is the charge level, and
+    // Home Assistant would render state of health as if it were one.
+    field({ key: 'soh', path: ['batteryHealth'], transform: number() });
+    advertise(
+      ['batteryHealth'],
+      sensorComponent<number>({
+        id: 'battery_health',
+        name: 'Battery Health',
+        icon: 'mdi:battery-heart-variant',
+        unit_of_measurement: '%',
+        state_class: 'measurement',
+      }),
+      { enabled: state => (state.batteryHealth != null ? true : undefined) },
+    );
+
+    // Same key and meaning as on Jupiter, which already names it.
+    field({ key: 'htt_p', path: ['httpServerType'], transform: number() });
+    advertise(
+      ['httpServerType'],
+      sensorComponent<number>({
+        id: 'http_server_type',
+        name: 'HTTP Server Type',
+        enabled_by_default: false,
+      }),
+      { enabled: state => (state.httpServerType != null ? true : undefined) },
+    );
+
+    for (const key of venusRawFields) {
+      field({ key, path: ['raw', key], transform: number() });
+      advertise(
+        ['raw', key],
+        sensorComponent<number>({
+          id: `raw_${key}`,
+          name: `Raw ${key}`,
+          icon: 'mdi:help-circle-outline',
+          enabled_by_default: false,
+        }),
+        { enabled: state => (state.raw?.[key] != null ? true : undefined) },
+      );
+    }
 
     command('peak-shaving', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
