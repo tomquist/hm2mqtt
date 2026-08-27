@@ -6,9 +6,12 @@ import {
 import { VenusMiniDeviceData, VenusMiniTimePeriod } from '../types.js';
 import {
   binarySensorComponent,
+  buttonComponent,
+  numberComponent,
   sensorComponent,
   switchComponent,
 } from '../homeAssistantDiscovery.js';
+import logger from '../logger.js';
 import { divide, equalsBoolean, identity, map, negateIfPositive, number } from '../transforms.js';
 
 /**
@@ -26,25 +29,27 @@ import { divide, equalsBoolean, identity, map, negateIfPositive, number } from '
  * verbatim as disabled-by-default sensors under `raw`/`ctRaw` rather than being
  * given a name that asserts a meaning.
  *
- * The app's table for this model lists five commands. Three are not implemented
- * here:
+ * This model runs Marstek's second-generation Venus firmware, along with the
+ * Venus X and Venus G. That generation numbers its commands differently from
+ * the Venus C/D/E in venus.ts - depth of discharge is `cd=44` here and `cd=56`
+ * there, the LED `cd=56` here and `cd=59` there - so nothing in venus.ts can
+ * be reused, and a number read off that file is more likely wrong than right.
+ * docs/venus-generations.md has the full map and how the two are told apart.
  *
- * - `cd=60` is the Shelly scan, despite the command table calling it
- *   "配置服务器" (configure server) - the "server" is the meter the device reads
- *   from, not a broker. `NewHomeMqttTool.getScanShellyList` builds it, the
- *   parameter is `mod=1`/`mod=0` to start and stop scanning, and the device
- *   answers with the Shellys it found on its own network:
- *   `cd=60,[{"id":…,"mac":…,"ip":…,"rssi":…,"model":…,"name":…,"ver":…}]`.
- *   `cd=61` then connects to one over RPC and `cd=62,shelly_pro=<port>` sets
- *   its port. Not implemented because the reply is a JSON array, which the
- *   key=value parser cannot represent - this needs parser work, not just a
- *   command.
- * - `CMD_SET_WIFI` (configure device WiFi) carries network credentials.
- * - `cd=63,ct_chg_type=<n>` (configure recharge type) takes a value whose
- *   domain is not in the app; the device reports the setting back as
- *   `rechg_type`, of which only 0 has ever been seen, so there is nothing to
- *   map a control onto yet.
+ * Not implemented from this model's command table:
+ *
+ * - `cd=60,ser=<n>` (configure server), whose value domain is not in the app.
+ *   The device reports the setting back as `rechg_type`'s neighbour `ser`, of
+ *   which only 0 has been seen.
+ * - `CMD_SET_WIFI` (configure device WiFi) carries network credentials, and is
+ *   Bluetooth-only anyway - it has no MQTT form.
+ * - `cd=63,ct_chg_type=<n>` (configure recharge type), also with no known
+ *   value domain; the device reports it back as `rechg_type`, only ever 0.
  */
+
+// The app's own setting screen enforces this range.
+const MINI_DOD_MIN = 30;
+const MINI_DOD_MAX = 90;
 
 const requiredMiniRuntimeInfoKeys = ['gp', 'lp', 'soc', 'be', 'pmu', 'wif_s', 'mq_s', 'm1', 'time'];
 function isVenusMiniRuntimeInfoMessage(values: Record<string, string>): boolean {
@@ -262,14 +267,36 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     field({ key: 'do', path: ['dischargeDepth'], transform: number() });
     advertise(
       ['dischargeDepth'],
-      sensorComponent<number>({
+      numberComponent({
         id: 'discharge_depth',
         name: 'Discharge Depth',
         device_class: 'battery',
         unit_of_measurement: '%',
-        state_class: 'measurement',
+        command: 'discharge-depth',
+        min: MINI_DOD_MIN,
+        max: MINI_DOD_MAX,
+        step: 1,
       }),
     );
+    // `cd=44,do=` is the second-generation form. The first-generation Venus
+    // models use `cd=56,dod=` for the same setting - see
+    // docs/venus-generations.md. Deliberately without the first generation's
+    // quirk of sending its maximum as 0: that is a property of that firmware,
+    // and nothing says this one shares it.
+    command('discharge-depth', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const dod = /^\d+$/.test(message) ? parseInt(message, 10) : NaN;
+        if (Number.isNaN(dod) || dod < MINI_DOD_MIN || dod > MINI_DOD_MAX) {
+          logger.warn(
+            `Invalid depth of discharge value (should be ${MINI_DOD_MIN}-${MINI_DOD_MAX}):`,
+            message,
+          );
+          return;
+        }
+        updateDeviceState(() => ({ dischargeDepth: dod }));
+        publishCallback(`cd=44,do=${dod}`);
+      },
+    });
 
     // pmu matched the firmware version reported by the Hame cloud API for the
     // same device exactly.
@@ -825,6 +852,29 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
           message.toLowerCase() === 'true' || message.toLowerCase() === 'on' || message === '1';
         updateDeviceState(() => ({ bluetoothAdvertisingEnabled: enable }));
         publishCallback(`cd=55,adv=${enable ? 1 : 0}`);
+      },
+    });
+
+    // Reboot, `cd=61`. The first-generation Venus models restart with `cd=10`;
+    // this is the second generation's number for it. No parameters, so there
+    // is nothing here to get wrong beyond the number itself. Disabled by
+    // default, matching the reset buttons on the other families.
+    advertise(
+      [],
+      buttonComponent({
+        id: 'restart',
+        name: 'Restart',
+        icon: 'mdi:restart',
+        command: 'restart',
+        payload_press: 'PRESS',
+        enabled_by_default: false,
+      }),
+    );
+    command('restart', {
+      handler: ({ message, publishCallback }) => {
+        if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
+          publishCallback('cd=61');
+        }
       },
     });
   });

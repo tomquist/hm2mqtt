@@ -748,29 +748,25 @@ Venus commands above.
   "advertising on" is not established, and a switch wired the wrong way round
   would show the opposite of reality — so it stays on the last value set until
   someone confirms the direction on a device.
+- `discharge-depth`: Sets the usable-discharge percentage, 30-90%. The device
+  reports the setting back, so the *Discharge Depth* entity shows its real
+  state.
+- `restart`: Reboots the device. Disabled by default.
 
-**Beta.** This command was read out of the Marstek app rather than captured from
-a real device, so it has not been confirmed end to end. The command number is
-confirmed for this model; the `adv=` parameter is borrowed from the older Venus
-line and still wants checking on a device — see below.
+**Beta.** These commands were read out of the Marstek app rather than captured
+from a real device, so they have not been confirmed end to end.
 
-The Venus E Mini belongs to a second generation of Marstek's Venus firmware,
-together with the Venus X and Venus G. It uses different command numbers from
-the Venus C/D/E this project already supports — depth of discharge, the LED,
-setting the time and reading network info all moved — and a different MQTT
-topic namespace. That is why it has its own command list here rather than
-sharing the Venus one.
+The Venus E Mini runs a second generation of Marstek's Venus firmware, together
+with the Venus X and Venus G. It numbers its commands differently from the
+Venus C/D/E — depth of discharge, the LED, setting the time and reading network
+info all moved — and uses a different MQTT topic namespace. That is why it has
+its own command list here rather than sharing the Venus one. See
+[docs/venus-generations.md](docs/venus-generations.md) for the full map.
 
-The app has three further commands for this model that hm2mqtt does not expose:
-
-- **Shelly scan.** The device scans its own network for Shelly energy meters and
-  reports what it found — id, MAC, IP, signal strength, model and firmware
-  version for each. Not exposed because the reply is a JSON array, which
-  hm2mqtt's parser cannot represent yet; it needs parser work rather than just
-  a command.
-- **Configure WiFi**, which carries network credentials.
-- **Set recharge type**, whose accepted values are not known — the device only
-  ever reports `0` back.
+Three further commands the app has for this model are not exposed: configuring
+the device's server and setting the recharge type, neither of whose accepted
+values are known, and configuring WiFi, which carries network credentials and
+has no MQTT form anyway.
 
 ### Jupiter Device Commands
 

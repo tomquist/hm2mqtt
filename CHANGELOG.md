@@ -3,7 +3,8 @@
 
 ### Added
 
-- Support the `VNSEMINI-X` device type (e.g. `VNSEMINI-0`): the Marstek Venus E Mini. Sensors plus a *Bluetooth Advertising* switch, which shows the last value you set rather than the device's own state. Beta: some values may be wrong, and the sensors and the switch may still change (discussion #425, PR #429, PR #430, PR #433, PR #437)
+- Support the `VNSEMINI-X` device type (e.g. `VNSEMINI-0`): the Marstek Venus E Mini. Sensors, a *Discharge Depth* control, a *Bluetooth Advertising* switch and a *Restart* button. Beta: some values may be wrong, the controls were taken from the Marstek app rather than confirmed on a device, and both may still change (discussion #425, PR #429, PR #430, PR #433, PR #437)
+- Docs: New [Venus firmware generations](docs/venus-generations.md) page. Marstek's Venus line splits into two firmware generations that use different command numbers and different MQTT topics; the Venus E Mini, Venus X and Venus G are the second. Useful if you script against the devices directly (PR #437)
 
 ### Fixed
 
