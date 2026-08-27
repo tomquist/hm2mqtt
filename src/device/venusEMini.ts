@@ -26,10 +26,19 @@ import { divide, equalsBoolean, identity, map, negateIfPositive, number } from '
  * verbatim as disabled-by-default sensors under `raw`/`ctRaw` rather than being
  * given a name that asserts a meaning.
  *
- * The app's table for this model lists five commands. Three are deliberately
- * not implemented here:
+ * The app's table for this model lists five commands. Three are not implemented
+ * here:
  *
- * - `cd=60` (configure server) would repoint the device at a different broker.
+ * - `cd=60` is the Shelly scan, despite the command table calling it
+ *   "配置服务器" (configure server) - the "server" is the meter the device reads
+ *   from, not a broker. `NewHomeMqttTool.getScanShellyList` builds it, the
+ *   parameter is `mod=1`/`mod=0` to start and stop scanning, and the device
+ *   answers with the Shellys it found on its own network:
+ *   `cd=60,[{"id":…,"mac":…,"ip":…,"rssi":…,"model":…,"name":…,"ver":…}]`.
+ *   `cd=61` then connects to one over RPC and `cd=62,shelly_pro=<port>` sets
+ *   its port. Not implemented because the reply is a JSON array, which the
+ *   key=value parser cannot represent - this needs parser work, not just a
+ *   command.
  * - `CMD_SET_WIFI` (configure device WiFi) carries network credentials.
  * - `cd=63,ct_chg_type=<n>` (configure recharge type) takes a value whose
  *   domain is not in the app; the device reports the setting back as

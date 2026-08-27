@@ -750,11 +750,18 @@ Venus commands above.
   someone confirms the direction on a device.
 
 **Beta.** This command was read out of the Marstek app rather than captured from
-a real device, so it has not been confirmed end to end. Three further commands
-the app has for this model are deliberately not exposed: configuring the
-device's server (it would repoint the unit at a different broker), configuring
-its WiFi (it carries network credentials), and setting the recharge type (the
-accepted values are not known, and the device only ever reports `0` back).
+a real device, so it has not been confirmed end to end.
+
+The app has three further commands for this model that hm2mqtt does not expose:
+
+- **Shelly scan.** The device scans its own network for Shelly energy meters and
+  reports what it found — id, MAC, IP, signal strength, model and firmware
+  version for each. Not exposed because the reply is a JSON array, which
+  hm2mqtt's parser cannot represent yet; it needs parser work rather than just
+  a command.
+- **Configure WiFi**, which carries network credentials.
+- **Set recharge type**, whose accepted values are not known — the device only
+  ever reports `0` back.
 
 ### Jupiter Device Commands
 
