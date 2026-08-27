@@ -4,12 +4,12 @@
 ### Added
 
 - Support the `VNSEMINI-X` device type (e.g. `VNSEMINI-0`): the Marstek Venus E Mini. Beta: some values may be wrong and the sensors may still change (discussion #425, PR #429, PR #430, PR #433)
-- Venus E Mini: New *Bluetooth Advertising* switch, turning the device's Bluetooth advertising on and off. The device does not report the setting back, so the switch shows the last value you set. Beta: the command was taken from the Marstek app rather than confirmed on a device (PR #436)
-- Venus E Mini: Six further readings from the CT power response are now published as disabled-by-default sensors. Their meaning is not confirmed, so they are named after the raw values, alongside the existing unnamed readings (PR #436)
+- Venus E Mini: New *Bluetooth Advertising* switch, turning the device's Bluetooth advertising on and off. The device does not report the setting back, so the switch shows the last value you set. Beta: the command was taken from the Marstek app rather than confirmed on a device (PR #437)
+- Venus E Mini: Six further readings from the CT power response are now published as disabled-by-default sensors. Their meaning is not confirmed, so they are named after the raw values, alongside the existing unnamed readings (PR #437)
 
 ### Fixed
 
-- Venus E Mini: The per-phase CT power sensors were requested with the wrong command and would never have appeared. The Marstek app asks this model for power readings with a different command than it uses for the other Venus models, which is the one hm2mqtt had been sending (PR #436)
+- Venus E Mini: The per-phase CT power sensors were requested with the wrong command and would never have appeared. The Marstek app asks this model for power readings with a different command than it uses for the other Venus models, which is the one hm2mqtt had been sending (PR #437)
 - The MQTT broker password no longer shows up in the log. On startup, the broker URL was written to the log with its credentials in plaintext, which meant sharing a log for troubleshooting could hand out the broker password. In the Home Assistant add-on this affected the password of Home Assistant's own MQTT broker. Broker URLs now appear as `mqtt://user:***@host:1883` (fixes #424, PR #435)
 
 ## [1.10.0] - 2026-08-15
