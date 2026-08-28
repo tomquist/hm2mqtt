@@ -8,12 +8,11 @@ This matters because hm2mqtt currently implements the first generation. The
 Venus E Mini belongs to the second, and Venus X and Venus G are unsupported
 second-generation models.
 
-Everything here was read out of the Marstek Android app (`com.hamedata.marstek`
-1.6.72, snapshot `830f4f59e7969c70b595182826435c19`) with
-[marstool](https://github.com/tomquist/marstool). The first generation's half
-has since been cross-checked against real device firmware — see
-[Cross-checked against firmware](#cross-checked-against-firmware). The second
-generation's has not; see [Confidence](#confidence).
+Everything here was read out of the Marstek Android app's compiled Dart
+(`com.hamedata.marstek` 1.6.72, snapshot `830f4f59e7969c70b595182826435c19`).
+The first generation's half has since been cross-checked against real device
+firmware — see [Cross-checked against firmware](#cross-checked-against-firmware).
+The second generation's has not; see [Confidence](#confidence).
 
 ## Telling them apart
 
@@ -215,10 +214,11 @@ Read from one app build, and not confirmed against hardware. Specifically:
 - A later app release can move a number or add a model. Re-read rather than
   trusting this page for a build other than 1.6.72.
 
-Reproduce any row with:
+To re-derive any row: the app ships as a Flutter AOT snapshot, so disassembling
+`libapp.so` gives back the command tables named above. The numbers live in each
+model's `CMD_*` members, the parameter names in `venus_model.dart`'s setters,
+and the device-type-to-number branch tables in `CommonCommand`.
 
-```sh
-marstool app disasm --app <app> --blutter-out ./blutter-out
-marstool app rules  --blutter-out ./blutter-out --class CommonCommand --member setCtType
-marstool mqtt topics --app <app> --device-type VNSEMINI-0 --device-id 001122334455
-```
+The firmware side needs no tooling beyond `strings`: the control images are
+unencrypted ARM Cortex-M binaries, and both the `cd=1` response format string
+and the parameter names the MQTT handler parses are readable in the clear.
