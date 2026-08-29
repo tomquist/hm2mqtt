@@ -6,7 +6,6 @@
 - Support the `VNSEMINI-X` device type (e.g. `VNSEMINI-0`): the Marstek Venus E Mini. Sensors, a *Discharge Depth* control, a *Bluetooth Advertising* switch and a *Restart* button. Beta: some values may be wrong, the controls were taken from the Marstek app rather than confirmed on a device, and both may still change (discussion #425, PR #429, PR #430, PR #433, PR #437)
 - Venus: New *Battery Health* sensor, showing the battery's state of health. Reported by control firmware 149.2 and later, so it appears only on devices new enough to send it (PR #437)
 - Venus: Fifteen further readings the device sends but nobody had a meaning for are now published as raw diagnostic sensors, disabled by default, so they can be correlated against what your device is doing. If you work out what one of them means, please say so (PR #437)
-- Docs: New [Venus firmware generations](docs/venus-generations.md) page. Marstek's Venus line splits into two firmware generations that use different command numbers and different MQTT topics; the Venus E Mini, Venus X and Venus G are the second. Useful if you script against the devices directly (PR #437)
 
 ### Fixed
 
