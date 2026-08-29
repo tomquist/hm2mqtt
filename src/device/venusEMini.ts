@@ -3,13 +3,25 @@ import {
   globalPollInterval,
   registerDeviceDefinition,
 } from '../deviceDefinition.js';
-import { VenusMiniDeviceData, VenusMiniTimePeriod } from '../types.js';
+import {
+  VenusMiniDeviceData,
+  VenusMiniTimePeriod,
+  VenusMiniWorkingMode,
+  isValidMeterType,
+  isValidVenusMiniWorkingMode,
+  meterTypeCommandCodes,
+  meterTypeLabels,
+  resolveMeterMac,
+  venusMiniWorkingModeCommandCodes,
+} from '../types.js';
 import {
   binarySensorComponent,
   buttonComponent,
   numberComponent,
+  selectComponent,
   sensorComponent,
   switchComponent,
+  textComponent,
 } from '../homeAssistantDiscovery.js';
 import logger from '../logger.js';
 import { divide, equalsBoolean, identity, map, negateIfPositive, number } from '../transforms.js';
@@ -36,15 +48,41 @@ import { divide, equalsBoolean, identity, map, negateIfPositive, number } from '
  * be reused, and a number read off that file is more likely wrong than right.
  * docs/venus-generations.md has the full map and how the two are told apart.
  *
- * Not implemented from this model's command table:
+ * Not implemented, and why. Each of these is a real command in the app's
+ * tables; what is missing in every case is the set of values it accepts, which
+ * the app encodes at the call site rather than in the table:
  *
- * - `cd=60,ser=<n>` (configure server), whose value domain is not in the app.
- *   The device reports the setting back as `rechg_type`'s neighbour `ser`, of
- *   which only 0 has been seen.
+ * - `cd=60,ser=<n>` (configure server). No value domain, and pointing a device
+ *   at a different server can take it off the network. Reported back as `ser`,
+ *   of which only 0 has been seen.
+ * - `cd=63,ct_chg_type=<n>` (configure recharge type). No value domain;
+ *   reported back as `rechg_type`, only ever 0.
+ * - `cd=46,cv=<n>` (access power). This is the grid-connection power
+ *   entitlement - the app does not set it over MQTT at all, but through
+ *   Marstek's cloud, which then provisions the device; the 800/1500 W pair
+ *   lives in the app's HTTP API. The device reports the result as `gps`. Since
+ *   an export limit carries regulatory weight, guessing the units is not worth
+ *   the risk.
+ * - `cd=54,am=<n>,aw=<n>,ap=<n>` (anti-reverse-flow). Three parameters, only
+ *   the first of which has a guessable meaning.
+ * - `cd=3` / `cd=4` (network info, error code). These are reads, and the shape
+ *   of what comes back is not known, so there would be nothing to parse.
+ * - `cd=33` (set device time), whose parameters are known - d, m, y, h, min, s
+ *   and `wy` - but not whether the clock fields are local or UTC. `wy` is the
+ *   timezone offset in minutes, the same key the B2500 uses on its own
+ *   set-time command, and there the clock fields go as UTC while the
+ *   first-generation Venus `cd=4`, which has no `wy` at all, takes local time.
+ *   The app calls timeZoneOffset once either way, so it does not settle which
+ *   convention this command follows. Getting it wrong sets the device clock off
+ *   by the offset, which is the bug the B2500 shipped once already; and since
+ *   nothing here drives the Mini's schedules yet, a sync button would carry
+ *   that risk without buying anything. Pressing it in the app with a device
+ *   whose reported `time` is watched would settle it in one go.
+ * - Manual-mode scheduling. The app builds the `cd=` number at the call site,
+ *   and the device reports no schedule state at all, so there is nothing to
+ *   check an implementation against.
  * - `CMD_SET_WIFI` (configure device WiFi) carries network credentials, and is
  *   Bluetooth-only anyway - it has no MQTT form.
- * - `cd=63,ct_chg_type=<n>` (configure recharge type), also with no known
- *   value domain; the device reports it back as `rechg_type`, only ever 0.
  */
 
 // The app's own setting screen enforces this range.
@@ -418,6 +456,9 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         'unknown',
       ),
     });
+    // The sensor keeps the full map including `unknown`, so an unrecognised cm
+    // code is visible as such rather than silently reported as a real mode. The
+    // select below carries only the three settable modes.
     advertise(
       ['operatingMode'],
       sensorComponent<NonNullable<VenusMiniDeviceData['operatingMode']>>({
@@ -432,6 +473,38 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         },
       }),
     );
+
+    // Written rather than read: cm is the same setting, but a select whose
+    // state came from cm would flip back to "Self Consumption" whenever the
+    // device reported a code outside the three settable ones. The codes are
+    // the second generation's (0/2/3) and differ from venus.ts's (0/1/2/5).
+    advertise(
+      ['workingMode'],
+      selectComponent<VenusMiniWorkingMode>({
+        id: 'working_mode',
+        name: 'Working Mode',
+        icon: 'mdi:cog',
+        command: 'working-mode',
+        valueMappings: {
+          selfConsumption: 'Self Consumption',
+          manual: 'Manual',
+          ai: 'AI Optimization',
+        },
+        // Write-only, for the reason above: cm is read into the Operating Mode
+        // sensor instead.
+        optimistic: true,
+      }),
+    );
+    command('working-mode', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        if (!isValidVenusMiniWorkingMode(message)) {
+          logger.warn('Invalid working mode value:', message);
+          return;
+        }
+        updateDeviceState(() => ({ workingMode: message }));
+        publishCallback(`cd=2,md=${venusMiniWorkingModeCommandCodes[message]}`);
+      },
+    });
 
     // 0/1/2 are confirmed against a real device; 3, 4 and 5 come from the
     // state table the vendor app builds for this model, which labels 3 as
@@ -855,10 +928,11 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       },
     });
 
-    // Reboot, `cd=61`. The first-generation Venus models restart with `cd=10`;
-    // this is the second generation's number for it. No parameters, so there
-    // is nothing here to get wrong beyond the number itself. Disabled by
-    // default, matching the reset buttons on the other families.
+    // Reboot, `cd=61`. The first generation has no reboot command at all, so
+    // this is not a renumbering of anything - `cd=10` on those models is the
+    // WiFi-module version query, not a restart. No parameters, so there is
+    // nothing here to get wrong beyond the number itself. Disabled by default,
+    // matching the reset buttons on the other families.
     advertise(
       [],
       buttonComponent({
@@ -875,6 +949,88 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
           publishCallback('cd=61');
         }
+      },
+    });
+
+    // Factory reset, `cd=5`. Unlike the first generation's reset, which selects
+    // between clearing all/part/certificates with an `rs` parameter, this one
+    // takes none.
+    advertise(
+      [],
+      buttonComponent({
+        id: 'factory_reset',
+        name: 'Factory Reset',
+        icon: 'mdi:factory',
+        command: 'factory-reset',
+        payload_press: 'PRESS',
+        enabled_by_default: false,
+      }),
+    );
+    command('factory-reset', {
+      handler: ({ message, publishCallback }) => {
+        if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
+          publishCallback('cd=5');
+        }
+      },
+    });
+
+    // Meter type, `cd=18,meter=<n>,mac=<mac>` - the same command and the same
+    // meter codes as the other families, which is one of the few places the two
+    // generations agree. The device reports a meter code back in ct_type, but
+    // nothing establishes that it is the same numbering as `meter`, so this
+    // stays write-only rather than reading that field back.
+    advertise(
+      ['meterType'],
+      selectComponent<NonNullable<VenusMiniDeviceData['meterType']>>({
+        id: 'meter_type',
+        name: 'Meter Type',
+        icon: 'mdi:meter-electric',
+        command: 'meter-type',
+        valueMappings: meterTypeLabels,
+        optimistic: true,
+        enabled_by_default: false,
+      }),
+    );
+    command('meter-type', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        if (!isValidMeterType(message)) {
+          logger.warn('Invalid meter type value:', message);
+          return;
+        }
+        updateDeviceState(state => {
+          const mac = resolveMeterMac(message, state.meterMac);
+          if (mac === null) {
+            logger.warn(
+              `Meter type ${message} requires a MAC; set the "Meter MAC" entity before selecting it`,
+            );
+            return;
+          }
+          publishCallback(`cd=18,meter=${meterTypeCommandCodes[message]},mac=${mac}`);
+          return { meterType: message };
+        });
+      },
+    });
+
+    advertise(
+      ['meterMac'],
+      textComponent({
+        id: 'meter_mac',
+        name: 'Meter MAC',
+        icon: 'mdi:identifier',
+        command: 'meter-mac',
+        optimistic: true,
+        enabled_by_default: false,
+        pattern: '^[0-9A-Fa-f]{12}$',
+      }),
+    );
+    command('meter-mac', {
+      handler: ({ message, updateDeviceState }) => {
+        const mac = message.trim();
+        if (!/^[0-9A-Fa-f]{12}$/.test(mac)) {
+          logger.warn('Invalid meter MAC (expected 12 hex characters):', message);
+          return;
+        }
+        updateDeviceState(() => ({ meterMac: mac.toUpperCase() }));
       },
     });
   });
