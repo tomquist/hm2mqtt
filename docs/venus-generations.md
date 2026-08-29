@@ -51,7 +51,7 @@ And these agree, which is why the split is easy to miss:
 | Set working mode    | `cd=2,md=` / `cd=02,md=` |
 | Factory reset       | `cd=5` / `cd=05` |
 | Set CT / meter type | `cd=18,meter=` |
-| Get CT power        | `cd=19` |
+| Get CT power        | `cd=19` — but not on the Venus E Mini, which has no `cd=19` and uses `cd=59` |
 | Bluetooth advertising | `cd=55,adv=` |
 
 The first generation has no reboot command at all, on Venus. `cd=10` is not one:
@@ -140,10 +140,11 @@ in its `cd=1` payload.
 
 Separately, `NewHomeMqttTool.getScanShellyList` builds `cd=60` with `mod=1` /
 `mod=0` to start and stop a **Shelly scan**, and the device answers with the
-Shelly energy meters it found on its own network:
+Shelly energy meters it found on its own network (shape as in the app's
+demo-mode fixture, with the MAC and address replaced by placeholders):
 
-```
-cd=60,[{"id":"Shellypro3em63-2cbcbbb83378","mac":"2CBCBBB83378","ip":"10.6.138.80",
+```text
+cd=60,[{"id":"Shellypro3em63-aabbccddeeff","mac":"AABBCCDDEEFF","ip":"192.0.2.10",
         "rssi":-68,"model":"SPEM-003CEBEU63","name":null,"ver":"1.4.0"}, …]
 ```
 
