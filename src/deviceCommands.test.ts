@@ -1773,6 +1773,110 @@ const commandTestCases: CommandTestCase[] = [
     input: '1',
     expectedOutput: 'cd=22,p1=1',
   },
+
+  // ============================================================
+  // VENUS E MINI COMMANDS
+  // ============================================================
+
+  // The Marstek app picks this command's number from the device type: the
+  // Venus variants take 55, Jupiter 57, and everything else — the Mini
+  // included — falls back to 55.
+  {
+    description: 'Venus E Mini bluetooth-advertising enable',
+    deviceType: 'VNSEMINI-0',
+    command: 'bluetooth-advertising',
+    input: 'true',
+    expectedOutput: 'cd=55,adv=1',
+  },
+  {
+    description: 'Venus E Mini bluetooth-advertising disable',
+    deviceType: 'VNSEMINI-0',
+    command: 'bluetooth-advertising',
+    input: 'false',
+    expectedOutput: 'cd=55,adv=0',
+  },
+  {
+    description: 'Venus E Mini bluetooth-advertising with on',
+    deviceType: 'VNSEMINI-0',
+    command: 'bluetooth-advertising',
+    input: 'on',
+    expectedOutput: 'cd=55,adv=1',
+  },
+  {
+    description: 'Venus E Mini bluetooth-advertising with 1',
+    deviceType: 'VNSEMINI-0',
+    command: 'bluetooth-advertising',
+    input: '1',
+    expectedOutput: 'cd=55,adv=1',
+  },
+
+  // Depth of discharge is cd=44 on this generation, where the Venus C/D/E use
+  // cd=56 - see docs/venus-generations.md.
+  {
+    description: 'Venus E Mini discharge-depth at the minimum',
+    deviceType: 'VNSEMINI-0',
+    command: 'discharge-depth',
+    input: '30',
+    expectedOutput: 'cd=44,do=30',
+  },
+  {
+    description: 'Venus E Mini discharge-depth at the maximum',
+    deviceType: 'VNSEMINI-0',
+    command: 'discharge-depth',
+    input: '90',
+    expectedOutput: 'cd=44,do=90',
+  },
+  {
+    description: 'Venus E Mini discharge-depth sends the maximum as itself, not 0',
+    deviceType: 'VNSEMINI-0',
+    command: 'discharge-depth',
+    input: '90',
+    expectedOutput: 'cd=44,do=90',
+  },
+  {
+    description: 'Venus E Mini discharge-depth below the minimum is rejected',
+    deviceType: 'VNSEMINI-0',
+    command: 'discharge-depth',
+    input: '29',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini discharge-depth above the maximum is rejected',
+    deviceType: 'VNSEMINI-0',
+    command: 'discharge-depth',
+    input: '91',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini discharge-depth rejects a non-integer',
+    deviceType: 'VNSEMINI-0',
+    command: 'discharge-depth',
+    input: '50.5',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini discharge-depth rejects junk',
+    deviceType: 'VNSEMINI-0',
+    command: 'discharge-depth',
+    input: '70foo',
+    expectedOutput: null,
+  },
+
+  // Reboot is cd=61 here; the Venus C/D/E restart with cd=10.
+  {
+    description: 'Venus E Mini restart with PRESS',
+    deviceType: 'VNSEMINI-0',
+    command: 'restart',
+    input: 'PRESS',
+    expectedOutput: 'cd=61',
+  },
+  {
+    description: 'Venus E Mini restart ignores an unrelated payload',
+    deviceType: 'VNSEMINI-0',
+    command: 'restart',
+    input: 'nope',
+    expectedOutput: null,
+  },
 ];
 
 describe('Device Commands', () => {

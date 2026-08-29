@@ -1062,6 +1062,50 @@ describe('MQTT Message Parser', () => {
     expect(result.depthOfDischarge).toBeUndefined();
   });
 
+  test('parses the fields Venus control firmware 150 adds to cd=1', () => {
+    // Field order and names taken from the cd=1 printf format string in the
+    // VNSD-0 control firmware 150 binary, so this is the shape a real Venus D
+    // on that firmware sends. soh arrived in 149.2, peak_status/peak_power in
+    // 150. The trailing run from `lk` on is the part hm2mqtt had never read.
+    const message =
+      'cd=1,tot_i=8848,tot_o=7097,ele_d=537,ele_m=8848,grd_d=328,grd_m=7097,inc_d=0,inc_m=0,grd_f=0,grd_o=613,grd_t=3,gct_s=1,cel_s=3,cel_p=327,cel_c=64,err_t=0,err_a=0,dev_n=158,grd_y=0,wor_m=0,tim_0=0|0|0|0|0|0|0,cts_m=0,bac_u=0,tra_a=1,tra_i=2,tra_o=3,htt_p=1,prc_c=0,prc_d=1,wif_s=33,inc_a=0,set_v=0,mcp_w=2500,mdp_w=2500,ct_t=4,phase_t=1,dchrg_t=1,bms_v=212,fc_v=202409090159,wifi_n=XXX,seq_s=0,ctrl_r=1,par=255,gen=255,ble=3,shelly_p=1010,c_ratio=90,udp=0,api=1,net=1,port=30000,inv_v=115,id=2|0|0|0|0,lk=0,bp=291,ei=0,eb=0,rp=347,gp=801,vp=801,bl=1,dod=88,bl_p=-1,led=1,as=3,lf=0,pl=0,soh=98,peak_status=1,peak_power=600';
+    const parsed = parseMessage(message, 'VNSD-0', 'venus123');
+
+    expect(parsed).toHaveProperty('data');
+    const result = parsed['data'] as VenusDeviceData;
+
+    expect(result).toHaveProperty('batteryHealth', 98);
+    expect(result).toHaveProperty('httpServerType', 1);
+
+    // Unnamed fields land in `raw` under their own key.
+    expect(result.raw).toMatchObject({
+      as: 3,
+      bl: 1,
+      bl_p: -1,
+      c_ratio: 90,
+      ctrl_r: 1,
+      gen: 255,
+      lf: 0,
+      lk: 0,
+      net: 1,
+      pl: 0,
+      tra_a: 1,
+      tra_i: 2,
+      tra_o: 3,
+      udp: 0,
+      vp: 801,
+    });
+
+    // id is a pipe-separated tuple and ei/eb are hex, so none of the three is
+    // published as a number.
+    expect(result.raw).not.toHaveProperty('id');
+    expect(result.raw).not.toHaveProperty('ei');
+    expect(result.raw).not.toHaveProperty('eb');
+
+    // The switch still reads bit 2 of `ble`, not the separate `bl` field.
+    expect(result).toHaveProperty('bluetoothAdvertisingEnabled', false);
+  });
+
   test('parses Venus AI working mode (wor_m=5)', () => {
     const message =
       'cd=1,tot_i=8848,tot_o=7097,ele_d=537,ele_m=8848,grd_d=328,grd_m=7097,inc_d=0,inc_m=0,grd_f=0,grd_o=613,grd_t=3,gct_s=1,cel_s=3,cel_p=327,cel_c=64,err_t=0,err_a=0,dev_n=158,grd_y=0,wor_m=5,tim_0=0|0|0|0|0|0|0,cts_m=0,bac_u=0,tra_a=1,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=1,wif_s=33,inc_a=0,set_v=0,mcp_w=2500,mdp_w=2500,ct_t=4,phase_t=1,dchrg_t=1,bms_v=212,fc_v=202409090159,wifi_n=XXX,seq_s=0,ctrl_r=1,par=255,gen=255,ble=3,shelly_p=1010,c_ratio=90,dod=88';
@@ -1568,10 +1612,11 @@ describe('MQTT Message Parser', () => {
     );
   });
 
-  test('parses the Venus E Mini per-phase CT payload (cd=19)', () => {
+  test('parses the Venus E Mini per-phase CT payload (cd=59)', () => {
     // Not from a real capture: the unit the cd=1 mappings were checked against
-    // reports ct_type=0, so it never answers cd=19. power_a/power_b/power_c are
-    // phases A/B/C and power_s the three-phase total, in watts.
+    // reports ct_type=0, so it never answers a power request at all.
+    // power_a/power_b/power_c are phases A/B/C and power_s the three-phase
+    // total, in watts.
     const message = 'power_a=230,power_b=0,power_c=-45,power_s=185,d_p=0';
     const parsed = parseMessage(message, 'VNSEMINI-0', 'venusMini123');
 
@@ -1580,8 +1625,27 @@ describe('MQTT Message Parser', () => {
     expect(result.phaseBPower).toBe(0);
     expect(result.phaseCPower).toBe(-45);
     expect(result.totalPhasePower).toBe(185);
-    // The cd=19 reply must not be mistaken for the cd=1 runtime message.
+    // The cd=59 reply must not be mistaken for the cd=1 runtime message.
     expect(parsed['data']).toBeUndefined();
+  });
+
+  test('publishes the unnamed Venus E Mini CT keys without touching cd=1 raw', () => {
+    const message =
+      'power_a=230,power_b=0,power_c=-45,power_s=185,d_p=0,ct_st=1,gn_pwr=-13,gn_pwr1=-13,gf_pwr=0,bat_pwr=-7';
+    const parsed = parseMessage(message, 'VNSEMINI-0', 'venusMini123');
+
+    const result = parsed['ct'] as VenusMiniDeviceData;
+    expect(result.ctRaw).toEqual({
+      d_p: 0,
+      ct_st: 1,
+      gn_pwr: -13,
+      gn_pwr1: -13,
+      gf_pwr: 0,
+      bat_pwr: -7,
+    });
+    // These live in their own record so the cd=1 message's `raw` survives the
+    // per-path state merge.
+    expect(result.raw).toBeUndefined();
   });
 
   test('maps Venus E Mini enum branches not covered by the primary capture', () => {

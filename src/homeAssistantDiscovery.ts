@@ -36,7 +36,7 @@ export interface HaSensorComponent extends HaBaseStateComponent {
   state_class?: string;
 }
 
-export interface HaSwitchComponent extends HaBaseStateComponent {
+export interface HaSwitchComponent extends HaOptionalStateComponent {
   type: 'switch';
   command_topic: string;
   payload_on: string | number | boolean;
@@ -272,16 +272,20 @@ export const numberComponent =
   });
 export const switchComponent =
   (
-    definition: HaBaseStateComponentArgs & {
-      command: string;
-      retain?: boolean;
-    },
+    definition: HaBaseStateComponentArgs &
+      HaOptimisticComponentArgs & {
+        command: string;
+        retain?: boolean;
+      },
   ): HaStatefulAdvertiseBuilder<boolean> =>
   args => ({
-    ...baseStateSensor(definition)(args),
+    ...baseSensor(definition)(args),
+    // Deliberately valueTemplate(args) rather than the definition-aware form
+    // the other components use: a switch has never applied its defaultValue to
+    // the template, and folding one in here would change every existing switch.
+    ...stateSource(definition, args, () => valueTemplate(args)),
     type: 'switch',
     command_topic: commandTopic({ ...args, ...definition }),
-    value_template: valueTemplate(args),
     payload_on: 'true',
     payload_off: 'false',
     state_on: true,

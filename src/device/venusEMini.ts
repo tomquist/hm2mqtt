@@ -4,7 +4,14 @@ import {
   registerDeviceDefinition,
 } from '../deviceDefinition.js';
 import { VenusMiniDeviceData, VenusMiniTimePeriod } from '../types.js';
-import { binarySensorComponent, sensorComponent } from '../homeAssistantDiscovery.js';
+import {
+  binarySensorComponent,
+  buttonComponent,
+  numberComponent,
+  sensorComponent,
+  switchComponent,
+} from '../homeAssistantDiscovery.js';
+import logger from '../logger.js';
 import { divide, equalsBoolean, identity, map, negateIfPositive, number } from '../transforms.js';
 
 /**
@@ -15,12 +22,34 @@ import { divide, equalsBoolean, identity, map, negateIfPositive, number } from '
  * HMG/VNSE3/VNSA/VNSD family, so it gets its own definition here rather than
  * reusing anything in `venus.ts`.
  *
- * Only `cd=1` has been captured for this model, and no write/set command
- * formats have been verified against a real device, so this definition is
- * read-only. Fields whose meaning is not confirmed are exposed verbatim as
- * disabled-by-default sensors under `raw` rather than being given a name that
- * asserts a meaning.
+ * Only `cd=1` has been captured from a real device. The command formats here
+ * are read out of the Marstek app's own command table for this model rather
+ * than observed on hardware, so they are the app's ground truth but not yet
+ * confirmed end to end. Fields whose meaning is not confirmed are exposed
+ * verbatim as disabled-by-default sensors under `raw`/`ctRaw` rather than being
+ * given a name that asserts a meaning.
+ *
+ * This model runs Marstek's second-generation Venus firmware, along with the
+ * Venus X and Venus G. That generation numbers its commands differently from
+ * the Venus C/D/E in venus.ts - depth of discharge is `cd=44` here and `cd=56`
+ * there, the LED `cd=56` here and `cd=59` there - so nothing in venus.ts can
+ * be reused, and a number read off that file is more likely wrong than right.
+ * docs/venus-generations.md has the full map and how the two are told apart.
+ *
+ * Not implemented from this model's command table:
+ *
+ * - `cd=60,ser=<n>` (configure server), whose value domain is not in the app.
+ *   The device reports the setting back as `rechg_type`'s neighbour `ser`, of
+ *   which only 0 has been seen.
+ * - `CMD_SET_WIFI` (configure device WiFi) carries network credentials, and is
+ *   Bluetooth-only anyway - it has no MQTT form.
+ * - `cd=63,ct_chg_type=<n>` (configure recharge type), also with no known
+ *   value domain; the device reports it back as `rechg_type`, only ever 0.
  */
+
+// The app's own setting screen enforces this range.
+const MINI_DOD_MIN = 30;
+const MINI_DOD_MAX = 90;
 
 const requiredMiniRuntimeInfoKeys = ['gp', 'lp', 'soc', 'be', 'pmu', 'wif_s', 'mq_s', 'm1', 'time'];
 function isVenusMiniRuntimeInfoMessage(values: Record<string, string>): boolean {
@@ -31,6 +60,10 @@ const requiredCtPowerKeys = ['power_a', 'power_b', 'power_c'];
 function isVenusMiniCtPowerMessage(values: Record<string, string>): boolean {
   return requiredCtPowerKeys.every(key => key in values);
 }
+
+// Keys the vendor app parses alongside power_a..power_s, with no confirmed
+// meaning. See registerVenusMiniCtPowerMessage.
+const venusMiniCtRawFields = ['d_p', 'ct_st', 'gn_pwr', 'gn_pwr1', 'gf_pwr', 'bat_pwr'] as const;
 
 function extractMiniAdditionalDeviceInfo(state: VenusMiniDeviceData) {
   return {
@@ -119,7 +152,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     pollInterval: globalPollInterval,
     controlsDeviceAvailability: true,
   };
-  message<VenusMiniDeviceData>(options, ({ field, advertise }) => {
+  message<VenusMiniDeviceData>(options, ({ field, advertise, command }) => {
     advertise(
       ['timestamp'],
       sensorComponent<string>({
@@ -234,14 +267,36 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     field({ key: 'do', path: ['dischargeDepth'], transform: number() });
     advertise(
       ['dischargeDepth'],
-      sensorComponent<number>({
+      numberComponent({
         id: 'discharge_depth',
         name: 'Discharge Depth',
         device_class: 'battery',
         unit_of_measurement: '%',
-        state_class: 'measurement',
+        command: 'discharge-depth',
+        min: MINI_DOD_MIN,
+        max: MINI_DOD_MAX,
+        step: 1,
       }),
     );
+    // `cd=44,do=` is the second-generation form. The first-generation Venus
+    // models use `cd=56,dod=` for the same setting - see
+    // docs/venus-generations.md. Deliberately without the first generation's
+    // quirk of sending its maximum as 0: that is a property of that firmware,
+    // and nothing says this one shares it.
+    command('discharge-depth', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const dod = /^\d+$/.test(message) ? parseInt(message, 10) : NaN;
+        if (Number.isNaN(dod) || dod < MINI_DOD_MIN || dod > MINI_DOD_MAX) {
+          logger.warn(
+            `Invalid depth of discharge value (should be ${MINI_DOD_MIN}-${MINI_DOD_MAX}):`,
+            message,
+          );
+          return;
+        }
+        updateDeviceState(() => ({ dischargeDepth: dod }));
+        publishCallback(`cd=44,do=${dod}`);
+      },
+    });
 
     // pmu matched the firmware version reported by the Hame cloud API for the
     // same device exactly.
@@ -738,24 +793,114 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         { enabled: state => (state.raw?.[key] != null ? true : undefined) },
       );
     }
+
+    // Bluetooth advertising, `cd=55,adv=1` to enable and `cd=55,adv=0` to
+    // disable.
+    //
+    // `cd=55` is solid: the Mini's own command table names it
+    // CMD_SET_BLUETOOTH_STATE, and CommonCommand.handleBleSwitch reaches the
+    // same number for a Mini through its fallback arm (Venus 55, Jupiter 57,
+    // everything else 55).
+    //
+    // The `adv=` parameter is NOT solid, and the reason matters. The app has
+    // two generations of Venus code. The first - Venus C/D/E, the HMG/VNSE3/
+    // VNSA/VNSD this repo already supports - lives in pages/Ac_Coupler with
+    // CommonCommand and talks over `hame_energy/…`. The second - Venus X,
+    // Venus G and this model - lives in modules/devices with its own
+    // DataVenus* command tables and talks over `marstek_energy/…` via
+    // VNXMqttStrategy. The two disagree on numbering wherever they both
+    // implement something: depth of discharge is 56 then 44, the LED 59 then
+    // 56, set-time 4 then 33, network info 26 then 03.
+    //
+    // `adv=` comes from handleBleSwitch, which is first-generation. The
+    // Mini's own second-generation descriptor is a bare `cd=55` whose
+    // parameter is filled in at the call site, and that call site has not been
+    // read. So the number is confirmed for this model and the parameter name
+    // is borrowed from the older line - worth confirming on a device before
+    // trusting it.
+    //
+    // Kept optimistic, but not because nothing reports the state back: `bbs`
+    // in the cd=1 payload is the likely readback. The app's own label for
+    // cd=55 is "设置蓝牙广播状态" - set Bluetooth *broadcast state* - which is
+    // what bbs reads like, and it has only ever been seen as 0 or 1. What is
+    // missing is the polarity. The one hardware note on bbs (see
+    // bluetoothLockRaw above) says enabling the Bluetooth *lock* raises it,
+    // which would make it the inverse of advertising, and that the mapping
+    // across LED x lock combinations did not come out cleanly - so bbs may not
+    // be tracking this setting alone.
+    //
+    // A switch wired to the wrong polarity shows the opposite of reality,
+    // which is worse than showing nothing, so this stays optimistic until
+    // someone toggles it on a device and reports which way bbs moves. The
+    // other Venus models do report advertising back, in `ble` bit 2.
+    advertise(
+      ['bluetoothAdvertisingEnabled'],
+      switchComponent({
+        id: 'bluetooth_advertising',
+        name: 'Bluetooth Advertising',
+        icon: 'mdi:bluetooth',
+        command: 'bluetooth-advertising',
+        // Optimistic: the readback is probably `bbs`, but its polarity is
+        // unconfirmed, so the switch shows the last value set instead of a
+        // state that might be inverted. See the note above.
+        optimistic: true,
+      }),
+    );
+    command('bluetooth-advertising', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const enable =
+          message.toLowerCase() === 'true' || message.toLowerCase() === 'on' || message === '1';
+        updateDeviceState(() => ({ bluetoothAdvertisingEnabled: enable }));
+        publishCallback(`cd=55,adv=${enable ? 1 : 0}`);
+      },
+    });
+
+    // Reboot, `cd=61`. The first-generation Venus models restart with `cd=10`;
+    // this is the second generation's number for it. No parameters, so there
+    // is nothing here to get wrong beyond the number itself. Disabled by
+    // default, matching the reset buttons on the other families.
+    advertise(
+      [],
+      buttonComponent({
+        id: 'restart',
+        name: 'Restart',
+        icon: 'mdi:restart',
+        command: 'restart',
+        payload_press: 'PRESS',
+        enabled_by_default: false,
+      }),
+    );
+    command('restart', {
+      handler: ({ message, publishCallback }) => {
+        if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
+          publishCallback('cd=61');
+        }
+      },
+    });
   });
 }
 
 /**
- * Per-phase CT readings, requested with `cd=19` and answered with one key per
- * phase plus the three-phase total, all in watts — where the other Venus models
- * pack the same five values into a single pipe-separated `get_power` field.
+ * Per-phase CT readings, answered with one key per phase plus the three-phase
+ * total, all in watts — where the other Venus models pack the same five values
+ * into a single pipe-separated `get_power` field.
  *
  * `power_a`/`power_b`/`power_c` are phases A/B/C and `power_s` the three-phase
  * total; the phase order is established rather than inferred from the key
- * names. Unlike the `cd=1` fields above this has not been seen from a real
- * device — the unit these mappings were checked against reports `ct_type=0`,
- * meaning no external meter is configured, so it never answers `cd=19`. The
+ * names.
+ *
+ * Requested with `cd=59`. The Marstek app asks this model for power with
+ * `cd=59` ("get NOW statistics power") and never sends it `cd=19` at all —
+ * `cd=19` belongs to the other Venus variants, which declare both commands
+ * separately. hm2mqtt used to send `cd=19` here, which was a guess carried over
+ * from those variants. Neither number has been confirmed against a real Mini:
+ * the unit these mappings were checked against reports `ct_type=0`, meaning no
+ * external meter is configured, so it answers no power request at all. The
  * entities only appear once a device actually reports the keys.
  */
 function registerVenusMiniCtPowerMessage(message: BuildMessageFn) {
   const options = {
-    refreshDataPayload: 'cd=19',
+    refreshDataPayload: 'cd=59',
     isMessage: isVenusMiniCtPowerMessage,
     publishPath: 'ct',
     defaultState: {},
@@ -782,6 +927,26 @@ function registerVenusMiniCtPowerMessage(message: BuildMessageFn) {
           unit_of_measurement: 'W',
           state_class: 'measurement',
         }),
+      );
+    }
+
+    // The vendor app reads six more keys immediately after power_a..power_s in
+    // the same parser. The names suggest power readings — battery, grid, grid
+    // feed-in — but nothing in the app confirms a unit, a sign convention or
+    // what distinguishes gn_pwr from gn_pwr1, so they follow the same rule as
+    // the unconfirmed cd=1 fields above: published verbatim, disabled by
+    // default, no device_class that would assert a meaning.
+    for (const key of venusMiniCtRawFields) {
+      field({ key, path: ['ctRaw', key], transform: number() });
+      advertise(
+        ['ctRaw', key],
+        sensorComponent<number>({
+          id: `raw_${key}`,
+          name: `Raw ${key}`,
+          icon: 'mdi:help-circle-outline',
+          enabled_by_default: false,
+        }),
+        { enabled: state => (state.ctRaw?.[key] != null ? true : undefined) },
       );
     }
   });

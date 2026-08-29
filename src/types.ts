@@ -627,6 +627,16 @@ export interface VenusDeviceData extends BaseDeviceData {
   calculatedBatteryPower?: number; // rp
   gridPower?: number; // gp
   parallelMode?: VenusParallelMode | 'unknown'; // par
+  batteryHealth?: number; // soh, control firmware 149.2 and later
+  httpServerType?: number; // htt_p, same key and meaning as on Jupiter
+  /**
+   * Fields the control firmware sends in its cd=1 response that have no
+   * confirmed meaning. Keyed by their raw MQTT field name and published as
+   * disabled-by-default sensors, so the values are available for correlation
+   * without asserting semantics — the same treatment venusEMini.ts gives its
+   * unconfirmed fields.
+   */
+  raw?: Record<string, number>;
 }
 
 // Per-slot schedule direction reported by a Venus E Mini in ms{n}, confirmed
@@ -718,13 +728,19 @@ export interface VenusMiniDeviceData extends BaseDeviceData {
   gridMode?: number; // gs (raw; grid mode, individual codes unknown)
   serverState?: number; // ser (raw; server state, individual codes unknown)
   rechargeType?: number; // rechg_type (raw; recharge type, individual codes unknown)
+  bluetoothAdvertisingEnabled?: boolean; // last value written with the bluetooth-advertising command. `bbs` is the likely readback but its polarity is unconfirmed, so nothing parses it into this field yet - see venusEMini.ts
   timePeriods?: VenusMiniTimePeriod[];
-  // cd=19 per-phase CT readings, in W. Only reported by a unit with an external
+  // cd=59 per-phase CT readings, in W. Only reported by a unit with an external
   // meter configured, so these stay unset on a device with ct_type=0.
   phaseAPower?: number; // power_a
   phaseBPower?: number; // power_b
   phaseCPower?: number; // power_c
   totalPhasePower?: number; // power_s
+  // Further cd=59 keys the vendor app reads next to power_a..power_s, with no
+  // confirmed meaning. Kept in their own record rather than in `raw` below:
+  // device state is merged per publish path, so one shared record would let
+  // whichever of the two messages arrived last erase the other's keys.
+  ctRaw?: Record<string, number>;
   // Fields observed in the payload with no confirmed meaning, keyed by their
   // raw MQTT field name (eg, cv, ct (bare, distinct from ct_type), gn, ar,
   // aw, apt, e1-e7, tgb/tgp). Exposed as disabled-by-default sensors so the
