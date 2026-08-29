@@ -63,10 +63,17 @@ For every new or changed config option, treat the following as mandatory complet
 
 `CHANGELOG.md` is read by users, not developers.
 
-- Describe what the user saw and what changed for them, in a few sentences.
-- No internals: file, function or symbol names, data structures, code paths. If
-  a sentence only makes sense with the diff open, it belongs in the commit
-  message instead.
+- **Keep it short. One or two sentences.** Say what changed for the user and
+  stop. When in doubt, cut — an entry that is too terse costs a reader nothing,
+  one that is too long costs every reader.
+- **No implementation detail, and ideally no detail at all.** Not just file,
+  function or symbol names: also protocol fields, command numbers, entity id
+  lists, counts of things added, and enumerations of every new control. "The
+  same sensors and controls as the other Venus models" beats naming all nine of
+  them.
+- If a sentence only makes sense with the diff open, it belongs in the commit
+  message instead. The commit message and the PR body are where detail goes;
+  they have no length limit and the right audience.
 - End with the issue reference, plus the PR number once it exists:
   `(fixes #123, PR #124)`.
 

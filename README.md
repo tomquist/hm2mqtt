@@ -557,7 +557,7 @@ The device type can be one of the following:
 - **VNSE3-X**: (e.g. VNSE3-0) Venus E 3.0
 - **VNSA-X**: (e.g. VNSA-1) Venus A
 - **VNSD-X**: (e.g. VNSD-1) Venus D
-- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini — **beta**; sensors plus *Discharge Depth*, *Bluetooth Advertising* and *Restart* controls. None of the other Venus write commands apply to it.
+- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini — **beta**; sensors plus *Depth of Discharge*, *Working Mode*, *Bluetooth Advertising*, *Meter Type*, *Meter MAC*, *Refresh*, *Get CT Power*, *Restart* and *Factory Reset* controls. These share their names with the Venus ones and their options where the two overlap, but the ranges are the model's own: this one has no *Trading* working mode, and takes a depth of discharge of 30-90% against the Venus 30-88%. The remaining Venus write commands do not apply to it.
 - **HMN-X**: (e.g. HMN-1) Marstek Jupiter E
 - **HMM-X**: (e.g. HMM-1) Marstek Jupiter C
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus
@@ -756,7 +756,21 @@ Venus commands above.
 - `discharge-depth`: Sets the usable-discharge percentage, 30-90%. The device
   reports the setting back, so the *Discharge Depth* entity shows its real
   state.
+- `working-mode`: Sets the working mode (`automatic`, `manual` or `ai`) — the
+  same option names as the Venus command above, though this model sends
+  different codes for them and has no `trading` mode. The device reports its
+  mode back, so the *Working Mode* entity shows its real state.
+- `meter-mac`: Sets the MAC address used when configuring an external meter
+  (12 hex digits, no separators). Shows the last value set. Disabled by default.
+- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `ct002`,
+  `ct003`, `shellyEmGen3`, `shellyProEm50` or `ecoTracker`) — the same command
+  and the same meter codes as the other families. For CT002/CT003 and the Shelly
+  EM Gen3/Pro EM50, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero
+  MAC. Shows the last value set. Disabled by default.
+- `refresh`: Refreshes the device data. Disabled by default.
+- `get-ct-power`: Gets current transformer power readings. Disabled by default.
 - `restart`: Reboots the device. Disabled by default.
+- `factory-reset`: Resets the device to factory settings. Disabled by default.
 
 **Beta.** These commands were read out of the Marstek app rather than captured
 from a real device, so they have not been confirmed end to end.
@@ -768,10 +782,27 @@ info all moved — and uses a different MQTT topic namespace. That is why it has
 its own command list here rather than sharing the Venus one. See
 [docs/venus-generations.md](docs/venus-generations.md) for the full map.
 
-Three further commands the app has for this model are not exposed: configuring
-the device's server and setting the recharge type, neither of whose accepted
-values are known, and configuring WiFi, which carries network credentials and
-has no MQTT form anyway.
+The rest of the app's commands for this model are not exposed. For most of them
+the reason is that the values they accept are not known; the grid-connection
+power limit is a different case, and is called out below:
+
+- Configuring the device's server, and setting the recharge type — neither has a
+  documented value set, and pointing a device at a different server can take it
+  off the network.
+- The grid-connection power limit (the 800 W / 1500 W setting). The app does not
+  set this over MQTT at all; it goes through Marstek's cloud, which then
+  provisions the device. hm2mqtt shows the result in the *Feed-in Power Limit*
+  sensor but cannot change it.
+- Anti-reverse-flow, which takes three parameters of which only one has a
+  guessable meaning.
+- Setting the device time. The parameters are known but not whether the clock
+  fields are meant to be local or UTC, and getting that wrong sets the clock off
+  by your timezone offset.
+- Reading the network info and error code, whose replies have a shape nothing
+  here can parse yet.
+- Manual-mode scheduling, which the app assembles per call and the device
+  reports nothing back about.
+- Configuring WiFi, which carries network credentials and has no MQTT form.
 
 ### Jupiter Device Commands
 

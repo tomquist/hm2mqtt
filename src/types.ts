@@ -661,10 +661,26 @@ export interface VenusMiniTimePeriod {
   repeatRaw?: number; // re{n} (raw; meaning unconfirmed, possibly a weekday bitmask)
 }
 
-// Operating mode reported by a Venus E Mini in cm. Only 0 (self-consumption)
-// and 2 (manual) have been observed; the "AI optimization" mode is greyed out
-// as "coming soon" in the app UI, and 3 is the code it will report.
-export type VenusMiniOperatingMode = 'selfConsumption' | 'manual' | 'ai' | 'unknown';
+// Working mode of a Venus E Mini, reported in cm and set with cd=2. Only 0
+// (self-consumption, named `automatic` to match the same mode on the other
+// Venus models) and 2 (manual) have been observed; the "AI optimization" mode
+// is greyed out as "coming soon" in the app UI, and 3 is the code it will
+// report.
+const validVenusMiniWorkingModes = ['automatic', 'manual', 'ai'] as const;
+export type VenusMiniWorkingMode = (typeof validVenusMiniWorkingModes)[number];
+
+export function isValidVenusMiniWorkingMode(mode: string): mode is VenusMiniWorkingMode {
+  return validVenusMiniWorkingModes.includes(mode as VenusMiniWorkingMode);
+}
+
+// The `md` value each mode is sent as. These are the second generation's codes,
+// which differ from the Venus C/D/E's (0/1/2/5) in venus.ts - reading them off
+// that file would set the wrong mode.
+export const venusMiniWorkingModeCommandCodes: Record<VenusMiniWorkingMode, number> = {
+  automatic: 0,
+  manual: 2,
+  ai: 3,
+};
 
 // Device state reported by a Venus E Mini in dev_sta. 0/1/2 are confirmed
 // against a real device; bypass and fault are the app's own labels for 3 and
@@ -714,7 +730,7 @@ export interface VenusMiniDeviceData extends BaseDeviceData {
   ledEnabled?: boolean; // leds, inverted: leds=0 means the LED is on
   bluetoothLockRaw?: number; // bbs, direction confirmed (higher = more locked) but the absolute mapping across every LED x Bluetooth-lock combination is not, so kept as a raw diagnostic rather than a binary sensor
   feedInPowerLimit?: VenusMiniFeedInPowerLimit; // gps
-  operatingMode?: VenusMiniOperatingMode; // cm
+  workingMode?: VenusMiniWorkingMode; // cm
   deviceState?: VenusMiniDeviceState; // dev_sta
   batteryDischargedEnergyToday?: number; // dbd (Wh)
   batteryDischargedEnergyTotal?: number; // tbd (Wh)
@@ -729,6 +745,8 @@ export interface VenusMiniDeviceData extends BaseDeviceData {
   serverState?: number; // ser (raw; server state, individual codes unknown)
   rechargeType?: number; // rechg_type (raw; recharge type, individual codes unknown)
   bluetoothAdvertisingEnabled?: boolean; // last value written with the bluetooth-advertising command. `bbs` is the likely readback but its polarity is unconfirmed, so nothing parses it into this field yet - see venusEMini.ts
+  meterType?: MeterType; // last configured via cd=18. The device reports a meter code back in ct_type, but nothing establishes that it uses the same numbering as the `meter` the command takes, so this holds what was written rather than what was read
+  meterMac?: string; // MAC used when configuring the meter type
   timePeriods?: VenusMiniTimePeriod[];
   // cd=59 per-phase CT readings, in W. Only reported by a unit with an external
   // meter configured, so these stay unset on a device with ct_type=0.

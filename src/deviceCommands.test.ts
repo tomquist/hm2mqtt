@@ -1862,7 +1862,8 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
 
-  // Reboot is cd=61 here; the Venus C/D/E restart with cd=10.
+  // Reboot is cd=61 here. The Venus C/D/E have no reboot command at all -
+  // cd=10 on those models is the WiFi-module version query.
   {
     description: 'Venus E Mini restart with PRESS',
     deviceType: 'VNSEMINI-0',
@@ -1875,6 +1876,110 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'VNSEMINI-0',
     command: 'restart',
     input: 'nope',
+    expectedOutput: null,
+  },
+
+  // Working mode. The second generation's codes are 0/2/3, where the Venus
+  // C/D/E use 0/1/2/5 - taking those would select the wrong mode.
+  {
+    description: 'Venus E Mini working-mode automatic',
+    deviceType: 'VNSEMINI-0',
+    command: 'working-mode',
+    input: 'automatic',
+    expectedOutput: 'cd=2,md=0',
+    expectedStateChanges: { workingMode: 'automatic' },
+  },
+  {
+    description: 'Venus E Mini working-mode manual',
+    deviceType: 'VNSEMINI-0',
+    command: 'working-mode',
+    input: 'manual',
+    expectedOutput: 'cd=2,md=2',
+  },
+  {
+    description: 'Venus E Mini working-mode ai',
+    deviceType: 'VNSEMINI-0',
+    command: 'working-mode',
+    input: 'ai',
+    expectedOutput: 'cd=2,md=3',
+  },
+  {
+    // `trading` is a Venus C/D/E mode with no counterpart here, so the shared
+    // option names stop short of it rather than mapping it to something else.
+    description: 'Venus E Mini working-mode rejects a mode this model lacks',
+    deviceType: 'VNSEMINI-0',
+    command: 'working-mode',
+    input: 'trading',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini working-mode rejects junk',
+    deviceType: 'VNSEMINI-0',
+    command: 'working-mode',
+    input: 'notamode',
+    expectedOutput: null,
+  },
+
+  // Factory reset takes no rs parameter on this generation.
+  {
+    description: 'Venus E Mini factory-reset with PRESS',
+    deviceType: 'VNSEMINI-0',
+    command: 'factory-reset',
+    input: 'PRESS',
+    expectedOutput: 'cd=5',
+  },
+  {
+    description: 'Venus E Mini factory-reset ignores an unrelated payload',
+    deviceType: 'VNSEMINI-0',
+    command: 'factory-reset',
+    input: 'nope',
+    expectedOutput: null,
+  },
+
+  // Meter type: the same cd=18 and the same meter codes as the other families.
+  {
+    description: 'Venus E Mini meter-type CT002 with configured MAC',
+    deviceType: 'VNSEMINI-0',
+    initialState: { meterMac: 'aabbccddeeff' },
+    command: 'meter-type',
+    input: 'ct002',
+    expectedOutput: 'cd=18,meter=3,mac=aabbccddeeff',
+    expectedStateChanges: { meterType: 'ct002' },
+  },
+  {
+    description: 'Venus E Mini meter-type Shelly Pro 3EM forces an all-zero MAC',
+    deviceType: 'VNSEMINI-0',
+    command: 'meter-type',
+    input: 'shellyPro3em',
+    expectedOutput: 'cd=18,meter=1,mac=000000000000',
+  },
+  {
+    description: 'Venus E Mini meter-type CT002 without a MAC is rejected',
+    deviceType: 'VNSEMINI-0',
+    command: 'meter-type',
+    input: 'ct002',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini meter-type rejects junk',
+    deviceType: 'VNSEMINI-0',
+    command: 'meter-type',
+    input: 'notameter',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini meter-mac stores an uppercased MAC',
+    deviceType: 'VNSEMINI-0',
+    command: 'meter-mac',
+    input: 'aabbccddeeff',
+    expectedOutput: null,
+    expectedStateChanges: { meterMac: 'AABBCCDDEEFF' },
+  },
+  {
+    description: 'Venus E Mini meter-mac rejects a malformed MAC',
+    deviceType: 'VNSEMINI-0',
+    command: 'meter-mac',
+    input: 'aabbcc',
     expectedOutput: null,
   },
 ];
