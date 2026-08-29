@@ -557,7 +557,7 @@ The device type can be one of the following:
 - **VNSE3-X**: (e.g. VNSE3-0) Venus E 3.0
 - **VNSA-X**: (e.g. VNSA-1) Venus A
 - **VNSD-X**: (e.g. VNSD-1) Venus D
-- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini — **beta**; sensors plus *Depth of Discharge*, *Working Mode*, *Bluetooth Advertising*, *Meter Type*, *Meter MAC*, *Refresh*, *Get CT Power*, *Restart* and *Factory Reset* controls, which carry the same names and options as their Venus counterparts. The remaining Venus write commands do not apply to it.
+- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini — **beta**; sensors plus *Depth of Discharge*, *Working Mode*, *Bluetooth Advertising*, *Meter Type*, *Meter MAC*, *Refresh*, *Get CT Power*, *Restart* and *Factory Reset* controls. These share their names with the Venus ones and their options where the two overlap, but the ranges are the model's own: this one has no *Trading* working mode, and takes a depth of discharge of 30-90% against the Venus 30-88%. The remaining Venus write commands do not apply to it.
 - **HMN-X**: (e.g. HMN-1) Marstek Jupiter E
 - **HMM-X**: (e.g. HMM-1) Marstek Jupiter C
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus
@@ -767,6 +767,8 @@ Venus commands above.
   and the same meter codes as the other families. For CT002/CT003 and the Shelly
   EM Gen3/Pro EM50, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero
   MAC. Shows the last value set. Disabled by default.
+- `refresh`: Refreshes the device data. Disabled by default.
+- `get-ct-power`: Gets current transformer power readings. Disabled by default.
 - `restart`: Reboots the device. Disabled by default.
 - `factory-reset`: Resets the device to factory settings. Disabled by default.
 
@@ -780,8 +782,9 @@ info all moved — and uses a different MQTT topic namespace. That is why it has
 its own command list here rather than sharing the Venus one. See
 [docs/venus-generations.md](docs/venus-generations.md) for the full map.
 
-The rest of the app's commands for this model are not exposed, in every case
-because the values they accept are not known:
+The rest of the app's commands for this model are not exposed. For most of them
+the reason is that the values they accept are not known; the grid-connection
+power limit is a different case, and is called out below:
 
 - Configuring the device's server, and setting the recharge type — neither has a
   documented value set, and pointing a device at a different server can take it

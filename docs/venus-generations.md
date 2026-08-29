@@ -166,15 +166,22 @@ Of the second generation, only the Venus E Mini is supported, and only partly:
 - `cd=18,meter=,mac=` meter type — implemented
 - `cd=5` factory reset — implemented
 - `cd=61` reboot — implemented
+- `cd=1` refresh and `cd=59` get CT power — also exposed as buttons, so a poll
+  can be triggered on demand
 
-The entities carry the same ids, names and option names as their counterparts
-on the first-generation Venus models, so an automation can treat the two alike;
-only the numbers on the wire differ. Where this model has no counterpart — the
-LED, backup power, peak shaving, surplus feed-in, the local API, the power
-limits — no entity is invented for it.
+The entities carry the same ids and names as their counterparts on the
+first-generation Venus models, and the same option names where the two models
+have the same option, so an automation can treat them alike; only the numbers on
+the wire differ. The ranges are still each model's own — the Mini has no
+`trading` working mode, and takes a depth of discharge of 30-90% against the
+Venus 30-88%. Where this model has no counterpart at all — the LED, backup
+power, peak shaving, surplus feed-in, the local API, the power limits — no
+entity is invented for it.
 
-Everything else in the tables above is unimplemented, in every case because the
-values it accepts are unknown rather than because the command is in doubt:
+Everything else in the tables above is unimplemented. For all but one the reason
+is that the values it accepts are unknown rather than that the command is in
+doubt; the exception is the grid-connection power limit, which has no device
+command to implement (see below):
 `cd=60,ser=`, `cd=63,ct_chg_type=` and `cd=54,am=,aw=,ap=` have no documented
 value set; `cd=3` and `cd=4` are reads whose reply shape is unknown; `cd=33`
 has known parameters but an undetermined local-vs-UTC convention (see below);
