@@ -167,6 +167,12 @@ Of the second generation, only the Venus E Mini is supported, and only partly:
 - `cd=5` factory reset — implemented
 - `cd=61` reboot — implemented
 
+The entities carry the same ids, names and option names as their counterparts
+on the first-generation Venus models, so an automation can treat the two alike;
+only the numbers on the wire differ. Where this model has no counterpart — the
+LED, backup power, peak shaving, surplus feed-in, the local API, the power
+limits — no entity is invented for it.
+
 Everything else in the tables above is unimplemented, in every case because the
 values it accepts are unknown rather than because the command is in doubt:
 `cd=60,ser=`, `cd=63,ct_chg_type=` and `cd=54,am=,aw=,ap=` have no documented

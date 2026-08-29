@@ -557,7 +557,7 @@ The device type can be one of the following:
 - **VNSE3-X**: (e.g. VNSE3-0) Venus E 3.0
 - **VNSA-X**: (e.g. VNSA-1) Venus A
 - **VNSD-X**: (e.g. VNSD-1) Venus D
-- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini — **beta**; sensors plus *Discharge Depth*, *Working Mode*, *Bluetooth Advertising*, *Meter Type*, *Meter MAC*, *Restart* and *Factory Reset* controls. None of the other Venus write commands apply to it.
+- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini — **beta**; sensors plus *Depth of Discharge*, *Working Mode*, *Bluetooth Advertising*, *Meter Type*, *Meter MAC*, *Refresh*, *Get CT Power*, *Restart* and *Factory Reset* controls, which carry the same names and options as their Venus counterparts. The remaining Venus write commands do not apply to it.
 - **HMN-X**: (e.g. HMN-1) Marstek Jupiter E
 - **HMM-X**: (e.g. HMM-1) Marstek Jupiter C
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus
@@ -756,10 +756,10 @@ Venus commands above.
 - `discharge-depth`: Sets the usable-discharge percentage, 30-90%. The device
   reports the setting back, so the *Discharge Depth* entity shows its real
   state.
-- `working-mode`: Sets the working mode (`selfConsumption`, `manual` or `ai`).
-  The mode codes differ from the Venus C/D/E ones above, so the option names
-  differ too. The device reports its current mode in the separate *Operating
-  Mode* sensor; the *Working Mode* select shows the last value that was set.
+- `working-mode`: Sets the working mode (`automatic`, `manual` or `ai`) — the
+  same option names as the Venus command above, though this model sends
+  different codes for them and has no `trading` mode. The device reports its
+  mode back, so the *Working Mode* entity shows its real state.
 - `meter-mac`: Sets the MAC address used when configuring an external meter
   (12 hex digits, no separators). Shows the last value set. Disabled by default.
 - `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `ct002`,

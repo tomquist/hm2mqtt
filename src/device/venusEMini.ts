@@ -306,8 +306,8 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     advertise(
       ['dischargeDepth'],
       numberComponent({
-        id: 'discharge_depth',
-        name: 'Discharge Depth',
+        id: 'depth_of_discharge',
+        name: 'Depth of Discharge',
         device_class: 'battery',
         unit_of_measurement: '%',
         command: 'discharge-depth',
@@ -439,6 +439,11 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
+    // Working mode, cd=2. Backed by cm rather than write-only, matching the
+    // Working Mode select on the other Venus models: the device reports its
+    // mode, so there is no reason for the entity to show only what was last
+    // written. Unrecognised codes fall back to `automatic`, as they do there.
+    //
     // Only 0 (self-consumption) and 2 (manual) have been observed; a 3rd "AI
     // optimization" mode exists in the app UI but is greyed out as "coming
     // soon" - 3 is the code it will report, from the app's own work-mode
@@ -446,38 +451,16 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     // which schedule rule is enabled, not by this field itself.
     field({
       key: 'cm',
-      path: ['operatingMode'],
+      path: ['workingMode'],
       transform: map(
         {
-          '0': 'selfConsumption',
+          '0': 'automatic',
           '2': 'manual',
           '3': 'ai',
         },
-        'unknown',
+        'automatic',
       ),
     });
-    // The sensor keeps the full map including `unknown`, so an unrecognised cm
-    // code is visible as such rather than silently reported as a real mode. The
-    // select below carries only the three settable modes.
-    advertise(
-      ['operatingMode'],
-      sensorComponent<NonNullable<VenusMiniDeviceData['operatingMode']>>({
-        id: 'operating_mode',
-        name: 'Operating Mode',
-        icon: 'mdi:cog',
-        valueMappings: {
-          selfConsumption: 'Self Consumption',
-          manual: 'Manual',
-          ai: 'AI Optimization',
-          unknown: 'Unknown',
-        },
-      }),
-    );
-
-    // Written rather than read: cm is the same setting, but a select whose
-    // state came from cm would flip back to "Self Consumption" whenever the
-    // device reported a code outside the three settable ones. The codes are
-    // the second generation's (0/2/3) and differ from venus.ts's (0/1/2/5).
     advertise(
       ['workingMode'],
       selectComponent<VenusMiniWorkingMode>({
@@ -485,14 +468,16 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Working Mode',
         icon: 'mdi:cog',
         command: 'working-mode',
+        // `cm=0` is the self-consumption mode, which the Marstek app labels as
+        // such. The option is named "Automatic" to match the same mode on the
+        // other Venus models - an entity reports its state by option name, so
+        // diverging here would mean an automation that reads or sets the mode
+        // could not treat the models alike, for no functional gain.
         valueMappings: {
-          selfConsumption: 'Self Consumption',
+          automatic: 'Automatic',
           manual: 'Manual',
-          ai: 'AI Optimization',
+          ai: 'AI',
         },
-        // Write-only, for the reason above: cm is read into the Operating Mode
-        // sensor instead.
-        optimistic: true,
       }),
     );
     command('working-mode', {
@@ -952,6 +937,47 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       },
     });
 
+    // Refresh and Get CT Power, matching the same two buttons on the other
+    // Venus models. The numbers differ: this generation asks for power with
+    // `cd=59`, not `cd=19` - see registerVenusMiniCtPowerMessage.
+    advertise(
+      [],
+      buttonComponent({
+        id: 'refresh',
+        name: 'Refresh',
+        icon: 'mdi:refresh',
+        command: 'refresh',
+        payload_press: 'PRESS',
+        enabled_by_default: false,
+      }),
+    );
+    command('refresh', {
+      handler: ({ message, publishCallback }) => {
+        if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
+          publishCallback('cd=1');
+        }
+      },
+    });
+
+    advertise(
+      [],
+      buttonComponent({
+        id: 'get_ct_power',
+        name: 'Get CT Power',
+        icon: 'mdi:current-ac',
+        command: 'get-ct-power',
+        payload_press: 'PRESS',
+        enabled_by_default: false,
+      }),
+    );
+    command('get-ct-power', {
+      handler: ({ message, publishCallback }) => {
+        if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
+          publishCallback('cd=59');
+        }
+      },
+    });
+
     // Factory reset, `cd=5`. Unlike the first generation's reset, which selects
     // between clearing all/part/certificates with an `rs` parameter, this one
     // takes none.
@@ -960,7 +986,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       buttonComponent({
         id: 'factory_reset',
         name: 'Factory Reset',
-        icon: 'mdi:factory',
+        icon: 'mdi:delete-forever',
         command: 'factory-reset',
         payload_press: 'PRESS',
         enabled_by_default: false,

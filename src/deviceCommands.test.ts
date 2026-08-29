@@ -1882,12 +1882,12 @@ const commandTestCases: CommandTestCase[] = [
   // Working mode. The second generation's codes are 0/2/3, where the Venus
   // C/D/E use 0/1/2/5 - taking those would select the wrong mode.
   {
-    description: 'Venus E Mini working-mode self consumption',
+    description: 'Venus E Mini working-mode automatic',
     deviceType: 'VNSEMINI-0',
     command: 'working-mode',
-    input: 'selfConsumption',
+    input: 'automatic',
     expectedOutput: 'cd=2,md=0',
-    expectedStateChanges: { workingMode: 'selfConsumption' },
+    expectedStateChanges: { workingMode: 'automatic' },
   },
   {
     description: 'Venus E Mini working-mode manual',
@@ -1904,17 +1904,19 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: 'cd=2,md=3',
   },
   {
-    description: 'Venus E Mini working-mode rejects the unknown placeholder',
-    deviceType: 'VNSEMINI-0',
-    command: 'working-mode',
-    input: 'unknown',
-    expectedOutput: null,
-  },
-  {
-    description: 'Venus E Mini working-mode rejects a first-generation mode name',
+    // `trading` is a Venus C/D/E mode with no counterpart here, so the shared
+    // option names stop short of it rather than mapping it to something else.
+    description: 'Venus E Mini working-mode rejects a mode this model lacks',
     deviceType: 'VNSEMINI-0',
     command: 'working-mode',
     input: 'trading',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini working-mode rejects junk',
+    deviceType: 'VNSEMINI-0',
+    command: 'working-mode',
+    input: 'notamode',
     expectedOutput: null,
   },
 

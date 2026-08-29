@@ -1503,7 +1503,7 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('wifiSignal', -41); // wifi_a=41 is an RSSI magnitude
     expect(result).toHaveProperty('ctType', 0);
     expect(result).toHaveProperty('ctPhase', 0);
-    expect(result).toHaveProperty('operatingMode', 'manual'); // cm=2
+    expect(result).toHaveProperty('workingMode', 'manual'); // cm=2
     expect(result).toHaveProperty('deviceState', 'standby'); // dev_sta=0
     expect(result).toHaveProperty('ledEnabled', true); // leds=0 is inverted: LED on
     expect(result).toHaveProperty('bluetoothLockRaw', 0);
@@ -1651,7 +1651,7 @@ describe('MQTT Message Parser', () => {
   test('maps Venus E Mini enum branches not covered by the primary capture', () => {
     // Synthesized from the per-field confirmations in
     // VENUS_MINI_IMPLEMENTATION_PROMPT.md to cover enum values the single
-    // real capture above doesn't exercise: operatingMode=selfConsumption
+    // real capture above doesn't exercise: workingMode=automatic
     // (cm=0), deviceState=charging (dev_sta=1), feedInPowerLimit=1500W
     // (gps=1), LED off (leds=1), and schedule direction=selfConsumption
     // (ms1=3).
@@ -1662,7 +1662,7 @@ describe('MQTT Message Parser', () => {
     expect(parsed).toHaveProperty('data');
     const result = parsed['data'] as VenusMiniDeviceData;
 
-    expect(result).toHaveProperty('operatingMode', 'selfConsumption');
+    expect(result).toHaveProperty('workingMode', 'automatic');
     expect(result).toHaveProperty('deviceState', 'charging');
     expect(result).toHaveProperty('feedInPowerLimit', '1500W');
     expect(result).toHaveProperty('ledEnabled', false); // leds=1 is inverted: LED off
@@ -1693,7 +1693,7 @@ describe('MQTT Message Parser', () => {
     // The app's AI mode is still greyed out as "coming soon", but 3 is the
     // code it reports.
     const ai = parseMessage(`${base},cm=3,dev_sta=0`, 'VNSEMINI-0', 'venusMini123');
-    expect((ai['data'] as VenusMiniDeviceData).operatingMode).toBe('ai');
+    expect((ai['data'] as VenusMiniDeviceData).workingMode).toBe('ai');
 
     // wifi_a is the magnitude of the RSSI, so the sensor reports it negated.
     expect((ai['data'] as VenusMiniDeviceData).wifiSignal).toBe(-41);

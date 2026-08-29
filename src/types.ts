@@ -661,15 +661,12 @@ export interface VenusMiniTimePeriod {
   repeatRaw?: number; // re{n} (raw; meaning unconfirmed, possibly a weekday bitmask)
 }
 
-// Operating mode reported by a Venus E Mini in cm. Only 0 (self-consumption)
-// and 2 (manual) have been observed; the "AI optimization" mode is greyed out
-// as "coming soon" in the app UI, and 3 is the code it will report.
-export type VenusMiniOperatingMode = 'selfConsumption' | 'manual' | 'ai' | 'unknown';
-
-// The modes the cd=2 command can select. `unknown` is deliberately absent: it
-// exists so an unrecognised cm code has somewhere to land, and is not something
-// a user can ask the device to enter.
-const validVenusMiniWorkingModes = ['selfConsumption', 'manual', 'ai'] as const;
+// Working mode of a Venus E Mini, reported in cm and set with cd=2. Only 0
+// (self-consumption, named `automatic` to match the same mode on the other
+// Venus models) and 2 (manual) have been observed; the "AI optimization" mode
+// is greyed out as "coming soon" in the app UI, and 3 is the code it will
+// report.
+const validVenusMiniWorkingModes = ['automatic', 'manual', 'ai'] as const;
 export type VenusMiniWorkingMode = (typeof validVenusMiniWorkingModes)[number];
 
 export function isValidVenusMiniWorkingMode(mode: string): mode is VenusMiniWorkingMode {
@@ -680,7 +677,7 @@ export function isValidVenusMiniWorkingMode(mode: string): mode is VenusMiniWork
 // which differ from the Venus C/D/E's (0/1/2/5) in venus.ts - reading them off
 // that file would set the wrong mode.
 export const venusMiniWorkingModeCommandCodes: Record<VenusMiniWorkingMode, number> = {
-  selfConsumption: 0,
+  automatic: 0,
   manual: 2,
   ai: 3,
 };
@@ -733,8 +730,7 @@ export interface VenusMiniDeviceData extends BaseDeviceData {
   ledEnabled?: boolean; // leds, inverted: leds=0 means the LED is on
   bluetoothLockRaw?: number; // bbs, direction confirmed (higher = more locked) but the absolute mapping across every LED x Bluetooth-lock combination is not, so kept as a raw diagnostic rather than a binary sensor
   feedInPowerLimit?: VenusMiniFeedInPowerLimit; // gps
-  operatingMode?: VenusMiniOperatingMode; // cm
-  workingMode?: VenusMiniWorkingMode; // last value written with the working-mode command; cm is read into operatingMode instead
+  workingMode?: VenusMiniWorkingMode; // cm
   deviceState?: VenusMiniDeviceState; // dev_sta
   batteryDischargedEnergyToday?: number; // dbd (Wh)
   batteryDischargedEnergyTotal?: number; // tbd (Wh)
