@@ -166,7 +166,7 @@ Of the second generation, only the Venus E Mini is supported, and only partly:
 - `cd=18,meter=,mac=` meter type — implemented
 - `cd=5` factory reset — implemented
 - `cd=61` reboot — implemented
-- `cd=1` refresh and `cd=59` get CT power — also exposed as buttons, so a poll
+- `cd=01` refresh and `cd=59` get CT power — also exposed as buttons, so a poll
   can be triggered on demand
 
 The entities carry the same ids and names as their counterparts on the

@@ -954,7 +954,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     command('refresh', {
       handler: ({ message, publishCallback }) => {
         if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
-          publishCallback('cd=1');
+          publishCallback('cd=01');
         }
       },
     });
