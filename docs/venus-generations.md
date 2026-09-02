@@ -59,10 +59,10 @@ on this family it is `GET_FC41D_INFO`, the WiFi module version query, and it is
 only the *B2500* that restarts with `cd=10`. Reaching for that number on a Venus
 queries the WiFi module instead.
 
-The second generation writes its numbers zero-padded (`cd=01`, `cd=05`) where
-hm2mqtt sends them bare. The first generation's B2500 code does the same, and
-real devices evidently parse the number rather than the string, so this appears
-to be cosmetic.
+The second generation writes its numbers zero-padded (`cd=01`, `cd=05`). This
+is significant for the Venus E Mini's device-info request: a real unit answered
+`cd=01` but did not answer the bare `cd=1`. Other commands may still accept
+either representation.
 
 ## Second-generation command map
 
@@ -158,7 +158,7 @@ none of the Shelly flow is implemented.
 
 Of the second generation, only the Venus E Mini is supported, and only partly:
 
-- `cd=1` runtime payload — parsed
+- `cd=01` runtime request and payload — parsed
 - `cd=59` power readings — polled
 - `cd=55,adv=` bluetooth advertising — implemented
 - `cd=44,do=` depth of discharge — implemented
@@ -166,7 +166,7 @@ Of the second generation, only the Venus E Mini is supported, and only partly:
 - `cd=18,meter=,mac=` meter type — implemented
 - `cd=5` factory reset — implemented
 - `cd=61` reboot — implemented
-- `cd=1` refresh and `cd=59` get CT power — also exposed as buttons, so a poll
+- `cd=01` refresh and `cd=59` get CT power — also exposed as buttons, so a poll
   can be triggered on demand
 
 The entities carry the same ids and names as their counterparts on the

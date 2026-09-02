@@ -30,16 +30,16 @@ import { divide, equalsBoolean, identity, map, negateIfPositive, number } from '
  * Marstek Venus E Mini, device type `VNSEMINI-X` (e.g. `VNSEMINI-0`).
  *
  * Despite the name, this model does not speak the protocol the other Venus
- * variants use: its `cd=1` response shares almost no field names with the
+ * variants use: its runtime response shares almost no field names with the
  * HMG/VNSE3/VNSA/VNSD family, so it gets its own definition here rather than
  * reusing anything in `venus.ts`.
  *
- * Only `cd=1` has been captured from a real device. The command formats here
- * are read out of the Marstek app's own command table for this model rather
- * than observed on hardware, so they are the app's ground truth but not yet
- * confirmed end to end. Fields whose meaning is not confirmed are exposed
- * verbatim as disabled-by-default sensors under `raw`/`ctRaw` rather than being
- * given a name that asserts a meaning.
+ * Only the runtime response to `cd=01` has been captured from a real device.
+ * The other command formats here are read out of the Marstek app's own command
+ * table for this model rather than observed on hardware, so they are the app's
+ * ground truth but not yet confirmed end to end. Fields whose meaning is not
+ * confirmed are exposed verbatim as disabled-by-default sensors under
+ * `raw`/`ctRaw` rather than being given a name that asserts a meaning.
  *
  * This model runs Marstek's second-generation Venus firmware, along with the
  * Venus X and Venus G. That generation numbers its commands differently from
@@ -182,7 +182,7 @@ const venusMiniRawFields = [
 
 function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
   const options = {
-    refreshDataPayload: 'cd=1',
+    refreshDataPayload: 'cd=01',
     isMessage: isVenusMiniRuntimeInfoMessage,
     publishPath: 'data',
     defaultState: {},
@@ -954,7 +954,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     command('refresh', {
       handler: ({ message, publishCallback }) => {
         if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
-          publishCallback('cd=1');
+          publishCallback('cd=01');
         }
       },
     });

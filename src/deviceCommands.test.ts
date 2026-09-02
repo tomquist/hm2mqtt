@@ -1778,6 +1778,14 @@ const commandTestCases: CommandTestCase[] = [
   // VENUS E MINI COMMANDS
   // ============================================================
 
+  {
+    description: 'Venus E Mini refresh with PRESS',
+    deviceType: 'VNSEMINI-0',
+    command: 'refresh',
+    input: 'PRESS',
+    expectedOutput: 'cd=01',
+  },
+
   // The Marstek app picks this command's number from the device type: the
   // Venus variants take 55, Jupiter 57, and everything else — the Mini
   // included — falls back to 55.
