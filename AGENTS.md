@@ -63,6 +63,11 @@ For every new or changed config option, treat the following as mandatory complet
 
 `CHANGELOG.md` is read by users, not developers.
 
+- **One entry per user-visible change, and none for unreleased work.** A fix to
+  something that is itself still under `[Next]` repairs a version nobody ever
+  ran; it goes in the commit message instead, and amend the `Added` entry if the
+  fix changes what that entry promises. Where one change has collected two
+  entries in a release, fold them into the better one.
 - **Keep it short. One or two sentences.** Say what changed for the user and
   stop. When in doubt, cut — an entry that is too terse costs a reader nothing,
   one that is too long costs every reader.
