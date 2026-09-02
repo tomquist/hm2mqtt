@@ -59,10 +59,16 @@ on this family it is `GET_FC41D_INFO`, the WiFi module version query, and it is
 only the *B2500* that restarts with `cd=10`. Reaching for that number on a Venus
 queries the WiFi module instead.
 
-The second generation writes its numbers zero-padded (`cd=01`, `cd=05`). This
-is significant for the Venus E Mini's device-info request: a real unit answered
-`cd=01` but did not answer the bare `cd=1`. Other commands may still accept
-either representation.
+The second generation writes every command number as two characters, which for
+the single-digit ones means zero-padded: `cd=01`, `cd=02`, `cd=03`, `cd=04`,
+`cd=05`. On the Venus E Mini that is not cosmetic — a real unit answered `cd=01`
+and did not answer the bare `cd=1` — so hm2mqtt pads all of them for this model.
+
+That is not a rule about Marstek firmware in general. The first generation's
+B2500 code pads the same way (`cd=01`, `cd=03,md=0`, `cd=08,wy=`), yet hm2mqtt
+has always sent those bare and real B2500s answer, so on that firmware the
+padding really is decoration. The two generations differ in how the device
+matches the number, not in what the app writes.
 
 ## Second-generation command map
 
@@ -162,9 +168,9 @@ Of the second generation, only the Venus E Mini is supported, and only partly:
 - `cd=59` power readings — polled
 - `cd=55,adv=` bluetooth advertising — implemented
 - `cd=44,do=` depth of discharge — implemented
-- `cd=2,md=` working mode — implemented
+- `cd=02,md=` working mode — implemented
 - `cd=18,meter=,mac=` meter type — implemented
-- `cd=5` factory reset — implemented
+- `cd=05` factory reset — implemented
 - `cd=61` reboot — implemented
 - `cd=01` refresh and `cd=59` get CT power — also exposed as buttons, so a poll
   can be triggered on demand

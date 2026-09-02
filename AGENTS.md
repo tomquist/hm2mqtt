@@ -63,6 +63,13 @@ For every new or changed config option, treat the following as mandatory complet
 
 `CHANGELOG.md` is read by users, not developers.
 
+- **One entry per user-visible change, for the whole release.** A follow-up to
+  something already listed under `[Next]` does not get a second entry: update
+  that entry where the follow-up changes what it promises, and otherwise leave
+  it alone — a follow-up you would not have mentioned on its own does not become
+  worth mentioning by being a fix. The detail goes in the commit message. Where
+  one change has collected two entries in a release, fold them into the better
+  one.
 - **Keep it short. One or two sentences.** Say what changed for the user and
   stop. When in doubt, cut — an entry that is too terse costs a reader nothing,
   one that is too long costs every reader.

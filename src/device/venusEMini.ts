@@ -48,6 +48,12 @@ import { divide, equalsBoolean, identity, map, negateIfPositive, number } from '
  * be reused, and a number read off that file is more likely wrong than right.
  * docs/venus-generations.md has the full map and how the two are told apart.
  *
+ * That generation also writes every command number as two characters - `cd=01`,
+ * `cd=02`, `cd=05` - and on this model the padding is not decoration: a real
+ * device answered `cd=01` and ignored the bare `cd=1`. Its firmware evidently
+ * matches the string rather than parsing the number, so every command below is
+ * padded the way the app sends it.
+ *
  * Not implemented, and why. Each of these is a real command in the app's
  * tables; what is missing in every case is the set of values it accepts, which
  * the app encodes at the call site rather than in the table:
@@ -65,7 +71,7 @@ import { divide, equalsBoolean, identity, map, negateIfPositive, number } from '
  *   the risk.
  * - `cd=54,am=<n>,aw=<n>,ap=<n>` (anti-reverse-flow). Three parameters, only
  *   the first of which has a guessable meaning.
- * - `cd=3` / `cd=4` (network info, error code). These are reads, and the shape
+ * - `cd=03` / `cd=04` (network info, error code). These are reads, and the shape
  *   of what comes back is not known, so there would be nothing to parse.
  * - `cd=33` (set device time), whose parameters are known - d, m, y, h, min, s
  *   and `wy` - but not whether the clock fields are local or UTC. `wy` is the
@@ -439,7 +445,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    // Working mode, cd=2. Backed by cm rather than write-only, matching the
+    // Working mode, `cd=02`. Backed by cm rather than write-only, matching the
     // Working Mode select on the other Venus models: the device reports its
     // mode, so there is no reason for the entity to show only what was last
     // written. Unrecognised codes fall back to `automatic`, as they do there.
@@ -487,7 +493,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
           return;
         }
         updateDeviceState(() => ({ workingMode: message }));
-        publishCallback(`cd=2,md=${venusMiniWorkingModeCommandCodes[message]}`);
+        publishCallback(`cd=02,md=${venusMiniWorkingModeCommandCodes[message]}`);
       },
     });
 
@@ -978,7 +984,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       },
     });
 
-    // Factory reset, `cd=5`. Unlike the first generation's reset, which selects
+    // Factory reset, `cd=05`. Unlike the first generation's reset, which selects
     // between clearing all/part/certificates with an `rs` parameter, this one
     // takes none.
     advertise(
@@ -995,7 +1001,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     command('factory-reset', {
       handler: ({ message, publishCallback }) => {
         if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
-          publishCallback('cd=5');
+          publishCallback('cd=05');
         }
       },
     });

@@ -1894,7 +1894,7 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'VNSEMINI-0',
     command: 'working-mode',
     input: 'automatic',
-    expectedOutput: 'cd=2,md=0',
+    expectedOutput: 'cd=02,md=0',
     expectedStateChanges: { workingMode: 'automatic' },
   },
   {
@@ -1902,14 +1902,14 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'VNSEMINI-0',
     command: 'working-mode',
     input: 'manual',
-    expectedOutput: 'cd=2,md=2',
+    expectedOutput: 'cd=02,md=2',
   },
   {
     description: 'Venus E Mini working-mode ai',
     deviceType: 'VNSEMINI-0',
     command: 'working-mode',
     input: 'ai',
-    expectedOutput: 'cd=2,md=3',
+    expectedOutput: 'cd=02,md=3',
   },
   {
     // `trading` is a Venus C/D/E mode with no counterpart here, so the shared
@@ -1934,7 +1934,7 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'VNSEMINI-0',
     command: 'factory-reset',
     input: 'PRESS',
-    expectedOutput: 'cd=5',
+    expectedOutput: 'cd=05',
   },
   {
     description: 'Venus E Mini factory-reset ignores an unrelated payload',
