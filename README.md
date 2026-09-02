@@ -772,8 +772,9 @@ Venus commands above.
 - `restart`: Reboots the device. Disabled by default.
 - `factory-reset`: Resets the device to factory settings. Disabled by default.
 
-**Beta.** These commands were read out of the Marstek app rather than captured
-from a real device, so they have not been confirmed end to end.
+**Beta.** The read-only refresh command has been confirmed on a real device.
+The other commands were read out of the Marstek app rather than captured from
+a real device, so they have not been confirmed end to end.
 
 The Venus E Mini runs a second generation of Marstek's Venus firmware, together
 with the Venus X and Venus G. It numbers its commands differently from the

@@ -9,6 +9,7 @@
 
 ### Fixed
 
+- Restore telemetry updates for Venus E Mini devices (discussion #425)
 - The MQTT broker password no longer shows up in the log. On startup, the broker URL was written to the log with its credentials in plaintext, which meant sharing a log for troubleshooting could hand out the broker password. In the Home Assistant add-on this affected the password of Home Assistant's own MQTT broker. Broker URLs now appear as `mqtt://user:***@host:1883` (fixes #424, PR #435)
 
 ## [1.10.0] - 2026-08-15
