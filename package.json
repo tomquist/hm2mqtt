@@ -30,13 +30,13 @@
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
-    "@types/node": "^26.5.0",
+    "@types/node": "^26.5.1",
     "@typescript/native": "npm:typescript@^7.0.2",
     "jest": "^30.5.1",
     "jest-junit": "^17.0.0",
     "jest-util": "^30.4.1",
-    "oxfmt": "^0.67.0",
-    "oxlint": "^1.82.0",
+    "oxfmt": "^0.68.0",
+    "oxlint": "^1.83.0",
     "ts-jest": "^29.4.12",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vite-node": "^6.0.0"
