@@ -21,6 +21,14 @@ export const STATE_MIRROR_PREFIX = 'e2e/state';
 const CONFIG_ENTRY_STORAGE_MINOR_VERSION = 5;
 const MQTT_ENTRY_ID = 'hm2mqtte2ehm2mqtte2ehm2mqtte2e01';
 
+/**
+ * How Home Assistant reports that the MQTT config entry did not load: either
+ * the entry's own setup failed, or the integration could not even be imported,
+ * which is what a Python requirement missing from versions.json looks like.
+ */
+const MQTT_SETUP_FAILED =
+  /Error setting up entry .* for mqtt|Error importing platform \w+ from integration mqtt/;
+
 export interface HomeAssistantOptions {
   /** Directory to generate the configuration in; wiped first. */
   configDir: string;
@@ -191,7 +199,7 @@ export async function startHomeAssistant(options: HomeAssistantOptions): Promise
 
     // A config entry that failed to load produces no entities at all, which
     // would otherwise show up much later as an unexplained timeout.
-    if (/Error setting up entry .* for mqtt/.test(readLog())) {
+    if (MQTT_SETUP_FAILED.test(readLog())) {
       throw new Error(
         `Home Assistant could not set up the MQTT integration:\n${tail(readLog(), 30)}`,
       );

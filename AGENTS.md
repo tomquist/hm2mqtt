@@ -44,8 +44,8 @@ npm run test:e2e          # runs the shipped build against a real Home Assistant
 ```
 
 See `test/e2e/README.md`. At release time, freeze the current baseline under
-`test/fixtures/discovery/released/<version>/`. The e2e suite needs Python 3.13
-or newer.
+`test/fixtures/discovery/released/<version>/`. The e2e suite needs Python
+3.14.2 or newer.
 
 If add-on behavior/config was changed, also validate add-on config consistency:
 

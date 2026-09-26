@@ -10,9 +10,15 @@ venv="$here/.venv-ha"
 stamp="$venv/.versions"
 versions_file="$here/versions.json"
 
-read_version() {
-  python3 -c "import json,sys; print(json.load(open('$versions_file'))['$1'])"
-}
+# Every package pinned in versions.json, as pip requirements. Keys starting
+# with an underscore are notes, not packages. A read loop rather than mapfile,
+# which the bash macOS ships does not have.
+requirements=()
+while IFS= read -r requirement; do
+  requirements+=("$requirement")
+done < <(
+  python3 -c "import json; [print(f'{k}=={v}') for k, v in json.load(open('$versions_file')).items() if not k.startswith('_')]"
+)
 
 want="$(cat "$versions_file")"
 if [[ -x "$venv/bin/hass" && -f "$stamp" && "$(cat "$stamp")" == "$want" ]]; then
@@ -23,35 +29,27 @@ fi
 # Home Assistant needs a recent Python; the repo's own toolchain does not, so
 # look for one rather than assuming `python3` is new enough.
 python_bin=""
-for candidate in python3.13 python3.14 python3; do
+for candidate in python3.14 python3.15 python3; do
   if command -v "$candidate" >/dev/null 2>&1; then
-    if "$candidate" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 13) else 1)'; then
+    if "$candidate" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 14, 2) else 1)'; then
       python_bin="$candidate"
       break
     fi
   fi
 done
 if [[ -z "$python_bin" ]]; then
-  echo "error: Python 3.13 or newer is required to run Home Assistant." >&2
+  echo "error: Python 3.14.2 or newer is required to run Home Assistant." >&2
   exit 1
 fi
 
 rm -rf "$venv"
 if command -v uv >/dev/null 2>&1; then
   uv venv --python "$python_bin" "$venv"
-  VIRTUAL_ENV="$venv" uv pip install \
-    "homeassistant==$(read_version homeassistant)" \
-    "home-assistant-frontend==$(read_version home-assistant-frontend)" \
-    "numpy==$(read_version numpy)" \
-    "paho-mqtt==$(read_version paho-mqtt)"
+  VIRTUAL_ENV="$venv" uv pip install "${requirements[@]}"
 else
   "$python_bin" -m venv "$venv"
   "$venv/bin/pip" install --quiet --upgrade pip
-  "$venv/bin/pip" install --quiet \
-    "homeassistant==$(read_version homeassistant)" \
-    "home-assistant-frontend==$(read_version home-assistant-frontend)" \
-    "numpy==$(read_version numpy)" \
-    "paho-mqtt==$(read_version paho-mqtt)"
+  "$venv/bin/pip" install --quiet "${requirements[@]}"
 fi
 
 printf '%s' "$want" > "$stamp"
