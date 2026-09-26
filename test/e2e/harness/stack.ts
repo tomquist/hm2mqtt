@@ -1,3 +1,5 @@
+const describeError = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
 /**
  * A teardown stack.
  *
@@ -22,7 +24,7 @@ export class Stack {
       try {
         await entry.stop();
       } catch (error) {
-        failures.push(`${entry.name}: ${error instanceof Error ? error.message : String(error)}`);
+        failures.push(`${entry.name}: ${describeError(error)}`);
       }
     }
     this.entries = [];
@@ -30,4 +32,23 @@ export class Stack {
       throw new Error(`Teardown failed:\n${failures.join('\n')}`);
     }
   }
+}
+
+/**
+ * Stop a process whose start failed, then rethrow the start failure.
+ *
+ * A process that failed to start is never added to a Stack, so this is its only
+ * teardown. If stopping it fails as well, both failures are reported: the start
+ * failure explains the run, and the process left behind explains whatever goes
+ * wrong in the next scenario.
+ */
+export async function abandonStart(startError: unknown, stop: () => Promise<void>): Promise<never> {
+  try {
+    await stop();
+  } catch (stopError) {
+    throw new Error(
+      `${describeError(startError)}\nStopping the process afterwards failed too: ${describeError(stopError)}`,
+    );
+  }
+  throw startError;
 }

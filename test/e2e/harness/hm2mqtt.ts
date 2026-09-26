@@ -2,6 +2,7 @@ import { ChildProcess, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { REPO_ROOT } from './env.js';
+import { abandonStart } from './stack.js';
 import { WaitAbandoned, tail, waitFor } from './waitFor.js';
 
 const ENTRY_POINT = resolve(REPO_ROOT, 'dist/index.js');
@@ -90,9 +91,7 @@ export async function startHm2mqtt(options: Hm2mqttOptions): Promise<Hm2mqttProc
       { diagnose: () => `hm2mqtt output:\n${tail(output)}` },
     );
   } catch (error) {
-    // The start failure is the error worth reporting, not a failed cleanup.
-    await forceStop().catch(() => undefined);
-    throw error;
+    return abandonStart(error, forceStop);
   }
 
   return {

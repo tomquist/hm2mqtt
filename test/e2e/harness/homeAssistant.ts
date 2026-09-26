@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { HASS_BIN, REPO_ROOT } from './env.js';
 import { LogProblem, describeLogProblems, findLogProblems } from './logScan.js';
+import { abandonStart } from './stack.js';
 import { WaitAbandoned, tail, waitFor } from './waitFor.js';
 
 /**
@@ -205,9 +206,7 @@ export async function startHomeAssistant(options: HomeAssistantOptions): Promise
       );
     }
   } catch (error) {
-    // The start failure is the error worth reporting, not a failed cleanup.
-    await forceStop().catch(() => undefined);
-    throw error;
+    return abandonStart(error, forceStop);
   }
 
   const homeAssistant: HomeAssistant = {
