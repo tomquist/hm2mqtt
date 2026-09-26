@@ -63,19 +63,37 @@ export async function startHm2mqtt(options: Hm2mqttOptions): Promise<Hm2mqttProc
   let spawnError: Error | undefined;
   child.on('error', error => (spawnError = error));
 
-  await waitFor(
-    'hm2mqtt to connect to the broker',
-    () => {
-      if (spawnError) {
-        throw new WaitAbandoned(`hm2mqtt could not be started: ${spawnError.message}`);
-      }
-      if (exited) {
-        throw new WaitAbandoned(`hm2mqtt exited early:\n${tail(output)}`);
-      }
-      return /Connected to MQTT broker|Subscribed to/i.test(output);
-    },
-    { diagnose: () => `hm2mqtt output:\n${tail(output)}` },
-  );
+  // Confirm the process is really gone, and fail rather than leave one running
+  // against the broker. A process that never spawned has nothing to stop.
+  const forceStop = async () => {
+    if (exited || spawnError) {
+      return;
+    }
+    child.kill('SIGKILL');
+    await waitFor('hm2mqtt to exit after SIGKILL', () => exited, { timeoutMs: 10_000 });
+  };
+
+  // Until this function returns, the process is not on the rig's teardown
+  // stack, so a failed start has to stop it here or it outlives the run.
+  try {
+    await waitFor(
+      'hm2mqtt to connect to the broker',
+      () => {
+        if (spawnError) {
+          throw new WaitAbandoned(`hm2mqtt could not be started: ${spawnError.message}`);
+        }
+        if (exited) {
+          throw new WaitAbandoned(`hm2mqtt exited early:\n${tail(output)}`);
+        }
+        return /Connected to MQTT broker|Subscribed to/i.test(output);
+      },
+      { diagnose: () => `hm2mqtt output:\n${tail(output)}` },
+    );
+  } catch (error) {
+    // The start failure is the error worth reporting, not a failed cleanup.
+    await forceStop().catch(() => undefined);
+    throw error;
+  }
 
   return {
     output: () => output,
@@ -87,12 +105,7 @@ export async function startHm2mqtt(options: Hm2mqttOptions): Promise<Hm2mqttProc
       await waitFor('hm2mqtt to exit', () => exited, {
         timeoutMs: 15_000,
         diagnose: () => `hm2mqtt output:\n${tail(output)}`,
-      }).catch(async () => {
-        // As with Home Assistant: confirm the process is really gone, and fail
-        // teardown rather than leave one running against the broker.
-        child.kill('SIGKILL');
-        await waitFor('hm2mqtt to exit after SIGKILL', () => exited, { timeoutMs: 10_000 });
-      });
+      }).catch(forceStop);
     },
   };
 }

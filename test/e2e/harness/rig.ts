@@ -116,6 +116,10 @@ export async function startRig(options: RigOptions): Promise<Rig> {
     );
 
     let hm2mqtt: Hm2mqttProcess | undefined;
+    const entityIds = () =>
+      probe
+        .topics(`${STATE_MIRROR_PREFIX}/`)
+        .map(topic => topic.slice(STATE_MIRROR_PREFIX.length + 1));
 
     return {
       broker,
@@ -156,7 +160,7 @@ export async function startRig(options: RigOptions): Promise<Rig> {
           {
             timeoutMs: 90_000,
             diagnose: () =>
-              `Known entities:\n${this.entityIds().join('\n') || '(none)'}\n\n` +
+              `Known entities:\n${entityIds().join('\n') || '(none)'}\n\n` +
               `hm2mqtt output:\n${tail(hm2mqtt?.output() ?? '(not started)', 15)}`,
           },
         );
@@ -164,11 +168,7 @@ export async function startRig(options: RigOptions): Promise<Rig> {
       entityState(entityId) {
         return probe.latest(`${STATE_MIRROR_PREFIX}/${entityId}`);
       },
-      entityIds() {
-        return probe
-          .topics(`${STATE_MIRROR_PREFIX}/`)
-          .map(topic => topic.slice(STATE_MIRROR_PREFIX.length + 1));
-      },
+      entityIds,
       discoveryTopics() {
         return probe.topics(`${DEFAULT_AUTODISCOVERY_TOPIC_PREFIX}/`);
       },

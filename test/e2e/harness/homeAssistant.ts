@@ -163,23 +163,43 @@ export async function startHomeAssistant(options: HomeAssistantOptions): Promise
     }
   };
 
-  await waitFor(
-    'Home Assistant to finish starting',
-    () => {
-      if (exited) {
-        throw new WaitAbandoned(`Home Assistant exited early:\n${tail(consoleOutput)}`);
-      }
-      return /Home Assistant initialized/.test(readLog());
-    },
-    { timeoutMs: 180_000, diagnose: () => `Home Assistant log:\n${tail(readLog())}` },
-  );
+  // Do not hand the next scenario a process that still holds the config
+  // directory and an MQTT connection. If even SIGKILL does not reap it, this
+  // throws, so the failure is reported instead of quietly overlapping the next
+  // scenario.
+  const forceStop = async () => {
+    if (exited) {
+      return;
+    }
+    child.kill('SIGKILL');
+    await waitFor('Home Assistant to exit after SIGKILL', () => exited, { timeoutMs: 10_000 });
+  };
 
-  // A config entry that failed to load produces no entities at all, which would
-  // otherwise show up much later as an unexplained timeout.
-  if (/Error setting up entry .* for mqtt/.test(readLog())) {
-    throw new Error(
-      `Home Assistant could not set up the MQTT integration:\n${tail(readLog(), 30)}`,
+  // Until this function returns, the process is not on the rig's teardown
+  // stack, so a failed start has to stop it here or it outlives the run.
+  try {
+    await waitFor(
+      'Home Assistant to finish starting',
+      () => {
+        if (exited) {
+          throw new WaitAbandoned(`Home Assistant exited early:\n${tail(consoleOutput)}`);
+        }
+        return /Home Assistant initialized/.test(readLog());
+      },
+      { timeoutMs: 180_000, diagnose: () => `Home Assistant log:\n${tail(readLog())}` },
     );
+
+    // A config entry that failed to load produces no entities at all, which
+    // would otherwise show up much later as an unexplained timeout.
+    if (/Error setting up entry .* for mqtt/.test(readLog())) {
+      throw new Error(
+        `Home Assistant could not set up the MQTT integration:\n${tail(readLog(), 30)}`,
+      );
+    }
+  } catch (error) {
+    // The start failure is the error worth reporting, not a failed cleanup.
+    await forceStop().catch(() => undefined);
+    throw error;
   }
 
   const homeAssistant: HomeAssistant = {
@@ -203,16 +223,7 @@ export async function startHomeAssistant(options: HomeAssistantOptions): Promise
       await waitFor('Home Assistant to exit', () => exited, {
         timeoutMs: 60_000,
         diagnose: () => `Home Assistant log:\n${tail(readLog())}`,
-      }).catch(async () => {
-        // Do not hand the next scenario a process that still holds the config
-        // directory and an MQTT connection. If even SIGKILL does not reap it,
-        // fail loudly: the Stack reports teardown failures, so the run says so
-        // instead of quietly overlapping the next scenario.
-        child.kill('SIGKILL');
-        await waitFor('Home Assistant to exit after SIGKILL', () => exited, {
-          timeoutMs: 10_000,
-        });
-      });
+      }).catch(forceStop);
     },
   };
   return homeAssistant;
