@@ -25,7 +25,7 @@ module.exports = {
   maxWorkers: 1,
   reporters: [
     'default',
-    ['jest-junit', { outputDirectory: './test-results', outputName: 'junit-e2e.xml' }],
+    ['jest-junit', { outputDirectory: './reports', outputName: 'junit-e2e.xml' }],
   ],
   forceExit: true,
 };

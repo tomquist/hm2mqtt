@@ -123,7 +123,7 @@ jobs:
           name: e2e-logs
           path: |
             test/e2e/.tmp/**/home-assistant.log
-            test-results/junit-e2e.xml
+            reports/junit-e2e.xml
           if-no-files-found: warn
 
   test-addon:
