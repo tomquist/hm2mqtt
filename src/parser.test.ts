@@ -1300,6 +1300,9 @@ describe('MQTT Message Parser', () => {
     ['HMG-25', '12', 'smrTic'],
     ['VNSA-0', '8', 'smrP1'],
     ['VNSD-0', '11', 'tpm2100ct'],
+    // Codes outside the table stay unset rather than falling back to a meter.
+    ['VNSA-0', '99', undefined],
+    ['HMG-25', '99', undefined],
   ])('maps %s ct_t=%s to %s', (deviceType, ctT, expected) => {
     // Venus C / E 2.0 (HMG) report ct_t in their own code space; the newer
     // models report the cd=18 meter= code (a CT003 reads 4 there, 6 on HMG).
@@ -1307,7 +1310,7 @@ describe('MQTT Message Parser', () => {
     const parsed = parseMessage(message, deviceType, 'venus123');
 
     const result = parsed['data'] as VenusDeviceData;
-    expect(result).toHaveProperty('ctType', expected);
+    expect(result.ctType).toBe(expected);
   });
 
   test('parses Venus metering, pricing and version fields', () => {
