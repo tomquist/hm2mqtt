@@ -17,6 +17,7 @@ import {
   VenusBMSInfo,
   VenusBMSPackInfo,
   VenusBMSPackDetail,
+  VenusCTType,
   VenusDeviceData,
   VenusTimePeriod,
   VenusVersionSet,
@@ -290,13 +291,61 @@ function isVenusRuntimeInfoMessage(values: Record<string, string>): boolean {
   return requiredRuntimeInfoKeys.every(key => key in values);
 }
 
+// The meter the device is currently configured for is reported as `ct_t`, but
+// the two Venus families report it in different code spaces. The Venus C and
+// Venus E 2.0 (HMG) use the same codes as the B2500, which differ from the
+// `meter=` codes used to set the meter. The newer models (VNSE3, VNSA, VNSD)
+// report the `meter=` code itself, so e.g. a CT003 reads 4 there but 6 on HMG.
+const hmgCtTypeCodes: Record<string, VenusCTType> = {
+  '0': 'none',
+  '1': 'ct001',
+  '2': 'ct0015',
+  '3': 'ct002',
+  '4': 'shellyPro3em',
+  '5': 'p1Meter',
+  '6': 'ct003',
+  '7': 'shellyEmGen3',
+  '8': 'shellyProEm50',
+  '9': 'ecoTracker',
+  '14': 'stromleser',
+  '15': 'ioMeter',
+};
+// On these models 0 is the CT001's `meter=` code, so a unit without any meter
+// configured cannot be told apart from one using a CT001.
+const vnsCtTypeCodes: Record<string, VenusCTType> = {
+  '0': 'ct001',
+  '1': 'shellyPro3em',
+  '2': 'p1Meter',
+  '3': 'ct002',
+  '4': 'ct003',
+  '5': 'shellyEmGen3',
+  '6': 'shellyProEm50',
+  '7': 'ecoTracker',
+  '12': 'stromleser',
+  '13': 'ioMeter',
+};
+
 // Per-string PV input power (PV1–PV4) is reported by Venus models that have PV
 // inputs (e.g. Venus A/D). The corresponding entities are advertised purely
 // based on whether the device reports the `pv1`–`pv4` fields in its payload, so
 // there is no need to special-case device types here.
 registerDeviceDefinition(
   {
-    deviceTypes: ['HMG', 'VNSE3'],
+    deviceTypes: ['HMG'],
+  },
+  ({ message }) => {
+    registerRuntimeInfoMessage(message, { ctTypeCodes: hmgCtTypeCodes });
+    registerBMSInfoMessage(message);
+    registerVenusCellBalancingMessage(message);
+    registerBMSPackMessage(message);
+    registerBMSPackDetailMessages(message);
+    registerVenusNetworkInfoMessage(message);
+  },
+);
+
+registerDeviceDefinition(
+  {
+    deviceTypes: ['VNSE3'],
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
@@ -324,7 +373,10 @@ registerDeviceDefinition(
   },
 );
 
-function registerRuntimeInfoMessage(message: BuildMessageFn) {
+function registerRuntimeInfoMessage(
+  message: BuildMessageFn,
+  { ctTypeCodes = vnsCtTypeCodes }: { ctTypeCodes?: Record<string, VenusCTType> } = {},
+) {
   let options = {
     refreshDataPayload: 'cd=1',
     isMessage: isVenusRuntimeInfoMessage,
@@ -759,17 +811,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'ct_t',
       path: ['ctType'],
-      transform: map(
-        {
-          '0': 'none',
-          '1': 'ct1',
-          '2': 'ct2',
-          '3': 'ct3',
-          '4': 'shellyPro',
-          '5': 'p1Meter',
-        },
-        'none',
-      ),
+      transform: map(ctTypeCodes),
     });
     advertise(
       ['ctType'],
@@ -779,11 +821,17 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         icon: 'mdi:current-ac',
         valueMappings: {
           none: 'No Meter Detected',
-          ct1: 'CT1',
-          ct2: 'CT2',
-          ct3: 'CT3',
-          shellyPro: 'Shelly Pro',
+          ct001: 'CT001',
+          ct0015: 'CT001.5',
+          ct002: 'CT002',
+          ct003: 'CT003',
+          shellyPro3em: 'Shelly Pro 3EM',
+          shellyEmGen3: 'Shelly EM Gen3',
+          shellyProEm50: 'Shelly Pro EM50',
           p1Meter: 'P1 Meter',
+          ecoTracker: 'EcoTracker',
+          stromleser: 'Stromleser',
+          ioMeter: 'IOmeter',
         },
       }),
     );

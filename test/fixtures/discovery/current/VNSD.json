@@ -1024,7 +1024,7 @@
       },
       "state_topic": "hm2mqtt/VNSD/device/0123456789ab/data",
       "unique_id": "0123456789ab_ct_type",
-      "value_template": "{% set mapping = {\"none\":\"No Meter Detected\",\"ct1\":\"CT1\",\"ct2\":\"CT2\",\"ct3\":\"CT3\",\"shellyPro\":\"Shelly Pro\",\"p1Meter\":\"P1 Meter\"} %}{% set stringifiedValue = value_json.ctType | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
+      "value_template": "{% set mapping = {\"none\":\"No Meter Detected\",\"ct001\":\"CT001\",\"ct0015\":\"CT001.5\",\"ct002\":\"CT002\",\"ct003\":\"CT003\",\"shellyPro3em\":\"Shelly Pro 3EM\",\"shellyEmGen3\":\"Shelly EM Gen3\",\"shellyProEm50\":\"Shelly Pro EM50\",\"p1Meter\":\"P1 Meter\",\"ecoTracker\":\"EcoTracker\",\"stromleser\":\"Stromleser\",\"ioMeter\":\"IOmeter\"} %}{% set stringifiedValue = value_json.ctType | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
     },
     "homeassistant/sensor/VNSD_0123456789ab/current/config": null,
     "homeassistant/sensor/VNSD_0123456789ab/daily_charging_capacity/config": {
