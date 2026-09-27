@@ -24,19 +24,70 @@ export type B2500V2SmartMeterStatus =
   | 'unableToFindChannel'
   | 'notInDiagnosis';
 /**
- * Meter reported in the B2500 `ct_t` field. The device reports the configured
- * meter under its own numeric codes, which do not match the codes the
- * `cd=27,meter=` command accepts.
+ * Meter a storage device reports as configured in its `ct_t` field. Each family
+ * reports it under numeric codes of its own; see `reportedCtTypeCodes` and the
+ * tables in the Venus definition.
  */
-export type B2500CtType =
+export type ReportedMeterType =
+  | 'none'
   | 'ct001'
+  | 'ct0015'
   | 'ct002'
   | 'ct003'
   | 'shellyPro3em'
   | 'shellyEmGen3'
   | 'shellyProEm50'
   | 'p1Meter'
-  | 'ecoTracker';
+  | 'ecoTracker'
+  | 'smrP1'
+  | 'smrIr'
+  | 'smrTic'
+  | 'tpm2100ct'
+  | 'stromleser'
+  | 'ioMeter';
+
+export const reportedMeterTypeLabels: Record<ReportedMeterType, string> = {
+  none: 'No Meter Detected',
+  ct001: 'CT001',
+  ct0015: 'CT001.5',
+  ct002: 'CT002',
+  ct003: 'CT003',
+  shellyPro3em: 'Shelly Pro 3EM',
+  shellyEmGen3: 'Shelly EM Gen3',
+  shellyProEm50: 'Shelly Pro EM50',
+  p1Meter: 'P1 Meter',
+  ecoTracker: 'EcoTracker',
+  smrP1: 'SMR-P1',
+  smrIr: 'SMR-IR',
+  smrTic: 'SMR-TIC',
+  tpm2100ct: 'TPM2-100CT',
+  stromleser: 'Stromleser',
+  ioMeter: 'IOmeter',
+};
+
+/**
+ * `ct_t` codes reported by the B2500, the Jupiter and the Venus C / E 2.0. They
+ * are not the `meter=` codes the meter is set with. Taken from the meter list
+ * the Marstek cloud serves for a Jupiter, which agrees with the app's built-in
+ * B2500 list; CT001.5 is only in the latter. The newer Venus models report the
+ * `meter=` code instead.
+ */
+export const reportedCtTypeCodes: Record<string, ReportedMeterType> = {
+  '1': 'ct001',
+  '2': 'ct0015',
+  '3': 'ct002',
+  '4': 'shellyPro3em',
+  '5': 'p1Meter',
+  '6': 'ct003',
+  '7': 'shellyEmGen3',
+  '8': 'shellyProEm50',
+  '9': 'ecoTracker',
+  '10': 'smrP1',
+  '11': 'smrIr',
+  '12': 'smrTic',
+  '13': 'tpm2100ct',
+};
+
 /**
  * Grid recharge mode set with `cd=27,dchrg=`. The device does not report the
  * current value in any response hm2mqtt polls, so the entity reflects the last
@@ -271,7 +322,7 @@ export interface B2500V2DeviceData extends B2500BaseDeviceData {
 
   // The meter the device reports as configured (`ct_t`). Its numeric codes are
   // distinct from the ones the `cd=27,meter=` command takes.
-  ctType?: B2500CtType;
+  ctType?: ReportedMeterType;
 
   // Last grid recharge mode set via `cd=27,dchrg=` (not reported by the device)
   rechargeMode?: B2500RechargeMode;
@@ -391,23 +442,6 @@ export type VenusGridType =
   | 'china';
 
 /**
- * Venus device CT type
- */
-export type VenusCTType =
-  | 'none'
-  | 'ct001'
-  | 'ct0015'
-  | 'ct002'
-  | 'ct003'
-  | 'shellyPro3em'
-  | 'shellyEmGen3'
-  | 'shellyProEm50'
-  | 'p1Meter'
-  | 'ecoTracker'
-  | 'stromleser'
-  | 'ioMeter';
-
-/**
  * Venus device phase type
  */
 export type VenusPhaseType = 'unknown' | 'phaseA' | 'phaseB' | 'phaseC' | 'notDetected';
@@ -442,11 +476,16 @@ export function isValidVenusRechargeMode(mode: string): mode is VenusRechargeMod
 const validMeterTypes = [
   'ct001',
   'shellyPro3em',
+  'p1Meter',
   'ct002',
   'ct003',
   'shellyEmGen3',
   'shellyProEm50',
   'ecoTracker',
+  'smrP1',
+  'smrIr',
+  'smrTic',
+  'tpm2100ct',
 ] as const;
 export type MeterType = (typeof validMeterTypes)[number];
 
@@ -456,31 +495,30 @@ export function isValidMeterType(type: string): type is MeterType {
 
 /**
  * Maps a meter type to the numeric `meter` value sent with the cd=18 command.
+ * These match the meter list the Marstek cloud serves; the Venus, Jupiter and
+ * B2500 take the same codes on their own command.
  */
 export const meterTypeCommandCodes: Record<MeterType, number> = {
   ct001: 0,
   shellyPro3em: 1,
+  p1Meter: 2,
   ct002: 3,
   ct003: 4,
   shellyEmGen3: 5,
   shellyProEm50: 6,
-  // Code 7 is confirmed on the B2500. The Venus and Jupiter take the same meter
-  // codes on their own command, so it is offered there too.
   ecoTracker: 7,
+  smrP1: 8,
+  smrIr: 9,
+  smrTic: 10,
+  tpm2100ct: 11,
 };
 
 /**
  * Human-readable labels for each meter type, used for Home Assistant discovery.
  */
-export const meterTypeLabels: Record<MeterType, string> = {
-  ct001: 'CT001',
-  shellyPro3em: 'Shelly Pro 3EM',
-  ct002: 'CT002',
-  ct003: 'CT003',
-  shellyEmGen3: 'Shelly EM Gen3',
-  shellyProEm50: 'Shelly Pro EM50',
-  ecoTracker: 'EcoTracker',
-};
+export const meterTypeLabels = Object.fromEntries(
+  validMeterTypes.map(type => [type, reportedMeterTypeLabels[type]]),
+) as Record<MeterType, string>;
 
 /**
  * Normalize a user-supplied MAC address to the 12 lowercase hex digits expected
@@ -496,8 +534,8 @@ export function normalizeMeterMac(input: string): string | null {
  * Determine the MAC to send for a given meter type, applying the special rules:
  * - Shelly Pro 3EM always uses the fixed all-zero MAC.
  * - The built-in CT001 does not need a MAC and falls back to all-zeros.
- * - CT002/CT003/Shelly EM Gen3/Shelly Pro EM50 require an explicit MAC; when none
- *   has been configured this returns null so the caller can abort.
+ * - Every other meter requires an explicit MAC; when none has been configured
+ *   this returns null so the caller can abort.
  */
 export function resolveMeterMac(meterType: MeterType, configuredMac?: string): string | null {
   if (meterType === 'shellyPro3em') {
@@ -615,7 +653,7 @@ export interface VenusDeviceData extends BaseDeviceData {
   versionSet?: VenusVersionSet;
   maxChargingPower?: number;
   maxDischargePower?: number;
-  ctType?: VenusCTType;
+  ctType?: ReportedMeterType;
   phaseType?: VenusPhaseType;
   rechargeMode?: VenusRechargeMode;
   meterType?: MeterType; // last configured via cd=18
@@ -910,7 +948,7 @@ export interface JupiterDeviceData extends BaseDeviceData {
   autoSwitchWorkingMode?: number; // cts_m
   httpServerType?: number; // htt_p
   wifiSignalStrength?: number; // wif_s
-  ctType?: number; // ct_t
+  ctType?: ReportedMeterType; // ct_t
   phaseType?: number; // phase_t
   rechargeMode?: JupiterRechargeMode; // dchrg
   meterType?: MeterType; // last configured via cd=18

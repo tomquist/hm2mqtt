@@ -18,6 +18,8 @@ import {
   meterTypeCommandCodes,
   meterTypeLabels,
   normalizeMeterMac,
+  reportedCtTypeCodes,
+  reportedMeterTypeLabels,
   resolveMeterMac,
   WeekdaySet,
   JupiterTimePeriod,
@@ -454,12 +456,15 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'measurement',
       }),
     );
-    field({ key: 'ct_t', path: ['ctType'], transform: number() });
+    // The meter the device is currently configured for, in the same code
+    // space as the B2500 rather than the `meter=` codes it is set with.
+    field({ key: 'ct_t', path: ['ctType'], transform: map(reportedCtTypeCodes) });
     advertise(
       ['ctType'],
-      sensorComponent<number>({
+      sensorComponent<NonNullable<JupiterDeviceData['ctType']>>({
         id: 'ct_type',
         name: 'CT Type',
+        valueMappings: reportedMeterTypeLabels,
       }),
     );
     field({ key: 'phase_t', path: ['phaseType'], transform: number() });

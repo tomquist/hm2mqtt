@@ -694,7 +694,7 @@ Applies to HMG/VNSE3/VNSA/VNSD. None of the commands below are available on the 
 - `working-mode`: Sets working mode (`automatic`, `manual`, `trading`, or `ai`). The `ai` value expands to `cd=2,md=5,nl=1` (AI mode requires both `md=5` and `nl=1`).
 - `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`)
 - `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped). The device does not report this back, so the entity shows the last value set.
-- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50` or `ecoTracker`). For CT002/CT003 and the Shelly EM Gen3/Pro EM50, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC. The device does not report this back, so the entity shows the last value set.
+- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `p1Meter`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50`, `ecoTracker`, `smrP1`, `smrIr`, `smrTic` or `tpm2100ct`). For every meter except the CT001 and the Shelly Pro 3EM, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC. The device does not report this back, so the entity shows the last value set.
 - `auto-switch-working-mode`: Toggles automatic mode switching (`on` or `off`)
 - `time-period/[0-9]/enabled`: Enables/disables time period (`on` or `off`)
 - `time-period/[0-9]/start-time`: Sets start time for period (HH:MM format)
@@ -762,10 +762,11 @@ Venus commands above.
   mode back, so the *Working Mode* entity shows its real state.
 - `meter-mac`: Sets the MAC address used when configuring an external meter
   (12 hex digits, no separators). Shows the last value set. Disabled by default.
-- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `ct002`,
-  `ct003`, `shellyEmGen3`, `shellyProEm50` or `ecoTracker`) — the same command
-  and the same meter codes as the other families. For CT002/CT003 and the Shelly
-  EM Gen3/Pro EM50, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero
+- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`,
+  `p1Meter`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50`, `ecoTracker`,
+  `smrP1`, `smrIr`, `smrTic` or `tpm2100ct`) — the same command and the same
+  meter codes as the other families. For every meter except the CT001 and the
+  Shelly Pro 3EM, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero
   MAC. Shows the last value set. Disabled by default.
 - `refresh`: Refreshes the device data. Disabled by default.
 - `get-ct-power`: Gets current transformer power readings. Disabled by default.
@@ -815,7 +816,7 @@ The following commands are supported by both Jupiter C, Jupiter E and Jupiter Pl
 - `working-mode`: Sets working mode (`automatic`, `manual`, or `ai`). The `ai` value expands to `cd=2,md=5,nl=1` (AI mode requires both `md=5` and `nl=1`).
 - `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`)
 - `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped). The device does not report this back, so the entity shows the last value set.
-- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50` or `ecoTracker`). For CT002/CT003 and the Shelly EM Gen3/Pro EM50, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC. The device does not report this back, so the entity shows the last value set.
+- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `p1Meter`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50`, `ecoTracker`, `smrP1`, `smrIr`, `smrTic` or `tpm2100ct`). For every meter except the CT001 and the Shelly Pro 3EM, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC. The device does not report this back, so the entity shows the last value set.
 - `bluetooth-advertising`: Toggles Bluetooth advertising (`on` enables advertising, `off` disables it / "Bluetooth lock"). Requires firmware 141 or newer.
 - `phase-diagnosis`: Starts the grid-phase detection routine
 - `battery-pack-recovery`: Reactivates an unresponsive battery pack. Jupiter Plus only, firmware 135 or newer.

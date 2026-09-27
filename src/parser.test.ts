@@ -215,6 +215,19 @@ describe('MQTT Message Parser', () => {
     expect((without['data'] as B2500V2DeviceData).wifiSignalStrength).toBeUndefined();
   });
 
+  test.each([
+    ['1', 'ct001'],
+    ['2', 'ct0015'],
+    ['6', 'ct003'],
+    ['9', 'ecoTracker'],
+    ['10', 'smrP1'],
+    ['13', 'tpm2100ct'],
+  ])('decodes B2500 ct_t=%s as %s', (ctT, expected) => {
+    const base = 'pe=75,kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0';
+    const parsed = parseMessage(`${base},ct_t=${ctT}`, 'HMA-1', '12345');
+    expect((parsed['data'] as B2500V2DeviceData).ctType).toBe(expected);
+  });
+
   test('should drop the CT sensor no-reading sentinel from the power fields', () => {
     const base = 'pe=75,kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0';
     const ctInfo = (fields: string) =>
@@ -716,7 +729,8 @@ describe('MQTT Message Parser', () => {
     // Device information
     expect(result).toHaveProperty('httpServerType', 0);
     expect(result).toHaveProperty('wifiSignalStrength', -75);
-    expect(result).toHaveProperty('ctType', 4);
+    // Jupiter reports ct_t in the B2500 code space, where 4 is a Shelly Pro 3EM.
+    expect(result).toHaveProperty('ctType', 'shellyPro3em');
     expect(result).toHaveProperty('phaseType', 1);
     expect(result).toHaveProperty('rechargeMode', 'threePhase');
     expect(result).toHaveProperty('deviceVersion', 134);
@@ -1283,6 +1297,9 @@ describe('MQTT Message Parser', () => {
     ['HMG-25', '4', 'shellyPro3em'],
     ['HMG-25', '5', 'p1Meter'],
     ['HMG-25', '0', 'none'],
+    ['HMG-25', '12', 'smrTic'],
+    ['VNSA-0', '8', 'smrP1'],
+    ['VNSD-0', '11', 'tpm2100ct'],
   ])('maps %s ct_t=%s to %s', (deviceType, ctT, expected) => {
     // Venus C / E 2.0 (HMG) report ct_t in their own code space; the newer
     // models report the cd=18 meter= code (a CT003 reads 4 there, 6 on HMG).
