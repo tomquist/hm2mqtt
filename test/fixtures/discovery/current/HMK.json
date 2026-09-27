@@ -1208,7 +1208,7 @@
           "topic": "hm2mqtt/HMK/availability/0123456789ab"
         }
       ],
-      "command_template": "{% set mapping = {\"CT001\":\"ct001\",\"Shelly Pro 3EM\":\"shellyPro3em\",\"CT002\":\"ct002\",\"CT003\":\"ct003\",\"Shelly EM Gen3\":\"shellyEmGen3\",\"Shelly Pro EM50\":\"shellyProEm50\",\"EcoTracker\":\"ecoTracker\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
+      "command_template": "{% set mapping = {\"CT001\":\"ct001\",\"Shelly Pro 3EM\":\"shellyPro3em\",\"P1 Meter\":\"p1Meter\",\"CT002\":\"ct002\",\"CT003\":\"ct003\",\"Shelly EM Gen3\":\"shellyEmGen3\",\"Shelly Pro EM50\":\"shellyProEm50\",\"EcoTracker\":\"ecoTracker\",\"SMR-P1\":\"smrP1\",\"SMR-IR\":\"smrIr\",\"SMR-TIC\":\"smrTic\",\"TPM2-100CT\":\"tpm2100ct\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
       "command_topic": "hm2mqtt/HMK/control/0123456789ab/meter-type",
       "device": {
         "connections": [["bluetooth", "01:23:45:67:89:AB"]],
@@ -1223,11 +1223,16 @@
       "options": [
         "CT001",
         "Shelly Pro 3EM",
+        "P1 Meter",
         "CT002",
         "CT003",
         "Shelly EM Gen3",
         "Shelly Pro EM50",
-        "EcoTracker"
+        "EcoTracker",
+        "SMR-P1",
+        "SMR-IR",
+        "SMR-TIC",
+        "TPM2-100CT"
       ],
       "origin": {
         "name": "hm2mqtt",
@@ -1709,7 +1714,7 @@
       },
       "state_topic": "hm2mqtt/HMK/device/0123456789ab/data",
       "unique_id": "0123456789ab_ct_type",
-      "value_template": "{% set mapping = {\"ct001\":\"CT001\",\"ct002\":\"CT002\",\"ct003\":\"CT003\",\"shellyPro3em\":\"Shelly Pro 3EM\",\"shellyEmGen3\":\"Shelly EM Gen3\",\"shellyProEm50\":\"Shelly Pro EM50\",\"p1Meter\":\"P1 Meter\",\"ecoTracker\":\"EcoTracker\"} %}{% set stringifiedValue = value_json.ctType | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
+      "value_template": "{% set mapping = {\"none\":\"No Meter Detected\",\"ct001\":\"CT001\",\"ct0015\":\"CT001.5\",\"ct002\":\"CT002\",\"ct003\":\"CT003\",\"shellyPro3em\":\"Shelly Pro 3EM\",\"shellyEmGen3\":\"Shelly EM Gen3\",\"shellyProEm50\":\"Shelly Pro EM50\",\"p1Meter\":\"P1 Meter\",\"ecoTracker\":\"EcoTracker\",\"smrP1\":\"SMR-P1\",\"smrIr\":\"SMR-IR\",\"smrTic\":\"SMR-TIC\",\"tpm2100ct\":\"TPM2-100CT\",\"stromleser\":\"Stromleser\",\"ioMeter\":\"IOmeter\"} %}{% set stringifiedValue = value_json.ctType | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
     },
     "homeassistant/sensor/HMK_0123456789ab/diff_cell_voltage_extra1/config": null,
     "homeassistant/sensor/HMK_0123456789ab/diff_cell_voltage_extra2/config": null,

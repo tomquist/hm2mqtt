@@ -13,11 +13,13 @@ import {
   meterTypeCommandCodes,
   meterTypeLabels,
   normalizeMeterMac,
+  ReportedMeterType,
+  reportedCtTypeCodes,
+  reportedMeterTypeLabels,
   resolveMeterMac,
   VenusBMSInfo,
   VenusBMSPackInfo,
   VenusBMSPackDetail,
-  VenusCTType,
   VenusDeviceData,
   VenusTimePeriod,
   VenusVersionSet,
@@ -293,26 +295,19 @@ function isVenusRuntimeInfoMessage(values: Record<string, string>): boolean {
 
 // The meter the device is currently configured for is reported as `ct_t`, but
 // the two Venus families report it in different code spaces. The Venus C and
-// Venus E 2.0 (HMG) use the same codes as the B2500, which differ from the
-// `meter=` codes used to set the meter. The newer models (VNSE3, VNSA, VNSD)
-// report the `meter=` code itself, so e.g. a CT003 reads 4 there but 6 on HMG.
-const hmgCtTypeCodes: Record<string, VenusCTType> = {
+// Venus E 2.0 (HMG) use the same codes as the B2500 and the Jupiter, which
+// differ from the `meter=` codes used to set the meter. The newer models (VNSE3,
+// VNSA, VNSD) report the `meter=` code itself, so e.g. a CT003 reads 4 there but
+// 6 on HMG.
+const hmgCtTypeCodes: Record<string, ReportedMeterType> = {
+  ...reportedCtTypeCodes,
   '0': 'none',
-  '1': 'ct001',
-  '2': 'ct0015',
-  '3': 'ct002',
-  '4': 'shellyPro3em',
-  '5': 'p1Meter',
-  '6': 'ct003',
-  '7': 'shellyEmGen3',
-  '8': 'shellyProEm50',
-  '9': 'ecoTracker',
   '14': 'stromleser',
   '15': 'ioMeter',
 };
 // On these models 0 is the CT001's `meter=` code, so a unit without any meter
 // configured cannot be told apart from one using a CT001.
-const vnsCtTypeCodes: Record<string, VenusCTType> = {
+const vnsCtTypeCodes: Record<string, ReportedMeterType> = {
   '0': 'ct001',
   '1': 'shellyPro3em',
   '2': 'p1Meter',
@@ -321,6 +316,10 @@ const vnsCtTypeCodes: Record<string, VenusCTType> = {
   '5': 'shellyEmGen3',
   '6': 'shellyProEm50',
   '7': 'ecoTracker',
+  '8': 'smrP1',
+  '9': 'smrIr',
+  '10': 'smrTic',
+  '11': 'tpm2100ct',
   '12': 'stromleser',
   '13': 'ioMeter',
 };
@@ -375,7 +374,7 @@ registerDeviceDefinition(
 
 function registerRuntimeInfoMessage(
   message: BuildMessageFn,
-  { ctTypeCodes = vnsCtTypeCodes }: { ctTypeCodes?: Record<string, VenusCTType> } = {},
+  { ctTypeCodes = vnsCtTypeCodes }: { ctTypeCodes?: Record<string, ReportedMeterType> } = {},
 ) {
   let options = {
     refreshDataPayload: 'cd=1',
@@ -819,20 +818,7 @@ function registerRuntimeInfoMessage(
         id: 'ct_type',
         name: 'CT Type',
         icon: 'mdi:current-ac',
-        valueMappings: {
-          none: 'No Meter Detected',
-          ct001: 'CT001',
-          ct0015: 'CT001.5',
-          ct002: 'CT002',
-          ct003: 'CT003',
-          shellyPro3em: 'Shelly Pro 3EM',
-          shellyEmGen3: 'Shelly EM Gen3',
-          shellyProEm50: 'Shelly Pro EM50',
-          p1Meter: 'P1 Meter',
-          ecoTracker: 'EcoTracker',
-          stromleser: 'Stromleser',
-          ioMeter: 'IOmeter',
-        },
+        valueMappings: reportedMeterTypeLabels,
       }),
     );
 

@@ -7,6 +7,8 @@ import {
   meterTypeCommandCodes,
   meterTypeLabels,
   normalizeMeterMac,
+  reportedCtTypeCodes,
+  reportedMeterTypeLabels,
   resolveMeterMac,
   isValidMeterType,
   isValidB2500RechargeMode,
@@ -630,32 +632,14 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'ct_t',
       path: ['ctType'],
-      transform: map({
-        '1': 'ct001',
-        '3': 'ct002',
-        '4': 'shellyPro3em',
-        '5': 'p1Meter',
-        '6': 'ct003',
-        '7': 'shellyEmGen3',
-        '8': 'shellyProEm50',
-        '9': 'ecoTracker',
-      }),
+      transform: map(reportedCtTypeCodes),
     });
     advertise(
       ['ctType'],
       sensorComponent<NonNullable<B2500V2DeviceData['ctType']>>({
         id: 'ct_type',
         name: 'CT Type',
-        valueMappings: {
-          ct001: 'CT001',
-          ct002: 'CT002',
-          ct003: 'CT003',
-          shellyPro3em: 'Shelly Pro 3EM',
-          shellyEmGen3: 'Shelly EM Gen3',
-          shellyProEm50: 'Shelly Pro EM50',
-          p1Meter: 'P1 Meter',
-          ecoTracker: 'EcoTracker',
-        },
+        valueMappings: reportedMeterTypeLabels,
         enabled_by_default: false,
       }),
     );

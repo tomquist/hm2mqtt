@@ -252,8 +252,8 @@ The two Venus families report `ct_t` in different code spaces:
   code that the `meter=` parameter of [`cd=18`](#141-public) takes. A CT003
   therefore reads `4`.
 - **Venus C and Venus E 2.0** (`HMG`) use a separate code space, the same one
-  the B2500 uses (see [docs/b2500.md](b2500.md)). Here a CT003 reads `6`, and
-  `4` is a Shelly Pro 3EM.
+  the B2500 and the Jupiter use (see [docs/b2500.md](b2500.md)). Here a CT003
+  reads `6`, and `4` is a Shelly Pro 3EM.
 
 | Meter | `meter=` (command) | `ct_t` on VNSE3/VNSA/VNSD | `ct_t` on HMG |
 |---|---|---|---|
@@ -267,6 +267,10 @@ The two Venus families report `ct_t` in different code spaces:
 | Shelly EM Gen3 | 5 | 5 | 7 |
 | Shelly Pro EM50 | 6 | 6 | 8 |
 | EcoTracker | 7 | 7 | 9 |
+| SMR-P1 | 8 | 8 | 10 |
+| SMR-IR | 9 | 9 | 11 |
+| SMR-TIC | 10 | 10 | 12 |
+| TPM2-100CT | 11 | 11 | 13 |
 | Stromleser | — | 12 | 14 |
 | IOmeter | — | 13 | 15 |
 
