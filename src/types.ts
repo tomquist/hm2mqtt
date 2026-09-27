@@ -393,7 +393,19 @@ export type VenusGridType =
 /**
  * Venus device CT type
  */
-export type VenusCTType = 'none' | 'ct1' | 'ct2' | 'ct3' | 'shellyPro' | 'p1Meter';
+export type VenusCTType =
+  | 'none'
+  | 'ct001'
+  | 'ct0015'
+  | 'ct002'
+  | 'ct003'
+  | 'shellyPro3em'
+  | 'shellyEmGen3'
+  | 'shellyProEm50'
+  | 'p1Meter'
+  | 'ecoTracker'
+  | 'stromleser'
+  | 'ioMeter';
 
 /**
  * Venus device phase type

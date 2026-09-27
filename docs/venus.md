@@ -76,6 +76,9 @@
 29. [Configure parallel operation](#29-configure-parallel-operation)
     1. [Public](#291-public)
     2. [Receive](#292-receive)
+30. [Read BMS info](#30-read-bms-info)
+    1. [Public](#301-public)
+    2. [Receive](#302-receive)
 
 ## 1 MQTT Core Concepts
 
@@ -183,7 +186,7 @@ Description of the above parameters:
 | set_v | Power version — a *code* for the device's rated output power, not a wattage (see [Set version](#11-set-version)). The resulting power is reported back as `mdp_w`. |
 | mcp_w | Maximum charging power (Not exceeding 2500W) |
 | mdp_w | Maximum discharge power (Not exceeding 2500W) |
-| ct_t | CT type (0: No meter detected; 1: CT1; 2: CT2; 3: CT3; 4: Shelly pro; 5: p1 meter) |
+| ct_t | The meter the device is currently configured for. The code space depends on the model — see [Reported meter type](#reported-meter-type-ct_t) |
 | phase_t | The phase where the device is located (0: Unknown; 1: Phase A; 2: Phase B; 3: Phase C; 4: Not detected) |
 | dchrg_t | Recharge mode (0: Single phase power supply; 1: Three phase power supply) |
 | bms_v | BMS version number |
@@ -240,6 +243,35 @@ guesses based on context and cross-referencing other commands:
 > is not something the payload reveals. On the devices observed so far `gp`
 > matched `grd_o` exactly, while `bp` and `rp` differed slightly (e.g. `bp=291`
 > vs `rp=347`), and all three only appear on models with PV inputs (Venus A/D).
+
+#### Reported meter type (`ct_t`)
+
+The two Venus families report `ct_t` in different code spaces:
+
+- **Venus E 3.0, Venus A and Venus D** (`VNSE3`, `VNSA`, `VNSD`) report the same
+  code that the `meter=` parameter of [`cd=18`](#141-public) takes. A CT003
+  therefore reads `4`.
+- **Venus C and Venus E 2.0** (`HMG`) use a separate code space, the same one
+  the B2500 uses (see [docs/b2500.md](b2500.md)). Here a CT003 reads `6`, and
+  `4` is a Shelly Pro 3EM.
+
+| Meter | `meter=` (command) | `ct_t` on VNSE3/VNSA/VNSD | `ct_t` on HMG |
+|---|---|---|---|
+| No meter configured | — | — | 0 |
+| CT001 | 0 | 0 | 1 |
+| CT001.5 | 0 | — | 2 |
+| Shelly Pro 3EM | 1 | 1 | 4 |
+| P1 Meter | 2 | 2 | 5 |
+| CT002 | 3 | 3 | 3 |
+| CT003 | 4 | 4 | 6 |
+| Shelly EM Gen3 | 5 | 5 | 7 |
+| Shelly Pro EM50 | 6 | 6 | 8 |
+| EcoTracker | 7 | 7 | 9 |
+| Stromleser | — | 12 | 14 |
+| IOmeter | — | 13 | 15 |
+
+On VNSE3/VNSA/VNSD, `0` is the CT001's code, so a unit with no meter configured
+cannot be told apart from one that uses a CT001.
 
 ## 4 Set working status
 
@@ -858,7 +890,7 @@ identical. `bms_idx=0` returns a whole-system aggregate (no per-cell data; it
 reports system-wide fields such as `num`/`mask`). `bms_idx=N` (`N >= 1`) returns
 the per-cell detail for one pack and maps to **pack `N+1`**: `bms_idx=1` is the
 second pack ("Pack 2"). The first pack's individual cells are reported by the
-`cd=14` BMS-info response instead. A pack only returns data when its present-pack
+`cd=14` BMS-info response instead (see [Read BMS info](#30-read-bms-info)). A pack only returns data when its present-pack
 bit is set in the `mask` above (`bms_idx=N` ↔ bit `N`); absent indices report all
 zeros.
 
@@ -1067,3 +1099,47 @@ not support parallel operation report `255`.
 The `pm=1` "wiring check" is the app's own verification step, shown as *Wiring
 Check* in the status line; the app runs it and asks the user to follow the
 on-screen instructions before it sends `pm=2`.
+
+## 30 Read BMS info
+
+Returns the state of the first battery pack, including its individual cell
+voltages. The other packs are read with [`cd=42,bms_idx=N`](#243-per-pack-detail-bms_idxn).
+
+### 30.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+```
+cd=14
+```
+
+### 30.2 Receive
+
+Real Venus A response with 13 cells:
+```
+b_ver=109,b_chv=468,b_rci=500,b_rdi=500,b_soc=67,b_soh=0,b_cap=4160,b_vol=4386,b_cur=207,b_tem=37,b_chf=3,b_slf=0,b_cpc=278,b_err=0,b_war=165,b_ret=0,b_ent=413,b_mot=388,b_tp1=365,b_tp2=364,b_tp3=364,b_tp4=373,b_vo1=3340,b_vo2=3340,b_vo3=3340,b_vo4=3341,b_vo5=3341,b_vo6=3341,b_vo7=3340,b_vo8=3341,b_vo9=3341,b_vo10=3340,b_vo11=3341,b_vo12=3341,b_vo13=3341,b_vo14=0,b_vo15=0,b_vo16=0
+```
+
+| Key | Description |
+|-----|-------------|
+| b_ver | BMS firmware version |
+| b_chv | Charge voltage (0.1 V; `468` = 46.8 V) |
+| b_soc | State of charge (%) |
+| b_soh | State of health (%). Some firmware reports `0` |
+| b_vol | Pack voltage (0.01 V; `4386` = 43.86 V) |
+| b_cur | Pack current (0.1 A; negative while discharging) |
+| b_tem | Temperature *(unit unconfirmed: a Venus A reported `37`, another Venus `250`)* |
+| b_mot | MOSFET temperature (0.1 °C on Venus A/D, °C on the other models) |
+| b_tp1 … b_tp4 | Temperature sensors (0.1 °C on Venus A/D, °C on the other models) |
+| b_vo1 … b_vo16 | Individual cell voltages (mV); cells a pack does not have report `0` |
+
+This response has four temperature sensors (`b_tp1` … `b_tp4`), where the
+`cd=42` per-pack response has five, and reports each cell voltage in its own
+key instead of the pipe-separated `b_vol` list `cd=42` uses.
+
+The meaning and units of the other keys (`b_rci`, `b_rdi`, `b_cap`, `b_chf`,
+`b_slf`, `b_cpc`, `b_err`, `b_war`, `b_ret`, `b_ent`) are not confirmed yet.

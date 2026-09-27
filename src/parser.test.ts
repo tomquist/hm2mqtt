@@ -1274,6 +1274,25 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('pvEnergyTotal', 570);
   });
 
+  test.each([
+    ['VNSA-0', '4', 'ct003'],
+    ['VNSA-0', '1', 'shellyPro3em'],
+    ['VNSE3-0', '2', 'p1Meter'],
+    ['VNSD-0', '7', 'ecoTracker'],
+    ['HMG-25', '6', 'ct003'],
+    ['HMG-25', '4', 'shellyPro3em'],
+    ['HMG-25', '5', 'p1Meter'],
+    ['HMG-25', '0', 'none'],
+  ])('maps %s ct_t=%s to %s', (deviceType, ctT, expected) => {
+    // Venus C / E 2.0 (HMG) report ct_t in their own code space; the newer
+    // models report the cd=18 meter= code (a CT003 reads 4 there, 6 on HMG).
+    const message = `cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0,ct_t=${ctT}`;
+    const parsed = parseMessage(message, deviceType, 'venus123');
+
+    const result = parsed['data'] as VenusDeviceData;
+    expect(result).toHaveProperty('ctType', expected);
+  });
+
   test('parses Venus metering, pricing and version fields', () => {
     // Full Venus D dump exercising the CT/phase/pricing/version sensors.
     const message =
@@ -1287,7 +1306,8 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('dischargePrice', 0.003);
     // WiFi signal strength is negated into a dBm-style value
     expect(result).toHaveProperty('wifiSignalStrength', -72);
-    expect(result).toHaveProperty('ctType', 'ct3');
+    // Venus D reports the cd=18 meter= code, so 3 is a CT002.
+    expect(result).toHaveProperty('ctType', 'ct002');
     expect(result).toHaveProperty('phaseType', 'phaseA');
     expect(result).toHaveProperty('rechargeMode', 'threePhase');
     expect(result).toHaveProperty('bmsVersion', 116);
