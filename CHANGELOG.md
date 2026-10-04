@@ -3,7 +3,7 @@
 
 ### Fixed
 
-- Devices were regularly read a whole *Polling Interval* late: a poll that was due was skipped when its timer fired on time, so some readings arrived after two intervals instead of one
+- Devices were regularly read a whole *Polling Interval* late, because a poll that was due got skipped (PR #456)
 
 ## [1.10.1] - 2026-10-04
 
