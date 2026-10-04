@@ -17,6 +17,8 @@
  *   --log-level <lvl>  LOG_LEVEL of the measured process (default info)
  *   --runs <n>         repeat the measurement and report each run (default 1)
  *   --json <file>      also write the per-run summaries as JSON
+ *   --samples <file>   also write every raw sample of the last run as JSON, e.g. to
+ *                      check whether the heap's post-GC floor rises over a long run
  *   --node-arg <arg>   pass a flag to the measured node process (repeatable)
  *   --dist <dir>       build to measure, relative to the repo (default dist), so
  *                      two builds can be compared, e.g. one of the base branch:
@@ -53,6 +55,7 @@ interface Options {
   nodeArgs: string[];
   docker?: string;
   dist: string;
+  samples?: string;
 }
 
 function parseOptions(argv: string[]): Options {
@@ -93,6 +96,9 @@ function parseOptions(argv: string[]): Options {
         break;
       case '--node-arg':
         options.nodeArgs.push(next());
+        break;
+      case '--samples':
+        options.samples = next();
         break;
       case '--dist':
         options.dist = next();
@@ -330,6 +336,10 @@ async function measureOnce(options: Options): Promise<RunSummary> {
   });
   await Promise.all(devices.map(device => device.stop()));
   await broker.stop();
+
+  if (options.samples) {
+    writeFileSync(options.samples, JSON.stringify({ procSamples, heapSamples }));
+  }
 
   // Startup is everything up to 10 s; steady state is the last half of the run.
   const startup = procSamples.filter(s => s.t <= 10);
