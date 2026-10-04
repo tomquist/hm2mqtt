@@ -5,6 +5,10 @@
 
 - hm2mqtt uses about 20 MB less memory, roughly a fifth less than before (PR #455)
 
+### Fixed
+
+- Devices were regularly read a whole *Polling Interval* late, because a poll that was due got skipped (PR #456)
+
 ## [1.10.1] - 2026-10-04
 
 ### Added
