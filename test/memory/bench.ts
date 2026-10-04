@@ -24,6 +24,8 @@
  *                      two builds can be compared, e.g. one of the base branch:
  *                      git worktree add /tmp/base develop && (cd /tmp/base && npm ci && npm run build)
  *                      && mkdir -p .bench/base && cp -r /tmp/base/dist .bench/base/
+ *   --runtime <name>   with --docker: node (default), bun or deno, the
+ *                      command the image runs hm2mqtt with
  *   --docker <image>   run the measured process in this image instead, e.g.
  *                      node:26-alpine, the base of the published images. The
  *                      container shares the host network and mounts the repo
@@ -54,6 +56,7 @@ interface Options {
   json?: string;
   nodeArgs: string[];
   docker?: string;
+  runtime: 'node' | 'bun' | 'deno';
   dist: string;
   samples?: string;
 }
@@ -68,6 +71,7 @@ function parseOptions(argv: string[]): Options {
     runs: 1,
     nodeArgs: [],
     dist: 'dist',
+    runtime: 'node',
   };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -100,6 +104,14 @@ function parseOptions(argv: string[]): Options {
       case '--samples':
         options.samples = next();
         break;
+      case '--runtime': {
+        const runtime = next();
+        if (runtime !== 'node' && runtime !== 'bun' && runtime !== 'deno') {
+          throw new Error(`Unknown runtime ${runtime}`);
+        }
+        options.runtime = runtime;
+        break;
+      }
       case '--dist':
         options.dist = next();
         break;
@@ -235,6 +247,32 @@ async function measureOnce(options: Options): Promise<RunSummary> {
     resolve(root, options.dist, 'index.js'),
   ];
 
+  /** The command line the container runs, for the runtime the image provides. */
+  const runtimeCommand = (opts: Options, root: string) => {
+    const probe = resolve(root, PROBE_PATH);
+    const entry = resolve(root, opts.dist, 'index.js');
+    switch (opts.runtime) {
+      case 'bun':
+        return ['bun', ...opts.nodeArgs, '--require', probe, entry];
+      case 'deno':
+        // The repo is mounted read-only: use its node_modules as they are and
+        // do not try to write a lockfile.
+        return [
+          'deno',
+          'run',
+          '-A',
+          '--no-lock',
+          '--node-modules-dir=manual',
+          ...opts.nodeArgs,
+          '--preload',
+          probe,
+          entry,
+        ];
+      default:
+        return ['node', ...nodeArgs(root)];
+    }
+  };
+
   const containerName = `hm2mqtt-memory-bench-${process.pid}-${Date.now()}`;
   const child = options.docker
     ? spawn(
@@ -251,9 +289,12 @@ async function measureOnce(options: Options): Promise<RunSummary> {
           '-w',
           '/app',
           ...Object.entries(env).flatMap(([key, value]) => ['-e', `${key}=${value}`]),
+          // The runtime itself is the entrypoint, so the container's main process,
+          // the one measured, is hm2mqtt and not an image's wrapper script.
+          '--entrypoint',
+          runtimeCommand(options, '/app')[0],
           options.docker,
-          'node',
-          ...nodeArgs('/app'),
+          ...runtimeCommand(options, '/app').slice(1),
         ],
         { stdio: ['ignore', 'pipe', 'pipe'] },
       )
@@ -377,7 +418,7 @@ async function main() {
       `${options.devices * deviceFixtures.length} device(s), poll ${options.poll}s, ` +
       `proxy ${options.proxy ? 'on' : 'off'}, log level ${options.logLevel}` +
       (options.nodeArgs.length ? `, node ${options.nodeArgs.join(' ')}` : '') +
-      (options.docker ? `, in ${options.docker}` : ''),
+      (options.docker ? `, ${options.runtime} in ${options.docker}` : ''),
   );
 
   const summaries: RunSummary[] = [];
