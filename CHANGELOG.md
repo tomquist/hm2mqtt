@@ -3,7 +3,7 @@
 
 ### Changed
 
-- hm2mqtt uses about 20 MB less memory, roughly a fifth less than before (PR #455)
+- hm2mqtt uses about 40% less memory (PR #455)
 
 ### Fixed
 

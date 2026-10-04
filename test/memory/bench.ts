@@ -353,6 +353,14 @@ async function measureOnce(options: Options): Promise<RunSummary> {
         stdio: ['ignore', 'pipe', 'pipe'],
       });
 
+  abortRun = () => {
+    if (options.docker) {
+      spawnSync('docker', ['rm', '-f', containerName], { stdio: 'ignore' });
+    } else {
+      child.kill('SIGKILL');
+    }
+  };
+
   let output = '';
   const heapSamples: HeapSample[] = [];
   const spawnedAt = Date.now();
@@ -425,6 +433,7 @@ async function measureOnce(options: Options): Promise<RunSummary> {
       resolveExit();
     });
   });
+  abortRun = undefined;
   await Promise.all(devices.map(device => device.stop()));
   await broker.stop();
 
@@ -436,9 +445,11 @@ async function measureOnce(options: Options): Promise<RunSummary> {
     throw new Error(`No memory samples were collected:\n${output.slice(-4000)}`);
   }
 
-  // Startup is everything up to 10 s; steady state is the last half of the run.
-  const startup = procSamples.filter(s => s.t <= 10);
-  const half = options.duration / 2;
+  // Measured from the first sample, not from the spawn: a container can take a
+  // while to start. Startup is the first 10 s, steady state the second half.
+  const first = procSamples[0].t;
+  const half = first + (procSamples[procSamples.length - 1].t - first) / 2;
+  const startup = procSamples.filter(s => s.t - first <= 10);
   const steady = procSamples.filter(s => s.t >= half);
   const steadyHeap = heapSamples.filter(s => s.t >= half);
 
@@ -462,6 +473,20 @@ async function measureOnce(options: Options): Promise<RunSummary> {
     steadyExternalMb: steadyHeap.length ? median(steadyHeap.map(s => s.external)) / MB : undefined,
     messagesReceived,
   };
+}
+
+/**
+ * Stops the process or container of the run in progress. Called when the
+ * benchmark is interrupted or fails, so neither is left running, the proxy's
+ * listener included.
+ */
+let abortRun: (() => void) | undefined;
+
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(signal, () => {
+    abortRun?.();
+    process.exit(130);
+  });
 }
 
 async function main() {
@@ -506,5 +531,6 @@ async function main() {
 
 main().catch(error => {
   console.error(error);
+  abortRun?.();
   process.exit(1);
 });
