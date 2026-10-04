@@ -161,17 +161,17 @@ export interface RunSummary {
 
 async function measureOnce(options: Options): Promise<RunSummary> {
   const broker = await startBroker();
-  const devices: SimulatedDevice[] = [];
+  const configured = deviceFixtures.flatMap(fixture =>
+    Array.from({ length: options.devices }, () => fixture),
+  );
   const deviceEnv: Record<string, string> = {};
-  let index = 0;
-  for (const fixture of deviceFixtures) {
-    for (let copy = 0; copy < options.devices; copy++) {
+  const devices: SimulatedDevice[] = await Promise.all(
+    configured.map((fixture, index) => {
       const deviceId = `bench${String(index).padStart(4, '0')}`;
-      devices.push(await startSimulatedDevice(broker.url, fixture, deviceId));
       deviceEnv[`DEVICE_${index}`] = `${fixture.deviceType}:${deviceId}`;
-      index++;
-    }
-  }
+      return startSimulatedDevice(broker.url, fixture, deviceId);
+    }),
+  );
 
   // Count what hm2mqtt publishes, so a run that silently stopped working is
   // never mistaken for one that got cheaper.
@@ -257,9 +257,7 @@ async function measureOnce(options: Options): Promise<RunSummary> {
       resolveExit();
     });
   });
-  for (const device of devices) {
-    await device.stop();
-  }
+  await Promise.all(devices.map(device => device.stop()));
   await broker.stop();
 
   // Startup is everything up to 10 s; steady state is the last half of the run.
@@ -297,6 +295,8 @@ async function main() {
 
   const summaries: RunSummary[] = [];
   for (let run = 1; run <= options.runs; run++) {
+    // Runs must not overlap: each one measures a process on its own.
+    // oxlint-disable-next-line no-await-in-loop
     const summary = await measureOnce(options);
     summaries.push(summary);
     const fmt = (value: number | undefined, digits = 1) =>
