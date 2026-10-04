@@ -76,15 +76,30 @@ function parseOptions(argv: string[]): Options {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const next = () => argv[++i];
+    const positive = (integer = false) => {
+      const raw = next();
+      const value = Number(raw);
+      if (
+        raw === undefined ||
+        !Number.isFinite(value) ||
+        value <= 0 ||
+        (integer && !Number.isInteger(value))
+      ) {
+        throw new Error(
+          `${arg} needs a positive ${integer ? 'integer' : 'number'}, got ${raw ?? 'nothing'}`,
+        );
+      }
+      return value;
+    };
     switch (arg) {
       case '--duration':
-        options.duration = Number(next());
+        options.duration = positive();
         break;
       case '--devices':
-        options.devices = Number(next());
+        options.devices = positive(true);
         break;
       case '--poll':
-        options.poll = Number(next());
+        options.poll = positive();
         break;
       case '--proxy':
         options.proxy = true;
@@ -93,7 +108,7 @@ function parseOptions(argv: string[]): Options {
         options.logLevel = next();
         break;
       case '--runs':
-        options.runs = Number(next());
+        options.runs = positive(true);
         break;
       case '--json':
         options.json = next();
@@ -134,6 +149,8 @@ interface ProcSample {
   rssAnon: number;
   hwm: number;
   threads: number;
+  /** Container memory as `docker stats` reports it; only with --docker. */
+  container?: number;
 }
 
 interface HeapSample {
@@ -172,6 +189,37 @@ function containerPid(name: string): number {
   return Number.isInteger(pid) && pid > 0 ? pid : 0;
 }
 
+/**
+ * The memory of the cgroup a process runs in, computed the way `docker stats`
+ * (and so the Home Assistant Supervisor) does: usage minus the inactive file
+ * cache. Mapped executables and libraries mostly sit in that cache, so this is
+ * close to the private memory of the container, not to its RSS.
+ */
+function readContainerMemory(pid: number): number | undefined {
+  try {
+    const cgroups = readFileSync(`/proc/${pid}/cgroup`, 'utf8');
+    const v1 = /^\d+:memory:(.*)$/m.exec(cgroups);
+    if (v1) {
+      const dir = `/sys/fs/cgroup/memory${v1[1]}`;
+      const usage = Number(readFileSync(`${dir}/memory.usage_in_bytes`, 'utf8'));
+      const inactive = /^total_inactive_file (\d+)$/m.exec(
+        readFileSync(`${dir}/memory.stat`, 'utf8'),
+      );
+      return usage - Number(inactive?.[1] ?? 0);
+    }
+    const v2 = /^0::(.*)$/m.exec(cgroups);
+    if (v2) {
+      const dir = `/sys/fs/cgroup${v2[1]}`;
+      const usage = Number(readFileSync(`${dir}/memory.current`, 'utf8'));
+      const inactive = /^inactive_file (\d+)$/m.exec(readFileSync(`${dir}/memory.stat`, 'utf8'));
+      return usage - Number(inactive?.[1] ?? 0);
+    }
+  } catch {
+    // The container is gone, or its cgroup is not readable from here.
+  }
+  return undefined;
+}
+
 const median = (values: number[]) => {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
@@ -202,6 +250,7 @@ export interface RunSummary {
   peakRssMb: number;
   rssSlopeMbPerMin: number;
   threads: number;
+  steadyContainerMb?: number;
   steadyHeapUsedMb?: number;
   steadyHeapTotalMb?: number;
   heapUsedSlopeMbPerMin?: number;
@@ -343,7 +392,8 @@ async function measureOnce(options: Options): Promise<RunSummary> {
       }
       const status = exited || pid === 0 ? undefined : readProcStatus(pid);
       if (status) {
-        procSamples.push({ t, ...status });
+        const container = options.docker ? readContainerMemory(pid) : undefined;
+        procSamples.push({ t, ...status, container });
       }
       if (exited || t >= options.duration) {
         clearInterval(timer);
@@ -382,6 +432,10 @@ async function measureOnce(options: Options): Promise<RunSummary> {
     writeFileSync(options.samples, JSON.stringify({ procSamples, heapSamples }));
   }
 
+  if (procSamples.length === 0) {
+    throw new Error(`No memory samples were collected:\n${output.slice(-4000)}`);
+  }
+
   // Startup is everything up to 10 s; steady state is the last half of the run.
   const startup = procSamples.filter(s => s.t <= 10);
   const half = options.duration / 2;
@@ -395,6 +449,9 @@ async function measureOnce(options: Options): Promise<RunSummary> {
     peakRssMb: Math.max(...procSamples.map(s => s.hwm)) / MB,
     rssSlopeMbPerMin: slopePerMinute(steady.map(s => ({ t: s.t, y: s.rss / MB }))),
     threads: median(steady.map(s => s.threads)),
+    steadyContainerMb: options.docker
+      ? median(steady.flatMap(s => (s.container == null ? [] : [s.container]))) / MB
+      : undefined,
     steadyHeapUsedMb: steadyHeap.length ? median(steadyHeap.map(s => s.heapUsed)) / MB : undefined,
     steadyHeapTotalMb: steadyHeap.length
       ? median(steadyHeap.map(s => s.heapTotal)) / MB
@@ -432,6 +489,9 @@ async function main() {
     console.log(
       `run ${run}: startup RSS ${fmt(summary.startupRssMb)} MB | ` +
         `steady RSS ${fmt(summary.steadyRssMb)} MB (anon ${fmt(summary.steadyRssAnonMb)}) | ` +
+        (summary.steadyContainerMb != null
+          ? `container ${fmt(summary.steadyContainerMb)} MB | `
+          : '') +
         `peak ${fmt(summary.peakRssMb)} MB | RSS slope ${fmt(summary.rssSlopeMbPerMin, 3)} MB/min | ` +
         `heap ${fmt(summary.steadyHeapUsedMb)}/${fmt(summary.steadyHeapTotalMb)} MB (slope ${fmt(summary.heapUsedSlopeMbPerMin, 3)} MB/min) | ` +
         `external ${fmt(summary.steadyExternalMb)} MB | threads ${summary.threads} | ` +
