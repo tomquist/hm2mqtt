@@ -12,6 +12,7 @@ import { DataHandler } from './dataHandler.js';
 import { MqttProxy, MqttProxyConfig } from './mqttProxy.js';
 import { runShutdownStep } from './shutdown.js';
 import { flushPersistence } from './persistence.js';
+import { redactSecrets, redactUrlCredentials } from './utils/redact.js';
 
 // MQTT Proxy configuration
 const MQTT_PROXY_ENABLED = process.env.MQTT_PROXY_ENABLED === 'true';
@@ -73,7 +74,7 @@ function parseDeviceConfigurations(): Device[] {
       .filter(key => !key.toLowerCase().includes('password'))
       .sort()
       .forEach(key => {
-        logger.info(`${key}=${process.env[key]}`);
+        logger.info(`${key}=${redactUrlCredentials(process.env[key] ?? '')}`);
       });
 
     logger.info('\nPlease check your addon configuration and ensure you have added devices.');
@@ -140,23 +141,13 @@ async function main() {
         .filter(key => !key.toLowerCase().includes('password'))
         .sort()
         .forEach(key => {
-          logger.trace(`${key}=${process.env[key]}`);
+          logger.trace(`${key}=${redactUrlCredentials(process.env[key] ?? '')}`);
         });
 
       // Print full configuration
       logger.debug('Full configuration:');
       const config = createMqttConfig(parseDeviceConfigurations());
-      logger.debug(
-        JSON.stringify(
-          config,
-          (key, value) => {
-            // Mask password fields
-            if (key.toLowerCase().includes('password')) return '***';
-            return value;
-          },
-          2,
-        ),
-      );
+      logger.debug(JSON.stringify(config, redactSecrets, 2));
     }
 
     // Parse device configurations
@@ -170,12 +161,9 @@ async function main() {
     // Create MQTT configuration
     logger.debug('Creating MQTT configuration...');
     const config = createMqttConfig(devices);
-    logger.debug(`MQTT Broker: ${config.brokerUrl}`);
+    logger.debug(`MQTT Broker: ${redactUrlCredentials(config.brokerUrl)}`);
     logger.debug(`MQTT Client ID: ${config.clientId}`);
-    logger.debug(
-      'Full MQTT config:',
-      JSON.stringify(config, (key, value) => (key === 'password' ? '***' : value), 2),
-    );
+    logger.debug('Full MQTT config:', JSON.stringify(config, redactSecrets, 2));
 
     const deviceStateUpdateHandler = (
       device: Device,

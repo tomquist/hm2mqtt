@@ -31,6 +31,7 @@ export type Transform =
   | TemperatureTransform
   | TimeStringTransform
   | NegateTransform
+  | NegateIfPositiveTransform
   | ParseIntTransform
   | IdentityTransform
   | MapTransform
@@ -118,6 +119,16 @@ export interface TimeStringTransform {
 /** Negate the numeric value */
 export interface NegateTransform {
   type: 'negate';
+}
+
+/**
+ * Negate the numeric value only if it is positive, leaving zero and negative
+ * values as they are. For devices that report the magnitude of a value that is
+ * conceptually negative, such as an RSSI sent without its minus sign, while
+ * other firmware of the same family may send it already signed.
+ */
+export interface NegateIfPositiveTransform {
+  type: 'negateIfPositive';
 }
 
 /** Parse as integer */
@@ -293,6 +304,9 @@ export const timeString = (): TimeStringTransform => ({ type: 'timeString' });
 /** Create a negate transform */
 export const negate = (): NegateTransform => ({ type: 'negate' });
 
+/** Create a transform that negates only positive values */
+export const negateIfPositive = (): NegateIfPositiveTransform => ({ type: 'negateIfPositive' });
+
 /** Create a parseInt transform */
 export const parseIntTransform = (): ParseIntTransform => ({ type: 'parseInt' });
 
@@ -465,6 +479,14 @@ export function executeTransform(
     case 'negate': {
       const num = parseInt(value, 10);
       return isNaN(num) ? 0 : -num;
+    }
+
+    case 'negateIfPositive': {
+      const num = parseInt(value, 10);
+      if (isNaN(num)) {
+        return 0;
+      }
+      return num > 0 ? -num : num;
     }
 
     case 'parseInt': {
@@ -727,6 +749,9 @@ export function transformToJinja2(
 
     case 'negate':
       return `{{ -(${valueExpr} | int(0)) }}`;
+
+    case 'negateIfPositive':
+      return `{% set n = ${valueExpr} | int(0) %}{% if n > 0 %}{{ -n }}{% else %}{{ n }}{% endif %}`;
 
     case 'parseInt':
       return `{{ ${valueExpr} | int(0) }}`;

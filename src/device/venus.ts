@@ -13,6 +13,9 @@ import {
   meterTypeCommandCodes,
   meterTypeLabels,
   normalizeMeterMac,
+  ReportedMeterType,
+  reportedCtTypeCodes,
+  reportedMeterTypeLabels,
   resolveMeterMac,
   VenusBMSInfo,
   VenusBMSPackInfo,
@@ -86,6 +89,41 @@ enum CommandType {
   SET_LED = 59,
   SET_PEAK_SHAVING = 63,
 }
+
+// Fields the control firmware sends in its cd=1 response that neither the
+// Marstek app nor this project has a meaning for. Read out of the firmware's
+// own response format string (see docs/venus-generations.md), so the device
+// really does send them - what is missing is what they mean. Published
+// verbatim and disabled by default, so the values can be correlated without
+// asserting semantics.
+//
+// Three more fields from that format string are deliberately left out, because
+// they are not plain integers and would be mangled by `number()`:
+//
+// - `id` is a pipe-separated 5-tuple (`id=%d|%d|%d|%d|%d`)
+// - `ei` is a 64-bit hex value (`ei=%llx`)
+// - `eb` is a hex value (`eb=%x`)
+//
+// `bl` is included here rather than wired to the Bluetooth Advertising switch:
+// that already reads bit 2 of `ble`, and nothing establishes that `bl` is the
+// same flag rather than a second, related one.
+const venusRawFields = [
+  'as',
+  'bl',
+  'bl_p',
+  'c_ratio',
+  'ctrl_r',
+  'gen',
+  'lf',
+  'lk',
+  'net',
+  'pl',
+  'tra_a',
+  'tra_i',
+  'tra_o',
+  'udp',
+  'vp',
+];
 
 // Minimum and maximum Depth of Discharge values based on Marstek app limits (30-88%).
 // NOTE: Experience has shown that these limits may change over time!
@@ -255,13 +293,58 @@ function isVenusRuntimeInfoMessage(values: Record<string, string>): boolean {
   return requiredRuntimeInfoKeys.every(key => key in values);
 }
 
+// The meter the device is currently configured for is reported as `ct_t`, but
+// the two Venus families report it in different code spaces. The Venus C and
+// Venus E 2.0 (HMG) use the same codes as the B2500 and the Jupiter, which
+// differ from the `meter=` codes used to set the meter. The newer models (VNSE3,
+// VNSA, VNSD) report the `meter=` code itself, so e.g. a CT003 reads 4 there but
+// 6 on HMG.
+const hmgCtTypeCodes: Record<string, ReportedMeterType> = {
+  ...reportedCtTypeCodes,
+  '0': 'none',
+  '14': 'stromleser',
+  '15': 'ioMeter',
+};
+// On these models 0 is the CT001's `meter=` code, so a unit without any meter
+// configured cannot be told apart from one using a CT001.
+const vnsCtTypeCodes: Record<string, ReportedMeterType> = {
+  '0': 'ct001',
+  '1': 'shellyPro3em',
+  '2': 'p1Meter',
+  '3': 'ct002',
+  '4': 'ct003',
+  '5': 'shellyEmGen3',
+  '6': 'shellyProEm50',
+  '7': 'ecoTracker',
+  '8': 'smrP1',
+  '9': 'smrIr',
+  '10': 'smrTic',
+  '11': 'tpm2100ct',
+  '12': 'stromleser',
+  '13': 'ioMeter',
+};
+
 // Per-string PV input power (PV1–PV4) is reported by Venus models that have PV
 // inputs (e.g. Venus A/D). The corresponding entities are advertised purely
 // based on whether the device reports the `pv1`–`pv4` fields in its payload, so
 // there is no need to special-case device types here.
 registerDeviceDefinition(
   {
-    deviceTypes: ['HMG', 'VNSE3'],
+    deviceTypes: ['HMG'],
+  },
+  ({ message }) => {
+    registerRuntimeInfoMessage(message, { ctTypeCodes: hmgCtTypeCodes });
+    registerBMSInfoMessage(message);
+    registerVenusCellBalancingMessage(message);
+    registerBMSPackMessage(message);
+    registerBMSPackDetailMessages(message);
+    registerVenusNetworkInfoMessage(message);
+  },
+);
+
+registerDeviceDefinition(
+  {
+    deviceTypes: ['VNSE3'],
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
@@ -289,7 +372,10 @@ registerDeviceDefinition(
   },
 );
 
-function registerRuntimeInfoMessage(message: BuildMessageFn) {
+function registerRuntimeInfoMessage(
+  message: BuildMessageFn,
+  { ctTypeCodes = vnsCtTypeCodes }: { ctTypeCodes?: Record<string, ReportedMeterType> } = {},
+) {
   let options = {
     refreshDataPayload: 'cd=1',
     isMessage: isVenusRuntimeInfoMessage,
@@ -724,17 +810,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     field({
       key: 'ct_t',
       path: ['ctType'],
-      transform: map(
-        {
-          '0': 'none',
-          '1': 'ct1',
-          '2': 'ct2',
-          '3': 'ct3',
-          '4': 'shellyPro',
-          '5': 'p1Meter',
-        },
-        'none',
-      ),
+      transform: map(ctTypeCodes),
     });
     advertise(
       ['ctType'],
@@ -742,14 +818,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         id: 'ct_type',
         name: 'CT Type',
         icon: 'mdi:current-ac',
-        valueMappings: {
-          none: 'No Meter Detected',
-          ct1: 'CT1',
-          ct2: 'CT2',
-          ct3: 'CT3',
-          shellyPro: 'Shelly Pro',
-          p1Meter: 'P1 Meter',
-        },
+        valueMappings: reportedMeterTypeLabels,
       }),
     );
 
@@ -1255,6 +1324,55 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
       { enabled: state => (state.peakShavingPower != null ? true : undefined) },
     );
+
+    // State of health. Added to the cd=1 response in control firmware 149.2,
+    // so it only appears on units new enough to send it. The same quantity is
+    // reported as `b_soh` in the cd=14 BMS response, where a real capture read
+    // 100 on a healthy pack - hence the percentage. That capture is the whole
+    // basis for the unit: no cd=1 payload carrying `soh` has been seen, so if
+    // a device ever reports something like 1000 here, the scale is wrong and
+    // this wants dividing by 10.
+    //
+    // Deliberately not device_class 'battery': that is the charge level, and
+    // Home Assistant would render state of health as if it were one.
+    field({ key: 'soh', path: ['batteryHealth'], transform: number() });
+    advertise(
+      ['batteryHealth'],
+      sensorComponent<number>({
+        id: 'battery_health',
+        name: 'Battery Health',
+        icon: 'mdi:battery-heart-variant',
+        unit_of_measurement: '%',
+        state_class: 'measurement',
+      }),
+      { enabled: state => (state.batteryHealth != null ? true : undefined) },
+    );
+
+    // Same key and meaning as on Jupiter, which already names it.
+    field({ key: 'htt_p', path: ['httpServerType'], transform: number() });
+    advertise(
+      ['httpServerType'],
+      sensorComponent<number>({
+        id: 'http_server_type',
+        name: 'HTTP Server Type',
+        enabled_by_default: false,
+      }),
+      { enabled: state => (state.httpServerType != null ? true : undefined) },
+    );
+
+    for (const key of venusRawFields) {
+      field({ key, path: ['raw', key], transform: number() });
+      advertise(
+        ['raw', key],
+        sensorComponent<number>({
+          id: `raw_${key}`,
+          name: `Raw ${key}`,
+          icon: 'mdi:help-circle-outline',
+          enabled_by_default: false,
+        }),
+        { enabled: state => (state.raw?.[key] != null ? true : undefined) },
+      );
+    }
 
     command('peak-shaving', {
       handler: ({ message, publishCallback, updateDeviceState }) => {

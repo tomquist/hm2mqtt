@@ -24,19 +24,70 @@ export type B2500V2SmartMeterStatus =
   | 'unableToFindChannel'
   | 'notInDiagnosis';
 /**
- * Meter reported in the B2500 `ct_t` field. The device reports the configured
- * meter under its own numeric codes, which do not match the codes the
- * `cd=27,meter=` command accepts.
+ * Meter a storage device reports as configured in its `ct_t` field. Each family
+ * reports it under numeric codes of its own; see `reportedCtTypeCodes` and the
+ * tables in the Venus definition.
  */
-export type B2500CtType =
+export type ReportedMeterType =
+  | 'none'
   | 'ct001'
+  | 'ct0015'
   | 'ct002'
   | 'ct003'
   | 'shellyPro3em'
   | 'shellyEmGen3'
   | 'shellyProEm50'
   | 'p1Meter'
-  | 'ecoTracker';
+  | 'ecoTracker'
+  | 'smrP1'
+  | 'smrIr'
+  | 'smrTic'
+  | 'tpm2100ct'
+  | 'stromleser'
+  | 'ioMeter';
+
+export const reportedMeterTypeLabels: Record<ReportedMeterType, string> = {
+  none: 'No Meter Detected',
+  ct001: 'CT001',
+  ct0015: 'CT001.5',
+  ct002: 'CT002',
+  ct003: 'CT003',
+  shellyPro3em: 'Shelly Pro 3EM',
+  shellyEmGen3: 'Shelly EM Gen3',
+  shellyProEm50: 'Shelly Pro EM50',
+  p1Meter: 'P1 Meter',
+  ecoTracker: 'EcoTracker',
+  smrP1: 'SMR-P1',
+  smrIr: 'SMR-IR',
+  smrTic: 'SMR-TIC',
+  tpm2100ct: 'TPM2-100CT',
+  stromleser: 'Stromleser',
+  ioMeter: 'IOmeter',
+};
+
+/**
+ * `ct_t` codes reported by the B2500, the Jupiter and the Venus C / E 2.0. They
+ * are not the `meter=` codes the meter is set with. Taken from the meter list
+ * the Marstek cloud serves for a Jupiter, which agrees with the app's built-in
+ * B2500 list; CT001.5 is only in the latter. The newer Venus models report the
+ * `meter=` code instead.
+ */
+export const reportedCtTypeCodes: Record<string, ReportedMeterType> = {
+  '1': 'ct001',
+  '2': 'ct0015',
+  '3': 'ct002',
+  '4': 'shellyPro3em',
+  '5': 'p1Meter',
+  '6': 'ct003',
+  '7': 'shellyEmGen3',
+  '8': 'shellyProEm50',
+  '9': 'ecoTracker',
+  '10': 'smrP1',
+  '11': 'smrIr',
+  '12': 'smrTic',
+  '13': 'tpm2100ct',
+};
+
 /**
  * Grid recharge mode set with `cd=27,dchrg=`. The device does not report the
  * current value in any response hm2mqtt polls, so the entity reflects the last
@@ -271,7 +322,7 @@ export interface B2500V2DeviceData extends B2500BaseDeviceData {
 
   // The meter the device reports as configured (`ct_t`). Its numeric codes are
   // distinct from the ones the `cd=27,meter=` command takes.
-  ctType?: B2500CtType;
+  ctType?: ReportedMeterType;
 
   // Last grid recharge mode set via `cd=27,dchrg=` (not reported by the device)
   rechargeMode?: B2500RechargeMode;
@@ -391,11 +442,6 @@ export type VenusGridType =
   | 'china';
 
 /**
- * Venus device CT type
- */
-export type VenusCTType = 'none' | 'ct1' | 'ct2' | 'ct3' | 'shellyPro' | 'p1Meter';
-
-/**
  * Venus device phase type
  */
 export type VenusPhaseType = 'unknown' | 'phaseA' | 'phaseB' | 'phaseC' | 'notDetected';
@@ -430,11 +476,16 @@ export function isValidVenusRechargeMode(mode: string): mode is VenusRechargeMod
 const validMeterTypes = [
   'ct001',
   'shellyPro3em',
+  'p1Meter',
   'ct002',
   'ct003',
   'shellyEmGen3',
   'shellyProEm50',
   'ecoTracker',
+  'smrP1',
+  'smrIr',
+  'smrTic',
+  'tpm2100ct',
 ] as const;
 export type MeterType = (typeof validMeterTypes)[number];
 
@@ -444,31 +495,30 @@ export function isValidMeterType(type: string): type is MeterType {
 
 /**
  * Maps a meter type to the numeric `meter` value sent with the cd=18 command.
+ * These match the meter list the Marstek cloud serves; the Venus, Jupiter and
+ * B2500 take the same codes on their own command.
  */
 export const meterTypeCommandCodes: Record<MeterType, number> = {
   ct001: 0,
   shellyPro3em: 1,
+  p1Meter: 2,
   ct002: 3,
   ct003: 4,
   shellyEmGen3: 5,
   shellyProEm50: 6,
-  // Code 7 is confirmed on the B2500. The Venus and Jupiter take the same meter
-  // codes on their own command, so it is offered there too.
   ecoTracker: 7,
+  smrP1: 8,
+  smrIr: 9,
+  smrTic: 10,
+  tpm2100ct: 11,
 };
 
 /**
  * Human-readable labels for each meter type, used for Home Assistant discovery.
  */
-export const meterTypeLabels: Record<MeterType, string> = {
-  ct001: 'CT001',
-  shellyPro3em: 'Shelly Pro 3EM',
-  ct002: 'CT002',
-  ct003: 'CT003',
-  shellyEmGen3: 'Shelly EM Gen3',
-  shellyProEm50: 'Shelly Pro EM50',
-  ecoTracker: 'EcoTracker',
-};
+export const meterTypeLabels = Object.fromEntries(
+  validMeterTypes.map(type => [type, reportedMeterTypeLabels[type]]),
+) as Record<MeterType, string>;
 
 /**
  * Normalize a user-supplied MAC address to the 12 lowercase hex digits expected
@@ -484,8 +534,8 @@ export function normalizeMeterMac(input: string): string | null {
  * Determine the MAC to send for a given meter type, applying the special rules:
  * - Shelly Pro 3EM always uses the fixed all-zero MAC.
  * - The built-in CT001 does not need a MAC and falls back to all-zeros.
- * - CT002/CT003/Shelly EM Gen3/Shelly Pro EM50 require an explicit MAC; when none
- *   has been configured this returns null so the caller can abort.
+ * - Every other meter requires an explicit MAC; when none has been configured
+ *   this returns null so the caller can abort.
  */
 export function resolveMeterMac(meterType: MeterType, configuredMac?: string): string | null {
   if (meterType === 'shellyPro3em') {
@@ -603,7 +653,7 @@ export interface VenusDeviceData extends BaseDeviceData {
   versionSet?: VenusVersionSet;
   maxChargingPower?: number;
   maxDischargePower?: number;
-  ctType?: VenusCTType;
+  ctType?: ReportedMeterType;
   phaseType?: VenusPhaseType;
   rechargeMode?: VenusRechargeMode;
   meterType?: MeterType; // last configured via cd=18
@@ -627,6 +677,143 @@ export interface VenusDeviceData extends BaseDeviceData {
   calculatedBatteryPower?: number; // rp
   gridPower?: number; // gp
   parallelMode?: VenusParallelMode | 'unknown'; // par
+  batteryHealth?: number; // soh, control firmware 149.2 and later
+  httpServerType?: number; // htt_p, same key and meaning as on Jupiter
+  /**
+   * Fields the control firmware sends in its cd=1 response that have no
+   * confirmed meaning. Keyed by their raw MQTT field name and published as
+   * disabled-by-default sensors, so the values are available for correlation
+   * without asserting semantics — the same treatment venusEMini.ts gives its
+   * unconfirmed fields.
+   */
+  raw?: Record<string, number>;
+}
+
+// Per-slot schedule direction reported by a Venus E Mini in ms{n}, confirmed
+// via live app testing (VENUS_MINI_IMPLEMENTATION_PROMPT.md). A 4th value
+// exists in the app UI for an "AI optimization" mode but is greyed out as
+// "coming soon" and not yet observed on the wire.
+export type VenusMiniScheduleDirection = 'charge' | 'discharge' | 'selfConsumption' | 'unknown';
+
+/**
+ * A single charge/discharge schedule slot reported by a Venus E Mini. Unlike
+ * the tim_0..tim_9 encoding used by the other Venus variants, each slot is
+ * reported as its own set of numbered fields (m{n}, mp{n}, ms{n}, st{n},
+ * et{n}, re{n}).
+ */
+export interface VenusMiniTimePeriod {
+  enabled?: boolean; // m{n}
+  power?: number; // mp{n}
+  startTime?: string; // st{n}
+  endTime?: string; // et{n}
+  direction?: VenusMiniScheduleDirection; // ms{n}, mapped
+  modeRaw?: number; // ms{n} (raw, kept alongside direction for any future unmapped value)
+  repeatRaw?: number; // re{n} (raw; meaning unconfirmed, possibly a weekday bitmask)
+}
+
+// Working mode of a Venus E Mini, reported in cm and set with cd=2. Only 0
+// (self-consumption, named `automatic` to match the same mode on the other
+// Venus models) and 2 (manual) have been observed; the "AI optimization" mode
+// is greyed out as "coming soon" in the app UI, and 3 is the code it will
+// report.
+const validVenusMiniWorkingModes = ['automatic', 'manual', 'ai'] as const;
+export type VenusMiniWorkingMode = (typeof validVenusMiniWorkingModes)[number];
+
+export function isValidVenusMiniWorkingMode(mode: string): mode is VenusMiniWorkingMode {
+  return validVenusMiniWorkingModes.includes(mode as VenusMiniWorkingMode);
+}
+
+// The `md` value each mode is sent as. These are the second generation's codes,
+// which differ from the Venus C/D/E's (0/1/2/5) in venus.ts - reading them off
+// that file would set the wrong mode.
+export const venusMiniWorkingModeCommandCodes: Record<VenusMiniWorkingMode, number> = {
+  automatic: 0,
+  manual: 2,
+  ai: 3,
+};
+
+// Device state reported by a Venus E Mini in dev_sta. 0/1/2 are confirmed
+// against a real device; bypass and fault are the app's own labels for 3 and
+// 5, and 4 is a second discharging state whose difference from 2 is unknown.
+export type VenusMiniDeviceState =
+  | 'standby'
+  | 'charging'
+  | 'discharging'
+  | 'bypass'
+  | 'fault'
+  | 'unknown';
+
+// Feed-in power limit preset reported by a Venus E Mini in gps. Not a literal
+// wattage value - it selects between Germany's simplified-registration cap
+// and the alternative limit.
+export type VenusMiniFeedInPowerLimit = '800W' | '1500W' | 'unknown';
+
+/**
+ * Venus E Mini (VNSEMINI) device data. This model reports a `cd=1` payload
+ * with almost no field names in common with the HMG/VNSE3/VNSA/VNSD family
+ * (see venus.ts's own registerRuntimeInfoMessage), so it gets its own shape
+ * and its own message registration rather than reusing VenusDeviceData.
+ *
+ * Only fields with a reasonably confident interpretation get a semantic name
+ * here; everything else observed in the payload is preserved verbatim under
+ * `raw` (see VENUS_MINI_NOTES.md and VENUS_MINI_IMPLEMENTATION_PROMPT.md for
+ * the confidence rationale per field).
+ */
+export interface VenusMiniDeviceData extends BaseDeviceData {
+  gridPower?: number; // gp (W). Negative = importing from grid, positive = exporting
+  gridPowerAlt?: number; // ig (W) - always matched gp exactly so far; kept as a separate diagnostic in case it diverges on other units/firmware, mirroring the batteryPower/calculatedBatteryPower (bp/rp) precedent on the other Venus variants
+  inverterPower?: number; // inv_p (W) - also always matched gp exactly so far; see gridPowerAlt
+  backupPower?: number; // lp (W), matches the app's "Backup" reading
+  batteryPower?: number; // dpt (W). Negative = discharging, positive = charging
+  batterySoc?: number; // soc, reported ×10 (%)
+  batteryEnergyStored?: number; // be (Wh)
+  dischargeDepth?: number; // do (%), usable-discharge percentage; the app enforces 30-90%
+  pmuFirmwareVersion?: number; // pmu
+  inverterFirmwareVersion?: number; // inv
+  dcdcFirmwareVersion?: number; // dcdc
+  wifiStatus?: boolean; // wif_s (1 = ok)
+  mqttStatus?: boolean; // mq_s (1 = ok)
+  wifiSignal?: number; // wifi_a (dBm), reported as the magnitude and negated on the way in
+  ctType?: number; // ct_type (only 0 = "no external meter" observed so far, full enum unconfirmed)
+  ctPhase?: number; // ct_ph (only 0 observed so far, meaning unconfirmed)
+  deviceTime?: string; // time, device-local timestamp, parsed to ISO-8601 assuming the device clock is in the host's local timezone (the same assumption the sync-time command makes)
+  ledEnabled?: boolean; // leds, inverted: leds=0 means the LED is on
+  bluetoothLockRaw?: number; // bbs, direction confirmed (higher = more locked) but the absolute mapping across every LED x Bluetooth-lock combination is not, so kept as a raw diagnostic rather than a binary sensor
+  feedInPowerLimit?: VenusMiniFeedInPowerLimit; // gps
+  workingMode?: VenusMiniWorkingMode; // cm
+  deviceState?: VenusMiniDeviceState; // dev_sta
+  batteryDischargedEnergyToday?: number; // dbd (Wh)
+  batteryDischargedEnergyTotal?: number; // tbd (Wh)
+  batteryChargedEnergyToday?: number; // dbc (Wh) - supporting evidence but not an isolated before/after test
+  batteryChargedEnergyTotal?: number; // tbc (Wh) - same
+  gridImportedEnergyToday?: number; // dgs (Wh) - energy taken from the grid, see venusEMini.ts
+  gridImportedEnergyTotal?: number; // tgs (Wh) - lifetime counterpart, named by symmetry
+  loadConsumedEnergyToday?: number; // dgb (Wh)
+  gridExportedEnergyToday?: number; // dgp (Wh)
+  loadState?: number; // ls (raw; the app treats it as a load state, individual codes unknown)
+  gridMode?: number; // gs (raw; grid mode, individual codes unknown)
+  serverState?: number; // ser (raw; server state, individual codes unknown)
+  rechargeType?: number; // rechg_type (raw; recharge type, individual codes unknown)
+  bluetoothAdvertisingEnabled?: boolean; // last value written with the bluetooth-advertising command. `bbs` is the likely readback but its polarity is unconfirmed, so nothing parses it into this field yet - see venusEMini.ts
+  meterType?: MeterType; // last configured via cd=18. The device reports a meter code back in ct_type, but nothing establishes that it uses the same numbering as the `meter` the command takes, so this holds what was written rather than what was read
+  meterMac?: string; // MAC used when configuring the meter type
+  timePeriods?: VenusMiniTimePeriod[];
+  // cd=59 per-phase CT readings, in W. Only reported by a unit with an external
+  // meter configured, so these stay unset on a device with ct_type=0.
+  phaseAPower?: number; // power_a
+  phaseBPower?: number; // power_b
+  phaseCPower?: number; // power_c
+  totalPhasePower?: number; // power_s
+  // Further cd=59 keys the vendor app reads next to power_a..power_s, with no
+  // confirmed meaning. Kept in their own record rather than in `raw` below:
+  // device state is merged per publish path, so one shared record would let
+  // whichever of the two messages arrived last erase the other's keys.
+  ctRaw?: Record<string, number>;
+  // Fields observed in the payload with no confirmed meaning, keyed by their
+  // raw MQTT field name (eg, cv, ct (bare, distinct from ct_type), gn, ar,
+  // aw, apt, e1-e7, tgb/tgp). Exposed as disabled-by-default sensors so the
+  // data is available for correlation without asserting semantics.
+  raw?: Record<string, number>;
 }
 
 export interface VenusBMSInfo extends BaseDeviceData {
@@ -761,7 +948,7 @@ export interface JupiterDeviceData extends BaseDeviceData {
   autoSwitchWorkingMode?: number; // cts_m
   httpServerType?: number; // htt_p
   wifiSignalStrength?: number; // wif_s
-  ctType?: number; // ct_t
+  ctType?: ReportedMeterType; // ct_t
   phaseType?: number; // phase_t
   rechargeMode?: JupiterRechargeMode; // dchrg
   meterType?: MeterType; // last configured via cd=18

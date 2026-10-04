@@ -3,6 +3,7 @@ import { Aedes, Client as AedesClient, ConnectPacket } from 'aedes';
 import * as net from 'net';
 import { DeviceManager } from './deviceManager.js';
 import logger from './logger.js';
+import { redactUrlCredentials } from './utils/redact.js';
 
 export interface MqttProxyConfig {
   /** Port for the proxy MQTT server */
@@ -196,7 +197,7 @@ export class MqttProxy {
     };
 
     logger.info(
-      `MQTT Proxy connecting to main broker at ${this.config.mainBrokerUrl} with client ID ${this.config.proxyClientId}`,
+      `MQTT Proxy connecting to main broker at ${redactUrlCredentials(this.config.mainBrokerUrl)} with client ID ${this.config.proxyClientId}`,
     );
 
     const client = mqtt.connect(this.config.mainBrokerUrl, options);

@@ -624,6 +624,29 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
   {
+    description: 'B2500V2 meter-type P1 Meter with configured MAC',
+    deviceType: 'HMA-1',
+    initialState: { meterMac: 'aabbccddeeff' },
+    command: 'meter-type',
+    input: 'p1Meter',
+    expectedOutput: 'cd=27,meter=2,mac=aabbccddeeff',
+  },
+  {
+    description: 'B2500V2 meter-type SMR-TIC with configured MAC',
+    deviceType: 'HMA-1',
+    initialState: { meterMac: 'aabbccddeeff' },
+    command: 'meter-type',
+    input: 'smrTic',
+    expectedOutput: 'cd=27,meter=10,mac=aabbccddeeff',
+  },
+  {
+    description: 'B2500V2 meter-type P1 Meter without MAC is rejected',
+    deviceType: 'HMA-1',
+    command: 'meter-type',
+    input: 'p1Meter',
+    expectedOutput: null,
+  },
+  {
     description: 'B2500V2 meter-type EcoTracker with configured MAC',
     deviceType: 'HMA-1',
     initialState: { meterMac: 'aabbccddeeff' },
@@ -895,6 +918,22 @@ const commandTestCases: CommandTestCase[] = [
     command: 'meter-type',
     input: 'ct003',
     expectedOutput: 'cd=18,meter=4,mac=112233445566',
+  },
+  {
+    description: 'Venus meter-type TPM2-100CT with configured MAC',
+    deviceType: 'HMG-1',
+    initialState: { meterMac: '112233445566' },
+    command: 'meter-type',
+    input: 'tpm2100ct',
+    expectedOutput: 'cd=18,meter=11,mac=112233445566',
+  },
+  {
+    description: 'Venus meter-type SMR-P1 with configured MAC',
+    deviceType: 'VNSA-0',
+    initialState: { meterMac: '112233445566' },
+    command: 'meter-type',
+    input: 'smrP1',
+    expectedOutput: 'cd=18,meter=8,mac=112233445566',
   },
   {
     description: 'Venus meter-type Shelly Pro 3EM forces all-zero MAC',
@@ -1772,6 +1811,223 @@ const commandTestCases: CommandTestCase[] = [
     command: 'grid-connection-ban',
     input: '1',
     expectedOutput: 'cd=22,p1=1',
+  },
+
+  // ============================================================
+  // VENUS E MINI COMMANDS
+  // ============================================================
+
+  {
+    description: 'Venus E Mini refresh with PRESS',
+    deviceType: 'VNSEMINI-0',
+    command: 'refresh',
+    input: 'PRESS',
+    expectedOutput: 'cd=01',
+  },
+
+  // The Marstek app picks this command's number from the device type: the
+  // Venus variants take 55, Jupiter 57, and everything else — the Mini
+  // included — falls back to 55.
+  {
+    description: 'Venus E Mini bluetooth-advertising enable',
+    deviceType: 'VNSEMINI-0',
+    command: 'bluetooth-advertising',
+    input: 'true',
+    expectedOutput: 'cd=55,adv=1',
+  },
+  {
+    description: 'Venus E Mini bluetooth-advertising disable',
+    deviceType: 'VNSEMINI-0',
+    command: 'bluetooth-advertising',
+    input: 'false',
+    expectedOutput: 'cd=55,adv=0',
+  },
+  {
+    description: 'Venus E Mini bluetooth-advertising with on',
+    deviceType: 'VNSEMINI-0',
+    command: 'bluetooth-advertising',
+    input: 'on',
+    expectedOutput: 'cd=55,adv=1',
+  },
+  {
+    description: 'Venus E Mini bluetooth-advertising with 1',
+    deviceType: 'VNSEMINI-0',
+    command: 'bluetooth-advertising',
+    input: '1',
+    expectedOutput: 'cd=55,adv=1',
+  },
+
+  // Depth of discharge is cd=44 on this generation, where the Venus C/D/E use
+  // cd=56 - see docs/venus-generations.md.
+  {
+    description: 'Venus E Mini discharge-depth at the minimum',
+    deviceType: 'VNSEMINI-0',
+    command: 'discharge-depth',
+    input: '30',
+    expectedOutput: 'cd=44,do=30',
+  },
+  {
+    description: 'Venus E Mini discharge-depth at the maximum',
+    deviceType: 'VNSEMINI-0',
+    command: 'discharge-depth',
+    input: '90',
+    expectedOutput: 'cd=44,do=90',
+  },
+  {
+    description: 'Venus E Mini discharge-depth sends the maximum as itself, not 0',
+    deviceType: 'VNSEMINI-0',
+    command: 'discharge-depth',
+    input: '90',
+    expectedOutput: 'cd=44,do=90',
+  },
+  {
+    description: 'Venus E Mini discharge-depth below the minimum is rejected',
+    deviceType: 'VNSEMINI-0',
+    command: 'discharge-depth',
+    input: '29',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini discharge-depth above the maximum is rejected',
+    deviceType: 'VNSEMINI-0',
+    command: 'discharge-depth',
+    input: '91',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini discharge-depth rejects a non-integer',
+    deviceType: 'VNSEMINI-0',
+    command: 'discharge-depth',
+    input: '50.5',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini discharge-depth rejects junk',
+    deviceType: 'VNSEMINI-0',
+    command: 'discharge-depth',
+    input: '70foo',
+    expectedOutput: null,
+  },
+
+  // Reboot is cd=61 here. The Venus C/D/E have no reboot command at all -
+  // cd=10 on those models is the WiFi-module version query.
+  {
+    description: 'Venus E Mini restart with PRESS',
+    deviceType: 'VNSEMINI-0',
+    command: 'restart',
+    input: 'PRESS',
+    expectedOutput: 'cd=61',
+  },
+  {
+    description: 'Venus E Mini restart ignores an unrelated payload',
+    deviceType: 'VNSEMINI-0',
+    command: 'restart',
+    input: 'nope',
+    expectedOutput: null,
+  },
+
+  // Working mode. The second generation's codes are 0/2/3, where the Venus
+  // C/D/E use 0/1/2/5 - taking those would select the wrong mode.
+  {
+    description: 'Venus E Mini working-mode automatic',
+    deviceType: 'VNSEMINI-0',
+    command: 'working-mode',
+    input: 'automatic',
+    expectedOutput: 'cd=02,md=0',
+    expectedStateChanges: { workingMode: 'automatic' },
+  },
+  {
+    description: 'Venus E Mini working-mode manual',
+    deviceType: 'VNSEMINI-0',
+    command: 'working-mode',
+    input: 'manual',
+    expectedOutput: 'cd=02,md=2',
+  },
+  {
+    description: 'Venus E Mini working-mode ai',
+    deviceType: 'VNSEMINI-0',
+    command: 'working-mode',
+    input: 'ai',
+    expectedOutput: 'cd=02,md=3',
+  },
+  {
+    // `trading` is a Venus C/D/E mode with no counterpart here, so the shared
+    // option names stop short of it rather than mapping it to something else.
+    description: 'Venus E Mini working-mode rejects a mode this model lacks',
+    deviceType: 'VNSEMINI-0',
+    command: 'working-mode',
+    input: 'trading',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini working-mode rejects junk',
+    deviceType: 'VNSEMINI-0',
+    command: 'working-mode',
+    input: 'notamode',
+    expectedOutput: null,
+  },
+
+  // Factory reset takes no rs parameter on this generation.
+  {
+    description: 'Venus E Mini factory-reset with PRESS',
+    deviceType: 'VNSEMINI-0',
+    command: 'factory-reset',
+    input: 'PRESS',
+    expectedOutput: 'cd=05',
+  },
+  {
+    description: 'Venus E Mini factory-reset ignores an unrelated payload',
+    deviceType: 'VNSEMINI-0',
+    command: 'factory-reset',
+    input: 'nope',
+    expectedOutput: null,
+  },
+
+  // Meter type: the same cd=18 and the same meter codes as the other families.
+  {
+    description: 'Venus E Mini meter-type CT002 with configured MAC',
+    deviceType: 'VNSEMINI-0',
+    initialState: { meterMac: 'aabbccddeeff' },
+    command: 'meter-type',
+    input: 'ct002',
+    expectedOutput: 'cd=18,meter=3,mac=aabbccddeeff',
+    expectedStateChanges: { meterType: 'ct002' },
+  },
+  {
+    description: 'Venus E Mini meter-type Shelly Pro 3EM forces an all-zero MAC',
+    deviceType: 'VNSEMINI-0',
+    command: 'meter-type',
+    input: 'shellyPro3em',
+    expectedOutput: 'cd=18,meter=1,mac=000000000000',
+  },
+  {
+    description: 'Venus E Mini meter-type CT002 without a MAC is rejected',
+    deviceType: 'VNSEMINI-0',
+    command: 'meter-type',
+    input: 'ct002',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini meter-type rejects junk',
+    deviceType: 'VNSEMINI-0',
+    command: 'meter-type',
+    input: 'notameter',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini meter-mac stores an uppercased MAC',
+    deviceType: 'VNSEMINI-0',
+    command: 'meter-mac',
+    input: 'aabbccddeeff',
+    expectedOutput: null,
+    expectedStateChanges: { meterMac: 'AABBCCDDEEFF' },
+  },
+  {
+    description: 'Venus E Mini meter-mac rejects a malformed MAC',
+    deviceType: 'VNSEMINI-0',
+    command: 'meter-mac',
+    input: 'aabbcc',
+    expectedOutput: null,
   },
 ];
 

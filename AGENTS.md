@@ -31,8 +31,21 @@ npm run build
 ```
 
 Use `npm run lint:fix` and `npm run format` to apply fixes.
+
 Requires Node `^20.19.0 || >=22.12.0` (see `engines` in `package.json`).
 Node 18 is not supported.
+
+If Home Assistant discovery changed (entities added, renamed, gated differently):
+
+```bash
+npm run baseline:update   # regenerate test/fixtures/discovery/current, then review the diff
+npm run e2e:setup         # once; installs Home Assistant for the e2e suite
+npm run test:e2e          # runs the shipped build against a real Home Assistant
+```
+
+See `test/e2e/README.md`. At release time, freeze the current baseline under
+`test/fixtures/discovery/released/<version>/`. The e2e suite needs Python
+3.14.2 or newer.
 
 If add-on behavior/config was changed, also validate add-on config consistency:
 
@@ -63,10 +76,24 @@ For every new or changed config option, treat the following as mandatory complet
 
 `CHANGELOG.md` is read by users, not developers.
 
-- Describe what the user saw and what changed for them, in a few sentences.
-- No internals: file, function or symbol names, data structures, code paths. If
-  a sentence only makes sense with the diff open, it belongs in the commit
-  message instead.
+- **One entry per user-visible change, for the whole release.** A follow-up to
+  something already listed under `[Next]` does not get a second entry: update
+  that entry where the follow-up changes what it promises, and otherwise leave
+  it alone — a follow-up you would not have mentioned on its own does not become
+  worth mentioning by being a fix. The detail goes in the commit message. Where
+  one change has collected two entries in a release, fold them into the better
+  one.
+- **Keep it short. One or two sentences.** Say what changed for the user and
+  stop. When in doubt, cut — an entry that is too terse costs a reader nothing,
+  one that is too long costs every reader.
+- **No implementation detail, and ideally no detail at all.** Not just file,
+  function or symbol names: also protocol fields, command numbers, entity id
+  lists, counts of things added, and enumerations of every new control. "The
+  same sensors and controls as the other Venus models" beats naming all nine of
+  them.
+- If a sentence only makes sense with the diff open, it belongs in the commit
+  message instead. The commit message and the PR body are where detail goes;
+  they have no length limit and the right audience.
 - End with the issue reference, plus the PR number once it exists:
   `(fixes #123, PR #124)`.
 

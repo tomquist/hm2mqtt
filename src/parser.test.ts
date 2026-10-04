@@ -17,6 +17,7 @@ import {
   VenusBMSPackInfo,
   VenusBMSPackDetail,
   VenusDeviceData,
+  VenusMiniDeviceData,
   VenusNetworkInfo,
 } from './types.js';
 
@@ -212,6 +213,19 @@ describe('MQTT Message Parser', () => {
     // Absent on devices that do not report it
     const without = parseMessage(base, 'HMA-1', '12345');
     expect((without['data'] as B2500V2DeviceData).wifiSignalStrength).toBeUndefined();
+  });
+
+  test.each([
+    ['1', 'ct001'],
+    ['2', 'ct0015'],
+    ['6', 'ct003'],
+    ['9', 'ecoTracker'],
+    ['10', 'smrP1'],
+    ['13', 'tpm2100ct'],
+  ])('decodes B2500 ct_t=%s as %s', (ctT, expected) => {
+    const base = 'pe=75,kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0';
+    const parsed = parseMessage(`${base},ct_t=${ctT}`, 'HMA-1', '12345');
+    expect((parsed['data'] as B2500V2DeviceData).ctType).toBe(expected);
   });
 
   test('should drop the CT sensor no-reading sentinel from the power fields', () => {
@@ -715,7 +729,8 @@ describe('MQTT Message Parser', () => {
     // Device information
     expect(result).toHaveProperty('httpServerType', 0);
     expect(result).toHaveProperty('wifiSignalStrength', -75);
-    expect(result).toHaveProperty('ctType', 4);
+    // Jupiter reports ct_t in the B2500 code space, where 4 is a Shelly Pro 3EM.
+    expect(result).toHaveProperty('ctType', 'shellyPro3em');
     expect(result).toHaveProperty('phaseType', 1);
     expect(result).toHaveProperty('rechargeMode', 'threePhase');
     expect(result).toHaveProperty('deviceVersion', 134);
@@ -1061,6 +1076,50 @@ describe('MQTT Message Parser', () => {
     expect(result.depthOfDischarge).toBeUndefined();
   });
 
+  test('parses the fields Venus control firmware 150 adds to cd=1', () => {
+    // Field order and names taken from the cd=1 printf format string in the
+    // VNSD-0 control firmware 150 binary, so this is the shape a real Venus D
+    // on that firmware sends. soh arrived in 149.2, peak_status/peak_power in
+    // 150. The trailing run from `lk` on is the part hm2mqtt had never read.
+    const message =
+      'cd=1,tot_i=8848,tot_o=7097,ele_d=537,ele_m=8848,grd_d=328,grd_m=7097,inc_d=0,inc_m=0,grd_f=0,grd_o=613,grd_t=3,gct_s=1,cel_s=3,cel_p=327,cel_c=64,err_t=0,err_a=0,dev_n=158,grd_y=0,wor_m=0,tim_0=0|0|0|0|0|0|0,cts_m=0,bac_u=0,tra_a=1,tra_i=2,tra_o=3,htt_p=1,prc_c=0,prc_d=1,wif_s=33,inc_a=0,set_v=0,mcp_w=2500,mdp_w=2500,ct_t=4,phase_t=1,dchrg_t=1,bms_v=212,fc_v=202409090159,wifi_n=XXX,seq_s=0,ctrl_r=1,par=255,gen=255,ble=3,shelly_p=1010,c_ratio=90,udp=0,api=1,net=1,port=30000,inv_v=115,id=2|0|0|0|0,lk=0,bp=291,ei=0,eb=0,rp=347,gp=801,vp=801,bl=1,dod=88,bl_p=-1,led=1,as=3,lf=0,pl=0,soh=98,peak_status=1,peak_power=600';
+    const parsed = parseMessage(message, 'VNSD-0', 'venus123');
+
+    expect(parsed).toHaveProperty('data');
+    const result = parsed['data'] as VenusDeviceData;
+
+    expect(result).toHaveProperty('batteryHealth', 98);
+    expect(result).toHaveProperty('httpServerType', 1);
+
+    // Unnamed fields land in `raw` under their own key.
+    expect(result.raw).toMatchObject({
+      as: 3,
+      bl: 1,
+      bl_p: -1,
+      c_ratio: 90,
+      ctrl_r: 1,
+      gen: 255,
+      lf: 0,
+      lk: 0,
+      net: 1,
+      pl: 0,
+      tra_a: 1,
+      tra_i: 2,
+      tra_o: 3,
+      udp: 0,
+      vp: 801,
+    });
+
+    // id is a pipe-separated tuple and ei/eb are hex, so none of the three is
+    // published as a number.
+    expect(result.raw).not.toHaveProperty('id');
+    expect(result.raw).not.toHaveProperty('ei');
+    expect(result.raw).not.toHaveProperty('eb');
+
+    // The switch still reads bit 2 of `ble`, not the separate `bl` field.
+    expect(result).toHaveProperty('bluetoothAdvertisingEnabled', false);
+  });
+
   test('parses Venus AI working mode (wor_m=5)', () => {
     const message =
       'cd=1,tot_i=8848,tot_o=7097,ele_d=537,ele_m=8848,grd_d=328,grd_m=7097,inc_d=0,inc_m=0,grd_f=0,grd_o=613,grd_t=3,gct_s=1,cel_s=3,cel_p=327,cel_c=64,err_t=0,err_a=0,dev_n=158,grd_y=0,wor_m=5,tim_0=0|0|0|0|0|0|0,cts_m=0,bac_u=0,tra_a=1,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=1,wif_s=33,inc_a=0,set_v=0,mcp_w=2500,mdp_w=2500,ct_t=4,phase_t=1,dchrg_t=1,bms_v=212,fc_v=202409090159,wifi_n=XXX,seq_s=0,ctrl_r=1,par=255,gen=255,ble=3,shelly_p=1010,c_ratio=90,dod=88';
@@ -1229,6 +1288,31 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('pvEnergyTotal', 570);
   });
 
+  test.each([
+    ['VNSA-0', '4', 'ct003'],
+    ['VNSA-0', '1', 'shellyPro3em'],
+    ['VNSE3-0', '2', 'p1Meter'],
+    ['VNSD-0', '7', 'ecoTracker'],
+    ['HMG-25', '6', 'ct003'],
+    ['HMG-25', '4', 'shellyPro3em'],
+    ['HMG-25', '5', 'p1Meter'],
+    ['HMG-25', '0', 'none'],
+    ['HMG-25', '12', 'smrTic'],
+    ['VNSA-0', '8', 'smrP1'],
+    ['VNSD-0', '11', 'tpm2100ct'],
+    // Codes outside the table stay unset rather than falling back to a meter.
+    ['VNSA-0', '99', undefined],
+    ['HMG-25', '99', undefined],
+  ])('maps %s ct_t=%s to %s', (deviceType, ctT, expected) => {
+    // Venus C / E 2.0 (HMG) report ct_t in their own code space; the newer
+    // models report the cd=18 meter= code (a CT003 reads 4 there, 6 on HMG).
+    const message = `cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,inc_a=0,ct_t=${ctT}`;
+    const parsed = parseMessage(message, deviceType, 'venus123');
+
+    const result = parsed['data'] as VenusDeviceData;
+    expect(result.ctType).toBe(expected);
+  });
+
   test('parses Venus metering, pricing and version fields', () => {
     // Full Venus D dump exercising the CT/phase/pricing/version sensors.
     const message =
@@ -1242,7 +1326,8 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('dischargePrice', 0.003);
     // WiFi signal strength is negated into a dBm-style value
     expect(result).toHaveProperty('wifiSignalStrength', -72);
-    expect(result).toHaveProperty('ctType', 'ct3');
+    // Venus D reports the cd=18 meter= code, so 3 is a CT002.
+    expect(result).toHaveProperty('ctType', 'ct002');
     expect(result).toHaveProperty('phaseType', 'phaseA');
     expect(result).toHaveProperty('rechargeMode', 'threePhase');
     expect(result).toHaveProperty('bmsVersion', 116);
@@ -1429,6 +1514,238 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('subnetMask', '255.255.255.0');
     expect(result).toHaveProperty('dns', '192.168.178.1');
     expect(result).toHaveProperty('ctConnectIp', '192.168.178.255');
+  });
+
+  test('parses a real Venus E Mini (VNSEMINI) cd=1 reading', () => {
+    // Real captured cd=1 response from a Venus E Mini (VENUS_MINI_NOTES.md,
+    // VENUS_MINI_IMPLEMENTATION_PROMPT.md). This model's field names share
+    // almost nothing with the other Venus variants' cd=1 responses.
+    const message =
+      'cd=1,gp=-13,lp=4,ls=1,eg=0,ig=-13,gs=5,cv=0,cm=2,ct=0,m1=0,mp1=1500,ms1=1,st1=00:00,et1=23:59,re1=127,m2=1,mp2=1500,ms2=1,st2=00:00,et2=23:59,re2=127,m3=0,mp3=100,ms3=2,st3=00:00,et3=23:59,re3=127,m4=0,mp4=0,ms4=0,st4=00:00,et4=00:00,re4=0,m5=0,mp5=0,ms5=0,st5=00:00,et5=00:00,re5=0,m6=0,mp6=0,ms6=0,st6=00:00,et6=00:00,re6=0,soc=966,be=1940,dpt=-7,do=90,gn=0,ar=1,aw=2,apt=0,e1=0,e2=0,e3=0,e4=0,e5=0,e6=0,e7=0,dgb=32,dgs=0,dgp=99,dbc=1,dbd=65,tgb=38,tgs=0,tgp=125,tbc=8,tbd=79,pmu=295,inv=268,dcdc=268,wif_s=1,mq_s=1,wifi_a=41,ct_type=0,dev_sta=0,bbs=0,leds=0,gps=0,inv_p=-13,ct_ph=0,rechg_type=0,ser=0,time=2026-8-23 7:47:40';
+    const parsed = parseMessage(message, 'VNSEMINI-0', 'venusMini123');
+
+    expect(parsed).toHaveProperty('data');
+    const result = parsed['data'] as VenusMiniDeviceData;
+
+    expect(result).toHaveProperty('gridPower', -13);
+    expect(result).toHaveProperty('gridPowerAlt', -13); // ig, matched gp
+    expect(result).toHaveProperty('backupPower', 4); // lp, matches the app's "Backup" reading
+    expect(result).toHaveProperty('inverterPower', -13); // inv_p, also matched gp
+    expect(result).toHaveProperty('batteryPower', -7); // dpt, negative = discharging
+    expect(result).toHaveProperty('batterySoc', 96.6); // soc reported ×10
+    expect(result).toHaveProperty('batteryEnergyStored', 1940);
+    expect(result).toHaveProperty('dischargeDepth', 90);
+    expect(result).toHaveProperty('pmuFirmwareVersion', 295);
+    expect(result).toHaveProperty('inverterFirmwareVersion', 268);
+    expect(result).toHaveProperty('dcdcFirmwareVersion', 268);
+    expect(result).toHaveProperty('wifiStatus', true);
+    expect(result).toHaveProperty('mqttStatus', true);
+    expect(result).toHaveProperty('wifiSignal', -41); // wifi_a=41 is an RSSI magnitude
+    expect(result).toHaveProperty('ctType', 0);
+    expect(result).toHaveProperty('ctPhase', 0);
+    expect(result).toHaveProperty('workingMode', 'manual'); // cm=2
+    expect(result).toHaveProperty('deviceState', 'standby'); // dev_sta=0
+    expect(result).toHaveProperty('ledEnabled', true); // leds=0 is inverted: LED on
+    expect(result).toHaveProperty('bluetoothLockRaw', 0);
+    expect(result).toHaveProperty('feedInPowerLimit', '800W'); // gps=0
+    expect(result).toHaveProperty('batteryDischargedEnergyToday', 65); // dbd
+    expect(result).toHaveProperty('batteryDischargedEnergyTotal', 79); // tbd
+    expect(result).toHaveProperty('batteryChargedEnergyToday', 1); // dbc
+    expect(result).toHaveProperty('batteryChargedEnergyTotal', 8); // tbc
+    expect(result).toHaveProperty('gridImportedEnergyToday', 0); // dgs
+    expect(result).toHaveProperty('gridImportedEnergyTotal', 0); // tgs
+    expect(result).toHaveProperty('loadConsumedEnergyToday', 32); // dgb
+    expect(result).toHaveProperty('gridExportedEnergyToday', 99); // dgp
+    expect(result).toHaveProperty('loadState', 1); // ls
+    expect(result).toHaveProperty('gridMode', 5); // gs
+    expect(result).toHaveProperty('serverState', 0); // ser
+    expect(result).toHaveProperty('rechargeType', 0); // rechg_type
+
+    // The device does not zero-pad "time" ("2026-8-23 7:47:40"); it's parsed
+    // into a proper ISO-8601 timestamp assuming the host's local timezone.
+    expect(result.deviceTime).toBe(new Date(2026, 7, 23, 7, 47, 40).toISOString());
+
+    // Schedule slot 1: present but disabled (m1=0), direction = charge (ms1=1).
+    expect(result.timePeriods?.[0]).toEqual({
+      enabled: false,
+      power: 1500,
+      startTime: '00:00',
+      endTime: '23:59',
+      direction: 'charge',
+      modeRaw: 1,
+      repeatRaw: 127,
+    });
+    // Schedule slot 2: the only enabled slot in this capture (m2=1).
+    expect(result.timePeriods?.[1]).toEqual({
+      enabled: true,
+      power: 1500,
+      startTime: '00:00',
+      endTime: '23:59',
+      direction: 'charge',
+      modeRaw: 1,
+      repeatRaw: 127,
+    });
+    // Schedule slot 3: direction = discharge (ms3=2).
+    expect(result.timePeriods?.[2]).toMatchObject({ direction: 'discharge', modeRaw: 2 });
+    // Schedule slot 4: unused slot, all zeros.
+    expect(result.timePeriods?.[3]).toEqual({
+      enabled: false,
+      power: 0,
+      startTime: '00:00',
+      endTime: '00:00',
+      direction: 'unknown',
+      modeRaw: 0,
+      repeatRaw: 0,
+    });
+
+    // Fields with no confirmed meaning are preserved verbatim under `raw`.
+    expect(result.raw).toMatchObject({
+      tgb: 38,
+      tgp: 125,
+      e1: 0,
+      e2: 0,
+      e3: 0,
+      e4: 0,
+      e5: 0,
+      e6: 0,
+      e7: 0,
+    });
+    // Now-promoted fields should no longer sit in the raw bucket.
+    expect(result.raw).not.toHaveProperty('dpt');
+    expect(result.raw).not.toHaveProperty('do');
+    expect(result.raw).not.toHaveProperty('dev_sta');
+    expect(result.raw).not.toHaveProperty('cm');
+    expect(result.raw).not.toHaveProperty('leds');
+    expect(result.raw).not.toHaveProperty('bbs');
+    expect(result.raw).not.toHaveProperty('gps');
+    expect(result.raw).not.toHaveProperty('wifi_a');
+    expect(result.raw).not.toHaveProperty('dgs');
+    expect(result.raw).not.toHaveProperty('dbd');
+    expect(result.raw).not.toHaveProperty('tgs');
+    expect(result.raw).not.toHaveProperty('tbd');
+    expect(result.raw).not.toHaveProperty('dbc');
+    expect(result.raw).not.toHaveProperty('tbc');
+    expect(result.raw).not.toHaveProperty('dgb');
+    expect(result.raw).not.toHaveProperty('dgp');
+    expect(result.raw).not.toHaveProperty('ls');
+    expect(result.raw).not.toHaveProperty('gs');
+    expect(result.raw).not.toHaveProperty('ser');
+    expect(result.raw).not.toHaveProperty('rechg_type');
+  });
+
+  test('leaves an out-of-range Venus E Mini device time alone', () => {
+    // Date normalizes rather than rejecting: February 31st would silently
+    // become March 3rd, and hour 25 the next day at 01:00. A corrupt reading
+    // should stay recognisably corrupt instead of becoming a plausible wrong
+    // timestamp.
+    const base =
+      'cd=1,gp=0,lp=0,ls=1,eg=0,ig=0,gs=5,cv=0,cm=0,ct=0,m1=0,mp1=0,ms1=0,st1=00:00,et1=00:00,re1=0,soc=966,be=1940,dpt=0,do=90,pmu=295,wif_s=1,mq_s=1,wifi_a=41,ct_type=0,dev_sta=0,bbs=0,leds=0,gps=0,inv_p=0,ct_ph=0';
+    for (const bad of ['2026-02-31 12:00:00', '2026-13-01 00:00:00', '2026-08-23 25:00:00']) {
+      const parsed = parseMessage(`${base},time=${bad}`, 'VNSEMINI-0', 'venusMini123');
+      expect((parsed['data'] as VenusMiniDeviceData).deviceTime).toBe(bad);
+    }
+
+    // A valid, unpadded reading still converts.
+    const good = parseMessage(`${base},time=2026-8-23 7:47:40`, 'VNSEMINI-0', 'venusMini123');
+    expect((good['data'] as VenusMiniDeviceData).deviceTime).toBe(
+      new Date(2026, 7, 23, 7, 47, 40).toISOString(),
+    );
+  });
+
+  test('parses the Venus E Mini per-phase CT payload (cd=59)', () => {
+    // Not from a real capture: the unit the cd=1 mappings were checked against
+    // reports ct_type=0, so it never answers a power request at all.
+    // power_a/power_b/power_c are phases A/B/C and power_s the three-phase
+    // total, in watts.
+    const message = 'power_a=230,power_b=0,power_c=-45,power_s=185,d_p=0';
+    const parsed = parseMessage(message, 'VNSEMINI-0', 'venusMini123');
+
+    const result = parsed['ct'] as VenusMiniDeviceData;
+    expect(result.phaseAPower).toBe(230);
+    expect(result.phaseBPower).toBe(0);
+    expect(result.phaseCPower).toBe(-45);
+    expect(result.totalPhasePower).toBe(185);
+    // The cd=59 reply must not be mistaken for the cd=1 runtime message.
+    expect(parsed['data']).toBeUndefined();
+  });
+
+  test('publishes the unnamed Venus E Mini CT keys without touching cd=1 raw', () => {
+    const message =
+      'power_a=230,power_b=0,power_c=-45,power_s=185,d_p=0,ct_st=1,gn_pwr=-13,gn_pwr1=-13,gf_pwr=0,bat_pwr=-7';
+    const parsed = parseMessage(message, 'VNSEMINI-0', 'venusMini123');
+
+    const result = parsed['ct'] as VenusMiniDeviceData;
+    expect(result.ctRaw).toEqual({
+      d_p: 0,
+      ct_st: 1,
+      gn_pwr: -13,
+      gn_pwr1: -13,
+      gf_pwr: 0,
+      bat_pwr: -7,
+    });
+    // These live in their own record so the cd=1 message's `raw` survives the
+    // per-path state merge.
+    expect(result.raw).toBeUndefined();
+  });
+
+  test('maps Venus E Mini enum branches not covered by the primary capture', () => {
+    // Synthesized from the per-field confirmations in
+    // VENUS_MINI_IMPLEMENTATION_PROMPT.md to cover enum values the single
+    // real capture above doesn't exercise: workingMode=automatic
+    // (cm=0), deviceState=charging (dev_sta=1), feedInPowerLimit=1500W
+    // (gps=1), LED off (leds=1), and schedule direction=selfConsumption
+    // (ms1=3).
+    const message =
+      'cd=1,gp=0,lp=0,ls=1,eg=0,ig=0,gs=5,cv=0,cm=0,ct=0,m1=0,mp1=0,ms1=3,st1=00:00,et1=00:00,re1=0,m2=0,mp2=0,ms2=0,st2=00:00,et2=00:00,re2=0,m3=0,mp3=0,ms3=0,st3=00:00,et3=00:00,re3=0,m4=0,mp4=0,ms4=0,st4=00:00,et4=00:00,re4=0,m5=0,mp5=0,ms5=0,st5=00:00,et5=00:00,re5=0,m6=0,mp6=0,ms6=0,st6=00:00,et6=00:00,re6=0,soc=966,be=1940,dpt=655,do=90,gn=0,ar=1,aw=2,apt=0,e1=0,e2=0,e3=0,e4=0,e5=0,e6=0,e7=0,dgb=32,dgs=0,dgp=99,dbc=1,dbd=65,tgb=38,tgs=0,tgp=125,tbc=8,tbd=79,pmu=295,inv=268,dcdc=268,wif_s=1,mq_s=1,wifi_a=41,ct_type=0,dev_sta=1,bbs=1,leds=1,gps=1,inv_p=0,ct_ph=0,rechg_type=0,ser=0,time=2026-08-23 08:05:09';
+    const parsed = parseMessage(message, 'VNSEMINI-0', 'venusMini123');
+
+    expect(parsed).toHaveProperty('data');
+    const result = parsed['data'] as VenusMiniDeviceData;
+
+    expect(result).toHaveProperty('workingMode', 'automatic');
+    expect(result).toHaveProperty('deviceState', 'charging');
+    expect(result).toHaveProperty('feedInPowerLimit', '1500W');
+    expect(result).toHaveProperty('ledEnabled', false); // leds=1 is inverted: LED off
+    expect(result.timePeriods?.[0]).toMatchObject({ direction: 'selfConsumption', modeRaw: 3 });
+    // Already zero-padded input should pass through unchanged.
+    expect(result.deviceTime).toBe(new Date(2026, 7, 23, 8, 5, 9).toISOString());
+  });
+
+  test('maps the Venus E Mini states only the vendor app documents', () => {
+    // dev_sta 3/4/5 and cm=3 have not been seen from a real device: they come
+    // from the state and work-mode tables the vendor app keeps for this
+    // model. 4 is a second discharging state, deliberately sharing the label
+    // of 2 because what separates them is unknown.
+    const base =
+      'cd=1,gp=0,lp=0,ig=0,ct=0,m1=0,mp1=0,ms1=0,st1=00:00,et1=00:00,re1=0,soc=966,be=1940,dpt=0,do=90,pmu=295,wif_s=1,mq_s=1,wifi_a=41,ct_type=0,bbs=0,leds=0,gps=0,inv_p=0,ct_ph=0,time=2026-08-23 08:05:09';
+
+    const states: [string, string][] = [
+      ['3', 'bypass'],
+      ['4', 'discharging'],
+      ['5', 'fault'],
+      ['6', 'unknown'],
+    ];
+    for (const [code, expected] of states) {
+      const parsed = parseMessage(`${base},cm=0,dev_sta=${code}`, 'VNSEMINI-0', 'venusMini123');
+      expect((parsed['data'] as VenusMiniDeviceData).deviceState).toBe(expected);
+    }
+
+    // The app's AI mode is still greyed out as "coming soon", but 3 is the
+    // code it reports.
+    const ai = parseMessage(`${base},cm=3,dev_sta=0`, 'VNSEMINI-0', 'venusMini123');
+    expect((ai['data'] as VenusMiniDeviceData).workingMode).toBe('ai');
+
+    // wifi_a is the magnitude of the RSSI, so the sensor reports it negated.
+    expect((ai['data'] as VenusMiniDeviceData).wifiSignal).toBe(-41);
+
+    // A reading that already carries its sign must be left alone rather than
+    // flipped back to a positive dBm value.
+    const signed = parseMessage(
+      `${base.replace('wifi_a=41', 'wifi_a=-41')},cm=0,dev_sta=0`,
+      'VNSEMINI-0',
+      'venusMini123',
+    );
+    expect((signed['data'] as VenusMiniDeviceData).wifiSignal).toBe(-41);
   });
 
   test('scales Venus A (VNSA) BMS voltages and temperatures (issue #218)', () => {

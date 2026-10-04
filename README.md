@@ -28,6 +28,7 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 - Marstek Venus E
 - Marstek Venus A
 - Marstek Venus D
+- Marstek Venus E Mini (beta)
 - Marstek Jupiter C
 - Marstek Jupiter E
 - Marstek Jupiter Plus
@@ -556,6 +557,7 @@ The device type can be one of the following:
 - **VNSE3-X**: (e.g. VNSE3-0) Venus E 3.0
 - **VNSA-X**: (e.g. VNSA-1) Venus A
 - **VNSD-X**: (e.g. VNSD-1) Venus D
+- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini — **beta**; sensors plus *Depth of Discharge*, *Working Mode*, *Bluetooth Advertising*, *Meter Type*, *Meter MAC*, *Refresh*, *Get CT Power*, *Restart* and *Factory Reset* controls. These share their names with the Venus ones and their options where the two overlap, but the ranges are the model's own: this one has no *Trading* working mode, and takes a depth of discharge of 30-90% against the Venus 30-88%. The remaining Venus write commands do not apply to it.
 - **HMN-X**: (e.g. HMN-1) Marstek Jupiter E
 - **HMM-X**: (e.g. HMM-1) Marstek Jupiter C
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus
@@ -688,10 +690,11 @@ homeassistant/{component}/{node_id}/{object_id}/config
 - `phase-diagnosis`: Starts grid-phase detection. Progress shows up on the *CT Status* sensor.
 
 ### Venus Device Commands
+Applies to HMG/VNSE3/VNSA/VNSD. None of the commands below are available on the Venus E Mini (VNSEMINI), which has its own, much smaller command set — see [Venus E Mini Commands](#venus-e-mini-commands).
 - `working-mode`: Sets working mode (`automatic`, `manual`, `trading`, or `ai`). The `ai` value expands to `cd=2,md=5,nl=1` (AI mode requires both `md=5` and `nl=1`).
 - `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`)
 - `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped). The device does not report this back, so the entity shows the last value set.
-- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50` or `ecoTracker`). For CT002/CT003 and the Shelly EM Gen3/Pro EM50, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC. The device does not report this back, so the entity shows the last value set.
+- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `p1Meter`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50`, `ecoTracker`, `smrP1`, `smrIr`, `smrTic` or `tpm2100ct`). For every meter except the CT001 and the Shelly Pro 3EM, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC. The device does not report this back, so the entity shows the last value set.
 - `auto-switch-working-mode`: Toggles automatic mode switching (`on` or `off`)
 - `time-period/[0-9]/enabled`: Enables/disables time period (`on` or `off`)
 - `time-period/[0-9]/start-time`: Sets start time for period (HH:MM format)
@@ -733,6 +736,76 @@ enabling. The matching *Parallel Mode* entity reports the current state (*Turned
 Off*, *Wiring Check*, *Turned On*, or *Unknown* on units that do not support
 parallel operation).
 
+Venus devices also report a *Battery Health* sensor (state of health) on control
+firmware 149.2 and later, plus a set of raw diagnostic sensors for fields the
+device sends that have no confirmed meaning. All of the raw ones are disabled by
+default. See [docs/venus-generations.md](docs/venus-generations.md).
+
+### Venus E Mini Commands
+
+Applies to VNSEMINI. Despite the name this model shares almost nothing with the
+Venus commands above.
+
+- `bluetooth-advertising`: Turns the device's Bluetooth advertising on or off.
+  The *Bluetooth Advertising* switch shows the last value that was set rather
+  than the device's own state. The Mini most likely does report the setting back
+  in the field behind the *Bluetooth Lock (Raw)* sensor, but which value means
+  "advertising on" is not established, and a switch wired the wrong way round
+  would show the opposite of reality — so it stays on the last value set until
+  someone confirms the direction on a device.
+- `discharge-depth`: Sets the usable-discharge percentage, 30-90%. The device
+  reports the setting back, so the *Discharge Depth* entity shows its real
+  state.
+- `working-mode`: Sets the working mode (`automatic`, `manual` or `ai`) — the
+  same option names as the Venus command above, though this model sends
+  different codes for them and has no `trading` mode. The device reports its
+  mode back, so the *Working Mode* entity shows its real state.
+- `meter-mac`: Sets the MAC address used when configuring an external meter
+  (12 hex digits, no separators). Shows the last value set. Disabled by default.
+- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`,
+  `p1Meter`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50`, `ecoTracker`,
+  `smrP1`, `smrIr`, `smrTic` or `tpm2100ct`) — the same command and the same
+  meter codes as the other families. For every meter except the CT001 and the
+  Shelly Pro 3EM, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero
+  MAC. Shows the last value set. Disabled by default.
+- `refresh`: Refreshes the device data. Disabled by default.
+- `get-ct-power`: Gets current transformer power readings. Disabled by default.
+- `restart`: Reboots the device. Disabled by default.
+- `factory-reset`: Resets the device to factory settings. Disabled by default.
+
+**Beta.** The read-only refresh command has been confirmed on a real device.
+The other commands were read out of the Marstek app rather than captured from
+a real device, so they have not been confirmed end to end.
+
+The Venus E Mini runs a second generation of Marstek's Venus firmware, together
+with the Venus X and Venus G. It numbers its commands differently from the
+Venus C/D/E — depth of discharge, the LED, setting the time and reading network
+info all moved — and uses a different MQTT topic namespace. That is why it has
+its own command list here rather than sharing the Venus one. See
+[docs/venus-generations.md](docs/venus-generations.md) for the full map.
+
+The rest of the app's commands for this model are not exposed. For most of them
+the reason is that the values they accept are not known; the grid-connection
+power limit is a different case, and is called out below:
+
+- Configuring the device's server, and setting the recharge type — neither has a
+  documented value set, and pointing a device at a different server can take it
+  off the network.
+- The grid-connection power limit (the 800 W / 1500 W setting). The app does not
+  set this over MQTT at all; it goes through Marstek's cloud, which then
+  provisions the device. hm2mqtt shows the result in the *Feed-in Power Limit*
+  sensor but cannot change it.
+- Anti-reverse-flow, which takes three parameters of which only one has a
+  guessable meaning.
+- Setting the device time. The parameters are known but not whether the clock
+  fields are meant to be local or UTC, and getting that wrong sets the clock off
+  by your timezone offset.
+- Reading the network info and error code, whose replies have a shape nothing
+  here can parse yet.
+- Manual-mode scheduling, which the app assembles per call and the device
+  reports nothing back about.
+- Configuring WiFi, which carries network credentials and has no MQTT form.
+
 ### Jupiter Device Commands
 
 The following commands are supported by both Jupiter C, Jupiter E and Jupiter Plus devices:
@@ -743,7 +816,7 @@ The following commands are supported by both Jupiter C, Jupiter E and Jupiter Pl
 - `working-mode`: Sets working mode (`automatic`, `manual`, or `ai`). The `ai` value expands to `cd=2,md=5,nl=1` (AI mode requires both `md=5` and `nl=1`).
 - `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`)
 - `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped). The device does not report this back, so the entity shows the last value set.
-- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50` or `ecoTracker`). For CT002/CT003 and the Shelly EM Gen3/Pro EM50, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC. The device does not report this back, so the entity shows the last value set.
+- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `p1Meter`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50`, `ecoTracker`, `smrP1`, `smrIr`, `smrTic` or `tpm2100ct`). For every meter except the CT001 and the Shelly Pro 3EM, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC. The device does not report this back, so the entity shows the last value set.
 - `bluetooth-advertising`: Toggles Bluetooth advertising (`on` enables advertising, `off` disables it / "Bluetooth lock"). Requires firmware 141 or newer.
 - `phase-diagnosis`: Starts the grid-phase detection routine
 - `battery-pack-recovery`: Reactivates an unresponsive battery pack. Jupiter Plus only, firmware 135 or newer.
