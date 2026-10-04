@@ -1,6 +1,9 @@
 # Changelog
 ## [Next]
 
+### Fixed
+
+- Devices were regularly read a whole *Polling Interval* late: a poll that was due was skipped when its timer fired on time, so some readings arrived after two intervals instead of one
 
 ## [1.10.1] - 2026-10-04
 

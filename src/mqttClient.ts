@@ -4,6 +4,7 @@ import { DeviceManager } from './deviceManager.js';
 import { publishDiscoveryConfigs } from './generateDiscoveryConfigs.js';
 import { AdditionalDeviceInfo, BaseDeviceData, getDeviceDefinition } from './deviceDefinition.js';
 import logger from './logger.js';
+import { POLL_TIMING_TOLERANCE_MS } from './constants.js';
 import { redactUrlCredentials } from './utils/redact.js';
 
 export class MqttClient {
@@ -324,6 +325,21 @@ export class MqttClient {
 
   private lastRequestTime: Map<string, number> = new Map();
 
+  private lastRequestTimeKey(device: Device, messageIndex: number): string {
+    return `${device.deviceId}:${messageIndex}`;
+  }
+
+  /**
+   * Whether a message's poll interval has run out. Allows for the polling
+   * timer reading the clock a moment early, see POLL_TIMING_TOLERANCE_MS.
+   */
+  private isDue(device: Device, messageIndex: number, pollInterval: number, now: number): boolean {
+    const lastRequestTime = this.lastRequestTime.get(this.lastRequestTimeKey(device, messageIndex));
+    return (
+      lastRequestTime == null || now - lastRequestTime >= pollInterval - POLL_TIMING_TOLERANCE_MS
+    );
+  }
+
   /**
    * Request device data
    *
@@ -377,13 +393,7 @@ export class MqttClient {
       if (message.shouldPoll && !message.shouldPoll(pollState)) {
         continue;
       }
-      let lastRequestTimeKey = `${device.deviceId}:${idx}`;
-      const lastRequestTime = this.lastRequestTime.get(lastRequestTimeKey);
-      if (
-        forced.has(idx) ||
-        lastRequestTime == null ||
-        now > lastRequestTime + message.pollInterval
-      ) {
+      if (forced.has(idx) || this.isDue(device, idx, message.pollInterval, now)) {
         needsRefresh = true;
         shouldStartTimeout = shouldStartTimeout || message.controlsDeviceAvailability;
       }
@@ -426,16 +436,10 @@ export class MqttClient {
         continue;
       }
 
-      let lastRequestTimeKey = `${device.deviceId}:${idx}`;
-      const lastRequestTime = this.lastRequestTime.get(lastRequestTimeKey);
-      if (
-        forced.has(idx) ||
-        lastRequestTime == null ||
-        now > lastRequestTime + message.pollInterval
-      ) {
+      if (forced.has(idx) || this.isDue(device, idx, message.pollInterval, now)) {
         // Re-anchor the schedule so a forced read does not leave a regular poll
         // due a moment later.
-        this.lastRequestTime.set(lastRequestTimeKey, now);
+        this.lastRequestTime.set(this.lastRequestTimeKey(device, idx), now);
         const payload = message.refreshDataPayload;
         setTimeout(
           () => {
