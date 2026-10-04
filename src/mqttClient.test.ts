@@ -437,6 +437,32 @@ describe('MqttClient forced refresh', () => {
     expect(payloadsAfter(() => mqttClient.requestDeviceData(device))).toEqual([]);
   });
 
+  // The polling timer fires every poll interval, but the time it reads is not
+  // exactly one interval after the last one: the event loop's clock can lag the
+  // real one by a few milliseconds. A message that was due must not be skipped
+  // for that, which would push its next read a whole interval back.
+  test('polls a message whose interval elapsed while the timer fired a moment early', () => {
+    const mqttClient = setUpPolledClient([cells()]);
+
+    // The regular poll ran at t=0; land at t=59999.
+    jest.advanceTimersByTime(58999);
+    expect(payloadsAfter(() => mqttClient.requestDeviceData(device))).toContain('cd=13');
+  });
+
+  test('polls a message exactly one interval after it was last requested', () => {
+    const mqttClient = setUpPolledClient([cells()]);
+
+    jest.advanceTimersByTime(59000);
+    expect(payloadsAfter(() => mqttClient.requestDeviceData(device))).toContain('cd=13');
+  });
+
+  test('does not poll a message that is still a second away from due', () => {
+    const mqttClient = setUpPolledClient([cells()]);
+
+    jest.advanceTimersByTime(58000);
+    expect(payloadsAfter(() => mqttClient.requestDeviceData(device))).toEqual([]);
+  });
+
   test('does not force a disabled message', () => {
     const mqttClient = setUpPolledClient([runtime(), cells({ enabled: false })]);
 

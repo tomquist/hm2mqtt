@@ -1,6 +1,9 @@
 # Changelog
 ## [Next]
 
+### Fixed
+
+- Devices were regularly read a whole *Polling Interval* late, because a poll that was due got skipped (PR #456)
 
 ## [1.10.1] - 2026-10-04
 
