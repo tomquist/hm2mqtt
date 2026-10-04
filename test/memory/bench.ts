@@ -17,20 +17,29 @@
  *   --log-level <lvl>  LOG_LEVEL of the measured process (default info)
  *   --runs <n>         repeat the measurement and report each run (default 1)
  *   --json <file>      also write the per-run summaries as JSON
+ *   --node-arg <arg>   pass a flag to the measured node process (repeatable)
+ *   --dist <dir>       build to measure, relative to the repo (default dist), so
+ *                      two builds can be compared, e.g. one of the base branch:
+ *                      git worktree add /tmp/base develop && (cd /tmp/base && npm ci && npm run build)
+ *                      && mkdir -p .bench/base && cp -r /tmp/base/dist .bench/base/
+ *   --docker <image>   run the measured process in this image instead, e.g.
+ *                      node:26-alpine, the base of the published images. The
+ *                      container shares the host network and mounts the repo
+ *                      read-only; its memory is still read from the host's /proc.
  *
  * Linux only: it reads /proc/<pid>/status.
  */
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { Readable } from 'node:stream';
 import { startBroker } from '../e2e/harness/broker.js';
 import { startSimulatedDevice, SimulatedDevice } from '../e2e/harness/device.js';
 import { REPO_ROOT } from '../e2e/harness/env.js';
 import { deviceFixtures } from '../fixtures/devices.js';
 
-const ENTRY_POINT = resolve(REPO_ROOT, 'dist/index.js');
-const PROBE = resolve(REPO_ROOT, 'test/memory/probe.cjs');
+const PROBE_PATH = 'test/memory/probe.cjs';
+/** Must match MARKER in probe.cjs. */
+const PROBE_MARKER = '@@hm2mqtt-memory-probe ';
 const MB = 1024 * 1024;
 
 interface Options {
@@ -41,6 +50,9 @@ interface Options {
   logLevel: string;
   runs: number;
   json?: string;
+  nodeArgs: string[];
+  docker?: string;
+  dist: string;
 }
 
 function parseOptions(argv: string[]): Options {
@@ -51,6 +63,8 @@ function parseOptions(argv: string[]): Options {
     proxy: false,
     logLevel: 'info',
     runs: 1,
+    nodeArgs: [],
+    dist: 'dist',
   };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -76,6 +90,15 @@ function parseOptions(argv: string[]): Options {
         break;
       case '--json':
         options.json = next();
+        break;
+      case '--node-arg':
+        options.nodeArgs.push(next());
+        break;
+      case '--dist':
+        options.dist = next();
+        break;
+      case '--docker':
+        options.docker = next();
         break;
       case '--':
         break;
@@ -123,6 +146,14 @@ function readProcStatus(pid: number): Omit<ProcSample, 't'> | undefined {
   };
 }
 
+function containerPid(name: string): number {
+  const result = spawnSync('docker', ['inspect', '-f', '{{.State.Pid}}', name], {
+    encoding: 'utf8',
+  });
+  const pid = Number(result.stdout?.trim());
+  return Number.isInteger(pid) && pid > 0 ? pid : 0;
+}
+
 const median = (values: number[]) => {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
@@ -154,6 +185,7 @@ export interface RunSummary {
   rssSlopeMbPerMin: number;
   threads: number;
   steadyHeapUsedMb?: number;
+  steadyHeapTotalMb?: number;
   heapUsedSlopeMbPerMin?: number;
   steadyExternalMb?: number;
   messagesReceived: number;
@@ -178,40 +210,70 @@ async function measureOnce(options: Options): Promise<RunSummary> {
   let messagesReceived = 0;
   const countingStart = broker.published.length;
 
-  const child = spawn(process.execPath, ['--require', PROBE, ENTRY_POINT], {
-    cwd: REPO_ROOT,
-    env: {
-      PATH: process.env.PATH,
-      ...deviceEnv,
-      MQTT_BROKER_URL: broker.url,
-      MQTT_TOPIC_PREFIX: 'bench',
-      MQTT_POLLING_INTERVAL: String(options.poll),
-      MQTT_RESPONSE_TIMEOUT: '10',
-      MQTT_PROXY_ENABLED: options.proxy ? 'true' : 'false',
-      MQTT_PROXY_PORT: '0',
-      LOG_LEVEL: options.logLevel,
-      HM2MQTT_DATA_DIR: '/nonexistent/hm2mqtt-bench',
-      DOTENV_CONFIG_PATH: '/dev/null',
-      HM2MQTT_MEMORY_PROBE_FD: '3',
-    },
-    stdio: ['ignore', 'pipe', 'pipe', 'pipe'],
-  });
+  const env: Record<string, string> = {
+    ...deviceEnv,
+    MQTT_BROKER_URL: broker.url,
+    MQTT_TOPIC_PREFIX: 'bench',
+    MQTT_POLLING_INTERVAL: String(options.poll),
+    MQTT_RESPONSE_TIMEOUT: '10',
+    MQTT_PROXY_ENABLED: options.proxy ? 'true' : 'false',
+    MQTT_PROXY_PORT: '0',
+    LOG_LEVEL: options.logLevel,
+    HM2MQTT_DATA_DIR: '/nonexistent/hm2mqtt-bench',
+    DOTENV_CONFIG_PATH: '/dev/null',
+  };
+  const nodeArgs = (root: string) => [
+    ...options.nodeArgs,
+    '--require',
+    resolve(root, PROBE_PATH),
+    resolve(root, options.dist, 'index.js'),
+  ];
+
+  const containerName = `hm2mqtt-memory-bench-${process.pid}-${Date.now()}`;
+  const child = options.docker
+    ? spawn(
+        'docker',
+        [
+          'run',
+          '--rm',
+          '--name',
+          containerName,
+          '--network',
+          'host',
+          '-v',
+          `${REPO_ROOT}:/app:ro`,
+          '-w',
+          '/app',
+          ...Object.entries(env).flatMap(([key, value]) => ['-e', `${key}=${value}`]),
+          options.docker,
+          'node',
+          ...nodeArgs('/app'),
+        ],
+        { stdio: ['ignore', 'pipe', 'pipe'] },
+      )
+    : spawn(process.execPath, nodeArgs(REPO_ROOT), {
+        cwd: REPO_ROOT,
+        env: { PATH: process.env.PATH, ...env },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
 
   let output = '';
-  child.stdout?.on('data', chunk => (output += chunk.toString()));
-  child.stderr?.on('data', chunk => (output += chunk.toString()));
-
   const heapSamples: HeapSample[] = [];
   const spawnedAt = Date.now();
-  let probeBuffer = '';
-  (child.stdio[3] as Readable).on('data', (chunk: Buffer) => {
-    probeBuffer += chunk.toString();
+  child.stdout?.on('data', chunk => (output += chunk.toString()));
+  let stderrBuffer = '';
+  child.stderr?.on('data', (chunk: Buffer) => {
+    stderrBuffer += chunk.toString();
     let newline: number;
-    while ((newline = probeBuffer.indexOf('\n')) >= 0) {
-      const line = probeBuffer.slice(0, newline);
-      probeBuffer = probeBuffer.slice(newline + 1);
+    while ((newline = stderrBuffer.indexOf('\n')) >= 0) {
+      const line = stderrBuffer.slice(0, newline);
+      stderrBuffer = stderrBuffer.slice(newline + 1);
+      if (!line.startsWith(PROBE_MARKER)) {
+        output += `${line}\n`;
+        continue;
+      }
       try {
-        const sample = JSON.parse(line);
+        const sample = JSON.parse(line.slice(PROBE_MARKER.length));
         heapSamples.push({ ...sample, t: (sample.t - spawnedAt) / 1000 });
       } catch {
         // A torn line at shutdown; ignore it.
@@ -223,11 +285,16 @@ async function measureOnce(options: Options): Promise<RunSummary> {
   child.on('exit', () => (exited = true));
 
   const procSamples: ProcSample[] = [];
-  const pid = child.pid as number;
+  // In a container, the process to measure is not the docker client we
+  // spawned but the container's main process, as the host sees it.
+  let pid = options.docker ? 0 : (child.pid as number);
   await new Promise<void>(resolveRun => {
     const timer = setInterval(() => {
       const t = (Date.now() - spawnedAt) / 1000;
-      const status = exited ? undefined : readProcStatus(pid);
+      if (options.docker && pid === 0) {
+        pid = containerPid(containerName);
+      }
+      const status = exited || pid === 0 ? undefined : readProcStatus(pid);
       if (status) {
         procSamples.push({ t, ...status });
       }
@@ -245,7 +312,11 @@ async function measureOnce(options: Options): Promise<RunSummary> {
   if (exited) {
     throw new Error(`hm2mqtt exited during the measurement:\n${output.slice(-4000)}`);
   }
-  child.kill('SIGTERM');
+  if (options.docker) {
+    spawnSync('docker', ['stop', '-t', '10', containerName], { stdio: 'ignore' });
+  } else {
+    child.kill('SIGTERM');
+  }
   await new Promise<void>(resolveExit => {
     if (exited) {
       resolveExit();
@@ -274,6 +345,9 @@ async function measureOnce(options: Options): Promise<RunSummary> {
     rssSlopeMbPerMin: slopePerMinute(steady.map(s => ({ t: s.t, y: s.rss / MB }))),
     threads: median(steady.map(s => s.threads)),
     steadyHeapUsedMb: steadyHeap.length ? median(steadyHeap.map(s => s.heapUsed)) / MB : undefined,
+    steadyHeapTotalMb: steadyHeap.length
+      ? median(steadyHeap.map(s => s.heapTotal)) / MB
+      : undefined,
     heapUsedSlopeMbPerMin: steadyHeap.length
       ? slopePerMinute(steadyHeap.map(s => ({ t: s.t, y: s.heapUsed / MB })))
       : undefined,
@@ -284,13 +358,16 @@ async function measureOnce(options: Options): Promise<RunSummary> {
 
 async function main() {
   const options = parseOptions(process.argv.slice(2));
-  if (!existsSync(ENTRY_POINT)) {
-    throw new Error(`${ENTRY_POINT} is missing. Run \`npm run build\` first.`);
+  const entryPoint = resolve(REPO_ROOT, options.dist, 'index.js');
+  if (!existsSync(entryPoint)) {
+    throw new Error(`${entryPoint} is missing. Run \`npm run build\` first.`);
   }
   console.log(
-    `Measuring ${ENTRY_POINT} (node ${process.version}) for ${options.duration}s: ` +
+    `Measuring ${entryPoint} (${options.docker ?? `node ${process.version}`}) for ${options.duration}s: ` +
       `${options.devices * deviceFixtures.length} device(s), poll ${options.poll}s, ` +
-      `proxy ${options.proxy ? 'on' : 'off'}, log level ${options.logLevel}`,
+      `proxy ${options.proxy ? 'on' : 'off'}, log level ${options.logLevel}` +
+      (options.nodeArgs.length ? `, node ${options.nodeArgs.join(' ')}` : '') +
+      (options.docker ? `, in ${options.docker}` : ''),
   );
 
   const summaries: RunSummary[] = [];
@@ -305,7 +382,7 @@ async function main() {
       `run ${run}: startup RSS ${fmt(summary.startupRssMb)} MB | ` +
         `steady RSS ${fmt(summary.steadyRssMb)} MB (anon ${fmt(summary.steadyRssAnonMb)}) | ` +
         `peak ${fmt(summary.peakRssMb)} MB | RSS slope ${fmt(summary.rssSlopeMbPerMin, 3)} MB/min | ` +
-        `heap ${fmt(summary.steadyHeapUsedMb)} MB (slope ${fmt(summary.heapUsedSlopeMbPerMin, 3)} MB/min) | ` +
+        `heap ${fmt(summary.steadyHeapUsedMb)}/${fmt(summary.steadyHeapTotalMb)} MB (slope ${fmt(summary.heapUsedSlopeMbPerMin, 3)} MB/min) | ` +
         `external ${fmt(summary.steadyExternalMb)} MB | threads ${summary.threads} | ` +
         `published ${summary.messagesReceived}`,
     );
