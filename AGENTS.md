@@ -47,6 +47,16 @@ See `test/e2e/README.md`. At release time, freeze the current baseline under
 `test/fixtures/discovery/released/<version>/`. The e2e suite needs Python
 3.14.2 or newer.
 
+If a change could affect memory use (dependencies, logging, MQTT client
+options, anything kept per device or per message), measure it:
+
+```bash
+npm run bench:memory -- --runs 3                 # RSS, heap and leak slope of the shipped build
+npm run bench:memory -- --docker node:26-alpine  # the same, in the published images' base
+```
+
+See `test/memory/bench.ts` for comparing against another build (`--dist`).
+
 If add-on behavior/config was changed, also validate add-on config consistency:
 
 - `ha_addon/config.yaml` options and schema are in sync
