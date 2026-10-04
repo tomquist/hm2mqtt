@@ -1,6 +1,9 @@
 # Changelog
 ## [Next]
 
+### Changed
+
+- hm2mqtt uses about 20 MB less memory, roughly a fifth less than before
 
 ## [1.10.1] - 2026-10-04
 
