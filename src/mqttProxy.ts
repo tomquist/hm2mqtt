@@ -194,6 +194,8 @@ export class MqttProxy {
       clean: true,
       reconnectPeriod: 5000,
       connectTimeout: 30000,
+      // See MqttClient: avoids a 6 MB lookup table of packet id Buffers.
+      writeCache: false,
     };
 
     logger.info(

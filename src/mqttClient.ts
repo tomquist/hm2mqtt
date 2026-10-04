@@ -38,6 +38,10 @@ export class MqttClient {
       clean: true,
       reconnectPeriod: 5000, // Reconnect every 5 seconds
       connectTimeout: 30000, // 30 seconds timeout
+      // By default mqtt.js pre-builds a Buffer for every possible packet id
+      // (all 65536 of them, about 6 MB) the first time it writes a packet.
+      // Encoding the two bytes per packet instead is free at our message rate.
+      writeCache: false,
       // Set up last will message for availability
       will: {
         topic: `${this.config.topicPrefix}/availability`,
