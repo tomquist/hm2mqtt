@@ -26,6 +26,7 @@ import {
   WeekdaySet,
 } from '../types.js';
 import { registerNetworkInfoMessage } from './networkInfoBase.js';
+import { VenusModel } from './helpers.js';
 import { registerCellBalancingMessage } from './cellBalancingMessage.js';
 import { extractVenusSample } from '../cellBalancing.js';
 import logger from '../logger.js';
@@ -333,7 +334,7 @@ registerDeviceDefinition(
     deviceTypes: ['HMG'],
   },
   ({ message }) => {
-    registerRuntimeInfoMessage(message, { ctTypeCodes: hmgCtTypeCodes });
+    registerRuntimeInfoMessage(message, { model: 'HMG' });
     registerBMSInfoMessage(message);
     registerVenusCellBalancingMessage(message);
     registerBMSPackMessage(message);
@@ -347,7 +348,7 @@ registerDeviceDefinition(
     deviceTypes: ['VNSE3'],
   },
   ({ message }) => {
-    registerRuntimeInfoMessage(message);
+    registerRuntimeInfoMessage(message, { model: 'VNSE3' });
     registerBMSInfoMessage(message);
     registerVenusCellBalancingMessage(message);
     registerBMSPackMessage(message);
@@ -358,24 +359,33 @@ registerDeviceDefinition(
 
 // Venus A (VNSA) and Venus D (VNSD) use a different scaling for the BMS
 // cell/MOSFET temperatures (factor of 10) compared to the other Venus variants.
-registerDeviceDefinition(
-  {
-    deviceTypes: ['VNSA', 'VNSD'],
-  },
-  ({ message }) => {
-    registerRuntimeInfoMessage(message);
-    registerBMSInfoMessage(message, { scaleTemperatures: true });
-    registerVenusCellBalancingMessage(message);
-    registerBMSPackMessage(message, { scaleTemperatures: true });
-    registerBMSPackDetailMessages(message, { scaleTemperatures: true });
-    registerVenusNetworkInfoMessage(message);
-  },
-);
+// They are registered separately so options and limits can differ per model.
+for (const model of ['VNSA', 'VNSD'] as const) {
+  registerDeviceDefinition(
+    {
+      deviceTypes: [model],
+    },
+    ({ message }) => {
+      registerRuntimeInfoMessage(message, { model });
+      registerBMSInfoMessage(message, { scaleTemperatures: true });
+      registerVenusCellBalancingMessage(message);
+      registerBMSPackMessage(message, { scaleTemperatures: true });
+      registerBMSPackDetailMessages(message, { scaleTemperatures: true });
+      registerVenusNetworkInfoMessage(message);
+    },
+  );
+}
 
 function registerRuntimeInfoMessage(
   message: BuildMessageFn,
-  { ctTypeCodes = vnsCtTypeCodes }: { ctTypeCodes?: Record<string, ReportedMeterType> } = {},
+  {
+    model,
+  }: {
+    /** The model this definition is for; per-model options and gates use it. */
+    model: VenusModel;
+  },
 ) {
+  const ctTypeCodes = model === 'HMG' ? hmgCtTypeCodes : vnsCtTypeCodes;
   let options = {
     refreshDataPayload: 'cd=1',
     isMessage: isVenusRuntimeInfoMessage,
