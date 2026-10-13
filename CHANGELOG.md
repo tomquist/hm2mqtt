@@ -1,6 +1,9 @@
 # Changelog
 ## [Next]
 
+### Changed
+
+- Home Assistant add-on: Runs on Node.js 24 instead of the outdated Node.js 18, which uses about 4 MB more memory (PR #461)
 
 ## [1.10.2] - 2026-10-13
 
