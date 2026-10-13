@@ -620,6 +620,22 @@ describe('Home Assistant Discovery', () => {
     ]);
   });
 
+  test('should replace the Venus auto switch working mode binary sensor with a switch', () => {
+    const configs = generateDiscoveryConfigs(
+      { deviceType: 'VNSE3-0', deviceId: 'venus123' },
+      jupiterTopics('VNSE3-0', 'venus123'),
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
+      {},
+    ).filter(c => c.topic.includes('/auto_switch_working_mode/'));
+    const sensor = configs.find(c => c.topic.startsWith('homeassistant/binary_sensor/'));
+    const control = configs.find(c => c.topic.startsWith('homeassistant/switch/'));
+    expect(sensor?.config).toBeNull();
+    expect(control?.config).toHaveProperty('command_topic');
+    expect(control?.config).toHaveProperty('state_topic');
+  });
+
   test('should read the Venus meter type back where the firmware reports it', () => {
     const meterType = (deviceType: string, state: object) =>
       generateDiscoveryConfigs(

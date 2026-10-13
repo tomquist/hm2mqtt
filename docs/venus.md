@@ -83,6 +83,9 @@
 31. [Restart](#31-restart)
     1. [Public](#311-public)
     2. [Receive](#312-receive)
+32. [Automatic working-mode switching](#32-automatic-working-mode-switching)
+    1. [Public](#321-public)
+    2. [Receive](#322-receive)
 
 ## 1 MQTT Core Concepts
 
@@ -177,7 +180,7 @@ Description of the above parameters:
 | tim_7 | ditto |
 | tim_8 | ditto |
 | tim_9 | ditto |
-| cts_m | Automatically switch the working mode switch based on CT signals (0: Off; 1: On) |
+| cts_m | Automatically switch the working mode switch based on CT signals (0: Off; 1: On) (see [`cd=8`](#32-automatic-working-mode-switching)) |
 | bac_u | Enable status of back up function (0: Close; 1: Open) |
 | tra_a | Transaction mode - region code, set with [`cd=3`](#6-set-transaction-mode-content) on the Venus C/E (HMG) up to control firmware 146. Unrelated on the Venus E 3.0, Venus A and Venus D |
 | tra_i | Transaction mode - electricity price during charging. Same availability as `tra_a` |
@@ -1315,3 +1318,25 @@ cd=28
 
 `cd=28,ret=1`, after which the device restarts about a second later. The Venus
 C/E (HMG) on control firmware 151 to 153 restarts without replying.
+
+## 32 Automatic working-mode switching
+
+Turns automatic working-mode switching based on the meter on or off, reported as
+`cts_m`. Available on every first-generation Venus build.
+
+### 32.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+1. `cd=8,dt=1` - On. This also sets the working mode at once: Automatic
+   (`wor_m=0`) while the meter delivers data (`gct_s=1`), Manual (`wor_m=1`)
+   when it does not (`gct_s=2`; on the Venus C/E (HMG) also `gct_s=0`).
+2. `cd=8,dt=0` - Off
+
+### 32.2 Receive
+
+`cd=8,ret=1`, or `cd=8,ret=0` when `dt` is neither 0 nor 1.

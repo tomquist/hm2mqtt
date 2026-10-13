@@ -1142,6 +1142,24 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
 
+  // auto-switch-working-mode command
+  {
+    description: 'Venus auto-switch-working-mode on',
+    deviceType: 'VNSD-0',
+    command: 'auto-switch-working-mode',
+    input: 'ON',
+    expectedOutput: 'cd=8,dt=1',
+    expectedStateChanges: { autoSwitchWorkingMode: true },
+  },
+  {
+    description: 'Venus auto-switch-working-mode off',
+    deviceType: 'HMG-50',
+    command: 'auto-switch-working-mode',
+    input: 'OFF',
+    expectedOutput: 'cd=8,dt=0',
+    expectedStateChanges: { autoSwitchWorkingMode: false },
+  },
+
   // meter-mac + meter-type commands
   {
     description: 'Venus meter-mac normalizes separators and case',

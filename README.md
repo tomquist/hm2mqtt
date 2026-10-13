@@ -700,7 +700,7 @@ Applies to HMG/VNSE3/VNSA/VNSD. None of the commands below are available on the 
 - `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`)
 - `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped). The device does not report this back, so the entity shows the last value set.
 - `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `p1Meter`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50`, `ecoTracker`, `smrP1`, `smrIr`, `smrTic`, `tpm2100ct` or, on the Venus E 3.0, Venus A and Venus D, `stromleser`). The P1 Meter, EcoTracker and Stromleser are found by IP address and need no MAC; for every other meter except the CT001 and the Shelly Pro 3EM, set `meter-mac` first. Shelly Pro 3EM always uses an all-zero MAC. The entity shows the meter the device is configured for; on the Venus C/E (HMG) before control firmware 149, which does not report it, it shows the last value set. The Venus C/E (HMG) accepts the Shelly EM Gen3 and Pro EM50 from control firmware 147, the EcoTracker from 148, and the SMR and TPM2 meters from 156.
-- `auto-switch-working-mode`: Toggles automatic mode switching (`on` or `off`)
+- `auto-switch-working-mode`: Toggles automatic working-mode switching based on the meter (`on` or `off`). Turning it on can also change the working mode at once: Automatic while the meter delivers data, Manual when it does not.
 - `time-period/[0-9]/enabled`: Enables/disables time period (`on` or `off`)
 - `time-period/[0-9]/start-time`: Sets start time for period (HH:MM format)
 - `time-period/[0-9]/end-time`: Sets end time for period (HH:MM format)

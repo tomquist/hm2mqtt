@@ -73,6 +73,8 @@ enum CommandType {
   SET_TIME_PERIOD = 3,
   SET_DEVICE_TIME = 4,
   FACTORY_RESET = 5,
+  // `cd=8,dt=1|0` turns automatic working-mode switching on or off (`cts_m`).
+  SET_AUTO_SWITCH_WORKING_MODE = 8,
   UPGRADE_FIRMWARE = 9,
   GET_FC41D_INFO = 10, // -> wifi_v=202409090159
   ENABLE_BACKUP = 11,
@@ -1893,7 +1895,10 @@ function registerRuntimeInfoMessage(
       );
     }
 
-    // Additional settings
+    // Automatic working-mode switching (`cts_m`, set with `cd=8,dt=1|0`).
+    // Turning it on also sets the working mode at once: Automatic while the
+    // meter delivers data (`gct_s=1`), Manual when it does not (`gct_s=2`, and
+    // on the HMG also 0). The device replies `cd=8,ret=1`.
     field({
       key: 'cts_m',
       path: ['autoSwitchWorkingMode'],
@@ -1901,12 +1906,32 @@ function registerRuntimeInfoMessage(
     });
     advertise(
       ['autoSwitchWorkingMode'],
+      switchComponent({
+        id: 'auto_switch_working_mode',
+        name: 'Auto Switch Working Mode',
+        icon: 'mdi:auto-fix',
+        command: 'auto-switch-working-mode',
+      }),
+    );
+    // Remove the read-only binary sensor earlier versions advertised.
+    advertise(
+      ['autoSwitchWorkingMode'],
       binarySensorComponent({
         id: 'auto_switch_working_mode',
         name: 'Auto Switch Working Mode',
         icon: 'mdi:auto-fix',
       }),
+      { enabled: () => false },
     );
+    command('auto-switch-working-mode', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const enabled = message.toLowerCase() === 'true' || message === '1' || message === 'ON';
+        updateDeviceState(() => ({ autoSwitchWorkingMode: enabled }));
+        publishCallback(
+          processCommand(CommandType.SET_AUTO_SWITCH_WORKING_MODE, { dt: enabled ? 1 : 0 }),
+        );
+      },
+    });
 
     field({
       key: 'set_v',

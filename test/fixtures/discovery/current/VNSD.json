@@ -2,39 +2,7 @@
   "deviceType": "VNSD",
   "state": "fixture:VNSD-0",
   "components": {
-    "homeassistant/binary_sensor/VNSD_0123456789ab/auto_switch_working_mode/config": {
-      "availability": [
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/availability"
-        },
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/VNSD/availability/0123456789ab"
-        }
-      ],
-      "device": {
-        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
-        "ids": ["hame_energy_0123456789ab"],
-        "manufacturer": "HAME Energy",
-        "model_id": "VNSD",
-        "name": "HAME Energy VNSD 0123456789ab",
-        "sw_version": "147"
-      },
-      "icon": "mdi:auto-fix",
-      "name": "Auto Switch Working Mode",
-      "origin": {
-        "name": "hm2mqtt",
-        "url": "https://github.com/tomquist/hm2mqtt"
-      },
-      "payload_off": false,
-      "payload_on": true,
-      "state_topic": "hm2mqtt/VNSD/device/0123456789ab/data",
-      "unique_id": "0123456789ab_auto_switch_working_mode",
-      "value_template": "{{ value_json.autoSwitchWorkingMode }}"
-    },
+    "homeassistant/binary_sensor/VNSD_0123456789ab/auto_switch_working_mode/config": null,
     "homeassistant/binary_sensor/VNSD_0123456789ab/balance_conditions_met/config": null,
     "homeassistant/binary_sensor/VNSD_0123456789ab/pv1_connected/config": {
       "availability": [
@@ -2888,6 +2856,42 @@
       "state_topic": "hm2mqtt/VNSD/device/0123456789ab/data",
       "unique_id": "0123456789ab_working_status",
       "value_template": "{% set mapping = {\"sleep\":\"Sleep Mode\",\"standby\":\"Standby\",\"charging\":\"Charging\",\"discharging\":\"Discharging\",\"backup\":\"Backup Mode\",\"upgrading\":\"OTA Upgrade\",\"bypass\":\"Bypass Status\"} %}{% set stringifiedValue = value_json.workingStatus | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
+    },
+    "homeassistant/switch/VNSD_0123456789ab/auto_switch_working_mode/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/VNSD/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/VNSD/control/0123456789ab/auto-switch-working-mode",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "VNSD",
+        "name": "HAME Energy VNSD 0123456789ab",
+        "sw_version": "147"
+      },
+      "icon": "mdi:auto-fix",
+      "name": "Auto Switch Working Mode",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_off": "false",
+      "payload_on": "true",
+      "state_off": false,
+      "state_on": true,
+      "state_topic": "hm2mqtt/VNSD/device/0123456789ab/data",
+      "unique_id": "0123456789ab_auto_switch_working_mode",
+      "value_template": "{{ value_json.autoSwitchWorkingMode }}"
     },
     "homeassistant/switch/VNSD_0123456789ab/backup_enabled/config": {
       "availability": [
