@@ -676,7 +676,7 @@ homeassistant/{component}/{node_id}/{object_id}/config
 - `output2`: Enables/disables output port 2 (`on` or `off`)
 
 ### B2500 V2/V3 Specific Commands
-- `charging-mode`: Sets charging mode (`chargeDischargeSimultaneously` or `chargeThenDischarge`)
+- `charging-mode`: Sets charging mode (`chargeDischargeSimultaneously` or `chargeThenDischarge`). The device goes back to `chargeDischargeSimultaneously` at every restart.
 - `adaptive-mode`: Toggles adaptive mode (`on` or `off`). Changing any time period switches adaptive mode off on the device.
 - `time-period/[1-5]/enabled`: Enables/disables specific time period (`on` or `off`)
 - `time-period/[1-5]/start-time`: Sets start time for period (HH:MM format, 00:00-23:59)

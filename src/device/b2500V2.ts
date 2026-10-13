@@ -311,7 +311,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn, baseOptions: B2500B
       transform: number(),
     });
     // Read-only on V2. The threshold setting is only offered on the V1 (HMB);
-    // V2 models report the current value in `lv` but do not act on `cd=6`.
+    // V2 models do not act on `cd=6`, and their `lv` is not a threshold: every
+    // control loop overwrites it with the current total output setpoint
+    // (output 1 + output 2). The entity keeps its name.
     advertise(
       ['batteryOutputThreshold'],
       sensorComponent<number>({
@@ -749,6 +751,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn, baseOptions: B2500B
       }),
     );
 
+    // `m3` is `g1` + `g2`, the B2500's own total output, not a separate
+    // micro-inverter measurement. The entity keeps its name.
     field({
       key: 'm3',
       path: ['ctInfo', 'microInverterPower'],
