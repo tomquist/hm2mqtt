@@ -16,6 +16,7 @@
     "test:e2e": "npm run build && NODE_OPTIONS=--experimental-vm-modules jest -c jest.e2e.config.cjs",
     "test:addon": "cd ha_addon && ./test_env.sh",
     "e2e:setup": "./test/e2e/setup.sh",
+    "bench:memory": "npm run build && vite-node test/memory/bench.ts --",
     "baseline:update": "UPDATE_DISCOVERY_BASELINE=1 npm test -- test/discovery/baseline.test.ts && oxfmt test/fixtures/discovery/current",
     "format": "oxfmt src test",
     "format:check": "oxfmt --check src test",

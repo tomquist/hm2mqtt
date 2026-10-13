@@ -9,7 +9,7 @@ import { MqttClient } from './mqttClient.js';
 import { ControlHandler } from './controlHandler.js';
 import logger from './logger.js';
 import { DataHandler } from './dataHandler.js';
-import { MqttProxy, MqttProxyConfig } from './mqttProxy.js';
+import type { MqttProxy, MqttProxyConfig } from './mqttProxy.js';
 import { runShutdownStep } from './shutdown.js';
 import { flushPersistence } from './persistence.js';
 import { redactSecrets, redactUrlCredentials } from './utils/redact.js';
@@ -280,7 +280,10 @@ async function main() {
         autoResolveClientIdConflicts: true, // Enable automatic client ID conflict resolution
       };
 
-      mqttProxy = new MqttProxy(proxyConfig, deviceManager);
+      // Loaded only when enabled: the proxy embeds a whole MQTT broker, and most
+      // installations never turn it on.
+      const proxyModule = await import('./mqttProxy.js');
+      mqttProxy = new proxyModule.MqttProxy(proxyConfig, deviceManager);
 
       try {
         await mqttProxy.start();
