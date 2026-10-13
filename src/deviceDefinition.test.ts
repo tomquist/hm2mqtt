@@ -29,3 +29,18 @@ describe('getDeviceDefinition', () => {
     expect(getDeviceDefinition('NOPE-1')).toBeUndefined();
   });
 });
+
+describe('CT002 polled messages', () => {
+  const payloads = (deviceType: string) =>
+    getDeviceDefinition(deviceType)?.messages.map(m => m.refreshDataPayload);
+
+  test('does not poll cd=19 on the HME CT002s', () => {
+    expect(payloads('HME-4')).not.toContain('cd=19');
+    expect(payloads('HME-2')).not.toContain('cd=19');
+  });
+
+  test('keeps polling cd=19 on TPM-CN and TPM2', () => {
+    expect(payloads('TPM-CN')).toContain('cd=19');
+    expect(payloads('TPM2-0')).toContain('cd=19');
+  });
+});

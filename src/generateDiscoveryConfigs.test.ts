@@ -802,11 +802,11 @@ describe('Home Assistant Discovery', () => {
       deviceControlTopicNew: 'd',
       availabilityTopic: 'e',
       controlSubscriptionTopic: 'f',
-      publishTopic: 'hm2mqtt/HME-4/device/meter',
+      publishTopic: 'hm2mqtt/TPM-CN/device/meter',
     };
-    const phaseEnergyConfigs = (state: object) =>
+    const phaseEnergyConfigs = (state: object, deviceType = 'TPM-CN') =>
       generateDiscoveryConfigs(
-        { deviceType: 'HME-4', deviceId: 'meter' },
+        { deviceType, deviceId: 'meter' },
         deviceTopics,
         {},
         DEFAULT_TOPIC_PREFIX,
@@ -816,18 +816,22 @@ describe('Home Assistant Discovery', () => {
 
     expect(phaseEnergyConfigs({})).toHaveLength(0);
 
-    const answered = phaseEnergyConfigs({
+    const counters = {
       phase1Charge: 100,
       phase2Charge: 200,
       phase3Charge: 300,
       phase1Discharge: 10,
       phase2Discharge: 20,
       phase3Discharge: 30,
-    });
+    };
+    const answered = phaseEnergyConfigs(counters);
     expect(answered).toHaveLength(6);
+    expect(phaseEnergyConfigs(counters, 'TPM2-0')).toHaveLength(6);
+    // The HME CT002s have no cd=19, so they never get these entities
+    expect(phaseEnergyConfigs(counters, 'HME-4')).toHaveLength(0);
     // Published on their own path, and with no unit claimed
     expect(answered[0].config).toMatchObject({
-      state_topic: 'hm2mqtt/HME-4/device/meter/phase_energy',
+      state_topic: 'hm2mqtt/TPM-CN/device/meter/phase_energy',
       enabled_by_default: false,
     });
     // The scale of these counters is unknown, so no unit or device class is claimed

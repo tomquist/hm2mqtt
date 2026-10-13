@@ -41,9 +41,20 @@ function isPhaseEnergyMessage(values: Record<string, string>): boolean {
   return !('ret' in values) && phaseEnergyFields.every(({ key }) => key in values);
 }
 
+// The HME firmware has no `cd=19`, so the CT002s sold as `HME-X` only get the
+// runtime message.
 registerDeviceDefinition(
   {
-    deviceTypes: ['HME', 'TPM', 'TPM2'],
+    deviceTypes: ['HME'],
+  },
+  ({ message }) => {
+    registerRuntimeInfoMessage(message);
+  },
+);
+
+registerDeviceDefinition(
+  {
+    deviceTypes: ['TPM', 'TPM2'],
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
@@ -71,6 +82,10 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 /**
  * Per-phase charge/discharge counters, requested with `cd=19`. They are not part
  * of the `cd=1` runtime payload, so they need their own poll.
+ *
+ * Only registered for `TPM-CN` and `TPM2-X`, and unverified there: no reply to
+ * `cd=19` has been reported from any meter. The `HME-X` firmware does not handle
+ * `cd=19` at all, so it is not polled on those.
  *
  * The counters are published raw: `ca`/`cb`/`cc` are the per-phase charge
  * counters and `da`/`db`/`dc` the discharge ones, but their unit and scale could

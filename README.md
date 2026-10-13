@@ -833,8 +833,8 @@ The following commands are supported by both Jupiter C, Jupiter E and Jupiter Pl
 
 ### Smart Meter Commands (CT002 and CT003)
 - `refresh`: Requests the device data immediately, instead of waiting for the next poll
-- `factory-reset`: Resets the meter to factory settings
-- `hardware-reset`: Performs a hardware reset of the meter
+- `factory-reset`: Resets the meter to factory settings. The `HME-3` and `HME-4` firmware up to 122 and 124 ignores this command
+- `hardware-reset`: Restarts the meter. No setting is changed
 - `phase1-measurement-reversed` / `phase2-measurement-reversed` / `phase3-measurement-reversed`: Inverts the measurement direction of that phase (`on` or `off`). CT002 device types only (`HME-2`, `HME-4`, `TPM-CN`, `TPM2-X`); on the CT003 readers the measurement direction is reported but cannot be set.
 
 All meter entities are disabled by default. See [docs/meters.md](docs/meters.md) for the underlying MQTT protocol.

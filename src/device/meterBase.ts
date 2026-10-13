@@ -109,11 +109,16 @@ const isPress = (message: string) =>
   message.toLowerCase() === 'true' || message === '1' || message === 'PRESS';
 
 /**
- * Buttons every Marstek meter supports: a manual data refresh (`cd=1`), a
+ * Buttons offered on every Marstek meter: a manual data refresh (`cd=1`), a
  * factory reset (`cd=11`) and a hardware reset (`cd=8`).
  *
+ * `cd=8` restarts the meter. It replies `reset ct` and reboots; no setting is
+ * changed. `cd=11` is the factory reset command. The `HME-3` and `HME-4`
+ * firmware up to 122 and 124 ignores it; it is kept for firmware that handles
+ * it.
+ *
  * All three are disabled by default — the meters are polled automatically, and
- * the two resets are destructive.
+ * the factory reset is destructive.
  */
 function registerMeterCommands<T extends MeterBaseDeviceData>(
   args: BuildMessageDefinitionArgs<T>,

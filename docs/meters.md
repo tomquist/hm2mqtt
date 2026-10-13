@@ -127,7 +127,10 @@ through [section 4](#4-read-the-per-phase-charge-and-discharge-counters) instead
 
 ## 4 Read the per-phase charge and discharge counters
 
-CT002 only. These counters are not part of the `cd=1` payload.
+`TPM-CN` and `TPM2-*` only, and unverified: no reply to `cd=19` has been
+reported from a real meter yet. The `HME-3` and `HME-4` firmware does not
+handle `cd=19`, so hm2mqtt does not poll it on the `HME-*` device types. These
+counters are not part of the `cd=1` payload.
 
 ### 4.1 Public
 
@@ -287,6 +290,10 @@ Payload:
 cd=11
 ```
 
+The `HME-3` and `HME-4` firmware up to 122 and 124 does not handle `cd=11`: the
+meter does not reply and nothing is reset. On that firmware a factory reset is
+only possible over Bluetooth.
+
 ## 9 Hardware reset
 
 ### 9.1 Public
@@ -302,6 +309,9 @@ Payload:
 ```
 cd=8
 ```
+
+Restarts the meter. It replies `reset ct` and reboots about 300 ms later. No
+setting is changed.
 
 ## 10 Read connection information
 

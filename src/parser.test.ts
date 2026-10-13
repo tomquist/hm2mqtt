@@ -487,8 +487,9 @@ describe('MQTT Message Parser', () => {
   });
 
   test('should parse the CT002 cd=19 per-phase charge/discharge counters', () => {
+    // Synthetic: no cd=19 reply has been captured yet
     const message = 'ca=100,cb=200,cc=300,da=10,db=20,dc=30';
-    const parsed = parseMessage(message, 'HME-4', 'abcd');
+    const parsed = parseMessage(message, 'TPM-CN', 'abcd');
 
     // Published under its own path, separate from the cd=1 runtime data
     expect(Object.keys(parsed)).toEqual(['phase_energy']);
@@ -503,7 +504,12 @@ describe('MQTT Message Parser', () => {
 
   test('should ignore the cd=19 write acknowledgement', () => {
     // A write is acknowledged with `ret` rather than the counters
-    expect(parseMessage('ca=1,cb=1,cc=1,da=1,db=1,dc=1,ret=0', 'HME-4', 'abcd')).toEqual({});
+    expect(parseMessage('ca=1,cb=1,cc=1,da=1,db=1,dc=1,ret=0', 'TPM-CN', 'abcd')).toEqual({});
+  });
+
+  test('should not handle cd=19 on the HME CT002s', () => {
+    // The HME firmware has no cd=19
+    expect(parseMessage('ca=100,cb=200,cc=300,da=10,db=20,dc=30', 'HME-4', 'abcd')).toEqual({});
   });
 
   test('should not handle cd=19 on SMR readers', () => {
