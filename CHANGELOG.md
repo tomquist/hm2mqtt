@@ -9,6 +9,7 @@
 
 - B2500 V2/V3: *CT Connected Phase* showed *Searching* when the device regulates on all phases, and picking it did not start phase detection. The options are now *All Phases* and *Auto-detect*
 - B2500 V2/V3: *Sync Time* now also sets the device's time zone, so discharge timers no longer run an hour off after a daylight-saving change, or on UTC if no time zone had ever been set
+- B2500 V2/V3: Changing a timer period also switches the device out of adaptive mode. *Adaptive Mode* now shows this straight away
 
 ## [1.10.2] - 2026-10-13
 

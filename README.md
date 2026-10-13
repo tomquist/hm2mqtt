@@ -677,7 +677,7 @@ homeassistant/{component}/{node_id}/{object_id}/config
 
 ### B2500 V2/V3 Specific Commands
 - `charging-mode`: Sets charging mode (`chargeDischargeSimultaneously` or `chargeThenDischarge`)
-- `adaptive-mode`: Toggles adaptive mode (`on` or `off`)
+- `adaptive-mode`: Toggles adaptive mode (`on` or `off`). Changing any time period switches adaptive mode off on the device.
 - `time-period/[1-5]/enabled`: Enables/disables specific time period (`on` or `off`)
 - `time-period/[1-5]/start-time`: Sets start time for period (HH:MM format)
 - `time-period/[1-5]/end-time`: Sets end time for period (HH:MM format)

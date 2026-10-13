@@ -791,6 +791,7 @@ const commandTestCases: CommandTestCase[] = [
     command: 'time-period/1/enabled',
     input: 'true',
     expectedOutput: 'cd=7,md=0,a1=1,b1=8:0,e1=20:0,v1=500',
+    expectedStateChanges: { adaptiveMode: false },
   },
   {
     description: 'B2500V2 time-period/1/end-time should send minutes without zero padding',
@@ -801,6 +802,7 @@ const commandTestCases: CommandTestCase[] = [
     command: 'time-period/1/end-time',
     input: '08:01',
     expectedOutput: 'cd=7,md=0,a1=1,b1=8:0,e1=8:1,v1=500',
+    expectedStateChanges: { adaptiveMode: false },
   },
   {
     description: 'B2500V2 time-period/1/enabled false',
@@ -811,6 +813,7 @@ const commandTestCases: CommandTestCase[] = [
     command: 'time-period/1/enabled',
     input: 'false',
     expectedOutput: 'cd=7,md=0,a1=0,b1=8:0,e1=20:0,v1=500',
+    expectedStateChanges: { adaptiveMode: false },
   },
   {
     description: 'B2500V2 time-period/1/start-time valid',
@@ -821,6 +824,7 @@ const commandTestCases: CommandTestCase[] = [
     command: 'time-period/1/start-time',
     input: '06:30',
     expectedOutput: 'cd=7,md=0,a1=1,b1=6:30,e1=20:0,v1=500',
+    expectedStateChanges: { adaptiveMode: false },
   },
   {
     description: 'B2500V2 time-period/1/start-time invalid format (letters)',
@@ -851,6 +855,7 @@ const commandTestCases: CommandTestCase[] = [
     command: 'time-period/1/end-time',
     input: '22:45',
     expectedOutput: 'cd=7,md=0,a1=1,b1=8:0,e1=22:45,v1=500',
+    expectedStateChanges: { adaptiveMode: false },
   },
   {
     description: 'B2500V2 time-period/1/output-value valid',
@@ -861,6 +866,7 @@ const commandTestCases: CommandTestCase[] = [
     command: 'time-period/1/output-value',
     input: '750',
     expectedOutput: 'cd=7,md=0,a1=1,b1=8:0,e1=20:0,v1=750',
+    expectedStateChanges: { adaptiveMode: false },
   },
   {
     description: 'B2500V2 time-period/1/output-value above max (invalid)',
@@ -871,6 +877,31 @@ const commandTestCases: CommandTestCase[] = [
     command: 'time-period/1/output-value',
     input: '801',
     expectedOutput: null,
+  },
+  {
+    // Editing a period turns adaptive mode off on the device.
+    description: 'B2500V2 time-period edit while adaptive mode is on',
+    deviceType: 'HMA-1',
+    initialState: {
+      adaptiveMode: true,
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/output-value',
+    input: '300',
+    expectedOutput: 'cd=7,md=0,a1=1,b1=8:0,e1=20:0,v1=300',
+    expectedStateChanges: { adaptiveMode: false },
+  },
+  {
+    description: 'B2500V2 time-period invalid edit leaves adaptive mode alone',
+    deviceType: 'HMA-1',
+    initialState: {
+      adaptiveMode: true,
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/output-value',
+    input: '801',
+    expectedOutput: null,
+    expectedStateChanges: { adaptiveMode: true },
   },
   {
     description: 'B2500V2 time-period/6/enabled (invalid period number)',

@@ -145,13 +145,21 @@ export const timePeriodSettingHandler = (
       // Build time period parameters for all periods
       const params = buildTimePeriodParams(newTimePeriodSettings);
 
+      // `md=0` makes the device apply the periods and also turns adaptive
+      // mode off: no single command edits a period and stays adaptive.
+      if (state.adaptiveMode === true) {
+        logger.info(
+          `Changing a timer period turns adaptive mode off on ${device.deviceId} (device behaviour)`,
+        );
+      }
+
       // Process the command and send it
       publishCallback(
         processCommand(CommandType.TIMED_DISCHARGE, params, deviceState.useFlashCommands),
       );
 
       // Update the device state with the new settings
-      return { timePeriods: newTimePeriodSettings };
+      return { timePeriods: newTimePeriodSettings, adaptiveMode: false };
     });
   },
 });
