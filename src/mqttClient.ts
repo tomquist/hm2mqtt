@@ -7,6 +7,10 @@ import logger from './logger.js';
 import { POLL_TIMING_TOLERANCE_MS } from './constants.js';
 import { redactUrlCredentials } from './utils/redact.js';
 
+// Matches the cd=1 poll, also in the zero-padded form (`cd=01`) that models on
+// Marstek's second-generation firmware, such as the Venus E Mini, expect.
+const CD1_PAYLOAD = /^cd=0*1$/;
+
 export class MqttClient {
   private client: mqtt.MqttClient;
   private pollingInterval: NodeJS.Timeout | null = null;
@@ -142,7 +146,8 @@ export class MqttClient {
       return false;
     }
     return deviceDefinition.messages.some(
-      message => message.refreshDataPayload === 'cd=1' && message.publishPath === publishPath,
+      message =>
+        CD1_PAYLOAD.test(message.refreshDataPayload) && message.publishPath === publishPath,
     );
   }
 
