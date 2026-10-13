@@ -392,8 +392,6 @@ registerDeviceDefinition(
     registerRuntimeInfoMessage(message, { model: 'HMG' });
     registerBMSInfoMessage(message);
     registerVenusCellBalancingMessage(message);
-    registerBMSPackMessage(message);
-    registerBMSPackDetailMessages(message);
     registerVenusNetworkInfoMessage(message);
   },
 );
@@ -406,14 +404,14 @@ registerDeviceDefinition(
     registerRuntimeInfoMessage(message, { model: 'VNSE3' });
     registerBMSInfoMessage(message);
     registerVenusCellBalancingMessage(message);
-    registerBMSPackMessage(message);
-    registerBMSPackDetailMessages(message);
     registerVenusNetworkInfoMessage(message);
   },
 );
 
 // Venus A (VNSA) and Venus D (VNSD) use a different scaling for the BMS
 // cell/MOSFET temperatures (factor of 10) compared to the other Venus variants.
+// Only these two have the per-pack BMS commands (cd=40 to cd=45); the Venus
+// C/E (HMG) and Venus E 3.0 do not answer them.
 // They are registered separately so options and limits can differ per model.
 for (const model of ['VNSA', 'VNSD'] as const) {
   registerDeviceDefinition(

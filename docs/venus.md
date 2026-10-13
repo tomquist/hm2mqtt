@@ -936,8 +936,8 @@ prefix followed by colon-separated `key:value` pairs (comma-separated).
 
 ## 24 Read BMS pack details
 
-Returns per-pack details for the connected battery packs. Observed on Venus D
-v147.
+Returns per-pack details for the connected battery packs. Venus A and Venus D
+only; the Venus C/E (HMG) and Venus E 3.0 do not answer `cd=40` to `cd=45`.
 
 ### 24.1 Public
 

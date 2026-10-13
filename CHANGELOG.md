@@ -36,6 +36,7 @@
 - Venus: Removed the price, income and *Grid Type* sensors, and the error and warning code sensors on the Venus C/E (HMG), where the firmware never fills them; they showed meter data or a constant zero. Error codes containing letters are no longer cut short
 - Venus A/D: *PV Energy Total* was this month's PV energy, not a lifetime total, and is now called *PV Energy This Month*
 - Venus: *Maximum Charging Power* stayed empty on Venus C/E (HMG) firmware 153 and later, which reports it as a negative number. Values the model's firmware rejects are now refused
+- Venus C/E (HMG) and Venus E 3.0: *Enable Cell Data* no longer requests per-pack battery details these models do not provide
 
 ## [1.10.2] - 2026-10-13
 
