@@ -5,6 +5,7 @@ import logger from './logger.js';
 import {
   B2500CellData,
   B2500V2CD16Data,
+  B2500V2CtDiagnosisData,
   B2500V2DeviceData,
   CT002DeviceData,
   CT002PhaseEnergyInfo,
@@ -237,6 +238,24 @@ describe('MQTT Message Parser', () => {
     const base = 'pe=75,kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0';
     const parsed = parseMessage(`${base},c0=${c0}`, 'HMA-1', '12345');
     expect((parsed['data'] as B2500V2DeviceData).ctInfo?.connectedPhase).toBe(expected);
+  });
+
+  test('should parse the B2500 cd=28 CT diagnosis', () => {
+    const message = 'ct_t=3,phase_t=4,dchrg_t=1,seq_s=3,c0=10,c1=20,c2=30,cp=60,op=200';
+    const parsed = parseMessage(message, 'HMA-1', '12345');
+
+    // Only the diagnosis message matches; in particular this is not a runtime
+    // reply, so its c0/c1 (CT phase powers here) do not touch ctInfo.
+    expect(Object.keys(parsed)).toEqual(['ctDiagnosis']);
+    const result = parsed['ctDiagnosis'] as B2500V2CtDiagnosisData;
+    expect(result).toHaveProperty('rechargeMode', 'threePhase');
+    expect(result).toHaveProperty('phaseDetection', 'done');
+    expect(result).not.toHaveProperty('ctInfo');
+
+    const singlePhase = parseMessage(message.replace('dchrg_t=1', 'dchrg_t=0'), 'HMJ-2', '12345');
+    expect(singlePhase['ctDiagnosis']).toHaveProperty('rechargeMode', 'singlePhase');
+    const detecting = parseMessage(message.replace('seq_s=3', 'seq_s=1'), 'HMJ-2', '12345');
+    expect(detecting['ctDiagnosis']).toHaveProperty('phaseDetection', 'detecting');
   });
 
   test('should drop the CT sensor no-reading sentinel from the power fields', () => {

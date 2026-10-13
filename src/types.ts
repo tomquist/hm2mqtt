@@ -89,9 +89,8 @@ export const reportedCtTypeCodes: Record<string, ReportedMeterType> = {
 };
 
 /**
- * Grid recharge mode set with `cd=27,dchrg=`. The device does not report the
- * current value in any response hm2mqtt polls, so the entity reflects the last
- * value that was set rather than the device's own state.
+ * Grid recharge mode set with `cd=27,dchrg=` and reported as `dchrg_t` in the
+ * `cd=28` CT diagnosis.
  */
 const validB2500RechargeModes = ['singlePhase', 'threePhase'] as const;
 export type B2500RechargeMode = (typeof validB2500RechargeModes)[number];
@@ -323,9 +322,19 @@ export interface B2500V2DeviceData extends B2500BaseDeviceData {
   // The meter the device reports as configured (`ct_t`). Its numeric codes are
   // distinct from the ones the `cd=27,meter=` command takes.
   ctType?: ReportedMeterType;
+}
 
-  // Last grid recharge mode set via `cd=27,dchrg=` (not reported by the device)
+/**
+ * The `cd=28` CT diagnosis.
+ */
+export interface B2500V2CtDiagnosisData extends BaseDeviceData {
+  // Grid recharge mode (`dchrg_t`), set via `cd=27,dchrg=`
   rechargeMode?: B2500RechargeMode;
+  // Phase detection progress (`seq_s`)
+  phaseDetection?: 'idle' | 'detecting' | 'failed' | 'done';
+  // Not part of this reply: command handlers see the merged device state,
+  // which carries the flag from the runtime info message.
+  useFlashCommands?: boolean;
 }
 
 type SolarSocketData = {

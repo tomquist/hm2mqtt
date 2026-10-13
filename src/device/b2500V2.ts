@@ -1,6 +1,7 @@
 import { ControlHandlerDefinition } from '../controlHandler.js';
 import {
   B2500V2CD16Data,
+  B2500V2CtDiagnosisData,
   B2500V2DeviceData,
   B2500V2SmartMeterStatus,
   CommandParams,
@@ -259,6 +260,7 @@ function buildTimePeriodParams(
 function registerB2500V2Definition(deviceTypes: string[], options: B2500BaseMessageOptions) {
   registerDeviceDefinition({ deviceTypes }, ({ message }) => {
     registerRuntimeInfoMessage(message, options);
+    registerCtDiagnosisMessage(message);
     registerExtraBatteryData(message);
     registerCellDataMessage(message);
     registerB2500CellBalancingMessage(message, { hasPackCurrent: true });
@@ -1011,11 +1013,35 @@ function registerRuntimeInfoMessage(message: BuildMessageFn, baseOptions: B2500B
         enabled_by_default: false,
       }),
     );
+  });
+}
 
+/**
+ * The `cd=28` CT diagnosis reply:
+ * `ct_t,phase_t,dchrg_t,seq_s,c0,c1,c2,cp,op`. It is the only place the
+ * device reports the recharge mode. `c0`-`c2` here are the CT phase powers, not
+ * the phase code `c0` means in `cd=1`, so they are not read.
+ */
+function isB2500CtDiagnosisMessage(message: Record<string, string>): boolean {
+  return 'dchrg_t' in message && 'seq_s' in message && !('pe' in message);
+}
+
+function registerCtDiagnosisMessage(message: BuildMessageFn) {
+  const options = {
+    refreshDataPayload: 'cd=28',
+    isMessage: isB2500CtDiagnosisMessage,
+    publishPath: 'ctDiagnosis',
+    defaultState: {},
+    pollInterval: 300000,
+    controlsDeviceAvailability: false,
+    getAdditionalDeviceInfo: () => ({}),
+  } as const;
+  // The recharge-mode and phase-diagnosis commands live here so the re-read
+  // after them fetches this reply.
+  message<B2500V2CtDiagnosisData>(options, ({ field, command, advertise }) => {
     // `cd=27` doubles as the grid recharge command, the same way `cd=18` does on
-    // the Venus and Jupiter. The device does not report the current value in any
-    // response hm2mqtt polls, so this entity shows the last value that was set
-    // rather than the device's own state.
+    // the Venus and Jupiter. The device reports the current value in the
+    // `cd=28` diagnosis as `dchrg_t`.
     command('recharge-mode', {
       handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
         if (!isValidB2500RechargeMode(message)) {
@@ -1032,9 +1058,14 @@ function registerRuntimeInfoMessage(message: BuildMessageFn, baseOptions: B2500B
         );
       },
     });
+    field({
+      key: 'dchrg_t',
+      path: ['rechargeMode'],
+      transform: map({ '0': 'singlePhase', '1': 'threePhase' }),
+    });
     advertise(
       ['rechargeMode'],
-      selectComponent<NonNullable<B2500V2DeviceData['rechargeMode']>>({
+      selectComponent<NonNullable<B2500V2CtDiagnosisData['rechargeMode']>>({
         id: 'recharge_mode',
         name: 'Recharge Mode',
         icon: 'mdi:flash',
@@ -1043,15 +1074,13 @@ function registerRuntimeInfoMessage(message: BuildMessageFn, baseOptions: B2500B
           singlePhase: 'Single Phase',
           threePhase: 'Three Phase',
         },
-        // Write-only: the device never reports the recharge mode back.
-        optimistic: true,
         enabled_by_default: false,
       }),
     );
 
     // Starts the grid-phase detection routine. The device clears the phase and
     // moves the CT status to "Preparing to diagnose CT001 (Step 1)", so progress
-    // can be followed on the CT Status sensor.
+    // can be followed on the CT Status and Phase Detection sensors.
     command('phase-diagnosis', {
       handler: ({ message, publishCallback }) => {
         if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
@@ -1070,6 +1099,31 @@ function registerRuntimeInfoMessage(message: BuildMessageFn, baseOptions: B2500B
         payload_press: 'PRESS',
         enabled_by_default: false,
       }),
+    );
+
+    field({
+      key: 'seq_s',
+      path: ['phaseDetection'],
+      transform: map({ '0': 'idle', '1': 'detecting', '2': 'failed', '3': 'done' }),
+    });
+    advertise(
+      ['phaseDetection'],
+      sensorComponent<NonNullable<B2500V2CtDiagnosisData['phaseDetection']>>({
+        id: 'phase_detection',
+        name: 'Phase Detection',
+        icon: 'mdi:sine-wave',
+        valueMappings: {
+          idle: 'Idle',
+          detecting: 'Detecting',
+          failed: 'Failed',
+          done: 'Done',
+        },
+        enabled_by_default: false,
+      }),
+      {
+        enabled: (state: B2500V2CtDiagnosisData) =>
+          state.phaseDetection != null ? true : undefined,
+      },
     );
   });
 }

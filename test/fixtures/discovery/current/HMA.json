@@ -1309,7 +1309,9 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "unique_id": "0123456789ab_recharge_mode"
+      "state_topic": "hm2mqtt/HMA/device/0123456789ab/ctDiagnosis",
+      "unique_id": "0123456789ab_recharge_mode",
+      "value_template": "{% set mapping = {\"singlePhase\":\"Single Phase\",\"threePhase\":\"Three Phase\"} %}{% set stringifiedValue = value_json.rechargeMode | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
     },
     "homeassistant/sensor/HMA_0123456789ab/avg_cell_voltage_extra1/config": null,
     "homeassistant/sensor/HMA_0123456789ab/avg_cell_voltage_extra2/config": null,

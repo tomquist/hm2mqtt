@@ -4,6 +4,7 @@
 ### Changed
 
 - Home Assistant add-on: Runs on Node.js 24 instead of the outdated Node.js 18, which uses about 4 MB more memory (PR #461)
+- B2500 V2/V3: *Recharge Mode* now shows the device's actual setting, and a new *Phase Detection* sensor shows the progress of phase detection
 
 ### Fixed
 
