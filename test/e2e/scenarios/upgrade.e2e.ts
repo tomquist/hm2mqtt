@@ -26,7 +26,7 @@ import { Rig, entitySlug, canRunScenarios, startRig, waitFor } from '../harness/
 const describeE2e = canRunScenarios() ? describe : describe.skip;
 
 /** See the note on KNOWN_FINDINGS in smoke.e2e.ts. */
-const KNOWN_FINDINGS = [/has no attribute '(wifiSignalStrength|localApiEnabled|localApiPort)'/];
+const KNOWN_FINDINGS = [/has no attribute 'wifiSignalStrength'/];
 
 const releasedVersion = latestReleasedVersion();
 

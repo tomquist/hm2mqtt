@@ -1,6 +1,6 @@
 {
   "deviceType": "HMG",
-  "state": "empty",
+  "state": "fixture:HMG-50",
   "components": {
     "homeassistant/binary_sensor/HMG_0123456789ab/auto_switch_working_mode/config": {
       "availability": [
@@ -20,7 +20,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:auto-fix",
       "name": "Auto Switch Working Mode",
@@ -54,7 +55,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "enabled_by_default": false,
       "icon": "mdi:delete-forever",
@@ -85,7 +87,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "enabled_by_default": false,
       "icon": "mdi:current-ac",
@@ -116,7 +119,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "enabled_by_default": false,
       "icon": "mdi:sine-wave",
@@ -147,7 +151,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "enabled_by_default": false,
       "icon": "mdi:refresh",
@@ -178,7 +183,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "enabled_by_default": false,
       "icon": "mdi:clock-sync",
@@ -189,6 +195,77 @@
       },
       "payload_press": "PRESS",
       "unique_id": "0123456789ab_sync_time"
+    },
+    "homeassistant/number/HMG_0123456789ab/depth_of_discharge/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMG/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/HMG/control/0123456789ab/discharge-depth",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMG",
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
+      },
+      "device_class": "battery",
+      "max": 88,
+      "min": 30,
+      "name": "Depth of Discharge",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
+      "step": 1,
+      "unique_id": "0123456789ab_depth_of_discharge",
+      "unit_of_measurement": "%",
+      "value_template": "{{ value_json.depthOfDischarge }}"
+    },
+    "homeassistant/number/HMG_0123456789ab/local_api_port/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMG/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/HMG/control/0123456789ab/local-api-port",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMG",
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
+      },
+      "icon": "mdi:numeric",
+      "max": 65535,
+      "min": 0,
+      "name": "Local API Port",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
+      "step": 1,
+      "unique_id": "0123456789ab_local_api_port",
+      "value_template": "{{ value_json.localApiPort }}"
     },
     "homeassistant/number/HMG_0123456789ab/max_charging_power/config": {
       "availability": [
@@ -209,7 +286,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:flash",
       "max": 2500,
@@ -244,7 +322,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:flash",
       "max": 2500,
@@ -279,7 +358,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:flash",
       "max": 2500,
@@ -314,7 +394,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:flash",
       "max": 2500,
@@ -349,7 +430,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:flash",
       "max": 2500,
@@ -384,7 +466,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:flash",
       "max": 2500,
@@ -419,7 +502,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:flash",
       "max": 2500,
@@ -454,7 +538,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:flash",
       "max": 2500,
@@ -489,7 +574,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:flash",
       "max": 2500,
@@ -524,7 +610,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:flash",
       "max": 2500,
@@ -559,7 +646,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:flash",
       "max": 2500,
@@ -594,7 +682,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:flash",
       "max": 2500,
@@ -630,7 +719,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "enabled_by_default": false,
       "icon": "mdi:meter-electric",
@@ -655,6 +745,41 @@
       },
       "unique_id": "0123456789ab_meter_type"
     },
+    "homeassistant/select/HMG_0123456789ab/parallel_mode/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMG/availability/0123456789ab"
+        }
+      ],
+      "command_template": "{% set mapping = {\"Turned Off\":\"off\",\"Wiring Check\":\"wiringCheck\",\"Turned On\":\"on\",\"Unknown\":\"unknown\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
+      "command_topic": "hm2mqtt/HMG/control/0123456789ab/parallel-mode",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMG",
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:call-split",
+      "name": "Parallel Mode",
+      "options": ["Turned Off", "Wiring Check", "Turned On", "Unknown"],
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
+      "unique_id": "0123456789ab_parallel_mode",
+      "value_template": "{% set mapping = {\"off\":\"Turned Off\",\"wiringCheck\":\"Wiring Check\",\"on\":\"Turned On\",\"unknown\":\"Unknown\"} %}{% set stringifiedValue = value_json.parallelMode | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
+    },
     "homeassistant/select/HMG_0123456789ab/recharge_mode/config": {
       "availability": [
         {
@@ -675,7 +800,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:flash",
       "name": "Recharge Mode",
@@ -687,6 +813,51 @@
       "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
       "unique_id": "0123456789ab_recharge_mode",
       "value_template": "{% set mapping = {\"singlePhase\":\"Single Phase\",\"threePhase\":\"Three Phase\"} %}{% set stringifiedValue = value_json.rechargeMode | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
+    },
+    "homeassistant/select/HMG_0123456789ab/version_set/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMG/availability/0123456789ab"
+        }
+      ],
+      "command_template": "{% set mapping = {\"600W Version\":\"600W\",\"800W Version\":\"800W\",\"1200W Version\":\"1200W\",\"1500W Version\":\"1500W\",\"2000W Version\":\"2000W\",\"2200W Version\":\"2200W\",\"2300W Version\":\"2300W\",\"2500W Version\":\"2500W\",\"3000W Version\":\"3000W\",\"3600W Version\":\"3600W\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
+      "command_topic": "hm2mqtt/HMG/control/0123456789ab/version-set",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMG",
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
+      },
+      "icon": "mdi:power-socket",
+      "name": "Version Set",
+      "options": [
+        "600W Version",
+        "800W Version",
+        "1200W Version",
+        "1500W Version",
+        "2000W Version",
+        "2200W Version",
+        "2300W Version",
+        "2500W Version",
+        "3000W Version",
+        "3600W Version"
+      ],
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
+      "unique_id": "0123456789ab_version_set",
+      "value_template": "{% set mapping = {\"600W\":\"600W Version\",\"800W\":\"800W Version\",\"1200W\":\"1200W Version\",\"1500W\":\"1500W Version\",\"2000W\":\"2000W Version\",\"2200W\":\"2200W Version\",\"2300W\":\"2300W Version\",\"2500W\":\"2500W Version\",\"3000W\":\"3000W Version\",\"3600W\":\"3600W Version\"} %}{% set stringifiedValue = value_json.versionSet | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
     },
     "homeassistant/select/HMG_0123456789ab/working_mode/config": {
       "availability": [
@@ -708,7 +879,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:cog",
       "name": "Working Mode",
@@ -741,7 +913,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "device_class": "energy_storage",
       "name": "Battery Capacity",
@@ -773,7 +946,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "device_class": "battery",
       "name": "Battery State of Charge",
@@ -805,7 +979,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:battery",
       "name": "Battery Working Status",
@@ -835,7 +1010,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "enabled_by_default": false,
       "icon": "mdi:information",
@@ -895,7 +1071,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "device_class": "monetary",
       "name": "Charging Price",
@@ -926,7 +1103,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "device_class": "power",
       "name": "Combined Power",
@@ -958,7 +1136,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "enabled_by_default": false,
       "icon": "mdi:information",
@@ -989,7 +1168,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:connection",
       "name": "CT Status",
@@ -1019,7 +1199,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:current-ac",
       "name": "CT Type",
@@ -1050,7 +1231,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "device_class": "energy",
       "name": "Daily Charging Capacity",
@@ -1082,7 +1264,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "device_class": "energy",
       "name": "Daily Discharge Capacity",
@@ -1114,7 +1297,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "device_class": "monetary",
       "name": "Daily Income",
@@ -1146,7 +1330,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:information",
       "name": "Device Version",
@@ -1177,7 +1362,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "device_class": "monetary",
       "name": "Discharge Price",
@@ -1209,7 +1395,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:alert-circle",
       "name": "Error Code",
@@ -1241,7 +1428,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:transmission-tower",
       "name": "Grid Type",
@@ -1255,6 +1443,37 @@
     },
     "homeassistant/sensor/HMG_0123456789ab/highest_cell_share/config": null,
     "homeassistant/sensor/HMG_0123456789ab/highest_cell/config": null,
+    "homeassistant/sensor/HMG_0123456789ab/http_server_type/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMG/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMG",
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
+      },
+      "enabled_by_default": false,
+      "name": "HTTP Server Type",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
+      "unique_id": "0123456789ab_http_server_type",
+      "value_template": "{{ value_json.httpServerType }}"
+    },
     "homeassistant/sensor/HMG_0123456789ab/last_charge_cycle/config": null,
     "homeassistant/sensor/HMG_0123456789ab/max_cell_voltage/config": null,
     "homeassistant/sensor/HMG_0123456789ab/min_cell_voltage/config": null,
@@ -1278,7 +1497,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "device_class": "energy",
       "name": "Monthly Charging Capacity",
@@ -1310,7 +1530,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "device_class": "energy",
       "name": "Monthly Discharge Capacity",
@@ -1342,7 +1563,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "device_class": "monetary",
       "name": "Monthly Income",
@@ -1375,7 +1597,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "device_class": "apparent_power",
       "name": "Off Grid Power",
@@ -1549,6 +1772,38 @@
     "homeassistant/sensor/HMG_0123456789ab/pack_6_voltage/config": null,
     "homeassistant/sensor/HMG_0123456789ab/pack_charge_power/config": null,
     "homeassistant/sensor/HMG_0123456789ab/pack_discharge_power/config": null,
+    "homeassistant/sensor/HMG_0123456789ab/phase_diagnosis_status/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMG/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMG",
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:sine-wave",
+      "name": "Phase Diagnosis Status",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
+      "unique_id": "0123456789ab_phase_diagnosis_status",
+      "value_template": "{{ value_json.phaseDiagnosisStatus }}"
+    },
     "homeassistant/sensor/HMG_0123456789ab/phase_type/config": {
       "availability": [
         {
@@ -1567,7 +1822,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:sine-wave",
       "name": "Phase Type",
@@ -1578,6 +1834,262 @@
       "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
       "unique_id": "0123456789ab_phase_type",
       "value_template": "{% set mapping = {\"unknown\":\"Unknown\",\"phaseA\":\"Phase A\",\"phaseB\":\"Phase B\",\"phaseC\":\"Phase C\",\"notDetected\":\"Not Detected\"} %}{% set stringifiedValue = value_json.phaseType | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
+    },
+    "homeassistant/sensor/HMG_0123456789ab/raw_bl/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMG/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMG",
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:help-circle-outline",
+      "name": "Raw bl",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
+      "unique_id": "0123456789ab_raw_bl",
+      "value_template": "{{ value_json.raw.bl }}"
+    },
+    "homeassistant/sensor/HMG_0123456789ab/raw_c_ratio/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMG/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMG",
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:help-circle-outline",
+      "name": "Raw c_ratio",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
+      "unique_id": "0123456789ab_raw_c_ratio",
+      "value_template": "{{ value_json.raw.c_ratio }}"
+    },
+    "homeassistant/sensor/HMG_0123456789ab/raw_ctrl_r/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMG/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMG",
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:help-circle-outline",
+      "name": "Raw ctrl_r",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
+      "unique_id": "0123456789ab_raw_ctrl_r",
+      "value_template": "{{ value_json.raw.ctrl_r }}"
+    },
+    "homeassistant/sensor/HMG_0123456789ab/raw_gen/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMG/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMG",
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:help-circle-outline",
+      "name": "Raw gen",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
+      "unique_id": "0123456789ab_raw_gen",
+      "value_template": "{{ value_json.raw.gen }}"
+    },
+    "homeassistant/sensor/HMG_0123456789ab/raw_tra_a/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMG/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMG",
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:help-circle-outline",
+      "name": "Raw tra_a",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
+      "unique_id": "0123456789ab_raw_tra_a",
+      "value_template": "{{ value_json.raw.tra_a }}"
+    },
+    "homeassistant/sensor/HMG_0123456789ab/raw_tra_i/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMG/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMG",
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:help-circle-outline",
+      "name": "Raw tra_i",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
+      "unique_id": "0123456789ab_raw_tra_i",
+      "value_template": "{{ value_json.raw.tra_i }}"
+    },
+    "homeassistant/sensor/HMG_0123456789ab/raw_tra_o/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMG/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMG",
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:help-circle-outline",
+      "name": "Raw tra_o",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
+      "unique_id": "0123456789ab_raw_tra_o",
+      "value_template": "{{ value_json.raw.tra_o }}"
+    },
+    "homeassistant/sensor/HMG_0123456789ab/raw_udp/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMG/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMG",
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:help-circle-outline",
+      "name": "Raw udp",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
+      "unique_id": "0123456789ab_raw_udp",
+      "value_template": "{{ value_json.raw.udp }}"
     },
     "homeassistant/sensor/HMG_0123456789ab/rested_cell_spread/config": null,
     "homeassistant/sensor/HMG_0123456789ab/rested_cell_stddev/config": null,
@@ -1599,7 +2111,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "enabled_by_default": false,
       "icon": "mdi:lan",
@@ -1633,7 +2146,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "device_class": "timestamp",
       "icon": "mdi:clock-time-four-outline",
@@ -1664,7 +2178,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "device_class": "energy",
       "name": "Total Charging Capacity",
@@ -1696,7 +2211,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "device_class": "energy",
       "name": "Total Discharge Capacity",
@@ -1728,7 +2244,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "device_class": "monetary",
       "name": "Total Income",
@@ -1762,7 +2279,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:alert",
       "name": "Warning Code",
@@ -1793,7 +2311,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:wifi",
       "name": "WiFi Name",
@@ -1823,7 +2342,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "device_class": "signal_strength",
       "name": "WiFi Signal Strength",
@@ -1855,7 +2375,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:state-machine",
       "name": "Working Status",
@@ -1886,7 +2407,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:home-battery",
       "name": "Backup Power",
@@ -1901,6 +2423,78 @@
       "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
       "unique_id": "0123456789ab_backup_enabled",
       "value_template": "{{ value_json.backupEnabled }}"
+    },
+    "homeassistant/switch/HMG_0123456789ab/bluetooth_advertising/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMG/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/HMG/control/0123456789ab/bluetooth-advertising",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMG",
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
+      },
+      "icon": "mdi:bluetooth",
+      "name": "Bluetooth Advertising",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_off": "false",
+      "payload_on": "true",
+      "state_off": false,
+      "state_on": true,
+      "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
+      "unique_id": "0123456789ab_bluetooth_advertising",
+      "value_template": "{{ value_json.bluetoothAdvertisingEnabled }}"
+    },
+    "homeassistant/switch/HMG_0123456789ab/local_api_enabled/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/HMG/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/HMG/control/0123456789ab/local-api-enabled",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "HMG",
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
+      },
+      "icon": "mdi:lan",
+      "name": "Local API Enabled",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_off": "false",
+      "payload_on": "true",
+      "state_off": false,
+      "state_on": true,
+      "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
+      "unique_id": "0123456789ab_local_api_enabled",
+      "value_template": "{{ value_json.localApiEnabled }}"
     },
     "homeassistant/switch/HMG_0123456789ab/time_period_0_enabled/config": {
       "availability": [
@@ -1921,7 +2515,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:clock-time-four-outline",
       "name": "Time Period 0 Enabled",
@@ -1956,7 +2551,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:clock-time-four-outline",
       "name": "Time Period 1 Enabled",
@@ -1991,7 +2587,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:clock-time-four-outline",
       "name": "Time Period 2 Enabled",
@@ -2026,7 +2623,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:clock-time-four-outline",
       "name": "Time Period 3 Enabled",
@@ -2061,7 +2659,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:clock-time-four-outline",
       "name": "Time Period 4 Enabled",
@@ -2096,7 +2695,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:clock-time-four-outline",
       "name": "Time Period 5 Enabled",
@@ -2131,7 +2731,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:clock-time-four-outline",
       "name": "Time Period 6 Enabled",
@@ -2166,7 +2767,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:clock-time-four-outline",
       "name": "Time Period 7 Enabled",
@@ -2201,7 +2803,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:clock-time-four-outline",
       "name": "Time Period 8 Enabled",
@@ -2236,7 +2839,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "icon": "mdi:clock-time-four-outline",
       "name": "Time Period 9 Enabled",
@@ -2271,7 +2875,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "enabled_by_default": false,
       "icon": "mdi:identifier",
@@ -2302,7 +2907,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 0 Time To",
       "origin": {
@@ -2333,7 +2939,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 0 Time From",
       "origin": {
@@ -2364,7 +2971,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 0 Weekday",
       "origin": {
@@ -2395,7 +3003,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 1 Time To",
       "origin": {
@@ -2426,7 +3035,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 1 Time From",
       "origin": {
@@ -2457,7 +3067,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 1 Weekday",
       "origin": {
@@ -2488,7 +3099,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 2 Time To",
       "origin": {
@@ -2519,7 +3131,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 2 Time From",
       "origin": {
@@ -2550,7 +3163,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 2 Weekday",
       "origin": {
@@ -2581,7 +3195,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 3 Time To",
       "origin": {
@@ -2612,7 +3227,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 3 Time From",
       "origin": {
@@ -2643,7 +3259,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 3 Weekday",
       "origin": {
@@ -2674,7 +3291,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 4 Time To",
       "origin": {
@@ -2705,7 +3323,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 4 Time From",
       "origin": {
@@ -2736,7 +3355,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 4 Weekday",
       "origin": {
@@ -2767,7 +3387,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 5 Time To",
       "origin": {
@@ -2798,7 +3419,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 5 Time From",
       "origin": {
@@ -2829,7 +3451,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 5 Weekday",
       "origin": {
@@ -2860,7 +3483,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 6 Time To",
       "origin": {
@@ -2891,7 +3515,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 6 Time From",
       "origin": {
@@ -2922,7 +3547,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 6 Weekday",
       "origin": {
@@ -2953,7 +3579,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 7 Time To",
       "origin": {
@@ -2984,7 +3611,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 7 Time From",
       "origin": {
@@ -3015,7 +3643,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 7 Weekday",
       "origin": {
@@ -3046,7 +3675,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 8 Time To",
       "origin": {
@@ -3077,7 +3707,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 8 Time From",
       "origin": {
@@ -3108,7 +3739,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 8 Weekday",
       "origin": {
@@ -3139,7 +3771,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 9 Time To",
       "origin": {
@@ -3170,7 +3803,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 9 Time From",
       "origin": {
@@ -3201,7 +3835,8 @@
         "ids": ["hame_energy_0123456789ab"],
         "manufacturer": "HAME Energy",
         "model_id": "HMG",
-        "name": "HAME Energy HMG 0123456789ab"
+        "name": "HAME Energy HMG 0123456789ab",
+        "sw_version": "156"
       },
       "name": "Time Period 9 Weekday",
       "origin": {
