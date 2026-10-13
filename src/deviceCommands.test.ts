@@ -1810,6 +1810,46 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: 'cd=5,rs=2',
   },
 
+  // restart command (cd=28): every VNS build, HMG from 151
+  {
+    description: 'Venus restart with PRESS on the Venus D',
+    deviceType: 'VNSD-0',
+    command: 'restart',
+    input: 'PRESS',
+    expectedOutput: 'cd=28',
+  },
+  {
+    description: 'Venus restart refused on HMG control firmware 149',
+    deviceType: 'HMG-50',
+    initialState: { deviceVersion: 149 },
+    command: 'restart',
+    input: 'PRESS',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus restart on HMG control firmware 151',
+    deviceType: 'HMG-50',
+    initialState: { deviceVersion: 151 },
+    command: 'restart',
+    input: 'PRESS',
+    expectedOutput: 'cd=28',
+  },
+  {
+    description: 'Venus restart on HMG control firmware 158.1 (dev_n=1581)',
+    deviceType: 'HMG-25',
+    initialState: { deviceVersion: 1581 },
+    command: 'restart',
+    input: 'PRESS',
+    expectedOutput: 'cd=28',
+  },
+  {
+    description: 'Venus restart ignores an unrelated payload',
+    deviceType: 'VNSE3-0',
+    command: 'restart',
+    input: 'nope',
+    expectedOutput: null,
+  },
+
   // get-ct-power command
   {
     description: 'Venus get-ct-power with PRESS',

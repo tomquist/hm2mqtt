@@ -7,6 +7,7 @@
 - Smart meters: The CT002 (`HME-4`, firmware 124 and later) now also reports voltage, current and energy per phase
 - Venus C/E (`HMG`) and the Marstek smart meters now also work when they talk straight to your own MQTT broker, without hame-relay, if you configure their MAC address
 - Venus C/E (HMG): *Depth of Discharge* now goes up to 90 %, which the firmware allows
+- Venus: New *Restart* button (disabled by default). On the Venus C/E (HMG) it needs control firmware 151 or later
 
 ### Changed
 

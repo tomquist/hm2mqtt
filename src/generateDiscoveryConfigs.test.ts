@@ -690,6 +690,32 @@ describe('Home Assistant Discovery', () => {
     expect([hmg152.daily_income, hmg152.charging_price]).toEqual([true, false]);
   });
 
+  test('should offer the Venus Restart button on every VNS build and HMG from 151', () => {
+    const restart = (deviceType: string, state: object) =>
+      generateDiscoveryConfigs(
+        { deviceType, deviceId: 'venus123' },
+        jupiterTopics(deviceType, 'venus123'),
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      ).filter(c => c.topic.includes('/button/') && c.topic.includes('/restart/'));
+
+    expect(restart('HMG-50', { deviceVersion: 149 })).toEqual([
+      expect.objectContaining({ config: null }),
+    ]);
+    expect(isOffered(restart('HMG-50', { deviceVersion: 151 }))).toBe(true);
+    // HMG build not known yet: deferred.
+    expect(restart('HMG-50', {})).toEqual([]);
+    // Every VNS build has it, so no device data is needed.
+    expect(isOffered(restart('VNSA-0', {}))).toBe(true);
+    expect(restart('VNSE3-0', {})[0].config).toMatchObject({
+      command_topic: expect.any(String),
+      payload_press: 'PRESS',
+      enabled_by_default: false,
+    });
+  });
+
   test('should offer Jupiter battery pack recovery on Jupiter Plus only', () => {
     const recoveryConfigs = (deviceType: string, state: object) =>
       generateDiscoveryConfigs(

@@ -80,6 +80,9 @@
 30. [Read BMS info](#30-read-bms-info)
     1. [Public](#301-public)
     2. [Receive](#302-receive)
+31. [Restart](#31-restart)
+    1. [Public](#311-public)
+    2. [Receive](#312-receive)
 
 ## 1 MQTT Core Concepts
 
@@ -1262,3 +1265,25 @@ key instead of the pipe-separated `b_vol` list `cd=42` uses.
 
 The meaning and units of the other keys (`b_rci`, `b_rdi`, `b_cap`, `b_chf`,
 `b_slf`, `b_cpc`, `b_err`, `b_war`, `b_ret`, `b_ent`) are not confirmed yet.
+
+## 31 Restart
+
+Restarts the device. Available on every Venus E 3.0, Venus A and Venus D build,
+and on the Venus C/E (HMG) from control firmware 151.
+
+### 31.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+```
+cd=28
+```
+
+### 31.2 Receive
+
+`cd=28,ret=1`, after which the device restarts about a second later. The Venus
+C/E (HMG) on control firmware 151 to 153 restarts without replying.

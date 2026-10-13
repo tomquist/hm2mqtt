@@ -919,11 +919,11 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       },
     });
 
-    // Reboot, `cd=61`. The first generation has no reboot command at all, so
-    // this is not a renumbering of anything - `cd=10` on those models is the
-    // WiFi-module version query, not a restart. No parameters, so there is
-    // nothing here to get wrong beyond the number itself. Disabled by default,
-    // matching the reset buttons on the other families.
+    // Reboot, `cd=61`. The first generation reboots with `cd=28` instead, and
+    // `cd=10` on those models is the WiFi-module version query, not a restart.
+    // No parameters, so there is nothing here to get wrong beyond the number
+    // itself. Disabled by default, matching the reset buttons on the other
+    // families.
     advertise(
       [],
       buttonComponent({

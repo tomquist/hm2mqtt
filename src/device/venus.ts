@@ -86,6 +86,10 @@ enum CommandType {
   UPGRADE_FC4_MODULE = 20,
   SET_PARALLEL_MODE = 23,
   GET_NETWORK_INFO = 26,
+  // `cd=28` reboots the device about a second later (Venus E 3.0, Venus A and
+  // Venus D, and the Venus C/E (HMG) from control firmware 151). The reply,
+  // `cd=28,ret=1`, does not come on HMG 151 to 153.
+  REBOOT = 28,
   SET_LOCAL_API = 30,
   GET_BMS_PACK_INFO = 42,
   SURPLUS_FEED_IN = 43,
@@ -1942,6 +1946,38 @@ function registerRuntimeInfoMessage(
         payload_press: 'PRESS',
         enabled_by_default: false,
       }),
+    );
+
+    // Restart (`cd=28`). Nothing waits for a reply, since HMG 151 to 153
+    // reboot without one. The cd=1 re-read that follows any command goes out
+    // before the reboot and is harmless.
+    const supportsRestart = (deviceVersion: number | undefined) =>
+      venusSupports(model, deviceVersion, { HMG: 151, VNSE3: 0, VNSA: 0, VNSD: 0 });
+    command('restart', {
+      handler: ({ message, publishCallback, deviceState }) => {
+        if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
+          if (supportsRestart(deviceState.deviceVersion) === false) {
+            logger.warn(
+              'Restart needs control firmware 151 or later on the Venus C/E (HMG); this device reports',
+              deviceState.deviceVersion,
+            );
+            return;
+          }
+          publishCallback(processCommand(CommandType.REBOOT));
+        }
+      },
+    });
+    advertise(
+      [],
+      buttonComponent({
+        id: 'restart',
+        name: 'Restart',
+        icon: 'mdi:restart',
+        command: 'restart',
+        payload_press: 'PRESS',
+        enabled_by_default: false,
+      }),
+      { enabled: state => supportsRestart(state.deviceVersion) },
     );
 
     command('sync-time', {

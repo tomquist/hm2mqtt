@@ -304,6 +304,38 @@
       "payload_press": "PRESS",
       "unique_id": "0123456789ab_refresh"
     },
+    "homeassistant/button/VNSD_0123456789ab/restart/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/VNSD/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/VNSD/control/0123456789ab/restart",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "VNSD",
+        "name": "HAME Energy VNSD 0123456789ab",
+        "sw_version": "147"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:restart",
+      "name": "Restart",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_press": "PRESS",
+      "unique_id": "0123456789ab_restart"
+    },
     "homeassistant/button/VNSD_0123456789ab/sync_time/config": {
       "availability": [
         {

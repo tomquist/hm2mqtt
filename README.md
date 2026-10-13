@@ -719,6 +719,7 @@ Applies to HMG/VNSE3/VNSA/VNSD. None of the commands below are available on the 
 - `local-api-port`: Sets the local API port (1-65535). Same availability as `local-api-enabled`.
 - `bluetooth-advertising`: Toggles Bluetooth advertising (`on` enables advertising, `off` disables it / "Bluetooth lock"). Requires control firmware 156 or later on the Venus C/E (HMG), and 144 or later on the other models.
 - `phase-diagnosis`: Starts the grid-phase detection routine
+- `restart`: Restarts the device (`PRESS`). Available on every Venus E 3.0, Venus A and Venus D, and on the Venus C/E (HMG) from control firmware 151. Disabled by default.
 - `peak-shaving`: Toggles peak shaving, which caps the power drawn from the grid (`on` or `off`). Only available on firmware that reports the peak-shaving state (control v150 and up on Venus D/E).
 - `peak-shaving-power`: Sets the peak-shaving power cap in watts. Only takes effect on the device while peak shaving is enabled; while it is off the value is stored and applied the next time you enable it.
 - `parallel-mode`: Controls parallel operation (`off`, `wiringCheck` or `on`), which links several units into one group for a higher combined output. **Disabled by default, and best left that way unless you know you need it** — see the warning below.

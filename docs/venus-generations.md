@@ -39,7 +39,7 @@ code while working on the other:
 | Set LED             | `cd=59,led=` | `cd=56,led=` |
 | Set device time     | `cd=4,yy=,mm=,rr=,hh=,mn=` | `cd=33` |
 | Network info        | `cd=26` | `cd=03` |
-| Reboot              | *(none — see below)* | `cd=61` |
+| Reboot              | `cd=28` (see below) | `cd=61` |
 
 And these agree, which is why the split is easy to miss:
 
@@ -52,10 +52,12 @@ And these agree, which is why the split is easy to miss:
 | Get CT power        | `cd=19` — but not on the Venus E Mini, which has no `cd=19` and uses `cd=59` |
 | Bluetooth advertising | `cd=55,adv=` |
 
-The first generation has no reboot command at all, on Venus. `cd=10` is not one:
-on this family it is `GET_FC41D_INFO`, the WiFi module version query, and it is
-only the *B2500* that restarts with `cd=10`. Reaching for that number on a Venus
-queries the WiFi module instead.
+The first generation reboots with `cd=28`: every Venus E 3.0, Venus A and Venus D
+build, and the Venus C/E (HMG) from control firmware 151. The device answers
+`cd=28,ret=1` and restarts about a second later; HMG 151 to 153 restart without
+answering. `cd=10` is not a reboot: on this family it is `GET_FC41D_INFO`, the
+WiFi module version query, and it is only the *B2500* that restarts with
+`cd=10`. Reaching for that number on a Venus queries the WiFi module instead.
 
 The second generation writes every command number as two characters, which for
 the single-digit ones means zero-padded: `cd=01`, `cd=02`, `cd=03`, `cd=04`,
@@ -226,13 +228,12 @@ client happens to send.
 
 Three things that came out of it, from `VNSD-0` control 150:
 
-- **There is no reboot command on the first generation.** The only reboot string
-  in the image is `system will reboot!`, sitting next to `Reset, clear all…`,
-  `Reset, clear part…` and `Reset, clear cert…` — rebooting is a side effect of
-  the reset command, not a command of its own. `cd=61` really is new in the
-  second generation.
+- **The first generation reboots with `cd=28`**, a command of its own,
+  answered `cd=28,ret=1` (see above). `cd=61` is the second generation's number
+  for it.
 - **`cd=5` has a third variant.** The image contains `rs=1`, `rs=2` *and*
-  `rs=3`, matching those three reset strings. Only `rs=1` and `rs=2` are
+  `rs=3`, for three reset variants: clear all, clear part and clear the
+  certificates. Only `rs=1` and `rs=2` are
   documented in [venus.md](venus.md), and the app never sends `rs=3`. It is
   present in every archived build back to v147, and in `VNSA-0` and `VNSE3-0`
   too. Which `rs` value maps to which variant is inferred from their order in
