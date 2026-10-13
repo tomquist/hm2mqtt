@@ -26,7 +26,7 @@ import {
   WeekdaySet,
 } from '../types.js';
 import { registerNetworkInfoMessage } from './networkInfoBase.js';
-import { VenusModel } from './helpers.js';
+import { VenusModel, venusSupports } from './helpers.js';
 import { registerCellBalancingMessage } from './cellBalancingMessage.js';
 import { extractVenusSample } from '../cellBalancing.js';
 import logger from '../logger.js';
@@ -46,7 +46,6 @@ import {
   identity,
   number,
   equalsBoolean,
-  bitBoolean,
   chain,
   inRange,
   sum,
@@ -105,12 +104,10 @@ enum CommandType {
 // - `ei` is a 64-bit hex value (`ei=%llx`)
 // - `eb` is a hex value (`eb=%x`)
 //
-// `bl` is included here rather than wired to the Bluetooth Advertising switch:
-// that already reads bit 2 of `ble`, and nothing establishes that `bl` is the
-// same flag rather than a second, related one.
+// `bl` is not raw either: it is the Bluetooth advertising setting, which the
+// Bluetooth Advertising switch reads.
 const venusRawFields = [
   'as',
-  'bl',
   'bl_p',
   'c_ratio',
   'ctrl_r',
@@ -1264,15 +1261,19 @@ function registerRuntimeInfoMessage(
       },
     });
 
-    // Bluetooth advertising / "lock" (cd=55, adv=1 enables advertising, adv=0
-    // disables it). The state is reported in the `ble` field as a bitmask where
-    // bit 2 (value 4) is set when advertising is enabled (Bluetooth lock off).
+    // Bluetooth advertising (cd=55). `bl` is the advertising setting (1 = on,
+    // the factory default), which `cd=55,adv=1|0` writes and keeps across
+    // reboots. `ble` is the state of the Bluetooth module (advertising,
+    // connected, ...), not the setting. The Venus C/E (HMG) has both the
+    // command and `bl` from control firmware 156, the other models from 144.
     // The optimistic update in the command handler gives immediate feedback
     // until the next cd=1 poll reconciles with the device.
+    const supportsBluetoothAdvertising = (deviceVersion: number | undefined) =>
+      venusSupports(model, deviceVersion, { HMG: 156, VNSE3: 144, VNSA: 144, VNSD: 144 });
     field({
-      key: 'ble',
+      key: 'bl',
       path: ['bluetoothAdvertisingEnabled'],
-      transform: bitBoolean(2),
+      transform: equalsBoolean('1'),
     });
     advertise(
       ['bluetoothAdvertisingEnabled'],
@@ -1282,10 +1283,24 @@ function registerRuntimeInfoMessage(
         icon: 'mdi:bluetooth',
         command: 'bluetooth-advertising',
       }),
-      { enabled: state => (state.bluetoothAdvertisingEnabled != null ? true : undefined) },
+      {
+        enabled: state => {
+          if (state.bluetoothAdvertisingEnabled != null) return true;
+          // Firmware without the setting: remove a switch earlier versions
+          // advertised from `ble`.
+          return supportsBluetoothAdvertising(state.deviceVersion) === false ? false : undefined;
+        },
+      },
     );
     command('bluetooth-advertising', {
-      handler: ({ message, publishCallback, updateDeviceState }) => {
+      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
+        if (supportsBluetoothAdvertising(deviceState.deviceVersion) === false) {
+          logger.warn(
+            'Bluetooth advertising needs control firmware 156 on the Venus C/E (HMG) and 144 on the other models; this device reports',
+            deviceState.deviceVersion,
+          );
+          return;
+        }
         const enable =
           message.toLowerCase() === 'true' || message.toLowerCase() === 'on' || message === '1';
         updateDeviceState(() => ({ bluetoothAdvertisingEnabled: enable }));
@@ -1383,6 +1398,17 @@ function registerRuntimeInfoMessage(
         { enabled: state => (state.raw?.[key] != null ? true : undefined) },
       );
     }
+    // Remove the retained config of the former raw `bl` sensor.
+    advertise(
+      ['raw', 'bl'],
+      sensorComponent<number>({
+        id: 'raw_bl',
+        name: 'Raw bl',
+        icon: 'mdi:help-circle-outline',
+        enabled_by_default: false,
+      }),
+      { enabled: () => false },
+    );
 
     command('peak-shaving', {
       handler: ({ message, publishCallback, updateDeviceState }) => {

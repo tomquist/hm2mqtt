@@ -1552,6 +1552,30 @@ const commandTestCases: CommandTestCase[] = [
     input: 'false',
     expectedOutput: 'cd=55,adv=0',
   },
+  {
+    description: 'Venus bluetooth-advertising refused on HMG control firmware 155',
+    deviceType: 'HMG-50',
+    initialState: { deviceVersion: 155 },
+    command: 'bluetooth-advertising',
+    input: 'on',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus bluetooth-advertising on HMG control firmware 158.1 (dev_n=1581)',
+    deviceType: 'HMG-25',
+    initialState: { deviceVersion: 1581 },
+    command: 'bluetooth-advertising',
+    input: 'on',
+    expectedOutput: 'cd=55,adv=1',
+  },
+  {
+    description: 'Venus bluetooth-advertising refused on VNSA control firmware 143',
+    deviceType: 'VNSA-0',
+    initialState: { deviceVersion: 143 },
+    command: 'bluetooth-advertising',
+    input: 'on',
+    expectedOutput: null,
+  },
 
   // phase-diagnosis command (cd=18,seq_check)
   {

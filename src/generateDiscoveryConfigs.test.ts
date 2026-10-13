@@ -520,6 +520,32 @@ describe('Home Assistant Discovery', () => {
     );
   });
 
+  test('should gate the Venus Bluetooth advertising switch on the bl setting and build', () => {
+    const bleConfigs = (deviceType: string, state: object) =>
+      generateDiscoveryConfigs(
+        { deviceType, deviceId: 'venus123' },
+        jupiterTopics(deviceType, 'venus123'),
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      ).filter(c => c.topic.includes('/bluetooth_advertising/'));
+
+    // HMG before 156 has no setting: the switch is removed.
+    expect(bleConfigs('HMG-50', { deviceVersion: 155 })).toEqual([
+      expect.objectContaining({ config: null }),
+    ]);
+    expect(
+      isOffered(bleConfigs('HMG-50', { deviceVersion: 156, bluetoothAdvertisingEnabled: true })),
+    ).toBe(true);
+    // Build not known yet: deferred.
+    expect(bleConfigs('VNSA-0', {})).toEqual([]);
+    // The VNSA 143 reading in #218 has no bl.
+    expect(bleConfigs('VNSA-0', { deviceVersion: 143 })).toEqual([
+      expect.objectContaining({ config: null }),
+    ]);
+  });
+
   test('should offer Jupiter battery pack recovery on Jupiter Plus only', () => {
     const recoveryConfigs = (deviceType: string, state: object) =>
       generateDiscoveryConfigs(

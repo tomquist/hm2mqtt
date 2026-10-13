@@ -2367,38 +2367,7 @@
       "unique_id": "0123456789ab_raw_bl_p",
       "value_template": "{{ value_json.raw.bl_p }}"
     },
-    "homeassistant/sensor/VNSD_0123456789ab/raw_bl/config": {
-      "availability": [
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/availability"
-        },
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/VNSD/availability/0123456789ab"
-        }
-      ],
-      "device": {
-        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
-        "ids": ["hame_energy_0123456789ab"],
-        "manufacturer": "HAME Energy",
-        "model_id": "VNSD",
-        "name": "HAME Energy VNSD 0123456789ab",
-        "sw_version": "147"
-      },
-      "enabled_by_default": false,
-      "icon": "mdi:help-circle-outline",
-      "name": "Raw bl",
-      "origin": {
-        "name": "hm2mqtt",
-        "url": "https://github.com/tomquist/hm2mqtt"
-      },
-      "state_topic": "hm2mqtt/VNSD/device/0123456789ab/data",
-      "unique_id": "0123456789ab_raw_bl",
-      "value_template": "{{ value_json.raw.bl }}"
-    },
+    "homeassistant/sensor/VNSD_0123456789ab/raw_bl/config": null,
     "homeassistant/sensor/VNSD_0123456789ab/raw_c_ratio/config": {
       "availability": [
         {

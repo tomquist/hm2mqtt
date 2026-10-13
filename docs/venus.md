@@ -209,7 +209,7 @@ guesses based on context and cross-referencing other commands:
 | ctrl_r | *(unconfirmed)* |
 | par | Parallel operation status (0: turned off; 1: wiring check; 2: turned on). Units that do not support parallel operation report `255`. See [Configure parallel operation](#29-configure-parallel-operation) |
 | gen | Generator flag *(unconfirmed)* |
-| ble | Bluetooth state bitmask; bit 2 (value `4`) is set when advertising is enabled (Bluetooth lock off), `1` when the lock is enabled (see `cd=55`) |
+| ble | Bluetooth module state, not a bitmask: 0 not initialised, 1 advertising, 2 connected, 3 disconnected, 4 not advertising (HMG 156 and later). The advertising *setting* is `bl` |
 | c_ratio | CT ratio (%) *(unconfirmed)* |
 | udp | UDP enabled *(unconfirmed)* |
 | api | Local API enabled (0: disabled; 1: enabled) (see `cd=30`) |
@@ -224,7 +224,7 @@ guesses based on context and cross-referencing other commands:
 | rp | Battery power (W), calculated. The app overwrites the `bp` reading with this one when its per-model "use calculated power" flag is set (see the note below) |
 | gp | Grid power (W). Only used by the app when the same flag is set; otherwise grid power comes from `grd_o` |
 | vp | *(unconfirmed)* power (W) |
-| bl | *(unconfirmed)* |
+| bl | Bluetooth advertising setting (0: off; 1: on, the factory default) (see `cd=55`) |
 | bl_p | *(unconfirmed)* |
 | led | Status LED state (0: off; 1: on) (see `cd=59`) |
 | as | *(unconfirmed)* |
@@ -983,7 +983,9 @@ The current LED state is reported as the `led` field in the `cd=1` response.
 
 Enables or disables the device's Bluetooth (BLE) advertising. When advertising
 is disabled the device is no longer discoverable over Bluetooth (a "Bluetooth
-lock"). Observed on Venus D v147.
+lock"). Available from control firmware 156 on the Venus C/E (HMG) and from 144
+on the Venus E 3.0, Venus A and Venus D; earlier HMG firmware ignores the
+command.
 
 ### 27.1 Public
 
@@ -995,16 +997,18 @@ hame_energy/{type}/App/{uid or mac}/ctrl
 Payload:
 1. `cd=55,adv=1` - Enable Bluetooth advertising (discoverable)
 2. `cd=55,adv=0` - Disable Bluetooth advertising (lock)
+3. `cd=55,adv=3` / `cd=55,adv=2` - Enable / disable it only until the next reboot
 
 ### 27.2 Receive
 
-The device echoes the resulting state:
+The device replies with the resulting setting, `cd=55,ret=<bl>` (the HMG adds a
+trailing comma):
 1. `cd=55,ret=1` - Advertising enabled (discoverable; Bluetooth lock off)
 2. `cd=55,ret=0` - Advertising disabled (Bluetooth lock on)
 
-The current state is also reflected in the `ble` field of the `cd=1` response: it
-is a bitmask where bit 2 (value `4`) is set when advertising is enabled
-(Bluetooth lock off), and `1` when the lock is enabled.
+The setting is also reported as the `bl` field of the `cd=1` response. The `ble`
+field is the state of the Bluetooth module (advertising, connected, ...), not
+the setting.
 
 ## 28 Configure peak shaving
 

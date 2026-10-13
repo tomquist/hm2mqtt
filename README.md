@@ -712,7 +712,7 @@ Applies to HMG/VNSE3/VNSA/VNSD. None of the commands below are available on the 
 - `backup-enabled`: Toggles the backup/EPS ("UPS") power function (`on` or `off`)
 - `led-enabled`: Toggles the status LED (`on` or `off`). Only available on firmware that reports the LED state.
 - `surplus-feed-in`: Toggles surplus feed-in into the grid (`on` or `off`). Only available on Venus models with PV inputs (Venus A/D).
-- `bluetooth-advertising`: Toggles Bluetooth advertising (`on` enables advertising, `off` disables it / "Bluetooth lock")
+- `bluetooth-advertising`: Toggles Bluetooth advertising (`on` enables advertising, `off` disables it / "Bluetooth lock"). Requires control firmware 156 or later on the Venus C/E (HMG), and 144 or later on the other models.
 - `phase-diagnosis`: Starts the grid-phase detection routine
 - `peak-shaving`: Toggles peak shaving, which caps the power drawn from the grid (`on` or `off`). Only available on firmware that reports the peak-shaving state (control v150 and up on Venus D/E).
 - `peak-shaving-power`: Sets the peak-shaving power cap in watts. Only takes effect on the device while peak shaving is enabled; while it is off the value is stored and applied the next time you enable it.

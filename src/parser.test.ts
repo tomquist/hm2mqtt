@@ -1212,7 +1212,6 @@ describe('MQTT Message Parser', () => {
     // Unnamed fields land in `raw` under their own key.
     expect(result.raw).toMatchObject({
       as: 3,
-      bl: 1,
       bl_p: -1,
       c_ratio: 90,
       ctrl_r: 1,
@@ -1229,13 +1228,14 @@ describe('MQTT Message Parser', () => {
     });
 
     // id is a pipe-separated tuple and ei/eb are hex, so none of the three is
-    // published as a number.
+    // published as a number. bl is the Bluetooth advertising setting.
     expect(result.raw).not.toHaveProperty('id');
     expect(result.raw).not.toHaveProperty('ei');
     expect(result.raw).not.toHaveProperty('eb');
+    expect(result.raw).not.toHaveProperty('bl');
 
-    // The switch still reads bit 2 of `ble`, not the separate `bl` field.
-    expect(result).toHaveProperty('bluetoothAdvertisingEnabled', false);
+    // The switch reads the `bl` setting, not the `ble` module state.
+    expect(result).toHaveProperty('bluetoothAdvertisingEnabled', true);
   });
 
   test('parses Venus AI working mode (wor_m=5)', () => {
@@ -1550,17 +1550,26 @@ describe('MQTT Message Parser', () => {
     expect((on['data'] as VenusDeviceData).surplusFeedInEnabled).toBe(true);
   });
 
-  test('parses Venus Bluetooth advertising state from the ble field', () => {
-    const base =
-      'cd=1,tot_i=6,tot_o=1109,ele_d=0,ele_m=0,grd_d=27,grd_m=27,inc_d=0,inc_m=0,grd_f=0,grd_o=801,grd_t=3,gct_s=1,cel_s=2,cel_p=233,cel_c=45,err_t=800,err_a=4,dev_n=147,grd_y=0,wor_m=5,inc_a=0';
+  test('parses the Venus Bluetooth advertising setting from bl, not the ble state', () => {
+    // Real HMG-50 control firmware 156 reading (#240): connected (ble=2) with
+    // advertising on (bl=1).
+    const hmg156 =
+      'tot_i=102607,tot_o=84500,ele_d=469,ele_m=1119,grd_d=391,grd_m=930,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=56,cel_c=11,err_t=0,err_a=0,dev_n=156,grd_y=0,wor_m=0,tim_0=0|0|0|0|0|0|0,tim_1=0|0|0|0|0|0|0,tim_2=0|0|0|0|0|0|0,tim_3=0|0|0|0|0|0|0,tim_4=0|0|0|0|0|0|0,tim_5=0|0|0|0|0|0|0,tim_6=0|0|0|0|0|0|0,tim_7=0|0|0|0|0|0|0,tim_8=0|0|0|0|0|0|0,tim_9=0|0|23|59|127|-2500|1,cts_m=0,bac_u=1,tra_a=1,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=2,wif_s=49,inc_a=0,set_v=1,mcp_w=-1,mdp_w=800,ct_t=5,phase_t=1,dchrg_t=0,bms_v=216,fc_v=202501211626,wifi_n=XXX,seq_s=0,ctrl_r=1,par=0,gen=255,ble=2,shelly_p=1010,c_ratio=100,udp=0,api=0,port=30000,id=2|0|1|255|0,bl=1,dod=88';
+    const hmg = parseMessage(hmg156, 'HMG-50', 'venus123');
+    expect((hmg['data'] as VenusDeviceData).bluetoothAdvertisingEnabled).toBe(true);
 
-    // ble=4 -> advertising enabled (Bluetooth lock off)
-    const on = parseMessage(`${base},ble=4`, 'VNSD-0', 'venusD123');
-    expect((on['data'] as VenusDeviceData).bluetoothAdvertisingEnabled).toBe(true);
+    // Real Venus D control firmware 147 reading: disconnected (ble=3) with
+    // advertising on (bl=1).
+    const vnsd147 =
+      'cd=1,tot_i=6,tot_o=1109,ele_d=0,ele_m=0,grd_d=27,grd_m=27,inc_d=0,inc_m=0,grd_f=0,grd_o=801,grd_t=3,gct_s=1,cel_s=2,cel_p=233,cel_c=45,err_t=800,err_a=4,dev_n=147,grd_y=0,wor_m=5,tim_0=0|0|23|59|127|250|0,cts_m=0,bac_u=0,tra_a=74,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=3,wif_s=72,inc_a=0,set_v=1,mcp_w=2200,mdp_w=800,ct_t=3,phase_t=1,dchrg_t=0,bms_v=116,fc_v=202409090159,wifi_n=XXX,seq_s=3,ctrl_r=0,par=0,gen=0,ble=3,shelly_p=1010,c_ratio=100,udp=0,api=0,net=0,port=30000,inv_v=115,id=2|0|0|0|0,lk=0,bp=291,ei=0,eb=0,rp=347,gp=801,vp=801,bl=1,dod=88,bl_p=-1,led=1,as=3,mppt=104,pv1=2584|1,pv2=2638|1,pv3=3180|1,pv4=3080|1,pack=2|3|2|0,pv=24|24,fu=0|0,em=0';
+    const vnsd = parseMessage(vnsd147, 'VNSD-0', 'venusD123');
+    expect((vnsd['data'] as VenusDeviceData).bluetoothAdvertisingEnabled).toBe(true);
 
-    // ble=1 -> advertising disabled (Bluetooth lock on)
-    const off = parseMessage(`${base},ble=1`, 'VNSD-0', 'venusD123');
-    expect((off['data'] as VenusDeviceData).bluetoothAdvertisingEnabled).toBe(false);
+    // HMG control firmware 149 reports ble but has no bl setting.
+    const hmg149 =
+      'tot_i=8848,tot_o=7097,ele_d=537,ele_m=8848,grd_d=328,grd_m=7097,inc_d=0,inc_m=0,grd_f=0,grd_o=613,grd_t=3,gct_s=1,cel_s=3,cel_p=327,cel_c=64,err_t=0,err_a=0,dev_n=149,grd_y=0,wor_m=0,tim_0=0|0|8|2|127|300|1,tim_1=0|0|5|23|127|350|0,tim_2=17|21|23|59|127|600|1,tim_3=9|31|16|30|127|-800|1,tim_4=0|0|0|0|0|0|0,tim_5=0|0|0|0|0|0|0,tim_6=0|0|0|0|0|0|0,tim_7=0|0|0|0|0|0|0,tim_8=0|0|0|0|0|0|0,tim_9=0|0|0|0|0|0|0,cts_m=0,bac_u=0,tra_a=1,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=1,wif_s=33,inc_a=0,set_v=0,mcp_w=2500,mdp_w=2500,ct_t=4,phase_t=1,dchrg_t=1,bms_v=212,fc_v=202409090159,wifi_n=XXX,seq_s=0,ctrl_r=1,par=255,gen=255,ble=3,shelly_p=1010,c_ratio=90';
+    const old = parseMessage(hmg149, 'HMG-1', 'venus123');
+    expect((old['data'] as VenusDeviceData).bluetoothAdvertisingEnabled).toBeUndefined();
   });
 
   test('parses Venus cd=42 per-pack BMS details', () => {

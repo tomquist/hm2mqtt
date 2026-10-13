@@ -17,6 +17,13 @@ const BASE_KEYS: ReadonlyArray<keyof BaseDeviceData> = [
   'values',
 ];
 
+/**
+ * Entities that are only ever advertised as removed (`enabled: () => false`), to
+ * clear a config earlier versions retained. They publish no state topic, so the
+ * value they used to read no longer needs to be published.
+ */
+const RETIRED_IDS = new Set(['raw_bl']);
+
 function joinPath(keyPath: ReadonlyArray<string | number>): string {
   return keyPath.join('.');
 }
@@ -65,6 +72,9 @@ function statefulAdvertisements() {
           stateTopic: STATE_TOPIC,
           keyPath,
         });
+        if (RETIRED_IDS.has(config.id)) {
+          continue;
+        }
         result.push({
           deviceType,
           publishPath: message.publishPath,

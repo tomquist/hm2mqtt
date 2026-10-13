@@ -681,7 +681,7 @@ export interface VenusDeviceData extends BaseDeviceData {
   depthOfDischarge?: number; // dod
   ledEnabled?: boolean; // led
   surplusFeedInEnabled?: boolean; // set via cd=43 (no status field; tracked optimistically)
-  bluetoothAdvertisingEnabled?: boolean; // set via cd=55 (tracked optimistically)
+  bluetoothAdvertisingEnabled?: boolean; // bl, set via cd=55
   phaseDiagnosisStatus?: number; // seq_s
   inverterVersion?: number; // inv_v
   mpptVersion?: number; // mppt

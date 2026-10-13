@@ -2267,6 +2267,7 @@
       "unit_of_measurement": "W",
       "value_template": "{{ value_json.pv4Power }}"
     },
+    "homeassistant/sensor/VNSA_0123456789ab/raw_bl/config": null,
     "homeassistant/sensor/VNSA_0123456789ab/raw_c_ratio/config": {
       "availability": [
         {
@@ -2953,42 +2954,7 @@
       "unique_id": "0123456789ab_backup_enabled",
       "value_template": "{{ value_json.backupEnabled }}"
     },
-    "homeassistant/switch/VNSA_0123456789ab/bluetooth_advertising/config": {
-      "availability": [
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/availability"
-        },
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/VNSA/availability/0123456789ab"
-        }
-      ],
-      "command_topic": "hm2mqtt/VNSA/control/0123456789ab/bluetooth-advertising",
-      "device": {
-        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
-        "ids": ["hame_energy_0123456789ab"],
-        "manufacturer": "HAME Energy",
-        "model_id": "VNSA",
-        "name": "HAME Energy VNSA 0123456789ab",
-        "sw_version": "143"
-      },
-      "icon": "mdi:bluetooth",
-      "name": "Bluetooth Advertising",
-      "origin": {
-        "name": "hm2mqtt",
-        "url": "https://github.com/tomquist/hm2mqtt"
-      },
-      "payload_off": "false",
-      "payload_on": "true",
-      "state_off": false,
-      "state_on": true,
-      "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
-      "unique_id": "0123456789ab_bluetooth_advertising",
-      "value_template": "{{ value_json.bluetoothAdvertisingEnabled }}"
-    },
+    "homeassistant/switch/VNSA_0123456789ab/bluetooth_advertising/config": null,
     "homeassistant/switch/VNSA_0123456789ab/local_api_enabled/config": null,
     "homeassistant/switch/VNSA_0123456789ab/surplus_feed_in/config": {
       "availability": [
