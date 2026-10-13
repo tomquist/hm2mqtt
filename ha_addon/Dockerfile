@@ -2,7 +2,7 @@
 ARG BUILD_FROM
 
 # Build stage
-FROM node:26.8-alpine AS builder
+FROM node:26.10-alpine AS builder
 
 WORKDIR /build
 
