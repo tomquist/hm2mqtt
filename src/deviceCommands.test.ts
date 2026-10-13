@@ -19,8 +19,11 @@ interface CommandTestCase {
   command: string;
   /** Input message sent to the command */
   input: string;
-  /** Expected MQTT output message (null if no output expected) */
-  expectedOutput: string | null;
+  /**
+   * Expected MQTT output message (null if no output expected). A list means
+   * the command publishes exactly these messages, in this order.
+   */
+  expectedOutput: string | string[] | null;
   /** Expected state changes after command (if any) */
   expectedStateChanges?: Partial<DeviceStateData>;
   /** Whether to use flash commands (defaults to true in tests) */
@@ -526,6 +529,41 @@ const commandTestCases: CommandTestCase[] = [
     input: 'abc',
     expectedOutput: null,
   },
+  {
+    description: 'B2500V2 time-zone not a multiple of 10 (invalid)',
+    deviceType: 'HMA-1',
+    command: 'time-zone',
+    input: '345',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 time-zone above 720 (invalid)',
+    deviceType: 'HMA-1',
+    command: 'time-zone',
+    input: '730',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 time-zone below -720 (invalid)',
+    deviceType: 'HMA-1',
+    command: 'time-zone',
+    input: '-730',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 time-zone fraction (invalid)',
+    deviceType: 'HMA-1',
+    command: 'time-zone',
+    input: '60.5',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 time-zone at the limit',
+    deviceType: 'HMA-1',
+    command: 'time-zone',
+    input: '-720',
+    expectedOutput: 'cd=9,wy=-720',
+  },
 
   // sync-time command with JSON (V2 only)
   {
@@ -533,7 +571,15 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'HMA-1',
     command: 'sync-time',
     input: '{"wy":480,"yy":123,"mm":1,"rr":2,"hh":23,"mn":56,"ss":56}',
-    expectedOutput: 'cd=8,wy=480,yy=123,mm=1,rr=2,hh=23,mn=56,ss=56',
+    expectedOutput: ['cd=9,wy=480', 'cd=8,wy=480,yy=123,mm=1,rr=2,hh=23,mn=56,ss=56'],
+  },
+  {
+    // The device would not store this offset, so only the clock is sent.
+    description: 'B2500V2 sync-time with JSON and an unsupported offset',
+    deviceType: 'HMA-1',
+    command: 'sync-time',
+    input: '{"wy":345,"yy":123,"mm":1,"rr":2,"hh":23,"mn":56,"ss":56}',
+    expectedOutput: ['cd=8,wy=345,yy=123,mm=1,rr=2,hh=23,mn=56,ss=56'],
   },
   {
     // Every field here is a legal 0: UTC+0, January, midnight, zero minute/second.
@@ -541,7 +587,7 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'HMA-1',
     command: 'sync-time',
     input: '{"wy":0,"yy":126,"mm":0,"rr":1,"hh":0,"mn":0,"ss":0}',
-    expectedOutput: 'cd=8,wy=0,yy=126,mm=0,rr=1,hh=0,mn=0,ss=0',
+    expectedOutput: ['cd=9,wy=0', 'cd=8,wy=0,yy=126,mm=0,rr=1,hh=0,mn=0,ss=0'],
   },
   {
     description: 'B2500V2 sync-time with incomplete JSON (invalid)',
@@ -2122,13 +2168,17 @@ describe('Device Commands', () => {
       expectedStateChanges,
       useFlashCommands,
     }) => {
-      test(`input: "${input}" -> output: ${expectedOutput === null ? 'null' : `"${expectedOutput}"`}`, () => {
+      test(`input: "${input}" -> output: ${expectedOutput === null ? 'null' : JSON.stringify(expectedOutput)}`, () => {
         const device = setupTest(deviceType, initialState, useFlashCommands ?? true);
 
         handleControlTopic(device, command, input);
 
         if (expectedOutput === null) {
           expect(publishCallback).not.toHaveBeenCalled();
+        } else if (Array.isArray(expectedOutput)) {
+          expect(publishCallback.mock.calls).toEqual(
+            expectedOutput.map(output => [device, output]),
+          );
         } else {
           expect(publishCallback).toHaveBeenCalledWith(device, expectedOutput);
         }

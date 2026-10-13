@@ -264,18 +264,37 @@ describe('ControlHandler', () => {
       // Freeze time so that the generated payload is deterministic
       const mockDate = new Date(Date.UTC(2023, 0, 1, 12, 30, 45));
       jest.useFakeTimers().setSystemTime(mockDate);
+      jest.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-60);
 
-      // Call the method with a sync time message
-      handleControlTopic(testDeviceV2, 'sync-time', 'PRESS');
+      try {
+        // Call the method with a sync time message
+        handleControlTopic(testDeviceV2, 'sync-time', 'PRESS');
 
-      // Check that the publish callback was called with the correct payload
-      const expectedWy = -mockDate.getTimezoneOffset();
-      expect(publishCallback).toHaveBeenCalledWith(
-        testDeviceV2,
-        expect.stringContaining(`cd=8,wy=${expectedWy},yy=123,mm=0,rr=1,hh=12,mn=30,ss=45`),
-      );
-      // Restore timers
-      jest.useRealTimers();
+        // The device takes its time zone only from `cd=9`, so that goes out
+        // first, followed by the clock.
+        expect(publishCallback.mock.calls.map(call => call[1])).toEqual([
+          'cd=9,wy=60',
+          'cd=8,wy=60,yy=123,mm=0,rr=1,hh=12,mn=30,ss=45',
+        ]);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    test('should sync only the clock when the device cannot store the offset', () => {
+      // UTC+5:45 is not a multiple of 10 minutes, which the device rejects.
+      jest.useFakeTimers().setSystemTime(new Date(Date.UTC(2023, 0, 1, 12, 30, 45)));
+      jest.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-345);
+
+      try {
+        handleControlTopic(testDeviceV2, 'sync-time', 'PRESS');
+
+        expect(publishCallback.mock.calls.map(call => call[1])).toEqual([
+          'cd=8,wy=345,yy=123,mm=0,rr=1,hh=12,mn=30,ss=45',
+        ]);
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     test('should sync UTC clock fields together with the local offset', () => {
@@ -298,10 +317,10 @@ describe('ControlHandler', () => {
       try {
         handleControlTopic(testDeviceV2, 'sync-time', 'PRESS');
 
-        expect(publishCallback).toHaveBeenCalledWith(
-          testDeviceV2,
-          expect.stringContaining('cd=8,wy=330,yy=123,mm=11,rr=31,hh=23,mn=59,ss=58'),
-        );
+        expect(publishCallback.mock.calls.map(call => call[1])).toEqual([
+          'cd=9,wy=330',
+          'cd=8,wy=330,yy=123,mm=11,rr=31,hh=23,mn=59,ss=58',
+        ]);
       } finally {
         jest.useRealTimers();
       }
@@ -320,11 +339,11 @@ describe('ControlHandler', () => {
 
       handleControlTopic(testDeviceV2, 'sync-time', JSON.stringify(timeData));
 
-      // Check that the publish callback was called with the correct payload
-      expect(publishCallback).toHaveBeenCalledWith(
-        testDeviceV2,
-        expect.stringContaining('cd=8,wy=480,yy=123,mm=1,rr=2,hh=23,mn=56,ss=56'),
-      );
+      // Check that the publish callback was called with the correct payloads
+      expect(publishCallback.mock.calls.map(call => call[1])).toEqual([
+        'cd=9,wy=480',
+        'cd=8,wy=480,yy=123,mm=1,rr=2,hh=23,mn=56,ss=56',
+      ]);
     });
 
     test('should handle invalid sync-time JSON', () => {

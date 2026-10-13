@@ -78,6 +78,15 @@ function isHmjAtMost(
 }
 
 /**
+ * The device stores a time zone offset (`cd=9,wy=`) only if it is a whole
+ * number of minutes within ±720 that is a multiple of 10, and ignores anything
+ * else.
+ */
+function isValidTimeZoneOffset(wy: number): boolean {
+  return Number.isInteger(wy) && Math.abs(wy) <= 720 && wy % 10 === 0;
+}
+
+/**
  * Create a time period handler for a specific setting
  */
 export const timePeriodSettingHandler = (
@@ -742,9 +751,12 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
     command('time-zone', {
       handler: ({ message, publishCallback, deviceState }) => {
-        const timezone = parseInt(message, 10);
-        if (isNaN(timezone)) {
-          logger.warn('Invalid time zone value:', message);
+        const timezone = Number(message.trim());
+        if (message.trim() === '' || !isValidTimeZoneOffset(timezone)) {
+          logger.warn(
+            'Invalid time zone value (should be a UTC offset in minutes, a multiple of 10 between -720 and 720):',
+            message,
+          );
           return;
         }
 
@@ -755,39 +767,44 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     });
     command('sync-time', {
       handler: ({ message, publishCallback, deviceState }) => {
+        // The device ignores `wy` in `cd=8`: the offset its discharge timers
+        // use is only ever set by `cd=9`. So the offset goes out first as
+        // `cd=9`, and the clock follows as `cd=8`. The device keeps the clock
+        // in UTC and applies the stored offset when it evaluates a discharge
+        // timer, whose start and end are configured in local time.
+        const publishTime = (timeData: CommandParams) => {
+          const wy = Number(timeData.wy);
+          if (isValidTimeZoneOffset(wy)) {
+            publishCallback(
+              processCommand(CommandType.TIME_ZONE, { wy }, deviceState.useFlashCommands),
+            );
+          } else {
+            // The device only stores offsets within ±720 minutes that are a
+            // whole multiple of 10, so it keeps the one it already had. Sync
+            // the clock anyway rather than letting it drift as well.
+            logger.warn(
+              'Timezone offset not supported by the device, it will keep its previous offset and the discharge timers may run at the wrong time:',
+              timeData.wy,
+            );
+          }
+          publishCallback(
+            processCommand(CommandType.SYNC_TIME, timeData, deviceState.useFlashCommands),
+          );
+        };
         try {
           // If the message is "PRESS" or similar from Home Assistant button, generate current time
           if (message === 'PRESS' || message === 'press' || message === 'true' || message === '1') {
             const now = new Date();
-            // `cd=08` takes UTC clock fields together with the local offset in
-            // `wy`. The device stores the clock as sent and applies the offset
-            // itself when it evaluates a discharge timer, whose start and end
-            // are configured in local time — so sending local wall-clock time
-            // makes every schedule fire `wy` minutes early.
             // `mm` is 0-based and `yy` is the year minus 1900.
-            const wy = -now.getTimezoneOffset();
-            if (Math.abs(wy) > 720 || wy % 10 !== 0) {
-              // The device only stores offsets within ±720 minutes that are a
-              // whole multiple of 10; it drops anything else and keeps the one
-              // it already had. The clock fields are still accepted, so sync
-              // them anyway rather than letting the clock drift as well.
-              logger.warn(
-                'Timezone offset not supported by the device, it will keep its previous offset and the discharge timers may run at the wrong time:',
-                wy,
-              );
-            }
-            const timeData = {
-              wy,
+            publishTime({
+              wy: -now.getTimezoneOffset(),
               yy: now.getUTCFullYear() - 1900,
               mm: now.getUTCMonth(),
               rr: now.getUTCDate(),
               hh: now.getUTCHours(),
               mn: now.getUTCMinutes(),
               ss: now.getUTCSeconds(),
-            };
-            publishCallback(
-              processCommand(CommandType.SYNC_TIME, timeData, deviceState.useFlashCommands),
-            );
+            });
             return;
           }
 
@@ -801,9 +818,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
             return;
           }
 
-          publishCallback(
-            processCommand(CommandType.SYNC_TIME, timeData, deviceState.useFlashCommands),
-          );
+          publishTime(timeData);
         } catch {
           logger.warn('Invalid time sync data:', message);
         }

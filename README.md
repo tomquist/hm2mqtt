@@ -683,8 +683,8 @@ homeassistant/{component}/{node_id}/{object_id}/config
 - `time-period/[1-5]/end-time`: Sets end time for period (HH:MM format)
 - `time-period/[1-5]/output-value`: Sets output power for period (0-800W)
 - `connected-phase`: Sets the phase the CT meter regulates on (`0`, `1` or `2` for phase 1, 2 and 3, `3`/`all` for all phases, or `255`/`auto` to start phase detection, which only runs in adaptive mode). On HMJ firmware 110, phase 1 cannot be selected.
-- `time-zone`: Sets time zone (UTC offset in minutes, e.g. `60` for UTC+1)
-- `sync-time`: Synchronizes device time with server
+- `time-zone`: Sets time zone (UTC offset in minutes, e.g. `60` for UTC+1). The device only accepts a multiple of 10 between `-720` and `720`.
+- `sync-time`: Synchronizes the device clock and time zone with the server
 - `surplus-feed-in`: Toggles Surplus Feed-in mode (`on` or `off`). When enabled, surplus PV power is fed into the home grid when the battery is nearly full.
 - `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`). The device does not report this back, so the entity shows the last value set.
 - `phase-diagnosis`: Starts grid-phase detection. Progress shows up on the *CT Status* sensor.
