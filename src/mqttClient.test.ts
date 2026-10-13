@@ -135,6 +135,46 @@ describe('MqttClient discovery re-publish', () => {
     mqttClient.onDeviceDataReceived(device, 'bms');
     expect(mockPublishDiscoveryConfigs).toHaveBeenCalledTimes(2);
   });
+
+  test.each([
+    ['cd=01', 1],
+    ['cd=10', 0],
+  ])('a response to a %s poll publishes discovery %i time(s)', (refreshDataPayload, expected) => {
+    mockPublishDiscoveryConfigs.mockClear();
+    // The Venus E Mini polls with the zero-padded cd=01 (#450)
+    const defaultImplementation = mockGetDeviceDefinition.getMockImplementation()!;
+    mockGetDeviceDefinition.mockImplementation(() => ({
+      messages: [
+        {
+          refreshDataPayload,
+          publishPath: 'data',
+          getAdditionalDeviceInfo: () => ({ firmwareVersion: undefined }),
+        },
+      ],
+    }));
+
+    try {
+      const device: Device = { deviceType: 'VNSEMINI-0', deviceId: 'abc123' };
+      const deviceManager: any = {
+        getDeviceTopics: jest.fn(() => ({})),
+        getDeviceState: jest.fn(() => ({})),
+        getDevices: jest.fn(() => []),
+      };
+      const config: any = {
+        brokerUrl: 'mqtt://localhost:1883',
+        clientId: 'test-client',
+        topicPrefix: 'homeassistant',
+        autodiscoveryTopicPrefix: 'homeassistant',
+      };
+
+      const mqttClient = new MqttClient(config, deviceManager, jest.fn());
+      mqttClient.onDeviceDataReceived(device, 'data');
+
+      expect(mockPublishDiscoveryConfigs).toHaveBeenCalledTimes(expected);
+    } finally {
+      mockGetDeviceDefinition.mockImplementation(defaultImplementation);
+    }
+  });
 });
 
 describe('MqttClient subscribe', () => {
@@ -434,6 +474,32 @@ describe('MqttClient forced refresh', () => {
     // Land at t=60500, between the two deadlines. Without re-anchoring the
     // message reads as due here and this request would publish.
     jest.advanceTimersByTime(58500);
+    expect(payloadsAfter(() => mqttClient.requestDeviceData(device))).toEqual([]);
+  });
+
+  // The polling timer fires every poll interval, but the time it reads is not
+  // exactly one interval after the last one: the event loop's clock can lag the
+  // real one by a few milliseconds. A message that was due must not be skipped
+  // for that, which would push its next read a whole interval back.
+  test('polls a message whose interval elapsed while the timer fired a moment early', () => {
+    const mqttClient = setUpPolledClient([cells()]);
+
+    // The regular poll ran at t=0; land at t=59999.
+    jest.advanceTimersByTime(58999);
+    expect(payloadsAfter(() => mqttClient.requestDeviceData(device))).toContain('cd=13');
+  });
+
+  test('polls a message exactly one interval after it was last requested', () => {
+    const mqttClient = setUpPolledClient([cells()]);
+
+    jest.advanceTimersByTime(59000);
+    expect(payloadsAfter(() => mqttClient.requestDeviceData(device))).toContain('cd=13');
+  });
+
+  test('does not poll a message that is still a second away from due', () => {
+    const mqttClient = setUpPolledClient([cells()]);
+
+    jest.advanceTimersByTime(58000);
     expect(payloadsAfter(() => mqttClient.requestDeviceData(device))).toEqual([]);
   });
 

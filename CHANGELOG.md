@@ -1,4 +1,15 @@
 # Changelog
+## [1.10.2] - 2026-10-13
+
+### Changed
+
+- hm2mqtt uses about 40% less memory (PR #455)
+
+### Fixed
+
+- Devices were regularly read a whole *Polling Interval* late, because a poll that was due got skipped (PR #456)
+- Venus E Mini: The device never showed up in Home Assistant (PR #450, PR #460)
+
 ## [1.10.1] - 2026-10-04
 
 ### Added

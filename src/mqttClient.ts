@@ -4,7 +4,12 @@ import { DeviceManager } from './deviceManager.js';
 import { publishDiscoveryConfigs } from './generateDiscoveryConfigs.js';
 import { AdditionalDeviceInfo, BaseDeviceData, getDeviceDefinition } from './deviceDefinition.js';
 import logger from './logger.js';
+import { POLL_TIMING_TOLERANCE_MS } from './constants.js';
 import { redactUrlCredentials } from './utils/redact.js';
+
+// Matches the cd=1 poll, also in the zero-padded form (`cd=01`) that models on
+// Marstek's second-generation firmware, such as the Venus E Mini, expect.
+const CD1_PAYLOAD = /^cd=0*1$/;
 
 export class MqttClient {
   private client: mqtt.MqttClient;
@@ -38,6 +43,10 @@ export class MqttClient {
       clean: true,
       reconnectPeriod: 5000, // Reconnect every 5 seconds
       connectTimeout: 30000, // 30 seconds timeout
+      // By default mqtt.js pre-builds a Buffer for every possible packet id
+      // (all 65536 of them, about 6 MB) the first time it writes a packet.
+      // Encoding the two bytes per packet instead is free at our message rate.
+      writeCache: false,
       // Set up last will message for availability
       will: {
         topic: `${this.config.topicPrefix}/availability`,
@@ -141,7 +150,8 @@ export class MqttClient {
       return false;
     }
     return deviceDefinition.messages.some(
-      message => message.refreshDataPayload === 'cd=1' && message.publishPath === publishPath,
+      message =>
+        CD1_PAYLOAD.test(message.refreshDataPayload) && message.publishPath === publishPath,
     );
   }
 
@@ -324,6 +334,21 @@ export class MqttClient {
 
   private lastRequestTime: Map<string, number> = new Map();
 
+  private lastRequestTimeKey(device: Device, messageIndex: number): string {
+    return `${device.deviceId}:${messageIndex}`;
+  }
+
+  /**
+   * Whether a message's poll interval has run out. Allows for the polling
+   * timer reading the clock a moment early, see POLL_TIMING_TOLERANCE_MS.
+   */
+  private isDue(device: Device, messageIndex: number, pollInterval: number, now: number): boolean {
+    const lastRequestTime = this.lastRequestTime.get(this.lastRequestTimeKey(device, messageIndex));
+    return (
+      lastRequestTime == null || now - lastRequestTime >= pollInterval - POLL_TIMING_TOLERANCE_MS
+    );
+  }
+
   /**
    * Request device data
    *
@@ -377,13 +402,7 @@ export class MqttClient {
       if (message.shouldPoll && !message.shouldPoll(pollState)) {
         continue;
       }
-      let lastRequestTimeKey = `${device.deviceId}:${idx}`;
-      const lastRequestTime = this.lastRequestTime.get(lastRequestTimeKey);
-      if (
-        forced.has(idx) ||
-        lastRequestTime == null ||
-        now > lastRequestTime + message.pollInterval
-      ) {
+      if (forced.has(idx) || this.isDue(device, idx, message.pollInterval, now)) {
         needsRefresh = true;
         shouldStartTimeout = shouldStartTimeout || message.controlsDeviceAvailability;
       }
@@ -426,16 +445,10 @@ export class MqttClient {
         continue;
       }
 
-      let lastRequestTimeKey = `${device.deviceId}:${idx}`;
-      const lastRequestTime = this.lastRequestTime.get(lastRequestTimeKey);
-      if (
-        forced.has(idx) ||
-        lastRequestTime == null ||
-        now > lastRequestTime + message.pollInterval
-      ) {
+      if (forced.has(idx) || this.isDue(device, idx, message.pollInterval, now)) {
         // Re-anchor the schedule so a forced read does not leave a regular poll
         // due a moment later.
-        this.lastRequestTime.set(lastRequestTimeKey, now);
+        this.lastRequestTime.set(this.lastRequestTimeKey(device, idx), now);
         const payload = message.refreshDataPayload;
         setTimeout(
           () => {

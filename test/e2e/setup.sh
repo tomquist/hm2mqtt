@@ -21,8 +21,10 @@ done < <(
 )
 
 want="$(cat "$versions_file")"
-if [[ -x "$venv/bin/hass" && -f "$stamp" && "$(cat "$stamp")" == "$want" ]]; then
-  echo "Home Assistant environment is up to date ($("$venv/bin/hass" --version 2>/dev/null || echo unknown))"
+# Run hass rather than just checking it exists: a venv whose interpreter has
+# gone (e.g. restored from a cache onto a newer Python) still has the file.
+if [[ -f "$stamp" && "$(cat "$stamp")" == "$want" ]] && hass_version="$("$venv/bin/hass" --version 2>/dev/null)"; then
+  echo "Home Assistant environment is up to date ($hass_version)"
   exit 0
 fi
 
