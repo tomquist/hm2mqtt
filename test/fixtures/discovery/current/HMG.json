@@ -219,7 +219,7 @@
         "sw_version": "156"
       },
       "device_class": "battery",
-      "max": 88,
+      "max": 90,
       "min": 30,
       "name": "Depth of Discharge",
       "origin": {

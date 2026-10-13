@@ -559,7 +559,7 @@ The device type can be one of the following:
 - **VNSE3-X**: (e.g. VNSE3-0) Venus E 3.0
 - **VNSA-X**: (e.g. VNSA-1) Venus A
 - **VNSD-X**: (e.g. VNSD-1) Venus D
-- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini — **beta**; sensors plus *Depth of Discharge*, *Working Mode*, *Bluetooth Advertising*, *Meter Type*, *Meter MAC*, *Refresh*, *Get CT Power*, *Restart* and *Factory Reset* controls. These share their names with the Venus ones and their options where the two overlap, but the ranges are the model's own: this one has no *Trading* working mode, and takes a depth of discharge of 30-90% against the Venus 30-88%. The remaining Venus write commands do not apply to it.
+- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini — **beta**; sensors plus *Depth of Discharge*, *Working Mode*, *Bluetooth Advertising*, *Meter Type*, *Meter MAC*, *Refresh*, *Get CT Power*, *Restart* and *Factory Reset* controls. These share their names with the Venus ones and their options where the two overlap, but the ranges are the model's own: this one has no *Trading* working mode, and takes a depth of discharge of 30-90% against 30-88% on the Venus E 3.0, Venus A and Venus D. The remaining Venus write commands do not apply to it.
 - **HMN-X**: (e.g. HMN-1) Marstek Jupiter E
 - **HMM-X**: (e.g. HMM-1) Marstek Jupiter C
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus
@@ -708,7 +708,7 @@ Applies to HMG/VNSE3/VNSA/VNSD. None of the commands below are available on the 
 - `time-period/[0-9]/weekday`: Sets days of week for period (0-6, where 0 is Sunday)
 - `get-ct-power`: Gets current transformer power readings
 - `transaction-mode`: Sets transaction mode parameters. Venus C/E (HMG) up to control firmware 146 only.
-- `discharge-depth`: Sets the battery depth of discharge (30-88%). Only available on devices that report it.
+- `discharge-depth`: Sets the battery depth of discharge (30-88%; 30-90% on the Venus C/E (HMG)). Only available on devices that report it.
 - `backup-enabled`: Toggles the backup/EPS ("UPS") power function (`on` or `off`)
 - `led-enabled`: Toggles the status LED (`on` or `off`). Only available on firmware that reports the LED state.
 - `surplus-feed-in`: Toggles surplus feed-in into the grid (`on` or `off`). Only available on Venus models with PV inputs (Venus A/D).

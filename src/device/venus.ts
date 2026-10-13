@@ -131,10 +131,12 @@ const venusRawFields = [
 const TRADING_UNSUPPORTED =
   'Trading mode only exists on the Venus C/E (HMG) up to control firmware 146';
 
-// Minimum and maximum Depth of Discharge values based on Marstek app limits (30-88%).
-// NOTE: Experience has shown that these limits may change over time!
+// Depth of Discharge limits. `cd=56,dod=` accepts 30-88 % on the Venus E 3.0,
+// Venus A and Venus D and 30-90 % on the Venus C/E (HMG), plus 0, which the
+// device stores as 88 %. The Marstek app sends 88 % as 0.
 const DOD_MIN = 30;
 const DOD_MAX = 88;
+const HMG_DOD_MAX = 90;
 
 // The `set_v` field is a power-version *code*, not a wattage: it identifies the
 // device's rated output power, while `cd=15,vs=` takes the wattage. Each model
@@ -2474,12 +2476,13 @@ function registerRuntimeInfoMessage(
     });
 
     // Depth of Discharge (dod). The device reports the actual percentage; values
-    // outside the valid range are treated as unknown. The maximum is encoded as 0
-    // only in the write direction (see the discharge-depth command below).
+    // outside the valid range are treated as unknown. 88 % is encoded as 0 only
+    // in the write direction (see the discharge-depth command below).
+    const dodMax = model === 'HMG' ? HMG_DOD_MAX : DOD_MAX;
     field({
       key: 'dod',
       path: ['depthOfDischarge'],
-      transform: chain(number(), inRange(DOD_MIN, DOD_MAX)),
+      transform: chain(number(), inRange(DOD_MIN, dodMax)),
     });
     advertise(
       ['depthOfDischarge'],
@@ -2490,7 +2493,7 @@ function registerRuntimeInfoMessage(
         device_class: 'battery',
         command: 'discharge-depth',
         min: DOD_MIN,
-        max: DOD_MAX,
+        max: dodMax,
         step: 1,
       }),
       { enabled: state => (state.depthOfDischarge != null ? true : undefined) },
@@ -2499,16 +2502,16 @@ function registerRuntimeInfoMessage(
       handler: ({ message, publishCallback, updateDeviceState }) => {
         // Require an exact integer payload (reject e.g. "88foo", "30.5", "", " 70 ").
         const dod = /^\d+$/.test(message) ? parseInt(message, 10) : NaN;
-        if (Number.isNaN(dod) || dod < DOD_MIN || dod > DOD_MAX) {
+        if (Number.isNaN(dod) || dod < DOD_MIN || dod > dodMax) {
           logger.warn(
-            `Invalid depth of discharge value (should be ${DOD_MIN}-${DOD_MAX}):`,
+            `Invalid depth of discharge value (should be ${DOD_MIN}-${dodMax}):`,
             message,
           );
           return;
         }
         updateDeviceState(() => ({ depthOfDischarge: dod }));
-        // The device expects the maximum depth of discharge (DOD_MAX) to be sent as 0.
-        const dodValue = dod >= DOD_MAX ? 0 : dod;
+        // 88 % is sent as 0, as the Marstek app does; 89 and 90 (HMG) as-is.
+        const dodValue = dod === DOD_MAX ? 0 : dod;
         publishCallback(processCommand(CommandType.DEPTH_OF_DISCHARGE, { dod: dodValue }));
       },
     });

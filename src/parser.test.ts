@@ -1181,6 +1181,16 @@ describe('MQTT Message Parser', () => {
     expect(parsed).toHaveProperty('data');
     const result = parsed['data'] as VenusDeviceData;
     expect(result).toHaveProperty('depthOfDischarge', 88);
+
+    // The HMG accepts up to 90 %; the other models up to 88 %.
+    const dod = (deviceType: string, value: string) =>
+      (
+        parseMessage(message.replace('dod=88', `dod=${value}`), deviceType, 'venus123')[
+          'data'
+        ] as VenusDeviceData
+      ).depthOfDischarge;
+    expect(dod('HMG-25', '90')).toBe(90);
+    expect(dod('VNSE3-0', '90')).toBeUndefined();
   });
 
   test('treats out-of-range Venus depth of discharge as unknown', () => {

@@ -401,11 +401,22 @@ describe('Home Assistant Discovery', () => {
     // No dod in the device data: the config is deferred (nothing published)
     expect(dodConfigs({ batterySoc: 11 })).toHaveLength(0);
 
-    // dod present: the config is advertised with the expected 30..88 step:1 range
+    // dod present: the config is advertised with the HMG's 30..90 step:1 range
     const withDod = dodConfigs({ depthOfDischarge: 88 });
     expect(withDod).toHaveLength(1);
     expect(withDod[0].config).not.toBeNull();
-    expect(withDod[0].config).toMatchObject({ min: 30, max: 88, step: 1 });
+    expect(withDod[0].config).toMatchObject({ min: 30, max: 90, step: 1 });
+
+    // The other models stop at 88 %.
+    const vnse3 = generateDiscoveryConfigs(
+      { deviceType: 'VNSE3-0', deviceId: 'venus123' },
+      jupiterTopics('VNSE3-0', 'venus123'),
+      {},
+      DEFAULT_TOPIC_PREFIX,
+      'homeassistant',
+      { depthOfDischarge: 88 },
+    ).find(c => c.topic.includes('depth_of_discharge'));
+    expect(vnse3?.config).toMatchObject({ min: 30, max: 88, step: 1 });
   });
 
   test('should gate Venus D PV input discovery configs on data presence', () => {

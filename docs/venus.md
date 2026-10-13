@@ -42,6 +42,7 @@
     2. [Receive](#162-receive)
 17. [Set depth of discharge](#17-set-depth-of-discharge)
     1. [Public](#171-public)
+    2. [Receive](#172-receive)
 18. [Enable surplus feed-in](#18-enable-surplus-feed-in)
     1. [Public](#181-public)
     2. [Receive](#182-receive)
@@ -192,7 +193,7 @@ Description of the above parameters:
 | bms_v | BMS version number |
 | fc_v | Communication module version number |
 | wifi_n | WIFI Name |
-| dod | Depth of discharge (%) (configurable 30-88% in the Marstek app; the maximum of 88% is encoded as 0) |
+| dod | Depth of discharge (%) (see [Set depth of discharge](#17-set-depth-of-discharge)) |
 | shelly_p | Shelly UDP port (only meaningful when `ct_t` is a Shelly meter) |
 | pv1 | PV input 1 power (0.1W) \| connection status (0: Not connected; 1: Connected) (only reported by Venus models with PV inputs, e.g. Venus A/D) |
 | pv2 | PV input 2 power (0.1W) \| connection status (only reported by Venus models with PV inputs) |
@@ -682,11 +683,22 @@ Description of the above parameters:
 | Key | Description |
 |-----|-------------|
 | cd | Instruction identification |
-| dod | Depth of discharge (%) (configurable 30-88% in the Marstek app; the maximum of 88% is encoded as 0) |
+| dod | Depth of discharge (%): 30-88 on the Venus E 3.0, Venus A and Venus D, 30-90 on the Venus C/E (HMG). `0` is stored as 88; the Marstek app sends 88 as `0` |
 
-This command does not produce a response. On newer firmware (e.g. Venus D
-v147) the value is reported back as-is, e.g. `cd=56,dod=84` sets the depth of
-discharge to 84%.
+The Venus C/E (HMG) has this command from control firmware 156, the first to
+report `dod`.
+
+### 17.2 Receive
+
+| Model | Builds | Reply |
+|-------|--------|-------|
+| Venus C/E (HMG) | 156 and later | `cd=56,dod=<n>`, the depth of discharge after the command; a rejected value leaves it unchanged |
+| Venus E 3.0, Venus A, Venus D | up to 147 | `cd=56,dod=<n>` |
+| Venus E 3.0, Venus A, Venus D | 147.6 and 148 | a `cd=56, ret = 1; …` text reply |
+| Venus E 3.0, Venus A, Venus D | 149 and later | `cd=56,ret=1` (accepted) or `cd=56,ret=0` (rejected) |
+
+From 147.6 the Venus E 3.0, Venus A and Venus D answer `dod=0` with `ret=0`
+although they apply it; `dod=88` gives `ret=1`.
 
 The current depth of discharge is reported as the `dod` field in the device information (see [Read device information](#3-read-device-information)).
 

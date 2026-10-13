@@ -177,8 +177,8 @@ The entities carry the same ids and names as their counterparts on the
 first-generation Venus models, and the same option names where the two models
 have the same option, so an automation can treat them alike; only the numbers on
 the wire differ. The ranges are still each model's own — the Mini has no
-`trading` working mode, and takes a depth of discharge of 30-90% against the
-Venus 30-88%. Where this model has no counterpart at all — the LED, backup
+`trading` working mode, and takes a depth of discharge of 30-90%, like the Venus
+C/E (HMG), against 30-88% on the Venus E 3.0, Venus A and Venus D. Where this model has no counterpart at all — the LED, backup
 power, peak shaving, surplus feed-in, the local API, the power limits — no
 entity is invented for it.
 
