@@ -10,9 +10,11 @@ import { bitBoolean, identity, number } from '../transforms.js';
 
 /**
  * Shared building blocks for the Marstek meters: the CT002 smart meter
- * (`HME-X`, see `ct002.ts`) and the SMR smart meter readers (`SMR-X`, see
- * `smr.ts`). Both speak the same protocol and report the same per-phase power
- * and connectivity keys.
+ * (`HME-2`, `HME-4`, `TPM-CN`, `TPM2-X`, see `ct002.ts`) and the CT003 smart
+ * meter readers (`HME-3`, `HME-5`, `SMR-X`, see `smr.ts`). Both speak the same
+ * protocol and report the same per-phase power and connectivity keys.
+ *
+ * On the `HME-4` the powers are 16-bit values and wrap around beyond ±32767 W.
  */
 
 export function extractMeterDeviceInfo(state: MeterBaseDeviceData) {
@@ -238,8 +240,8 @@ export function registerMeterBaseFields<T extends MeterBaseDeviceData>(
   registerPhaseMeasurementDirection(args, options);
   registerMeterCommands(args);
 
-  // Number of slave meters attached. Each one is queried individually with
-  // `cd=4,p1=<index>` whenever this is greater than zero.
+  // Number of slave devices (the batteries that read this meter). `cd=4` lists
+  // them, but its `;`-joined, paged reply is not parsed.
   field({ key: 'slv_n', path: ['slaveCount'], transform: number() });
   advertise(
     ['slaveCount'],

@@ -1103,9 +1103,9 @@ export interface JupiterBMSInfo extends BaseDeviceData {
 }
 
 /**
- * Runtime values every Marstek meter reports. The CT002 smart meter (`HME-X`,
- * `TPM-CN`, `TPM2-X`) and the SMR smart meter readers (`SMR-X`) speak the same
- * protocol, so they share these keys.
+ * Runtime values every Marstek meter reports. The CT002 smart meter (`HME-2`,
+ * `HME-4`, `TPM-CN`, `TPM2-X`) and the CT003 smart meter readers (`HME-3`,
+ * `HME-5`, `SMR-X`) speak the same protocol, so they share these keys.
  */
 export interface MeterBaseDeviceData extends BaseDeviceData {
   phase1Power?: number; // pwr_a
@@ -1116,18 +1116,18 @@ export interface MeterBaseDeviceData extends BaseDeviceData {
   phase2MeasurementReversed?: boolean; // cur_d bit 1
   phase3MeasurementReversed?: boolean; // cur_d bit 2
   slaveCount?: number; // slv_n
-  bluetoothSignal?: number; // ble_s
+  bluetoothSignal?: number; // ble_s (Bluetooth state, not a signal strength)
   wifiRssi?: number; // wif_r
   fc4Version?: string; // fc4_v
   firmwareVersion?: number; // ver_v
-  wifiStatus?: number; // wif_s
+  wifiStatus?: number; // wif_s (WiFi connection state)
 }
 
 export interface CT002DeviceData extends MeterBaseDeviceData {}
 
 /**
- * Per-phase charge/discharge counters the CT002 returns for `cd=19`. They are
- * not part of the `cd=1` runtime payload.
+ * Per-phase charge/discharge counters the CT002 (`TPM-CN`, `TPM2-X`; unverified)
+ * returns for `cd=19`. They are not part of the `cd=1` runtime payload.
  *
  * The counters are raw: their unit and scale could not be established, so
  * hm2mqtt publishes the reported value unchanged and without a unit.
@@ -1178,12 +1178,12 @@ export interface CT002EnergyInfo extends BaseDeviceData {
 }
 
 /**
- * Marstek smart meter reader (device type `SMR-X`), sold as the Marstek P1
- * Meter (SMR-0), Infrared Meter (SMR-1) and TIC Meter (SMR-2). They are sold as
- * the Marstek CT003 Smart Meter Reader.
+ * Marstek CT003 smart meter reader: device types `HME-3`, `HME-5` and `SMR-X`,
+ * the latter sold as the Marstek P1 Meter (SMR-0), Infrared Meter (SMR-1) and
+ * TIC Meter (SMR-2).
  */
 export interface SmrMeterDeviceData extends MeterBaseDeviceData {
-  totalEnergy?: number; // eng_t (reported in 0.1 Wh)
+  totalEnergy?: number; // eng_t (reported in 0.1 Wh; import on SML, net on DSMR)
   meterNumber?: number; // smt_n
   p1DeviceConnected?: boolean; // har_f
   p1ReadStatus?: number; // sof_f
