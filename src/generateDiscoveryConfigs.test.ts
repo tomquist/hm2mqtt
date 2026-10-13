@@ -683,6 +683,46 @@ describe('Home Assistant Discovery', () => {
     expect(noDirection).not.toContain('phase1_measurement_reversed');
   });
 
+  test('should label the meter Bluetooth and WiFi states', () => {
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'a',
+      deviceTopicNew: 'b',
+      deviceControlTopicOld: 'c',
+      deviceControlTopicNew: 'd',
+      availabilityTopic: 'e',
+      controlSubscriptionTopic: 'f',
+      publishTopic: 'g',
+    };
+
+    for (const deviceType of ['HME-4', 'HME-3', 'TPM-CN', 'TPM2-0', 'SMR-0']) {
+      const configs = generateDiscoveryConfigs(
+        { deviceType, deviceId: 'meter' },
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        {},
+      );
+      const configFor = (objectId: string) =>
+        configs.find(c => c.topic.endsWith(`/${objectId}/config`))?.config;
+
+      // ble_s is the Bluetooth module state; the id stays bluetooth_signal
+      const bluetooth = configFor('bluetooth_signal');
+      expect(bluetooth).toMatchObject({ name: 'Bluetooth State' });
+      expect(bluetooth?.value_template).toContain('"5":"Connected"');
+      expect(bluetooth?.value_template).toContain('"6":"Disconnected"');
+      expect(bluetooth?.unit_of_measurement).toBeUndefined();
+      expect(bluetooth?.state_class).toBeUndefined();
+
+      const wifi = configFor('wifi_status');
+      expect(wifi).toMatchObject({ name: 'WiFi Status' });
+      expect(wifi?.value_template).toContain('"2":"Connected"');
+      expect(wifi?.value_template).toContain('"3":"No access point"');
+      expect(wifi?.unit_of_measurement).toBeUndefined();
+      expect(wifi?.state_class).toBeUndefined();
+    }
+  });
+
   test('should expose the phase direction as a switch on CT002 but read-only on SMR', () => {
     const deviceTopics: DeviceTopics = {
       deviceTopicOld: 'a',

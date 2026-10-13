@@ -22,6 +22,7 @@
 ### Fixed
 
 - Smart meters: The CT003 with device type `HME-3` or `HME-5` was handled as a CT002, so its energy and P1 status sensors were missing (fixes #202)
+- Smart meters: *Bluetooth Signal* is now *Bluetooth State* and shows the connection state, e.g. *Connected*, instead of a number. *WiFi Status* names its states the same way
 
 ## [1.10.2] - 2026-10-13
 

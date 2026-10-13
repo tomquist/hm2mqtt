@@ -98,9 +98,9 @@ Description of the above parameters:
 | `pwr_b` | Phase B power, in W |
 | `pwr_c` | Phase C power, in W |
 | `pwr_t` | Total power, in W |
-| `ble_s` | Bluetooth signal |
+| `ble_s` | Bluetooth state: `0` initial, `2` advertising, `5` connected, `6` disconnected, `7` not initialised. Not a signal strength |
 | `wif_r` | Wi-Fi RSSI, in dBm |
-| `wif_s` | Wi-Fi status |
+| `wif_s` | Wi-Fi state: `0` disconnected, `2` connected (has an IP address), `3` access point not found |
 | `fc4_v` | FC41D firmware version |
 | `ver_v` | Firmware version |
 | `slv_n` | Number of attached slave devices. See [section 7](#7-read-slave-device-information) |

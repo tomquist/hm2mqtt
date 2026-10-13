@@ -246,12 +246,22 @@ export function registerMeterBaseFields<T extends MeterBaseDeviceData>(
     }),
   );
 
+  // `ble_s` is the state of the Bluetooth module, not a signal strength. The id
+  // and state path keep their original `bluetooth_signal`/`bluetoothSignal`
+  // names so existing entities and state-topic consumers keep working.
   field({ key: 'ble_s', path: ['bluetoothSignal'], transform: number() });
   advertise(
     ['bluetoothSignal'],
     sensorComponent<number>({
       id: 'bluetooth_signal',
-      name: 'Bluetooth Signal',
+      name: 'Bluetooth State',
+      valueMappings: {
+        0: 'Initial',
+        2: 'Advertising',
+        5: 'Connected',
+        6: 'Disconnected',
+        7: 'Not initialised',
+      },
     }),
   );
 
@@ -286,12 +296,19 @@ export function registerMeterBaseFields<T extends MeterBaseDeviceData>(
     }),
   );
 
+  // `wif_s` is the state of the WiFi connection; the signal strength is
+  // `wif_r` above.
   field({ key: 'wif_s', path: ['wifiStatus'], transform: number() });
   advertise(
     ['wifiStatus'],
     sensorComponent<number>({
       id: 'wifi_status',
       name: 'WiFi Status',
+      valueMappings: {
+        0: 'Disconnected',
+        2: 'Connected',
+        3: 'No access point',
+      },
     }),
   );
 }

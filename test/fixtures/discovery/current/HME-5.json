@@ -147,14 +147,14 @@
         "model_id": "HME-5",
         "name": "HAME Energy HME-5 0123456789ab"
       },
-      "name": "Bluetooth Signal",
+      "name": "Bluetooth State",
       "origin": {
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
       "state_topic": "hm2mqtt/HME-5/device/0123456789ab/data",
       "unique_id": "0123456789ab_bluetooth_signal",
-      "value_template": "{{ value_json.bluetoothSignal }}"
+      "value_template": "{% set mapping = {\"0\":\"Initial\",\"2\":\"Advertising\",\"5\":\"Connected\",\"6\":\"Disconnected\",\"7\":\"Not initialised\"} %}{% set stringifiedValue = value_json.bluetoothSignal | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
     },
     "homeassistant/sensor/HME-5_0123456789ab/fc4_version/config": {
       "availability": [
@@ -616,7 +616,7 @@
       },
       "state_topic": "hm2mqtt/HME-5/device/0123456789ab/data",
       "unique_id": "0123456789ab_wifi_status",
-      "value_template": "{{ value_json.wifiStatus }}"
+      "value_template": "{% set mapping = {\"0\":\"Disconnected\",\"2\":\"Connected\",\"3\":\"No access point\"} %}{% set stringifiedValue = value_json.wifiStatus | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
     }
   }
 }
