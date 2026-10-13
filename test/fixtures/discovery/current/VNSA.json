@@ -394,7 +394,7 @@
         "sw_version": "143"
       },
       "icon": "mdi:flash",
-      "max": 2500,
+      "max": 1500,
       "min": 0,
       "name": "Maximum Charging Power",
       "origin": {

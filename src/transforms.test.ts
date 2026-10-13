@@ -11,12 +11,15 @@ import {
   timeString,
   negate,
   negateIfPositive,
+  signed16,
+  absolute,
   parseIntTransform,
   identity,
   map,
   round,
   highByte,
   lowByte,
+  inRange,
   chain,
   timePeriodField,
   mpptPvField,
@@ -214,6 +217,44 @@ describe('transforms', () => {
       expect(transformToJinja2(negateIfPositive(), 'value')).toBe(
         '{% set n = value | int(0) %}{% if n > 0 %}{{ -n }}{% else %}{{ n }}{% endif %}',
       );
+    });
+  });
+
+  describe('signed16 transform', () => {
+    it('should read values above 32767 as negative', () => {
+      expect(executeTransform(signed16(), '64536')).toBe(-1000);
+      expect(executeTransform(signed16(), '65535')).toBe(-1);
+      expect(executeTransform(signed16(), '32767')).toBe(32767);
+      // Already signed values pass unchanged.
+      expect(executeTransform(signed16(), '-1000')).toBe(-1000);
+      expect(executeTransform(signed16(), '2500')).toBe(2500);
+      expect(executeTransform(signed16(), 'not a number')).toBe(0);
+    });
+
+    it('should generate correct Jinja2 template', () => {
+      expect(transformToJinja2(signed16(), 'value')).toBe(
+        '{% set n = value | float(0) %}{% if n > 32767 %}{{ n - 65536 }}{% else %}{{ n }}{% endif %}',
+      );
+    });
+  });
+
+  describe('absolute transform', () => {
+    it('should return the absolute value', () => {
+      expect(executeTransform(absolute(), '-1250')).toBe(1250);
+      expect(executeTransform(absolute(), '800')).toBe(800);
+      expect(executeTransform(absolute(), '0')).toBe(0);
+      expect(executeTransform(absolute(), 'not a number')).toBe(0);
+    });
+
+    it('should generate correct Jinja2 template', () => {
+      expect(transformToJinja2(absolute(), 'value')).toBe('{{ (value | float(0)) | abs }}');
+    });
+
+    it('should turn a signed 16-bit reading into its magnitude in a chain', () => {
+      const transform = chain(number(), signed16(), absolute(), inRange(0, 2500));
+      expect(executeTransform(transform, '64536')).toBe(1000);
+      expect(executeTransform(transform, '-1000')).toBe(1000);
+      expect(executeTransform(transform, '2500')).toBe(2500);
     });
   });
 

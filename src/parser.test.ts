@@ -1604,6 +1604,29 @@ describe('MQTT Message Parser', () => {
     expect((old['data'] as VenusDeviceData).bluetoothAdvertisingEnabled).toBeUndefined();
   });
 
+  test('reads the Venus maximum charging power as a magnitude', () => {
+    const maxChargingPower = (payload: string, deviceType: string) =>
+      (parseMessage(payload, deviceType, 'venus123')['data'] as VenusDeviceData).maxChargingPower;
+
+    // Real HMG-25 control firmware 158.1 reading (#306): the charge limit in
+    // effect, reported negative.
+    const hmg1581 =
+      'tot_i=1453497,tot_o=13793,ele_d=0,ele_m=97,grd_d=0,grd_m=55,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=28,cel_c=11,err_t=0,err_a=0,dev_n=1581,grd_y=0,wor_m=0,tim_0=10|0|18|0|127|-1000|0,tim_1=13|0|23|59|16|170|0,tim_2=0|0|0|0|0|0|0,tim_3=0|0|0|0|0|0|0,tim_4=0|0|0|0|0|0|0,tim_5=0|0|0|0|0|0|0,tim_6=0|0|0|0|0|0|0,tim_7=0|0|0|0|0|0|0,tim_8=0|0|0|0|0|0|0,tim_9=0|0|0|0|0|0|0,cts_m=0,bac_u=0,tra_a=1,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=1,wif_s=47,inc_a=0,set_v=1,mcp_w=-1000,mdp_w=800,ct_t=4,phase_t=1,dchrg_t=0,bms_v=116,fc_v=202501211626,wifi_n=XXX,seq_s=3,ctrl_r=1,par=255,gen=255,ble=1,shelly_p=1010,c_ratio=100,udp=0,api=0,port=30000,id=2|0|1|0|0,bl=1,dod=88,as=0';
+    expect(maxChargingPower(hmg1581, 'HMG-25')).toBe(1000);
+    // 153 and 154 print the same limit unsigned.
+    expect(maxChargingPower(hmg1581.replace('mcp_w=-1000', 'mcp_w=64536'), 'HMG-25')).toBe(1000);
+
+    // Real HMG-50 control firmware 156 reading (#240).
+    const hmg156 =
+      'tot_i=102607,tot_o=84500,ele_d=469,ele_m=1119,grd_d=391,grd_m=930,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=56,cel_c=11,err_t=0,err_a=0,dev_n=156,grd_y=0,wor_m=0,tim_0=0|0|0|0|0|0|0,tim_1=0|0|0|0|0|0|0,tim_2=0|0|0|0|0|0|0,tim_3=0|0|0|0|0|0|0,tim_4=0|0|0|0|0|0|0,tim_5=0|0|0|0|0|0|0,tim_6=0|0|0|0|0|0|0,tim_7=0|0|0|0|0|0|0,tim_8=0|0|0|0|0|0|0,tim_9=0|0|23|59|127|-2500|1,cts_m=0,bac_u=1,tra_a=1,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=2,wif_s=49,inc_a=0,set_v=1,mcp_w=-1,mdp_w=800,ct_t=5,phase_t=1,dchrg_t=0,bms_v=216,fc_v=202501211626,wifi_n=XXX,seq_s=0,ctrl_r=1,par=0,gen=255,ble=2,shelly_p=1010,c_ratio=100,udp=0,api=0,port=30000,id=2|0|1|255|0,bl=1,dod=88';
+    expect(maxChargingPower(hmg156, 'HMG-50')).toBe(1);
+
+    // Real Venus A control firmware 143 reading (#218): the configured value.
+    const vnsa143 =
+      'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=1,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=0,cel_s=2,cel_p=157,cel_c=75,err_t=800,err_a=8,dev_n=143,grd_y=0,wor_m=1,tim_0=0|0|0|0|0|0|0,cts_m=0,bac_u=0,tra_a=74,tra_i=1,tra_o=0,htt_p=0,prc_c=0,prc_d=1,wif_s=51,inc_a=0,set_v=4,mcp_w=1200,mdp_w=1200,ct_t=1,phase_t=0,dchrg_t=1,bms_v=106,fc_v=202409090159,wifi_n=xxxx,seq_s=1,ctrl_r=0,par=0,gen=0,ble=3,shelly_p=1010,c_ratio=100,udp=0,api=1,net=1,port=48977,inv_v=113,id=2|0|0|0|0,lk=0,bp=99,ei=0,eb=0,rp=107,gp=0,vp=0,mppt=0,pv1=1076|1,pv2=0|0,pv3=0|0,pv4=0|0,pack=1|1|1|0,pv=41|57,fu=1|0,em=0';
+    expect(maxChargingPower(vnsa143, 'VNSA-0')).toBe(1200);
+  });
+
   test('parses Venus cd=42 per-pack BMS details', () => {
     // Real Venus D v147 response to cd=42,bms_idx=255 (two packs present).
     const message =

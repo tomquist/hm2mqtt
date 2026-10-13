@@ -184,7 +184,7 @@ Description of the above parameters:
 | wif_s | WIFI signal strength (Less than 50: Good signal; 50-70: The signal is average; 70-80: Poor signal; Greater than 80: The signal is very weak) |
 | inc_a | Total cumulative income (Unit: 0.001 euros). Venus C/E (HMG) up to control firmware 152 only; always 0 otherwise |
 | set_v | Power version — a *code* for the device's rated output power, not a wattage (see [Set version](#11-set-version)). The resulting power is reported back as `mdp_w`. |
-| mcp_w | Maximum charging power (Not exceeding 2500W) |
+| mcp_w | Maximum charging power (see [Set maximum charging power](#12-set-maximum-charging-power)). On the Venus C/E (HMG) from control firmware 153, the limit in effect at that moment, as a negative number |
 | mdp_w | Maximum discharge power (see [Set maximum discharge power](#13-set-maximum-discharge-power)). On the Venus C/E (HMG) from control firmware 153, the limit in effect at that moment |
 | ct_t | The meter the device is currently configured for. The code space depends on the model — see [Reported meter type](#reported-meter-type-ct_t) |
 | phase_t | The phase where the device is located (0: Unknown; 1: Phase A; 2: Phase B; 3: Phase C; 4: Not detected) |
@@ -516,14 +516,34 @@ hame_energy/{type}/App/{uid or mac}/ctrl
 
 Payload:
 ```
-cd=16,cp=[0,2500]
+cd=16,cp=1000
 ```
+
+`cp` is the maximum charging power in watts. The accepted range depends on the
+model and control firmware build:
+
+| Model | Builds | Accepted `cp` |
+|-------|--------|---------------|
+| Venus C/E (HMG) | all | 0-2500 |
+| Venus E 3.0 (VNSE3) | below 150 | up to 2500 |
+| Venus E 3.0 (VNSE3) | 150 and later | 300-2500 |
+| Venus A (VNSA) | below 150 | up to 1500 |
+| Venus A (VNSA) | 150 and later | 300-1500 |
+| Venus D (VNSD) | below 149 | up to 2200 |
+| Venus D (VNSD) | 149 | up to 2500 |
+| Venus D (VNSD) | 149.2 and later | 300-2500 |
 
 ### 12.2 Receive
 
 You will receive a message with a ret value:
 1. `ret=0` - Setting failed
 2. `ret=1` - Setting successful
+
+On the Venus C/E (HMG) up to control firmware 152 and on the other models,
+`mcp_w` reports the value set. From 153 the HMG reports the charge limit in
+effect at that moment as a negative number instead (`mcp_w=-1000` after
+`cp=1000`; 153 and 154 print it unsigned, as 65536 minus the limit). Like
+`mdp_w`, it can be lower than the value set.
 
 ## 13 Set maximum discharge power
 

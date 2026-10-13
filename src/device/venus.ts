@@ -55,6 +55,8 @@ import {
   diff,
   average,
   negate,
+  signed16,
+  absolute,
   venusPvField,
   pipeValue,
   pipeArray,
@@ -184,6 +186,18 @@ function venusLocksOn600W(model: VenusModel, deviceVersion: number | undefined):
   const build = venusBuild(deviceVersion);
   if (build === undefined) return false;
   return model === 'HMG' ? build >= 149 : build < 149;
+}
+
+/**
+ * The highest maximum charging or discharge power (`cd=16,cp=` / `cd=17,dp=`)
+ * a model and build accept, in watts: 1500 W on the Venus A, 2200 W on the
+ * Venus D before control firmware 149, 2500 W otherwise. While the build is
+ * unknown the model's newest limit applies.
+ */
+function venusMaxPowerLimit(model: VenusModel, deviceVersion: number | undefined): number {
+  if (model === 'VNSA') return 1500;
+  const build = venusBuild(deviceVersion);
+  return model === 'VNSD' && build !== undefined && build < 149 ? 2200 : 2500;
 }
 
 /** A model's power versions, lowest first. */
@@ -2377,18 +2391,12 @@ function registerRuntimeInfoMessage(
     command('max-discharge-power', {
       handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
         const power = Number(message.trim());
-        const build = venusBuild(deviceState.deviceVersion);
-        const maxPower =
-          model === 'VNSA'
-            ? 1500
-            : model === 'VNSD' && build !== undefined && build < 149
-              ? 2200
-              : 2500;
+        const maxPower = venusMaxPowerLimit(model, deviceState.deviceVersion);
         if (!Number.isInteger(power) || power < 1 || power > maxPower) {
           logger.warn(`Invalid maximum discharge power value (1-${maxPower} W):`, message);
           return;
         }
-        if (model === 'HMG' && build === 147) {
+        if (model === 'HMG' && venusBuild(deviceState.deviceVersion) === 147) {
           logger.warn('Control firmware 147 has no maximum discharge power command');
           return;
         }
@@ -2413,10 +2421,18 @@ function registerRuntimeInfoMessage(
       },
     });
 
+    // Maximum charging power (`cd=16,cp=<W>`). The Venus E 3.0 and Venus A
+    // from control firmware 150 and the Venus D from 149.2 reject less than
+    // 300 W; the upper limit is the same as for the discharge power. On the
+    // Venus C/E (HMG) from control firmware 153, `mcp_w` is the charge limit in
+    // effect at that moment, reported as a negative number (`mcp_w=-1000` after
+    // `cp=1000`); 153 and 154 print it unsigned, as 65536 minus the limit. It
+    // is read as its magnitude and, like `mdp_w`, can read back lower than the
+    // value set.
     field({
       key: 'mcp_w',
       path: ['maxChargingPower'],
-      transform: chain(number(), inRange(0, 2500)),
+      transform: chain(number(), signed16(), absolute(), inRange(0, 2500)),
     });
     advertise(
       ['maxChargingPower'],
@@ -2426,17 +2442,31 @@ function registerRuntimeInfoMessage(
         icon: 'mdi:flash',
         unit_of_measurement: 'W',
         command: 'max-charging-power',
+        // The 300 W minimum is only enforced by the command: Home Assistant
+        // rejects a state below the entity minimum, and the HMG reports 0.
         min: 0,
-        max: 2500,
+        max: model === 'VNSA' ? 1500 : 2500,
         step: 1,
       }),
     );
 
     command('max-charging-power', {
-      handler: ({ message, publishCallback, updateDeviceState }) => {
+      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
         const power = parseInt(message, 10);
-        if (isNaN(power) || power < 0 || power > 2500) {
-          logger.warn('Invalid maximum charging power value:', message);
+        const maxPower = venusMaxPowerLimit(model, deviceState.deviceVersion);
+        const minPower =
+          venusSupports(model, deviceState.deviceVersion, {
+            VNSE3: 150,
+            VNSA: 150,
+            VNSD: 149.2,
+          }) === true
+            ? 300
+            : 0;
+        if (isNaN(power) || power < minPower || power > maxPower) {
+          logger.warn(
+            `Invalid maximum charging power value (${minPower}-${maxPower} W):`,
+            message,
+          );
           return;
         }
 
