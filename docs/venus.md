@@ -12,14 +12,17 @@
     2. [Receive](#32-receive)
 4. [Set working status](#4-set-working-status)
     1. [Public](#41-public)
+    2. [Receive](#42-receive)
 5. [Set automatic discharge time period](#5-set-automatic-discharge-time-period)
     1. [Public](#51-public)
 6. [Set transaction mode content](#6-set-transaction-mode-content)
     1. [Public](#61-public)
 7. [Set device time](#7-set-device-time)
     1. [Public](#71-public)
+    2. [Receive](#72-receive)
 8. [Restore factory settings](#8-restore-factory-settings)
     1. [Public](#81-public)
+    2. [Receive](#82-receive)
 9. [Upgrade FC41D firmware version](#9-upgrade-fc41d-firmware-version)
     1. [Public](#91-public)
 10. [Enable EPS function](#10-enable-eps-function)
@@ -34,6 +37,7 @@
 13. [Set maximum discharge power](#13-set-maximum-discharge-power)
 14. [Set the meter type and supplementary power type](#14-set-the-meter-type-and-supplementary-power-type)
     1. [Public](#141-public)
+    2. [Receive](#142-receive)
 15. [Obtain CT power](#15-obtain-ct-power)
     1. [Public](#151-public)
     2. [Receive](#152-receive)
@@ -146,6 +150,11 @@ You will receive a message, such as:
 tot_i=44785,tot_o=36889,ele_d=489,ele_m=3931,grd_d=395,grd_m=2833,inc_d=0,inc_m=-111,grd_f=0,grd_o=807,grd_t=3,gct_s=1,cel_s=3,cel_p=138,cel_c=27,err_t=0,err_a=0,dev_n=140,grd_y=0,wor_m=1,tim_0=14|0|17|0|127|800|1,tim_1=17|1|20|0|127|-800|1,tim_2=20|1|23|0|127|800|1,tim_3=23|1|23|59|127|-800|1,tim_4=0|1|3|0|127|800|1,tim_5=3|1|6|0|127|-800|1,tim_6=6|1|9|0|127|800|1,tim_7=9|1|12|1|127|-800|1,tim_8=9|10|12|0|127|-2500|0,tim_9=0|0|0|0|0|0|0,cts_m=0,bac_u=1,tra_a=41,tra_i=40000,tra_o=600000,htt_p=0,prc_c=4620,prc_d=4620,wif_s=35,inc_a=-152,set_v=1,mcp_w=2500,mdp_w=800,ct_t=1,phase_t=0,dchrg_t=255,bms_v=109,fc_v=202407221950,wifi_n=Hame
 ```
 
+The Venus C/E (HMG) sends this reply without a `cd=1,` prefix, as above; the
+Venus E 3.0, Venus A and Venus D start it with `cd=1,`. The same goes for the
+`cd=19` and `cd=26` replies. From control firmware 154 the HMG prefixes its
+replies with `id=<n>,` when the command arrived on its gid topic.
+
 Description of the above parameters:
 
 | Key | Description |
@@ -206,8 +215,8 @@ Description of the above parameters:
 | pv3 | PV input 3 power (0.1W) \| connection status (only reported by Venus models with PV inputs) |
 | pv4 | PV input 4 power (0.1W) \| connection status (only reported by Venus models with PV inputs) |
 
-The following additional fields have been observed on newer firmware (e.g.
-Venus D control firmware v147). Meanings marked *(unconfirmed)* are educated
+The following additional fields are sent by newer firmware (see
+[Fields added by firmware build](#fields-added-by-firmware-build)). Meanings marked *(unconfirmed)* are educated
 guesses based on context and cross-referencing other commands:
 
 | Key | Description |
@@ -228,11 +237,11 @@ guesses based on context and cross-referencing other commands:
 | bp | Battery power (W) |
 | ei | *(unconfirmed)* |
 | eb | *(unconfirmed)* |
-| rp | Battery power (W), calculated. The app overwrites the `bp` reading with this one when its per-model "use calculated power" flag is set (see the note below) |
-| gp | Grid power (W). Only used by the app when the same flag is set; otherwise grid power comes from `grd_o` |
-| vp | *(unconfirmed)* power (W) |
+| rp | Battery power (W), calculated: the total PV power minus `vp` (see the note below) |
+| gp | Grid power (W), calculated: `vp` minus `grd_f` |
+| vp | Inverter AC power (W): `grd_o`, or `grd_f` in backup mode |
 | bl | Bluetooth advertising setting (0: off; 1: on, the factory default) (see `cd=55`) |
-| bl_p | *(unconfirmed)* |
+| bl_p | Grid-power setpoint offset set with `cd=57` (W), limited to the maximum power in either direction; peak shaving also writes it |
 | led | Status LED state (0: off; 1: on) (see `cd=59`) |
 | as | *(unconfirmed)* |
 | mppt | MPPT module version number *(unconfirmed)* |
@@ -243,13 +252,38 @@ guesses based on context and cross-referencing other commands:
 | peak_status | Peak shaving enabled (0: off; 1: on) (see [Configure peak shaving](#28-configure-peak-shaving)) |
 | peak_power | Peak shaving power cap (W) (see [Configure peak shaving](#28-configure-peak-shaving)) |
 
-> **Note on `bp`, `rp` and `gp`.** The Marstek app shows a single battery-power
-> value and a single grid-power value. Battery power normally comes from `bp`
-> and grid power from `grd_o`, but on some models a "calculated" reading is used
-> instead: `rp` for battery power and `gp` for grid power. Which models those are
-> is not something the payload reveals. On the devices observed so far `gp`
-> matched `grd_o` exactly, while `bp` and `rp` differed slightly (e.g. `bp=291`
-> vs `rp=347`), and all three only appear on models with PV inputs (Venus A/D).
+> **Note on `bp`, `rp` and `gp`.** `bp` is the battery power. `rp` and `gp` are
+> calculated from `vp`, the inverter's AC power: `gp = vp − grd_f`, so it equals
+> `grd_o` while nothing is drawn from the backup output, and `rp` is the total PV
+> power minus `vp`. That is why `bp` and `rp` differ slightly (e.g. `bp=291` vs
+> `rp=347` with 1148 W of PV and `vp=801`).
+
+#### Fields added by firmware build
+
+Newer control firmware appends fields to the end of the `cd=1` reply:
+
+| Model | Build | Fields added |
+|-------|-------|--------------|
+| Venus C/E (HMG) | 148 | `ctrl_r` |
+| Venus C/E (HMG) | 149 | `par`, `gen`, `ble`, `shelly_p`, `c_ratio` |
+| Venus C/E (HMG) | 153 | `udp`, `api`, `port` |
+| Venus C/E (HMG) | 154 | `id` |
+| Venus C/E (HMG) | 156 | `bl`, `dod` |
+| Venus C/E (HMG) | 158.1 | `as` |
+| Venus E 3.0 | 147 | `led`, `as` |
+| Venus E 3.0 | 147.6 | `lf` |
+| Venus E 3.0 | 149 | `pl` |
+| Venus E 3.0 | 150 | `soh`, `peak_status`, `peak_power` |
+| Venus E 3.0 | 151 | `df` |
+| Venus A | 148 | `led`, `as`, `lf`, and the PV block (`mppt`, `pv1`-`pv4`, `pack`, `pv`, `fu`, `em`) |
+| Venus A | 149 | `pl` |
+| Venus A | 150 | `soh`, `peak_status`, `peak_power` |
+| Venus A | 150.9 | `df` |
+| Venus D | 147 | `led`, `as`, and the PV block |
+| Venus D | 149 | `lf`, `pl` |
+| Venus D | 149.2 | `soh` |
+| Venus D | 150 | `peak_status`, `peak_power` |
+| Venus D | 151 | `df` |
 
 #### Reported meter type (`ct_t`)
 
@@ -297,7 +331,8 @@ Payload:
 1. `cd=2,md=0` - Automatic mode
 2. `cd=2,md=1` - Manual mode
 3. `cd=2,md=2` - Trading mode (Venus C/E (HMG) up to control firmware 146 only; later firmware ignores it)
-4. `cd=2,md=5,nl=1` - AI mode (the `nl=1` flag is required to enable AI mode)
+4. `cd=2,md=5,nl=1` - AI mode. `cd=2` ignores `nl`; the Marstek app sends
+   `nl=1` anyway, and so does hm2mqtt
 
 Passive (`wor_m=3`) and Modbus (`wor_m=10`) cannot be selected with `cd=2`: the
 local API and Modbus control switch the device into them.
@@ -317,7 +352,7 @@ hame_energy/{type}/App/{uid or mac}/ctrl
 
 Payload:
 ```
-cd=3,md=1,nm=xx,bt=8:30,et=20:30,wk=1,vv=123,as=0
+cd=3,md=1,nm=xx,bt=08:30,et=20:30,wk=1,vv=123,as=0
 ```
 
 Description of the above parameters:
@@ -327,11 +362,14 @@ Description of the above parameters:
 | cd | Instruction identification |
 | md | 1 (time period) |
 | nm | [0-9] |
-| bt | Start Time |
-| et | End Time |
-| wk | Week[0-6] |
-| vv | Power |
+| bt | Start time, `HH:MM`. The hour must have two digits: `bt=8:30` is read as 8:00 |
+| et | End time, `HH:MM`, likewise |
+| wk | Weekday bitmask. Bit 0 is most likely Monday and bit 6 Sunday (not confirmed); 127 is every day |
+| vv | Power (W). Negative charges the battery, positive discharges it |
 | as | Enable (0: disable; 1: enable) |
+
+Every `cd=3,md=1` switches the device to manual mode (`wor_m=1`) before the
+period is checked, so it does so even when the period is rejected.
 
 ## 6 Set transaction mode content
 
@@ -371,7 +409,7 @@ hame_energy/{type}/App/{uid or mac}/ctrl
 
 Payload:
 ```
-cd=4,yy=123,mm=1,rr=2,hh=23,mn=56
+cd=4,yy=2026,mm=5,rr=14,hh=16,mn=55
 ```
 
 Description of the above parameters:
@@ -379,23 +417,30 @@ Description of the above parameters:
 | Key | Description |
 |-----|-------------|
 | cd | Instruction identification |
-| yy | Year |
-| mm | Month [0,11] (0 represents January) |
+| yy | Year, with all four digits |
+| mm | Month [1,12] |
 | rr | Day [1,31] |
 | hh | Hour [0,23] |
 | mn | Minute [0,59] |
 
+The time is the device's local time. The keys must come in this order.
+
 ### 7.2 Receive
 
-The device echoes the time it applied, e.g.:
+The device replies with the time it applied, read back from its clock, e.g.:
 
 ```
 cd=4,2026-5-14 16:55:0
 ```
 
-Note that the month is echoed as the raw value that was sent, i.e. it is
-0-indexed (`mm=5` is June and is echoed back as `5`). The time is the device's
-configured local time.
+| Model | Builds | Reply |
+|-------|--------|-------|
+| Venus E 3.0, Venus A, Venus D | all | `cd=4,<year>-<month>-<day> <h>:<m>:<s>` |
+| Venus C/E (HMG) | 154 and later | the same with a two-digit year, e.g. `cd=4,26-5-14 16:55:0` |
+| Venus C/E (HMG) | up to 153 | `ret=1` |
+
+`cd=4,read` returns the same reply without setting the time, on the Venus E
+3.0, Venus A and Venus D and on the HMG from control firmware 154.
 
 ## 8 Restore factory settings
 
@@ -407,8 +452,23 @@ hame_energy/{type}/App/{uid or mac}/ctrl
 ```
 
 Payload:
-1. `cd=5,rs=1` - Restore factory settings and clear accumulated data
-2. `cd=5,rs=2` - Restore factory settings without clearing accumulated data
+1. `cd=5,rs=1` - Restore factory settings and clear everything, including the
+   certificates
+2. `cd=5,rs=2` - Restore factory settings, clearing only part of them and
+   keeping the certificates
+
+| Model | `rs=1` | `rs=2` | `rs=3` |
+|-------|--------|--------|--------|
+| Venus E 3.0, Venus A, Venus D | clear all | clear part | clear the certificates only |
+| Venus C/E (HMG) | clear all; from control firmware 156 also the certificates and the cloud topic id | clear part | not available |
+
+Every variant reboots the device. `rs=2` is the safe choice and is what
+hm2mqtt's *Factory Reset* sends.
+
+### 8.2 Receive
+
+`cd=5,ret=1` on the Venus E 3.0, Venus A and Venus D (`ret=0` for any other
+`rs`). The Venus C/E (HMG) does not reply.
 
 ## 9 Upgrade FC41D firmware version
 
@@ -651,6 +711,13 @@ and Venus D build, where it equals `ct_t`. On the HMG, `ct_t` reports the meter
 that answers, in a different code space (see
 [Reported meter type](#reported-meter-type-ct_t)).
 
+### 14.2 Receive
+
+`cd=18,<first key>`, naming the first key of the command without its value
+(`cd=18,meter=3,mac=…` is answered `cd=18,meter`), or `cd=18,err_cmd` when the
+command cannot be parsed. The Venus C/E (HMG) on control firmware 146 and 147
+does not reply.
+
 ## 15 Obtain CT power
 
 ### 15.1 Public
@@ -671,6 +738,10 @@ You will receive a message:
 ```
 get_power=%d|%d|%d|%d|%d (A-phase power | B-phase power | C-phase power | three-phase total power | output power) Unit: W
 ```
+
+The Venus E 3.0, Venus A and Venus D prefix it with `cd=19,`; the Venus C/E
+(HMG) does not. The HMG ignores a second `cd=19` that arrives within about five
+seconds of the last one.
 
 ## 16 Upgrade the firmware of the FC4 module
 
@@ -1158,9 +1229,9 @@ the setting.
 ## 28 Configure peak shaving
 
 Peak shaving caps how much power the device draws from the grid, for regions
-that limit the grid connection. Supported from control firmware v150 on the
-Venus D and Venus E (`VNSD`/`VNSE3`); older firmware neither accepts the command
-nor reports the two status fields.
+that limit the grid connection. Supported from control firmware 150 on the
+Venus E 3.0, Venus A and Venus D; older firmware neither accepts the command nor
+reports the two status fields.
 
 ### 28.1 Public
 
@@ -1179,13 +1250,13 @@ Description of the above parameters:
 |-----|-------------|
 | cd | Instruction identification |
 | as | Enable (0: disable; 1: enable) |
-| vv | Peak power cap in watts. Only sent when enabling; the Marstek app defaults it to 2000 W and does not enforce an upper bound of its own |
+| vv | Peak power cap in watts, a signed 16-bit value without a range check. Required with `as=1`; the Marstek app defaults it to 2000 W |
 
 ### 28.2 Receive
 
 You will receive a message with a ret value:
-1. `ret=0` - Setting failed
-2. `ret=1` - Setting successful
+1. `cd=63,ret=0` - Setting failed: `as` missing or not 0/1, or `as=1` without `vv`
+2. `cd=63,ret=1` - Setting successful
 
 The current state is reported in the `cd=1` response as `peak_status` (0/1) and
 `peak_power` (the cap, in watts).
@@ -1296,6 +1367,9 @@ key instead of the pipe-separated `b_vol` list `cd=42` uses.
 
 The meaning and units of the other keys (`b_rci`, `b_rdi`, `b_cap`, `b_chf`,
 `b_slf`, `b_cpc`, `b_err`, `b_war`, `b_ret`, `b_ent`) are not confirmed yet.
+
+From control firmware 150 the Venus E 3.0, Venus A and Venus D append
+`self_check`, a BMS value, and `mos`, the first battery's MOSFET flag.
 
 ## 31 Restart
 

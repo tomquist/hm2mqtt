@@ -696,16 +696,16 @@ homeassistant/{component}/{node_id}/{object_id}/config
 
 ### Venus Device Commands
 Applies to HMG/VNSE3/VNSA/VNSD. None of the commands below are available on the Venus E Mini (VNSEMINI), which has its own, much smaller command set — see [Venus E Mini Commands](#venus-e-mini-commands).
-- `working-mode`: Sets working mode (`automatic`, `manual` or `ai`; `trading` only on the Venus C/E (HMG) up to control firmware 146). The device also reports `passive` while the local API controls it and `modbus` under Modbus control; neither can be set. The `ai` value expands to `cd=2,md=5,nl=1` (AI mode requires both `md=5` and `nl=1`).
+- `working-mode`: Sets working mode (`automatic`, `manual` or `ai`; `trading` only on the Venus C/E (HMG) up to control firmware 146). The device also reports `passive` while the local API controls it and `modbus` under Modbus control; neither can be set. The `ai` value is sent as `cd=2,md=5,nl=1`, as the Marstek app sends it; the device ignores `nl` there.
 - `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`)
 - `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped). The device does not report this back, so the entity shows the last value set.
 - `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `p1Meter`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50`, `ecoTracker`, `smrP1`, `smrIr`, `smrTic`, `tpm2100ct` or, on the Venus E 3.0, Venus A and Venus D, `stromleser`). The P1 Meter, EcoTracker and Stromleser are found by IP address and need no MAC; for every other meter except the CT001 and the Shelly Pro 3EM, set `meter-mac` first. Shelly Pro 3EM always uses an all-zero MAC. The entity shows the meter the device is configured for; on the Venus C/E (HMG) before control firmware 149, which does not report it, it shows the last value set. The Venus C/E (HMG) accepts the Shelly EM Gen3 and Pro EM50 from control firmware 147, the EcoTracker from 148, and the SMR and TPM2 meters from 156.
 - `auto-switch-working-mode`: Toggles automatic working-mode switching based on the meter (`on` or `off`). Turning it on can also change the working mode at once: Automatic while the meter delivers data, Manual when it does not.
-- `time-period/[0-9]/enabled`: Enables/disables time period (`on` or `off`)
+- `time-period/[0-9]/enabled`: Enables/disables time period (`on` or `off`). Any time-period change switches the device to manual mode, even one the device rejects.
 - `time-period/[0-9]/start-time`: Sets start time for period (HH:MM format)
 - `time-period/[0-9]/end-time`: Sets end time for period (HH:MM format)
-- `time-period/[0-9]/power`: Sets power value for period (-2500 to 2500W)
-- `time-period/[0-9]/weekday`: Sets days of week for period (0-6, where 0 is Sunday)
+- `time-period/[0-9]/power`: Sets power value for period (-2500 to 2500W; negative charges the battery)
+- `time-period/[0-9]/weekday`: Sets days of week for period (0-6; 0 is most likely Monday, which is not confirmed)
 - `get-ct-power`: Gets current transformer power readings
 - `transaction-mode`: Sets transaction mode parameters. Venus C/E (HMG) up to control firmware 146 only.
 - `discharge-depth`: Sets the battery depth of discharge (30-88%; 30-90% on the Venus C/E (HMG)). Only available on devices that report it.
@@ -720,7 +720,7 @@ Applies to HMG/VNSE3/VNSA/VNSD. None of the commands below are available on the 
 - `bluetooth-advertising`: Toggles Bluetooth advertising (`on` enables advertising, `off` disables it / "Bluetooth lock"). Requires control firmware 156 or later on the Venus C/E (HMG), and 144 or later on the other models.
 - `phase-diagnosis`: Starts the grid-phase detection routine
 - `restart`: Restarts the device (`PRESS`). Available on every Venus E 3.0, Venus A and Venus D, and on the Venus C/E (HMG) from control firmware 151. Disabled by default.
-- `peak-shaving`: Toggles peak shaving, which caps the power drawn from the grid (`on` or `off`). Only available on firmware that reports the peak-shaving state (control v150 and up on Venus D/E).
+- `peak-shaving`: Toggles peak shaving, which caps the power drawn from the grid (`on` or `off`). Only available on firmware that reports the peak-shaving state: the Venus E 3.0, Venus A and Venus D from control firmware 150.
 - `peak-shaving-power`: Sets the peak-shaving power cap in watts. Only takes effect on the device while peak shaving is enabled; while it is off the value is stored and applied the next time you enable it.
 - `parallel-mode`: Controls parallel operation (`off`, `wiringCheck` or `on`), which links several units into one group for a higher combined output. **Disabled by default, and best left that way unless you know you need it** — see the warning below.
 
@@ -747,10 +747,10 @@ enabling. The matching *Parallel Mode* entity reports the current state (*Turned
 Off*, *Wiring Check*, *Turned On*, or *Unknown* on units that do not support
 parallel operation).
 
-Venus devices also report a *Battery Health* sensor (state of health) on control
-firmware 149.2 and later, plus a set of raw diagnostic sensors for fields the
-device sends that have no confirmed meaning. All of the raw ones are disabled by
-default. See [docs/venus-generations.md](docs/venus-generations.md). The
+Venus devices also report a *Battery Health* sensor (state of health): the Venus
+E 3.0 and Venus A from control firmware 150 and the Venus D from 149.2. There is
+also a set of raw diagnostic sensors for fields the device sends that have no
+confirmed meaning. All of the raw ones are disabled by default. See [docs/venus-generations.md](docs/venus-generations.md). The
 *Bluetooth State*, *Meter Error* (0 means OK) and, on the Venus A/D, *MPPT Error
 Code* diagnostic sensors are disabled by default as well.
 

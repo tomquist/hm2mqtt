@@ -1498,9 +1498,9 @@ function registerRuntimeInfoMessage(
 
     // Peak shaving (cd=63), which caps how much power the device draws from the
     // grid. Reported as `peak_status` (0/1) and `peak_power` (the cap, in W) on
-    // firmware that supports it (control v150 and up on Venus D/E). The device
-    // expects both parts in one command, so enabling sends `cd=63,as=1,vv=<W>`
-    // and disabling sends `cd=63,as=0`.
+    // firmware that supports it: the Venus E 3.0, Venus A and Venus D from
+    // control firmware 150. Enabling needs the cap in the same command, so it
+    // sends `cd=63,as=1,vv=<W>`; disabling sends `cd=63,as=0`.
     field({
       key: 'peak_status',
       path: ['peakShavingEnabled'],
@@ -1538,8 +1538,9 @@ function registerRuntimeInfoMessage(
       { enabled: state => (state.peakShavingPower != null ? true : undefined) },
     );
 
-    // State of health. Added to the cd=1 response in control firmware 149.2,
-    // so it only appears on units new enough to send it. The same quantity is
+    // State of health. Added to the cd=1 response in control firmware 150 on
+    // the Venus E 3.0 and Venus A and 149.2 on the Venus D, so it only appears
+    // on units new enough to send it. The same quantity is
     // reported as `b_soh` in the cd=14 BMS response, where a real capture read
     // 100 on a healthy pack - hence the percentage. That capture is the whole
     // basis for the unit: no cd=1 payload carrying `soh` has been seen, so if
@@ -1717,14 +1718,12 @@ function registerRuntimeInfoMessage(
 
     // Battery power (bp/rp) and grid power (gp), reported on newer firmware.
     //
-    // The Marstek app shows a single battery-power value and a single
-    // grid-power value. Battery power normally comes from `bp` and grid power
-    // from `grd_o` (the Combined Power sensor), but on some models the app uses
-    // a "calculated" reading instead: `rp` for battery power and `gp` for grid
-    // power. Which models those are is not something the payload reveals, so
-    // both readings are published, with the calculated one disabled by default.
-    // On the devices seen so far the two differ slightly (e.g. bp=291 vs
-    // rp=347) while `gp` matched `grd_o` exactly.
+    // `bp` is the battery power. `rp` and `gp` are calculated from `vp`, the
+    // inverter's AC power (`grd_o`, or `grd_f` in backup mode): `gp` is
+    // `vp - grd_f`, so it equals `grd_o` while nothing is drawn from the backup
+    // output, and `rp` is the total PV power minus `vp`. The calculated battery
+    // power therefore differs slightly from `bp` (e.g. bp=291 vs rp=347) and is
+    // disabled by default.
     field({
       key: 'bp',
       path: ['batteryPower'],
@@ -2085,8 +2084,9 @@ function registerRuntimeInfoMessage(
     command('factory-reset', {
       handler: ({ message, publishCallback }) => {
         if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
-          // rs=1 restores factory settings and clears accumulated data
-          // rs=2 restores factory settings without clearing accumulated data
+          // rs=1 clears everything, including the certificates (and on HMG 156
+          // the cloud topic id); rs=2 clears only part and keeps the
+          // certificates. Both reboot the device; rs=2 is the safe one.
           publishCallback(processCommand(CommandType.FACTORY_RESET, { rs: 2 }));
         }
       },
@@ -2445,7 +2445,7 @@ function registerRuntimeInfoMessage(
         }));
 
         const params: CommandParams = { md: mode };
-        // AI mode additionally requires the nl flag to be enabled
+        // `cd=2` ignores `nl`, but the Marstek app sends `nl=1` with AI mode, so do the same
         if (message === 'ai') {
           params.nl = 1;
         }

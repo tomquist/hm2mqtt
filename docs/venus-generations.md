@@ -21,11 +21,22 @@ The second generation's has not; see [Confidence](#confidence).
 | Products       | Venus C, Venus E, Venus A, Venus D | Venus X, Venus G, Venus E Mini |
 | Device types   | `HMG`, `VNSE3`, `VNSA`, `VNSD` (and the regional `VNSE3CH`, `VNSE3AU`, `VNSDCH`, `VNSACH`, `VDAC`, `VEPRO`, `VAAC2`, `VNSE4`) | `VENX`, `VNSG`, `VNSGPV`, `VNSEMINI` |
 | App code       | `pages/Ac_Coupler`, commands built by `CommonCommand` | `modules/devices`, commands built by `DataVenus*` tables and `venus_model.dart` |
-| MQTT topics    | `hame_energy/<type>/App/<mac>/ctrl`; `HMG` from firmware 153 on `marstek_energy/<type>/App/<encrypted mac>/ctrl` | `marstek_energy/<type>/App/<hashed id>/ctrl` |
+| MQTT topics    | `hame_energy/<type>/App/<id>/ctrl` up to HMG control firmware 152, `marstek_energy/<type>/App/<id>/ctrl` otherwise (see below) | `marstek_energy/<type>/App/<hashed id>/ctrl` |
 | Strategy class | `VenusMqttStrategy` | `VNXMqttStrategy` |
 
 `mqtt_factory` is what settles the grouping: it routes `VNSEMINI` behind
 `VNXMqttStrategy` alongside `VENX`, `VNSG` and `VNSGPV`.
+
+On the devices themselves the first generation's topic depends on the model and
+control firmware build:
+
+- **Venus C/E (HMG) up to 152:** `hame_energy`, with the device's own chip ID
+  in lowercase hex as the id, not the MAC.
+- **HMG 153:** `marstek_energy`, with the AES id of the Bluetooth MAC.
+- **HMG 154 and later:** `marstek_energy`, with the AES id of the Bluetooth MAC,
+  or the cloud-assigned id once one is stored.
+- **Venus E 3.0, Venus A and Venus D:** the control firmware has only
+  `marstek_energy` topics, with a cloud-assigned id or the AES id of the MAC.
 
 ## Where the numbering collides
 
@@ -232,20 +243,20 @@ Three things that came out of it, from `VNSD-0` control 150:
   answered `cd=28,ret=1` (see above). `cd=61` is the second generation's number
   for it.
 - **`cd=5` has a third variant.** The image contains `rs=1`, `rs=2` *and*
-  `rs=3`, for three reset variants: clear all, clear part and clear the
-  certificates. Only `rs=1` and `rs=2` are
-  documented in [venus.md](venus.md), and the app never sends `rs=3`. It is
-  present in every archived build back to v147, and in `VNSA-0` and `VNSE3-0`
-  too. Which `rs` value maps to which variant is inferred from their order in
-  the binary, not proven — the strings have no literal-pool references to
-  follow.
+  `rs=3`: `rs=1` clears everything, `rs=2` clears part of the settings and
+  `rs=3` clears only the certificates, and each reboots the device. The app
+  never sends `rs=3`. It is present in every archived build back to v147, and
+  in `VNSA-0` and `VNSE3-0` too. The Venus C/E (HMG) has only `rs=1` and
+  `rs=2`.
 - **`ct_dev=` and `ip=` are real.** Both appear in the firmware's parameter
   table, confirming the app-side readings of the conditional third meter
   parameter and of `setP1MeterIp`.
 
 Feature timing lines up with the archive's own changelog: `soh` appears in
 control 149.2, `peak_status`/`peak_power` in 150 — the release that lists "Add
-Peak-shaving function".
+Peak-shaving function". The Venus E 3.0 and Venus A add `soh` in 150 instead;
+[venus.md](venus.md#fields-added-by-firmware-build) lists the fields each model
+and build adds.
 
 ## Confidence
 
