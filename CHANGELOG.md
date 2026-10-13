@@ -4,6 +4,7 @@
 ### Fixed
 
 - Devices were regularly read a whole *Polling Interval* late, because a poll that was due got skipped (PR #456)
+- Venus E Mini: The device never showed up in Home Assistant (PR #450)
 
 ## [1.10.1] - 2026-10-04
 

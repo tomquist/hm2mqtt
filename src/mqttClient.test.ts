@@ -135,6 +135,46 @@ describe('MqttClient discovery re-publish', () => {
     mqttClient.onDeviceDataReceived(device, 'bms');
     expect(mockPublishDiscoveryConfigs).toHaveBeenCalledTimes(2);
   });
+
+  test.each([
+    ['cd=01', 1],
+    ['cd=10', 0],
+  ])('a response to a %s poll publishes discovery %i time(s)', (refreshDataPayload, expected) => {
+    mockPublishDiscoveryConfigs.mockClear();
+    // The Venus E Mini polls with the zero-padded cd=01 (#450)
+    const defaultImplementation = mockGetDeviceDefinition.getMockImplementation()!;
+    mockGetDeviceDefinition.mockImplementation(() => ({
+      messages: [
+        {
+          refreshDataPayload,
+          publishPath: 'data',
+          getAdditionalDeviceInfo: () => ({ firmwareVersion: undefined }),
+        },
+      ],
+    }));
+
+    try {
+      const device: Device = { deviceType: 'VNSEMINI-0', deviceId: 'abc123' };
+      const deviceManager: any = {
+        getDeviceTopics: jest.fn(() => ({})),
+        getDeviceState: jest.fn(() => ({})),
+        getDevices: jest.fn(() => []),
+      };
+      const config: any = {
+        brokerUrl: 'mqtt://localhost:1883',
+        clientId: 'test-client',
+        topicPrefix: 'homeassistant',
+        autodiscoveryTopicPrefix: 'homeassistant',
+      };
+
+      const mqttClient = new MqttClient(config, deviceManager, jest.fn());
+      mqttClient.onDeviceDataReceived(device, 'data');
+
+      expect(mockPublishDiscoveryConfigs).toHaveBeenCalledTimes(expected);
+    } finally {
+      mockGetDeviceDefinition.mockImplementation(defaultImplementation);
+    }
+  });
 });
 
 describe('MqttClient subscribe', () => {
