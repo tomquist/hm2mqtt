@@ -686,6 +686,8 @@ homeassistant/{component}/{node_id}/{object_id}/config
 - `time-zone`: Sets time zone (UTC offset in minutes, e.g. `60` for UTC+1). The device only accepts a multiple of 10 between `-720` and `720`.
 - `sync-time`: Synchronizes the device clock and time zone with the server
 - `surplus-feed-in`: Toggles Surplus Feed-in mode (`on` or `off`). When enabled, surplus PV power is fed into the home grid when the battery is nearly full.
+- `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits; `:`/`-` in the input are stripped). The device does not report this back, so the entity shows the last value set.
+- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `p1Meter`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50`, `ecoTracker`, `smrP1`, `smrIr`, `smrTic` or `tpm2100ct`). For every meter except the CT001 and the Shelly Pro 3EM, set `meter-mac` first. The SMR and TPM2 meters are refused on HMJ firmware 116 and older, which cannot use them. The *CT Type* sensor shows the meter the device took.
 - `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`). The device does not report this back, so the entity shows the last value set.
 - `phase-diagnosis`: Starts grid-phase detection. Progress shows up on the *CT Status* sensor.
 

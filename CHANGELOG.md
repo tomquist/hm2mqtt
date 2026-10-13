@@ -12,6 +12,7 @@
 - B2500 V2/V3: Changing a timer period also switches the device out of adaptive mode. *Adaptive Mode* now shows this straight away
 - B2500 V2/V3: Timer start and end times from 24:00 to 29:59 are no longer accepted. The device turns them into an all-day period after its next restart
 - B2500 (HMJ): Removed the *Input 1/2 Pass Through* sensors, which this model never reports and which were always off
+- B2500 (HMJ): Choosing an SMR or TPM2 meter is refused on firmware 116 and older, which cannot use them and would be left without a working meter
 
 ## [1.10.2] - 2026-10-13
 

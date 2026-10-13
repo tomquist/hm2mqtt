@@ -4,6 +4,7 @@ import {
   B2500V2DeviceData,
   B2500V2SmartMeterStatus,
   CommandParams,
+  MeterType,
   meterTypeCommandCodes,
   meterTypeLabels,
   normalizeMeterMac,
@@ -76,6 +77,24 @@ function isHmjAtMost(
   }
   const deviceVersion = state.deviceInfo?.deviceVersion;
   return deviceVersion != null && deviceVersion <= version;
+}
+
+/**
+ * HMJ firmware 116 and older only has drivers for meter codes 0-7. It stores a
+ * higher code anyway and is then left without a working meter, so those are
+ * refused there. Warns when it refuses.
+ */
+function isMeterUnsupported(
+  state: Pick<B2500V2DeviceData, 'deviceType' | 'deviceInfo'>,
+  meterType: MeterType,
+): boolean {
+  if (meterTypeCommandCodes[meterType] < 8 || !isHmjAtMost(state, 116)) {
+    return false;
+  }
+  logger.warn(
+    `Meter type ${meterType} is not supported: this firmware (${state.deviceInfo?.deviceVersion}) has no driver for this meter`,
+  );
+  return true;
 }
 
 /**
@@ -919,7 +938,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn, baseOptions: B2500B
           return;
         }
         updateDeviceState(state => {
-          if (state.meterType) {
+          if (state.meterType && !isMeterUnsupported(deviceState, state.meterType)) {
             const resolved = resolveMeterMac(state.meterType, mac);
             if (resolved !== null) {
               publishCallback(
@@ -954,6 +973,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn, baseOptions: B2500B
       handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
         if (!isValidMeterType(message)) {
           logger.warn('Invalid meter type value:', message);
+          return;
+        }
+        if (isMeterUnsupported(deviceState, message)) {
           return;
         }
         updateDeviceState(state => {
