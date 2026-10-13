@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
 import './device/registry.js';
 import { generateDiscoveryConfigs, publishDiscoveryConfigs } from './generateDiscoveryConfigs.js';
+import { parseMessage } from './parser.js';
 import { Device } from './types.js';
 import { DeviceTopics } from './deviceManager.js';
 import { AdditionalDeviceInfo } from './deviceDefinition.js';
@@ -544,6 +545,37 @@ describe('Home Assistant Discovery', () => {
     expect(bleConfigs('VNSA-0', { deviceVersion: 143 })).toEqual([
       expect.objectContaining({ config: null }),
     ]);
+  });
+
+  test('should offer the Venus local API wherever the device reports it', () => {
+    const localApiConfigs = (deviceType: string, payload: string) => {
+      const state: Record<string, unknown> = {};
+      for (const parsed of Object.values(parseMessage(payload, deviceType, 'venus123'))) {
+        Object.assign(state, parsed);
+      }
+      return generateDiscoveryConfigs(
+        { deviceType, deviceId: 'venus123' },
+        jupiterTopics(deviceType, 'venus123'),
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      ).filter(c => /\/local_api_(enabled|port)\//.test(c.topic));
+    };
+
+    // Real Venus D control firmware 147 reading: api=0,port=30000.
+    const vnsd147 =
+      'cd=1,tot_i=6,tot_o=1109,ele_d=0,ele_m=0,grd_d=27,grd_m=27,inc_d=0,inc_m=0,grd_f=0,grd_o=801,grd_t=3,gct_s=1,cel_s=2,cel_p=233,cel_c=45,err_t=800,err_a=4,dev_n=147,grd_y=0,wor_m=5,tim_0=0|0|23|59|127|250|0,cts_m=0,bac_u=0,tra_a=74,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=3,wif_s=72,inc_a=0,set_v=1,mcp_w=2200,mdp_w=800,ct_t=3,phase_t=1,dchrg_t=0,bms_v=116,fc_v=202409090159,wifi_n=XXX,seq_s=3,ctrl_r=0,par=0,gen=0,ble=3,shelly_p=1010,c_ratio=100,udp=0,api=0,net=0,port=30000,inv_v=115,id=2|0|0|0|0,lk=0,bp=291,ei=0,eb=0,rp=347,gp=801,vp=801,bl=1,dod=88,bl_p=-1,led=1,as=3,mppt=104,pv1=2584|1,pv2=2638|1,pv3=3180|1,pv4=3080|1,pack=2|3|2|0,pv=24|24,fu=0|0,em=0';
+    const vnsd = localApiConfigs('VNSD-0', vnsd147);
+    expect(vnsd).toHaveLength(2);
+    expect(vnsd.every(c => c.config !== null)).toBe(true);
+
+    // HMG control firmware 149 has no local API: removed.
+    const hmg149 =
+      'tot_i=8848,tot_o=7097,ele_d=537,ele_m=8848,grd_d=328,grd_m=7097,inc_d=0,inc_m=0,grd_f=0,grd_o=613,grd_t=3,gct_s=1,cel_s=3,cel_p=327,cel_c=64,err_t=0,err_a=0,dev_n=149,grd_y=0,wor_m=0,tim_0=0|0|8|2|127|300|1,tim_1=0|0|5|23|127|350|0,tim_2=17|21|23|59|127|600|1,tim_3=9|31|16|30|127|-800|1,tim_4=0|0|0|0|0|0|0,tim_5=0|0|0|0|0|0|0,tim_6=0|0|0|0|0|0|0,tim_7=0|0|0|0|0|0|0,tim_8=0|0|0|0|0|0|0,tim_9=0|0|0|0|0|0|0,cts_m=0,bac_u=0,tra_a=1,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=1,wif_s=33,inc_a=0,set_v=0,mcp_w=2500,mdp_w=2500,ct_t=4,phase_t=1,dchrg_t=1,bms_v=212,fc_v=202409090159,wifi_n=XXX,seq_s=0,ctrl_r=1,par=255,gen=255,ble=3,shelly_p=1010,c_ratio=90';
+    const hmg = localApiConfigs('HMG-1', hmg149);
+    expect(hmg).toHaveLength(2);
+    expect(hmg.every(c => c.config === null)).toBe(true);
   });
 
   test('should offer Jupiter battery pack recovery on Jupiter Plus only', () => {

@@ -1303,6 +1303,8 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('pv1Connected', true);
     expect(result).toHaveProperty('pv2Connected', false);
     expect(result).toHaveProperty('totalPvPower', 107.6);
+    expect(result).toHaveProperty('localApiEnabled', true);
+    expect(result).toHaveProperty('localApiPort', 48977);
   });
 
   test('exposes PV inputs based on payload presence regardless of device type (VNSE3)', () => {

@@ -1108,6 +1108,36 @@ function registerRuntimeInfoMessage(
       }),
     );
 
+    // Local API (cd=30). Every Venus E 3.0, Venus A and Venus D build has it;
+    // the Venus C/E (HMG) from control firmware 153. `api` and `port` are only
+    // reported where the command exists. The device looks for `port` after
+    // `api`, so a port is only applied when it follows `api` in the command:
+    // `cd=30,api=1,port=9090`. It replies `cd=30,ret=<api>,port=<port>`.
+    const supportsLocalApi = (deviceVersion: number | undefined) =>
+      venusSupports(model, deviceVersion, { HMG: 153, VNSE3: 0, VNSA: 0, VNSD: 0 });
+    const localApiEnabled = (state: Pick<VenusDeviceData, 'deviceVersion' | 'localApiEnabled'>) => {
+      if (supportsLocalApi(state.deviceVersion) === false) return false;
+      return state.localApiEnabled != null ? true : undefined;
+    };
+    const canSetLocalApi = (
+      deviceState: Pick<VenusDeviceData, 'deviceVersion' | 'localApiEnabled'>,
+    ) => {
+      if (supportsLocalApi(deviceState.deviceVersion) === false) {
+        logger.warn(
+          'Local API needs control firmware 153 or later on the Venus C/E (HMG); this device reports',
+          deviceState.deviceVersion,
+        );
+        return false;
+      }
+      if (deviceState.localApiEnabled == null) {
+        logger.warn(
+          'Local API control is not available until the device reports its local API state',
+        );
+        return false;
+      }
+      return true;
+    };
+
     field({
       key: 'api',
       path: ['localApiEnabled'],
@@ -1121,7 +1151,7 @@ function registerRuntimeInfoMessage(
         icon: 'mdi:lan',
         command: 'local-api-enabled',
       }),
-      { enabled: state => (state.deviceVersion == null ? undefined : state.deviceVersion >= 153) },
+      { enabled: localApiEnabled },
     );
 
     field({
@@ -1136,22 +1166,16 @@ function registerRuntimeInfoMessage(
         name: 'Local API Port',
         icon: 'mdi:numeric',
         command: 'local-api-port',
-        min: 0,
+        min: 1,
         max: 65535,
         step: 1,
       }),
-      { enabled: state => (state.deviceVersion == null ? undefined : state.deviceVersion >= 153) },
+      { enabled: localApiEnabled },
     );
 
     command('local-api-enabled', {
       handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
-        if ((deviceState.deviceVersion ?? 0) < 153) {
-          logger.warn(
-            'Local API control not supported for firmware version',
-            deviceState.deviceVersion,
-          );
-          return;
-        }
+        if (!canSetLocalApi(deviceState)) return;
         const enabled = message.toLowerCase() === 'true' || message === '1' || message === 'ON';
         updateDeviceState(() => ({ localApiEnabled: enabled }));
         const params: CommandParams = { api: enabled ? 1 : 0 };
@@ -1164,24 +1188,20 @@ function registerRuntimeInfoMessage(
 
     command('local-api-port', {
       handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
-        if ((deviceState.deviceVersion ?? 0) < 153) {
-          logger.warn(
-            'Local API control not supported for firmware version',
-            deviceState.deviceVersion,
-          );
-          return;
-        }
+        if (!canSetLocalApi(deviceState)) return;
         const port = parseInt(message, 10);
-        if (isNaN(port) || port < 0 || port > 65535) {
+        if (isNaN(port) || port < 1 || port > 65535) {
           logger.warn('Invalid local API port value:', message);
           return;
         }
         updateDeviceState(() => ({ localApiPort: port }));
-        const params: CommandParams = { port };
-        if (deviceState.localApiEnabled != null) {
-          params.api = deviceState.localApiEnabled ? 1 : 0;
-        }
-        publishCallback(processCommand(CommandType.SET_LOCAL_API, params));
+        // `api` has to come first, or the device ignores the port.
+        publishCallback(
+          processCommand(CommandType.SET_LOCAL_API, {
+            api: deviceState.localApiEnabled ? 1 : 0,
+            port,
+          }),
+        );
       },
     });
 

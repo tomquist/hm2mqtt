@@ -256,7 +256,7 @@
       },
       "icon": "mdi:numeric",
       "max": 65535,
-      "min": 0,
+      "min": 1,
       "name": "Local API Port",
       "origin": {
         "name": "hm2mqtt",

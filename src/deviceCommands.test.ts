@@ -1331,11 +1331,11 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
 
-  // local-api-enabled command (requires firmware >= 153)
+  // local-api-enabled command (cd=30; HMG from 153, every VNS build)
   {
     description: 'Venus local-api-enabled enable',
     deviceType: 'HMG-1',
-    initialState: { deviceVersion: 153, localApiPort: 8080 },
+    initialState: { deviceVersion: 153, localApiEnabled: false, localApiPort: 8080 },
     command: 'local-api-enabled',
     input: 'true',
     expectedOutput: 'cd=30,api=1,port=8080',
@@ -1343,35 +1343,76 @@ const commandTestCases: CommandTestCase[] = [
   {
     description: 'Venus local-api-enabled disable',
     deviceType: 'HMG-1',
-    initialState: { deviceVersion: 153, localApiPort: 8080 },
+    initialState: { deviceVersion: 153, localApiEnabled: true, localApiPort: 8080 },
     command: 'local-api-enabled',
     input: 'false',
     expectedOutput: 'cd=30,api=0,port=8080',
   },
   {
-    description: 'Venus local-api-enabled unsupported firmware (no output)',
+    description: 'Venus local-api-enabled without a reported local API state (no output)',
     deviceType: 'HMG-1',
-    initialState: { deviceVersion: 150 },
+    initialState: { deviceVersion: 153 },
     command: 'local-api-enabled',
     input: 'true',
     expectedOutput: null,
   },
+  {
+    description: 'Venus local-api-enabled refused on HMG control firmware 152',
+    deviceType: 'HMG-1',
+    initialState: { deviceVersion: 152, localApiEnabled: false },
+    command: 'local-api-enabled',
+    input: 'true',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus local-api-enabled on VNSD control firmware 147',
+    deviceType: 'VNSD-0',
+    initialState: { deviceVersion: 147, localApiEnabled: false, localApiPort: 30000 },
+    command: 'local-api-enabled',
+    input: 'ON',
+    expectedOutput: 'cd=30,api=1,port=30000',
+  },
 
-  // local-api-port command
+  // local-api-port command: `api` must precede `port`
   {
     description: 'Venus local-api-port valid',
     deviceType: 'HMG-1',
     initialState: { deviceVersion: 153, localApiEnabled: true },
     command: 'local-api-port',
     input: '9090',
-    expectedOutput: 'cd=30,port=9090,api=1',
+    expectedOutput: 'cd=30,api=1,port=9090',
+    expectedStateChanges: { localApiPort: 9090 },
+  },
+  {
+    description: 'Venus local-api-port on VNSA control firmware 143',
+    deviceType: 'VNSA-0',
+    initialState: { deviceVersion: 143, localApiEnabled: true },
+    command: 'local-api-port',
+    input: '48977',
+    expectedOutput: 'cd=30,api=1,port=48977',
   },
   {
     description: 'Venus local-api-port invalid (above max)',
     deviceType: 'HMG-1',
-    initialState: { deviceVersion: 153 },
+    initialState: { deviceVersion: 153, localApiEnabled: true },
     command: 'local-api-port',
     input: '70000',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus local-api-port invalid (0)',
+    deviceType: 'VNSE3-0',
+    initialState: { deviceVersion: 151, localApiEnabled: true },
+    command: 'local-api-port',
+    input: '0',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus local-api-port without a reported local API state (no output)',
+    deviceType: 'HMG-50',
+    initialState: { deviceVersion: 156 },
+    command: 'local-api-port',
+    input: '9090',
     expectedOutput: null,
   },
 

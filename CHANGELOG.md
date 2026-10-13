@@ -29,6 +29,7 @@
 ### Fixed
 
 - Venus: The *Bluetooth Advertising* switch showed the Bluetooth connection state instead of the setting, so it was often wrong. It now shows the setting, and on the Venus C/E (HMG) appears only from control firmware 156, the first to support it
+- Venus: The *Local API* switch and port now show up on the Venus E 3.0, Venus A and Venus D, and changing the port now takes effect
 
 ## [1.10.2] - 2026-10-13
 

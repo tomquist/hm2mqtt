@@ -212,9 +212,9 @@ guesses based on context and cross-referencing other commands:
 | ble | Bluetooth module state, not a bitmask: 0 not initialised, 1 advertising, 2 connected, 3 disconnected, 4 not advertising (HMG 156 and later). The advertising *setting* is `bl` |
 | c_ratio | CT ratio (%) *(unconfirmed)* |
 | udp | UDP enabled *(unconfirmed)* |
-| api | Local API enabled (0: disabled; 1: enabled) (see `cd=30`) |
+| api | Local API enabled (0: disabled; 1: enabled) (see `cd=30`). Reported by every firmware with the local API |
 | net | *(unconfirmed)* |
-| port | Local API port (see `cd=30`) |
+| port | Local API port (see `cd=30`; factory default 30000) |
 | inv_v | Inverter / micro module version number (matches the `micro` OTA image version) |
 | id | *(unconfirmed)*, pipe-separated list |
 | lk | Lock flag *(unconfirmed)* |
@@ -639,7 +639,9 @@ The current surplus feed-in state is also reported in the first component of the
 ## 19 Configure the local API
 
 Enables/disables the device's local API (used by tools such as the Marstek
-local Modbus/UDP integrations) and configures its port.
+local Modbus/UDP integrations) and configures its port. Available on every
+Venus E 3.0, Venus A and Venus D build, and from control firmware 153 on the
+Venus C/E (HMG). Firmware that has it reports the `api` and `port` fields.
 
 ### 19.1 Public
 
@@ -658,12 +660,17 @@ Description of the above parameters:
 |-----|-------------|
 | cd | Instruction identification |
 | api | Local API enabled (0: disabled; 1: enabled) |
-| port | Local API port (e.g. 30000) |
+| port | Local API port, 1-65535 (factory default 30000) |
+
+The key order matters: the device only looks for `port` after `api`, so
+`cd=30,port=30000,api=1` ignores the port and `cd=30,port=30000` changes nothing.
 
 The current local API state and port are reported as the `api` and `port`
 fields in the device information.
 
-> Note: this command does not produce a response.
+### 19.2 Receive
+
+`cd=30,ret=<api>,port=<port>`, the resulting state and port.
 
 ## 20 Start phase diagnosis
 

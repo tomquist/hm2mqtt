@@ -712,6 +712,8 @@ Applies to HMG/VNSE3/VNSA/VNSD. None of the commands below are available on the 
 - `backup-enabled`: Toggles the backup/EPS ("UPS") power function (`on` or `off`)
 - `led-enabled`: Toggles the status LED (`on` or `off`). Only available on firmware that reports the LED state.
 - `surplus-feed-in`: Toggles surplus feed-in into the grid (`on` or `off`). Only available on Venus models with PV inputs (Venus A/D).
+- `local-api-enabled`: Toggles the device's local API (`ON` or `OFF`). Available on firmware that reports the local API state: every Venus E 3.0, Venus A and Venus D, and control firmware 153 or later on the Venus C/E (HMG).
+- `local-api-port`: Sets the local API port (1-65535). Same availability as `local-api-enabled`.
 - `bluetooth-advertising`: Toggles Bluetooth advertising (`on` enables advertising, `off` disables it / "Bluetooth lock"). Requires control firmware 156 or later on the Venus C/E (HMG), and 144 or later on the other models.
 - `phase-diagnosis`: Starts the grid-phase detection routine
 - `peak-shaving`: Toggles peak shaving, which caps the power drawn from the grid (`on` or `off`). Only available on firmware that reports the peak-shaving state (control v150 and up on Venus D/E).

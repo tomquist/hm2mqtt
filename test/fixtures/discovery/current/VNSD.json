@@ -372,7 +372,41 @@
       "unit_of_measurement": "%",
       "value_template": "{{ value_json.depthOfDischarge }}"
     },
-    "homeassistant/number/VNSD_0123456789ab/local_api_port/config": null,
+    "homeassistant/number/VNSD_0123456789ab/local_api_port/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/VNSD/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/VNSD/control/0123456789ab/local-api-port",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "VNSD",
+        "name": "HAME Energy VNSD 0123456789ab",
+        "sw_version": "147"
+      },
+      "icon": "mdi:numeric",
+      "max": 65535,
+      "min": 1,
+      "name": "Local API Port",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/VNSD/device/0123456789ab/data",
+      "step": 1,
+      "unique_id": "0123456789ab_local_api_port",
+      "value_template": "{{ value_json.localApiPort }}"
+    },
     "homeassistant/number/VNSD_0123456789ab/max_charging_power/config": {
       "availability": [
         {
@@ -3126,7 +3160,42 @@
       "unique_id": "0123456789ab_led_enabled",
       "value_template": "{{ value_json.ledEnabled }}"
     },
-    "homeassistant/switch/VNSD_0123456789ab/local_api_enabled/config": null,
+    "homeassistant/switch/VNSD_0123456789ab/local_api_enabled/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/VNSD/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/VNSD/control/0123456789ab/local-api-enabled",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "VNSD",
+        "name": "HAME Energy VNSD 0123456789ab",
+        "sw_version": "147"
+      },
+      "icon": "mdi:lan",
+      "name": "Local API Enabled",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_off": "false",
+      "payload_on": "true",
+      "state_off": false,
+      "state_on": true,
+      "state_topic": "hm2mqtt/VNSD/device/0123456789ab/data",
+      "unique_id": "0123456789ab_local_api_enabled",
+      "value_template": "{{ value_json.localApiEnabled }}"
+    },
     "homeassistant/switch/VNSD_0123456789ab/surplus_feed_in/config": {
       "availability": [
         {
