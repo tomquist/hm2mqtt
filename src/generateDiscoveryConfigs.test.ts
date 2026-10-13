@@ -204,6 +204,48 @@ describe('Home Assistant Discovery', () => {
     expect(surplusSwitchDisabled?.config).toBeNull();
   });
 
+  test('should clear the pass-through sensors on HMJ, which never reports them', () => {
+    const configsFor = (deviceType: string) => {
+      const device: Device = { deviceType, deviceId: 'test123' };
+      const deviceTopics: DeviceTopics = {
+        deviceTopicOld: `hame_energy/${deviceType}/device/test123/ctrl`,
+        deviceTopicNew: `marstek_energy/${deviceType}/device/test123/ctrl`,
+        publishTopic: `hame_energy/${deviceType}/device/test123/data`,
+        deviceControlTopicOld: `hame_energy/${deviceType}/App/test123/ctrl`,
+        deviceControlTopicNew: `marstek_energy/${deviceType}/App/test123/ctrl`,
+        controlSubscriptionTopic: `hame_energy/${deviceType}/control/test123/control`,
+        availabilityTopic: `hame_energy/${deviceType}/availability/test123`,
+      };
+      return generateDiscoveryConfigs(
+        device,
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        { deviceType, deviceInfo: { deviceVersion: 116 } },
+      );
+    };
+    const passThrough = (deviceType: string, input: 1 | 2) =>
+      configsFor(deviceType).find(
+        c =>
+          c.topic.includes(`binary_sensor/`) &&
+          c.topic.endsWith(`/input${input}_pass_through/config`),
+      );
+
+    for (const input of [1, 2] as const) {
+      const hmj = passThrough('HMJ-2', input);
+      expect(hmj).toBeDefined();
+      expect(hmj?.config).toBeNull();
+
+      const hma = passThrough('HMA-1', input);
+      expect(hma?.config).not.toBeNull();
+    }
+    // The charging flag in bit 0 stays.
+    expect(
+      configsFor('HMJ-2').find(c => c.topic.endsWith('/input1_charging/config'))?.config,
+    ).not.toBeNull();
+  });
+
   test('should support custom autodiscovery topic prefix', () => {
     const device: Device = { deviceType: 'HMA-1', deviceId: 'test123' };
     const deviceTopics: DeviceTopics = {

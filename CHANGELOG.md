@@ -11,6 +11,7 @@
 - B2500 V2/V3: *Sync Time* now also sets the device's time zone, so discharge timers no longer run an hour off after a daylight-saving change, or on UTC if no time zone had ever been set
 - B2500 V2/V3: Changing a timer period also switches the device out of adaptive mode. *Adaptive Mode* now shows this straight away
 - B2500 V2/V3: Timer start and end times from 24:00 to 29:59 are no longer accepted. The device turns them into an all-day period after its next restart
+- B2500 (HMJ): Removed the *Input 1/2 Pass Through* sensors, which this model never reports and which were always off
 
 ## [1.10.2] - 2026-10-13
 

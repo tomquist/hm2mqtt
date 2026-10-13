@@ -15,6 +15,7 @@ import {
 } from '../types.js';
 import logger from '../logger.js';
 import {
+  B2500BaseMessageOptions,
   CommandType,
   extractAdditionalDeviceInfo,
   isB2500RuntimeInfoMessage,
@@ -236,20 +237,22 @@ function buildTimePeriodParams(
   return params;
 }
 
-registerDeviceDefinition(
-  {
-    deviceTypes: ['HMA', 'HMF', 'HMJ', 'HMK'],
-  },
-  ({ message }) => {
-    registerRuntimeInfoMessage(message);
+function registerB2500V2Definition(deviceTypes: string[], options: B2500BaseMessageOptions) {
+  registerDeviceDefinition({ deviceTypes }, ({ message }) => {
+    registerRuntimeInfoMessage(message, options);
     registerExtraBatteryData(message);
     registerCellDataMessage(message);
     registerB2500CellBalancingMessage(message, { hasPackCurrent: true });
     registerCalibrationDataMessage(message);
-  },
-);
+  });
+}
 
-function registerRuntimeInfoMessage(message: BuildMessageFn) {
+// The HMJ is registered on its own because its firmware reports less than the
+// other models, and discovery cannot read the model from the device state.
+registerB2500V2Definition(['HMA', 'HMF', 'HMK'], { reportsPassThrough: true });
+registerB2500V2Definition(['HMJ'], { reportsPassThrough: false });
+
+function registerRuntimeInfoMessage(message: BuildMessageFn, baseOptions: B2500BaseMessageOptions) {
   let options = {
     refreshDataPayload: 'cd=1',
     isMessage: isB2500RuntimeInfoMessage,
@@ -278,7 +281,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
   };
 
   message<B2500V2DeviceData>(options, ({ field, command, advertise }) => {
-    registerBaseMessage({ command, advertise, field });
+    registerBaseMessage({ command, advertise, field }, baseOptions);
 
     // Charging and discharging settings
     field({

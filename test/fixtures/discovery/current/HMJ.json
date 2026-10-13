@@ -521,38 +521,7 @@
       "unique_id": "0123456789ab_input1_charging",
       "value_template": "{{ value_json.solarInputStatus.input1Charging }}"
     },
-    "homeassistant/binary_sensor/HMJ_0123456789ab/input1_pass_through/config": {
-      "availability": [
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/availability"
-        },
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/HMJ/availability/0123456789ab"
-        }
-      ],
-      "device": {
-        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
-        "ids": ["hame_energy_0123456789ab"],
-        "manufacturer": "HAME Energy",
-        "model_id": "HMJ",
-        "name": "HAME Energy HMJ 0123456789ab"
-      },
-      "device_class": "power",
-      "name": "Input 1 Pass Through",
-      "origin": {
-        "name": "hm2mqtt",
-        "url": "https://github.com/tomquist/hm2mqtt"
-      },
-      "payload_off": false,
-      "payload_on": true,
-      "state_topic": "hm2mqtt/HMJ/device/0123456789ab/data",
-      "unique_id": "0123456789ab_input1_pass_through",
-      "value_template": "{{ value_json.solarInputStatus.input1PassThrough }}"
-    },
+    "homeassistant/binary_sensor/HMJ_0123456789ab/input1_pass_through/config": null,
     "homeassistant/binary_sensor/HMJ_0123456789ab/input2_charging/config": {
       "availability": [
         {
@@ -585,38 +554,7 @@
       "unique_id": "0123456789ab_input2_charging",
       "value_template": "{{ value_json.solarInputStatus.input2Charging }}"
     },
-    "homeassistant/binary_sensor/HMJ_0123456789ab/input2_pass_through/config": {
-      "availability": [
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/availability"
-        },
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/HMJ/availability/0123456789ab"
-        }
-      ],
-      "device": {
-        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
-        "ids": ["hame_energy_0123456789ab"],
-        "manufacturer": "HAME Energy",
-        "model_id": "HMJ",
-        "name": "HAME Energy HMJ 0123456789ab"
-      },
-      "device_class": "power",
-      "name": "Input 2 Pass Through",
-      "origin": {
-        "name": "hm2mqtt",
-        "url": "https://github.com/tomquist/hm2mqtt"
-      },
-      "payload_off": false,
-      "payload_on": true,
-      "state_topic": "hm2mqtt/HMJ/device/0123456789ab/data",
-      "unique_id": "0123456789ab_input2_pass_through",
-      "value_template": "{{ value_json.solarInputStatus.input2PassThrough }}"
-    },
+    "homeassistant/binary_sensor/HMJ_0123456789ab/input2_pass_through/config": null,
     "homeassistant/binary_sensor/HMJ_0123456789ab/output1_active_state/config": {
       "availability": [
         {
