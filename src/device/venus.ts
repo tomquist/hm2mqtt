@@ -2461,10 +2461,7 @@ function registerRuntimeInfoMessage(
             ? 300
             : 0;
         if (isNaN(power) || power < minPower || power > maxPower) {
-          logger.warn(
-            `Invalid maximum charging power value (${minPower}-${maxPower} W):`,
-            message,
-          );
+          logger.warn(`Invalid maximum charging power value (${minPower}-${maxPower} W):`, message);
           return;
         }
 
@@ -2973,8 +2970,10 @@ function registerBMSPackDetailMessage(
 // The cd=26 response reports the device's network configuration. Its
 // non-standard colon-delimited format is normalized into ip/gate/mask/dns/
 // ct_connect_ip keys by the message parser before it reaches these fields.
+// The Venus C/E (HMG) answers without the `cd=26,` prefix, and control
+// firmware 149 without `ct_connect_ip`.
 function isVenusNetworkInfoMessage(values: Record<string, string>): boolean {
-  return 'ip' in values && 'gate' in values && 'ct_connect_ip' in values;
+  return (values.cd === undefined || values.cd === '26') && 'ip' in values && 'gate' in values;
 }
 
 function registerVenusNetworkInfoMessage(message: BuildMessageFn) {

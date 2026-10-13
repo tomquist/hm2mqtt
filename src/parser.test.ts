@@ -1709,6 +1709,37 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('ctConnectIp', '192.168.178.255');
   });
 
+  test('parses the Venus C/E (HMG) network info, sent without the cd=26 prefix', () => {
+    const message =
+      'dev_net_info:ip:192.168.1.50,gate:192.168.1.1,mask:255.255.255.0,dns:192.168.1.1,ct_connect_ip:192.168.1.255';
+    const parsed = parseMessage(message, 'HMG-50', 'venus123');
+
+    expect(Object.keys(parsed)).toEqual(['network']);
+    const result = parsed['network'] as VenusNetworkInfo;
+    expect(result).toHaveProperty('ipAddress', '192.168.1.50');
+    expect(result).toHaveProperty('gateway', '192.168.1.1');
+    expect(result).toHaveProperty('subnetMask', '255.255.255.0');
+    expect(result).toHaveProperty('dns', '192.168.1.1');
+    expect(result).toHaveProperty('ctConnectIp', '192.168.1.255');
+  });
+
+  test('parses the HMG control firmware 149 network info without ct_connect_ip', () => {
+    const message =
+      'dev_net_info:ip:192.168.1.50,gate:192.168.1.1,mask:255.255.255.0,dns:192.168.1.1';
+    const parsed = parseMessage(message, 'HMG-1', 'venus123');
+
+    expect(Object.keys(parsed)).toEqual(['network']);
+    const result = parsed['network'] as VenusNetworkInfo;
+    expect(result).toHaveProperty('ipAddress', '192.168.1.50');
+    expect(result).toHaveProperty('dns', '192.168.1.1');
+    expect(result).not.toHaveProperty('ctConnectIp');
+  });
+
+  test('does not read other Venus replies with ip and gate as network info', () => {
+    const parsed = parseMessage('cd=24,ip=192.168.1.20,gate=192.168.1.1', 'VNSA-0', 'venus123');
+    expect(parsed).not.toHaveProperty('network');
+  });
+
   test('parses a real Venus E Mini (VNSEMINI) cd=1 reading', () => {
     // Real captured cd=1 response from a Venus E Mini (VENUS_MINI_NOTES.md,
     // VENUS_MINI_IMPLEMENTATION_PROMPT.md). This model's field names share

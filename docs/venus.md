@@ -903,7 +903,8 @@ cd=54,ret=1
 
 ## 23 Read network information
 
-Returns the device's current network configuration. Observed on Venus D v147.
+Returns the device's current network configuration. Available on the Venus E
+3.0, Venus A and Venus D, and on the Venus C/E (HMG) from control firmware 149.
 
 ### 23.1 Public
 
@@ -925,6 +926,15 @@ cd=26,dev_net_info:ip:192.168.178.134,gate:192.168.178.1,mask:255.255.255.0,dns:
 
 Note the unusual format: after `cd=26,` the payload is a `dev_net_info:`
 prefix followed by colon-separated `key:value` pairs (comma-separated).
+
+The Venus C/E (HMG) leaves out the `cd=26,` prefix, and control firmware 149
+also leaves out `ct_connect_ip`:
+
+| Model | Builds | Reply |
+|-------|--------|-------|
+| Venus E 3.0, Venus A, Venus D | all | `cd=26,dev_net_info:ip:…,gate:…,mask:…,dns:…,ct_connect_ip:…` |
+| Venus C/E (HMG) | 151 and later | `dev_net_info:ip:…,gate:…,mask:…,dns:…,ct_connect_ip:…` |
+| Venus C/E (HMG) | 149 | `dev_net_info:ip:…,gate:…,mask:…,dns:…` |
 
 | Key | Description |
 |-----|-------------|

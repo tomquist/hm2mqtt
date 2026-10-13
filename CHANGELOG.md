@@ -37,6 +37,7 @@
 - Venus A/D: *PV Energy Total* was this month's PV energy, not a lifetime total, and is now called *PV Energy This Month*
 - Venus: *Maximum Charging Power* stayed empty on Venus C/E (HMG) firmware 153 and later, which reports it as a negative number. Values the model's firmware rejects are now refused
 - Venus C/E (HMG) and Venus E 3.0: *Enable Cell Data* no longer requests per-pack battery details these models do not provide
+- Venus C/E (HMG): The network sensors, such as the IP address, never appeared because this model answers in a slightly different format
 
 ## [1.10.2] - 2026-10-13
 

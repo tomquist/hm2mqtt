@@ -10,8 +10,10 @@ import { identity } from '../transforms.js';
  *
  *   cd=26,dev_net_info:ip:1.2.3.4,gate:1.2.3.1,mask:255.255.255.0,dns:1.2.3.1,ct_connect_ip:1.2.3.255
  *
- * The message parser normalizes that non-standard colon-delimited format into
- * plain `ip=…` key/value pairs before the fields below see it.
+ * The Venus C/E (HMG) sends the same reply without the `cd=26,` prefix, and
+ * control firmware 149 leaves out `ct_connect_ip`. The message parser
+ * normalizes that non-standard colon-delimited format into plain `ip=…`
+ * key/value pairs before the fields below see it.
  */
 
 const networkFields = [
