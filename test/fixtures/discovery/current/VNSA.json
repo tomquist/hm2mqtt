@@ -1991,7 +1991,7 @@
         "sw_version": "143"
       },
       "device_class": "energy",
-      "name": "PV Energy Total",
+      "name": "PV Energy This Month",
       "origin": {
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"

@@ -641,7 +641,7 @@ export interface VenusDeviceData extends BaseDeviceData {
   pv4Connected?: boolean;
   totalPvPower?: number;
   pvEnergyToday?: number;
-  pvEnergyTotal?: number;
+  pvEnergyTotal?: number; // this month's PV energy (Wh), despite the name
 
   // Grid information
   offGridPower?: number;

@@ -230,7 +230,7 @@ guesses based on context and cross-referencing other commands:
 | as | *(unconfirmed)* |
 | mppt | MPPT module version number *(unconfirmed)* |
 | pack | Battery pack summary `num\|mask\|idx\|?` — matches the `cd=42` BMS response (number of packs \| present-pack bitmask \| index) |
-| pv | PV energy (Wh), pipe-separated — first component is today's collected PV energy, the last component is the cumulative total (the total is likely but unconfirmed; reading it as the last component leaves room for monthly/yearly values to be added in between) |
+| pv | PV energy `today\|this month`, both in units of 10 Wh. There is no lifetime total; the monthly value starts again at the beginning of each month |
 | fu | Surplus feed-in state `enabled\|?` — first component is `1` when surplus feed-in is enabled, `0` when disabled (see `cd=43`) |
 | em | *(unconfirmed)* |
 | peak_status | Peak shaving enabled (0: off; 1: on) (see [Configure peak shaving](#28-configure-peak-shaving)) |

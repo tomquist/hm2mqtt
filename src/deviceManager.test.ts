@@ -309,6 +309,14 @@ describe('DeviceManager', () => {
       expect(daily()).toBe(5.1);
     });
 
+    it("accepts the monthly reset of the Venus month's PV energy at once", () => {
+      const vnsa = { deviceType: 'VNSA-0', deviceId: 'venusA123' };
+      const venusA = new DeviceManager({ ...venusConfig, devices: [vnsa] }, jest.fn());
+      venusA.updateDeviceState(vnsa, 'data', () => ({ pvEnergyTotal: 9000 }));
+      venusA.updateDeviceState(vnsa, 'data', () => ({ pvEnergyTotal: 30 })); // new month
+      expect((venusA.getDeviceState(vnsa) as any).pvEnergyTotal).toBe(30);
+    });
+
     it('guards nested cumulative paths without dropping sibling fields', () => {
       const b2500 = new DeviceManager(mockConfig, jest.fn());
       const hma = mockConfig.devices[0];
