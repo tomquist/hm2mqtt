@@ -8,6 +8,7 @@
 - Venus C/E (`HMG`) and the Marstek smart meters now also work when they talk straight to your own MQTT broker, without hame-relay, if you configure their MAC address
 - Venus C/E (HMG): *Depth of Discharge* now goes up to 90 %, which the firmware allows
 - Venus: New *Restart* button (disabled by default). On the Venus C/E (HMG) it needs control firmware 151 or later
+- Venus: *Meter Type* accepts the P1 Meter and EcoTracker without a *Meter MAC*, and offers the Stromleser on the Venus E 3.0, Venus A and Venus D
 
 ### Changed
 

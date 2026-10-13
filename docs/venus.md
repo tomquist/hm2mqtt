@@ -609,20 +609,24 @@ Payload:
 
 Newer firmware uses `cd=18` for the same purpose. Set the recharge phase with
 `cd=18,dchrg=0` (single-phase) or `cd=18,dchrg=1` (three-phase), and set the
-external meter type with `cd=18,meter=<code>,mac=<mac>`:
+external meter type with `cd=18,meter=<code>,mac=<mac>`. `mac=` is optional
+and, when present, must be exactly 12 characters:
 
 | meter code | Meter type | MAC |
 | --- | --- | --- |
 | 0 | CT001 | not required (`000000000000`) |
 | 1 | Shelly Pro 3EM | fixed `000000000000` |
+| 2 | P1 Meter | not required (found by IP address) |
 | 3 | CT002 | required |
 | 4 | CT003 | required |
 | 5 | Shelly EM Gen3 | required |
 | 6 | Shelly Pro EM50 | required |
+| 7 | EcoTracker | not required (found by IP address) |
 | 8 | SMR-P1 | required |
 | 9 | SMR-IR | required |
 | 10 | SMR-TIC | required |
 | 11 | TPM2-100CT | required |
+| 12 | Stromleser | not required (found by IP address) |
 
 Which codes a unit accepts depends on its model and control firmware build;
 higher codes are ignored:

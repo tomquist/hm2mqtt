@@ -5,13 +5,11 @@ import {
 } from '../deviceDefinition.js';
 import {
   CommandParams,
-  isValidMeterType,
   isValidVenusParallelMode,
   isValidVenusRechargeMode,
   isValidVenusVersionSet,
+  isValidVenusMeterType,
   isValidVenusWorkingMode,
-  MeterType,
-  meterTypeCommandCodes,
   meterTypeLabels,
   normalizeMeterMac,
   ReportedMeterType,
@@ -22,6 +20,8 @@ import {
   VenusBMSPackInfo,
   VenusBMSPackDetail,
   VenusDeviceData,
+  VenusMeterType,
+  venusMeterTypeCommandCodes,
   VenusTimePeriod,
   VenusVersionSet,
   VenusWorkingMode,
@@ -394,22 +394,45 @@ const vnsCtTypeCodes: Record<string, ReportedMeterType> = {
 // `ct_t`. Earlier HMG builds report an electricity price or 0 there. They also
 // lack `c_ratio`, which the Meter Type readback requires alongside `prc_d`.
 const configuredMeterTypes = Object.fromEntries(
-  Object.entries(meterTypeCommandCodes).map(([meterType, code]) => [String(code), meterType]),
-) as Record<string, MeterType>;
+  Object.entries(venusMeterTypeCommandCodes).map(([meterType, code]) => [String(code), meterType]),
+) as Record<string, VenusMeterType>;
 
 /**
- * The highest `meter=` code a Venus C/E (HMG) build accepts: 4 before 147, 6 on
- * 147, 7 from 148 and 11 from 156. Higher codes are ignored by the device.
- * `undefined` while the build is unknown, or on the other models, which accept
- * every code hm2mqtt offers.
+ * The highest `meter=` code a model and build accept; the device ignores
+ * higher codes. The Venus C/E (HMG) takes up to 4 before control firmware 147,
+ * 6 on 147, 7 from 148 and 11 from 156, and never 12 (Stromleser). The Venus E
+ * 3.0 takes up to 11 on 144, and the Venus E 3.0, Venus A and Venus D up to 12
+ * otherwise. While the build is unknown the model's highest code applies.
  */
-function venusMaxMeterCode(model: VenusModel, deviceVersion: number | undefined) {
+function venusMaxMeterCode(model: VenusModel, deviceVersion: number | undefined): number {
   const build = venusBuild(deviceVersion);
-  if (model !== 'HMG' || build === undefined) return undefined;
-  if (build >= 156) return 11;
-  if (build >= 148) return 7;
-  if (build >= 147) return 6;
-  return 4;
+  if (model === 'HMG') {
+    if (build === undefined || build >= 156) return 11;
+    if (build >= 148) return 7;
+    if (build >= 147) return 6;
+    return 4;
+  }
+  return model === 'VNSE3' && build !== undefined && build <= 144 ? 11 : 12;
+}
+
+/**
+ * The MAC to send with `cd=18,meter=`, or `undefined` to send none. The MAC is
+ * optional: the P1 Meter, EcoTracker and Stromleser are found by IP address, so
+ * they are configured without one when none is set. Otherwise the shared rules
+ * apply, and `null` means a required MAC is missing.
+ */
+function venusMeterMac(meterType: VenusMeterType, configuredMac?: string) {
+  if (meterType === 'p1Meter' || meterType === 'ecoTracker' || meterType === 'stromleser') {
+    return configuredMac;
+  }
+  return resolveMeterMac(meterType, configuredMac);
+}
+
+/** The `cd=18` parameters that configure a meter. */
+function venusMeterParams(meterType: VenusMeterType, mac: string | undefined): CommandParams {
+  const params: CommandParams = { meter: venusMeterTypeCommandCodes[meterType] };
+  if (mac !== undefined) params.mac = mac;
+  return params;
 }
 
 // Per-string PV input power (PV1–PV4) is reported by Venus models that have PV
@@ -2355,13 +2378,13 @@ function registerRuntimeInfoMessage(
           // If a meter type is already configured, re-apply it with the new MAC
           // so the device stays in sync when the MAC is edited afterwards.
           if (state.meterType) {
-            const resolved = resolveMeterMac(state.meterType, mac);
+            const resolved = venusMeterMac(state.meterType, mac);
             if (resolved !== null) {
               publishCallback(
-                processCommand(CommandType.SET_METER_TYPE, {
-                  meter: meterTypeCommandCodes[state.meterType],
-                  mac: resolved,
-                }),
+                processCommand(
+                  CommandType.SET_METER_TYPE,
+                  venusMeterParams(state.meterType, resolved),
+                ),
               );
             }
           }
@@ -2387,19 +2410,20 @@ function registerRuntimeInfoMessage(
     // Configure the external meter type (cd=18,meter=...,mac=...).
     command('meter-type', {
       handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
-        if (!isValidMeterType(message)) {
+        if (!isValidVenusMeterType(message)) {
           logger.warn('Invalid meter type value:', message);
           return;
         }
-        const maxCode = venusMaxMeterCode(model, deviceState.deviceVersion);
-        if (maxCode !== undefined && meterTypeCommandCodes[message] > maxCode) {
+        if (
+          venusMeterTypeCommandCodes[message] > venusMaxMeterCode(model, deviceState.deviceVersion)
+        ) {
           logger.warn(
-            `Meter type ${message} is not supported by control firmware ${deviceState.deviceVersion}`,
+            `Meter type ${message} is not supported by this device (control firmware ${deviceState.deviceVersion ?? 'unknown'})`,
           );
           return;
         }
         updateDeviceState(state => {
-          const mac = resolveMeterMac(message, state.meterMac);
+          const mac = venusMeterMac(message, state.meterMac);
           if (mac === null) {
             logger.warn(
               `Meter type ${message} requires a MAC; set the "Meter MAC" entity before selecting it`,
@@ -2407,10 +2431,7 @@ function registerRuntimeInfoMessage(
             return;
           }
           publishCallback(
-            processCommand(CommandType.SET_METER_TYPE, {
-              meter: meterTypeCommandCodes[message],
-              mac,
-            }),
+            processCommand(CommandType.SET_METER_TYPE, venusMeterParams(message, mac)),
           );
           return { meterType: message };
         });
@@ -2432,7 +2453,13 @@ function registerRuntimeInfoMessage(
         name: 'Meter Type',
         icon: 'mdi:meter-electric',
         command: 'meter-type',
-        valueMappings: meterTypeLabels,
+        // The Stromleser is only offered where `meter=12` exists.
+        valueMappings: (model === 'HMG'
+          ? meterTypeLabels
+          : { ...meterTypeLabels, stromleser: reportedMeterTypeLabels.stromleser }) as Record<
+          VenusMeterType,
+          string
+        >,
         optimistic,
         enabled_by_default: false,
       });

@@ -537,6 +537,24 @@ export const meterTypeCommandCodes: Record<MeterType, number> = {
 };
 
 /**
+ * Meter types the first-generation Venus can be configured for: the shared ones
+ * plus the Stromleser (`meter=12`), which only the Venus E 3.0, Venus A and
+ * Venus D accept.
+ */
+const validVenusMeterTypes = [...validMeterTypes, 'stromleser'] as const;
+export type VenusMeterType = (typeof validVenusMeterTypes)[number];
+
+export function isValidVenusMeterType(type: string): type is VenusMeterType {
+  return validVenusMeterTypes.includes(type as VenusMeterType);
+}
+
+/** The `meter=` code a Venus takes for each meter type. */
+export const venusMeterTypeCommandCodes: Record<VenusMeterType, number> = {
+  ...meterTypeCommandCodes,
+  stromleser: 12,
+};
+
+/**
  * Human-readable labels for each meter type, used for Home Assistant discovery.
  */
 export const meterTypeLabels = Object.fromEntries(
@@ -680,7 +698,7 @@ export interface VenusDeviceData extends BaseDeviceData {
   ctType?: ReportedMeterType;
   phaseType?: VenusPhaseType;
   rechargeMode?: VenusRechargeMode;
-  meterType?: MeterType; // prc_d, set via cd=18 (HMG before 149: the last value set)
+  meterType?: VenusMeterType; // prc_d, set via cd=18 (HMG before 149: the last value set)
   meterMac?: string; // MAC used when configuring the meter type
   bmsVersion?: number;
   communicationModuleVersion?: string;

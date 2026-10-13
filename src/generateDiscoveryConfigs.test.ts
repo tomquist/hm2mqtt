@@ -646,6 +646,9 @@ describe('Home Assistant Discovery', () => {
     expect(hmg148[0]).not.toHaveProperty('state_topic');
     // Deferred while the HMG build is unknown.
     expect(meterType('HMG-50', {})).toHaveLength(0);
+    // Only the Venus E 3.0, Venus A and Venus D offer the Stromleser.
+    expect(vnsa[0]!.options).toContain('Stromleser');
+    expect(hmg[0]!.options).not.toContain('Stromleser');
   });
 
   test('should remove the Venus price, income, error and grid type sensors where unfilled', () => {
