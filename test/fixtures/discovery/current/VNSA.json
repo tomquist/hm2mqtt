@@ -1213,38 +1213,7 @@
     "homeassistant/sensor/VNSA_0123456789ab/cell_voltage_9/config": null,
     "homeassistant/sensor/VNSA_0123456789ab/cellCycle/config": null,
     "homeassistant/sensor/VNSA_0123456789ab/chargeVoltage/config": null,
-    "homeassistant/sensor/VNSA_0123456789ab/charging_price/config": {
-      "availability": [
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/availability"
-        },
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/VNSA/availability/0123456789ab"
-        }
-      ],
-      "device": {
-        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
-        "ids": ["hame_energy_0123456789ab"],
-        "manufacturer": "HAME Energy",
-        "model_id": "VNSA",
-        "name": "HAME Energy VNSA 0123456789ab",
-        "sw_version": "143"
-      },
-      "device_class": "monetary",
-      "name": "Charging Price",
-      "origin": {
-        "name": "hm2mqtt",
-        "url": "https://github.com/tomquist/hm2mqtt"
-      },
-      "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
-      "unique_id": "0123456789ab_charging_price",
-      "unit_of_measurement": "€",
-      "value_template": "{{ value_json.chargingPrice }}"
-    },
+    "homeassistant/sensor/VNSA_0123456789ab/charging_price/config": null,
     "homeassistant/sensor/VNSA_0123456789ab/combined_power/config": {
       "availability": [
         {
@@ -1439,39 +1408,7 @@
       "unit_of_measurement": "kWh",
       "value_template": "{{ value_json.dailyDischargeCapacity }}"
     },
-    "homeassistant/sensor/VNSA_0123456789ab/daily_income/config": {
-      "availability": [
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/availability"
-        },
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/VNSA/availability/0123456789ab"
-        }
-      ],
-      "device": {
-        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
-        "ids": ["hame_energy_0123456789ab"],
-        "manufacturer": "HAME Energy",
-        "model_id": "VNSA",
-        "name": "HAME Energy VNSA 0123456789ab",
-        "sw_version": "143"
-      },
-      "device_class": "monetary",
-      "name": "Daily Income",
-      "origin": {
-        "name": "hm2mqtt",
-        "url": "https://github.com/tomquist/hm2mqtt"
-      },
-      "state_class": "total",
-      "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
-      "unique_id": "0123456789ab_daily_income",
-      "unit_of_measurement": "€",
-      "value_template": "{{ value_json.dailyIncome }}"
-    },
+    "homeassistant/sensor/VNSA_0123456789ab/daily_income/config": null,
     "homeassistant/sensor/VNSA_0123456789ab/device_version/config": {
       "availability": [
         {
@@ -1504,38 +1441,7 @@
       "value_template": "{{ value_json.deviceVersion }}"
     },
     "homeassistant/sensor/VNSA_0123456789ab/diff_cell_voltage/config": null,
-    "homeassistant/sensor/VNSA_0123456789ab/discharge_price/config": {
-      "availability": [
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/availability"
-        },
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/VNSA/availability/0123456789ab"
-        }
-      ],
-      "device": {
-        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
-        "ids": ["hame_energy_0123456789ab"],
-        "manufacturer": "HAME Energy",
-        "model_id": "VNSA",
-        "name": "HAME Energy VNSA 0123456789ab",
-        "sw_version": "143"
-      },
-      "device_class": "monetary",
-      "name": "Discharge Price",
-      "origin": {
-        "name": "hm2mqtt",
-        "url": "https://github.com/tomquist/hm2mqtt"
-      },
-      "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
-      "unique_id": "0123456789ab_discharge_price",
-      "unit_of_measurement": "€",
-      "value_template": "{{ value_json.dischargePrice }}"
-    },
+    "homeassistant/sensor/VNSA_0123456789ab/discharge_price/config": null,
     "homeassistant/sensor/VNSA_0123456789ab/energyThroughput/config": null,
     "homeassistant/sensor/VNSA_0123456789ab/error_code/config": {
       "availability": [
@@ -1603,37 +1509,7 @@
       "unit_of_measurement": "W",
       "value_template": "{{ value_json.gridPower }}"
     },
-    "homeassistant/sensor/VNSA_0123456789ab/grid_type/config": {
-      "availability": [
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/availability"
-        },
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/VNSA/availability/0123456789ab"
-        }
-      ],
-      "device": {
-        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
-        "ids": ["hame_energy_0123456789ab"],
-        "manufacturer": "HAME Energy",
-        "model_id": "VNSA",
-        "name": "HAME Energy VNSA 0123456789ab",
-        "sw_version": "143"
-      },
-      "icon": "mdi:transmission-tower",
-      "name": "Grid Type",
-      "origin": {
-        "name": "hm2mqtt",
-        "url": "https://github.com/tomquist/hm2mqtt"
-      },
-      "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
-      "unique_id": "0123456789ab_grid_type",
-      "value_template": "{% set mapping = {\"adaptive\":\"Adaptive (220-240V) (50-60Hz) AUTO\",\"en50549\":\"EN50549\",\"netherlands\":\"Netherlands\",\"germany\":\"Germany\",\"austria\":\"Austria\",\"unitedKingdom\":\"United Kingdom\",\"spain\":\"Spain\",\"poland\":\"Poland\",\"italy\":\"Italy\",\"china\":\"China\"} %}{% set stringifiedValue = value_json.gridType | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
-    },
+    "homeassistant/sensor/VNSA_0123456789ab/grid_type/config": null,
     "homeassistant/sensor/VNSA_0123456789ab/highest_cell_share/config": null,
     "homeassistant/sensor/VNSA_0123456789ab/highest_cell/config": null,
     "homeassistant/sensor/VNSA_0123456789ab/http_server_type/config": {
@@ -1770,39 +1646,7 @@
       "unit_of_measurement": "kWh",
       "value_template": "{{ value_json.monthlyDischargeCapacity }}"
     },
-    "homeassistant/sensor/VNSA_0123456789ab/monthly_income/config": {
-      "availability": [
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/availability"
-        },
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/VNSA/availability/0123456789ab"
-        }
-      ],
-      "device": {
-        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
-        "ids": ["hame_energy_0123456789ab"],
-        "manufacturer": "HAME Energy",
-        "model_id": "VNSA",
-        "name": "HAME Energy VNSA 0123456789ab",
-        "sw_version": "143"
-      },
-      "device_class": "monetary",
-      "name": "Monthly Income",
-      "origin": {
-        "name": "hm2mqtt",
-        "url": "https://github.com/tomquist/hm2mqtt"
-      },
-      "state_class": "total",
-      "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
-      "unique_id": "0123456789ab_monthly_income",
-      "unit_of_measurement": "€",
-      "value_template": "{{ value_json.monthlyIncome }}"
-    },
+    "homeassistant/sensor/VNSA_0123456789ab/monthly_income/config": null,
     "homeassistant/sensor/VNSA_0123456789ab/mosfetTemp/config": null,
     "homeassistant/sensor/VNSA_0123456789ab/mppt_version/config": {
       "availability": [
@@ -2746,38 +2590,7 @@
       "unit_of_measurement": "kWh",
       "value_template": "{{ value_json.totalDischargeCapacity }}"
     },
-    "homeassistant/sensor/VNSA_0123456789ab/total_income/config": {
-      "availability": [
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/availability"
-        },
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/VNSA/availability/0123456789ab"
-        }
-      ],
-      "device": {
-        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
-        "ids": ["hame_energy_0123456789ab"],
-        "manufacturer": "HAME Energy",
-        "model_id": "VNSA",
-        "name": "HAME Energy VNSA 0123456789ab",
-        "sw_version": "143"
-      },
-      "device_class": "monetary",
-      "name": "Total Income",
-      "origin": {
-        "name": "hm2mqtt",
-        "url": "https://github.com/tomquist/hm2mqtt"
-      },
-      "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
-      "unique_id": "0123456789ab_total_income",
-      "unit_of_measurement": "€",
-      "value_template": "{{ value_json.totalIncome }}"
-    },
+    "homeassistant/sensor/VNSA_0123456789ab/total_income/config": null,
     "homeassistant/sensor/VNSA_0123456789ab/total_pv_power/config": {
       "availability": [
         {

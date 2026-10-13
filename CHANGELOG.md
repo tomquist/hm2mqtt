@@ -33,6 +33,7 @@
 - Venus: The *Local API* switch and port now show up on the Venus E 3.0, Venus A and Venus D, and changing the port now takes effect
 - Venus: *Version Set* only offers the power versions the model accepts. The device ignored the others
 - Venus: *Maximum Discharge Power* changed the power version instead of the discharge limit, so most values did nothing and 800 or 2500 W switched the version. It now sets the discharge limit (fixes #60)
+- Venus: Removed the price, income and *Grid Type* sensors, and the error and warning code sensors on the Venus C/E (HMG), where the firmware never fills them; they showed meter data or a constant zero. Error codes containing letters are no longer cut short
 
 ## [1.10.2] - 2026-10-13
 

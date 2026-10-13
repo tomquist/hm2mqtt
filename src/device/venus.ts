@@ -427,6 +427,15 @@ function registerRuntimeInfoMessage(
   },
 ) {
   const ctTypeCodes = model === 'HMG' ? hmgCtTypeCodes : vnsCtTypeCodes;
+  // Enabled predicate for a sensor that only the Venus C/E (HMG) fills, and
+  // only before `firstEmptyBuild`: removed on every other model and on later
+  // HMG builds, deferred while the HMG build is unknown.
+  const filledOnHmgBefore =
+    (firstEmptyBuild: number) => (state: Pick<VenusDeviceData, 'deviceVersion'>) => {
+      if (model !== 'HMG') return false;
+      const empty = venusSupports(model, state.deviceVersion, { HMG: firstEmptyBuild });
+      return empty === undefined ? undefined : !empty;
+    };
   let options = {
     refreshDataPayload: 'cd=1',
     isMessage: isVenusRuntimeInfoMessage,
@@ -684,7 +693,12 @@ function registerRuntimeInfoMessage(
       }),
     );
 
-    // Income information
+    // Income (`inc_d`, `inc_m`, `inc_a`, 0.001 €). Only the Venus C/E (HMG)
+    // up to control firmware 152 fills them; from 153 they are always 0. On the
+    // Venus E 3.0, Venus A and Venus D `inc_a` is always 0 and `inc_d`/`inc_m`
+    // are unrelated status flags. The fields are still needed to recognise the
+    // message, so only the sensors are removed where they carry no income.
+    const reportsIncome = filledOnHmgBefore(153);
     field({
       key: 'inc_d',
       path: ['dailyIncome'],
@@ -699,6 +713,7 @@ function registerRuntimeInfoMessage(
         unit_of_measurement: '€',
         state_class: 'total',
       }),
+      { enabled: reportsIncome },
     );
 
     field({
@@ -715,6 +730,7 @@ function registerRuntimeInfoMessage(
         unit_of_measurement: '€',
         state_class: 'total',
       }),
+      { enabled: reportsIncome },
     );
 
     field({
@@ -730,10 +746,14 @@ function registerRuntimeInfoMessage(
         device_class: 'monetary',
         unit_of_measurement: '€',
       }),
+      { enabled: reportsIncome },
     );
 
-    // Electricity prices. Reported in the same 0.001 € unit as the income
-    // fields, so the value is divided by 1000 to convert it to euros.
+    // Electricity prices, in the same 0.001 € unit as the income fields. Only
+    // the Venus C/E (HMG) up to control firmware 146 reports prices here. Later
+    // HMG builds and every Venus E 3.0, Venus A and Venus D send 0 or meter data
+    // instead (`prc_d` is the configured `meter=` code).
+    const reportsPrices = filledOnHmgBefore(147);
     field({
       key: 'prc_c',
       path: ['chargingPrice'],
@@ -747,6 +767,7 @@ function registerRuntimeInfoMessage(
         device_class: 'monetary',
         unit_of_measurement: '€',
       }),
+      { enabled: reportsPrices },
     );
 
     field({
@@ -762,6 +783,7 @@ function registerRuntimeInfoMessage(
         device_class: 'monetary',
         unit_of_measurement: '€',
       }),
+      { enabled: reportsPrices },
     );
 
     // Grid information
@@ -973,33 +995,38 @@ function registerRuntimeInfoMessage(
       }),
     );
 
-    // Error codes
+    // Error and warning words, printed as hex digits (`err_t=800`, `1a0`), so
+    // they are kept as the reported string. The Venus C/E (HMG) always reports
+    // 0, so the sensors only exist on the other models.
+    const reportsErrorCodes = () => model !== 'HMG';
     field({
       key: 'err_t',
       path: ['errorCode'],
-      transform: number(),
+      transform: identity(),
     });
     advertise(
       ['errorCode'],
-      sensorComponent<number>({
+      sensorComponent<string>({
         id: 'error_code',
         name: 'Error Code',
         icon: 'mdi:alert-circle',
       }),
+      { enabled: reportsErrorCodes },
     );
 
     field({
       key: 'err_a',
       path: ['warningCode'],
-      transform: number(),
+      transform: identity(),
     });
     advertise(
       ['warningCode'],
-      sensorComponent<number>({
+      sensorComponent<string>({
         id: 'warning_code',
         name: 'Warning Code',
         icon: 'mdi:alert',
       }),
+      { enabled: reportsErrorCodes },
     );
 
     // Device information
@@ -1063,6 +1090,8 @@ function registerRuntimeInfoMessage(
       }),
     );
 
+    // `grd_y` is always 0: the grid standard is never reported, so the sensor
+    // is removed on every model.
     field({
       key: 'grd_y',
       path: ['gridType'],
@@ -1101,6 +1130,7 @@ function registerRuntimeInfoMessage(
           china: 'China',
         },
       }),
+      { enabled: () => false },
     );
 
     // `wor_m`. Passive (3) is entered through the Local API and Modbus (10)

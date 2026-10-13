@@ -1322,6 +1322,16 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('totalPvPower', 107.6);
     expect(result).toHaveProperty('localApiEnabled', true);
     expect(result).toHaveProperty('localApiPort', 48977);
+    // err_t is printed in hex (0x800), so it is kept as the reported digits.
+    expect(result).toHaveProperty('errorCode', '800');
+  });
+
+  test('keeps Venus error codes with hex letters intact', () => {
+    const message =
+      'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=40,cel_c=7,err_t=1a0,err_a=c,dev_n=151,grd_y=0,wor_m=0,inc_a=0';
+    const result = parseMessage(message, 'VNSE3-0', 'venus123')['data'] as VenusDeviceData;
+    expect(result.errorCode).toBe('1a0');
+    expect(result.warningCode).toBe('c');
   });
 
   test('exposes PV inputs based on payload presence regardless of device type (VNSE3)', () => {
@@ -1458,9 +1468,13 @@ describe('MQTT Message Parser', () => {
 
     expect(parsed).toHaveProperty('data');
     const result = parsed['data'] as VenusDeviceData;
-    // Prices use the same 0.001 € unit as the income fields
+    // prc_c/prc_d are still parsed with the price scaling, although only HMG
+    // 146 and older report prices there (no sensor is offered on a Venus D).
     expect(result).toHaveProperty('chargingPrice', 0);
     expect(result).toHaveProperty('dischargePrice', 0.003);
+    // Error words are hex digits, kept as reported.
+    expect(result).toHaveProperty('errorCode', '800');
+    expect(result).toHaveProperty('warningCode', '8');
     // WiFi signal strength is negated into a dBm-style value
     expect(result).toHaveProperty('wifiSignalStrength', -72);
     // Venus D reports the cd=18 meter= code, so 3 is a CT002.

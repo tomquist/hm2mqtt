@@ -149,8 +149,8 @@ Description of the above parameters:
 | ele_m | Monthly cumulative charging capacity (0.01kw.h) |
 | grd_d | Daily cumulative discharge capacity (0.01kw.h) |
 | grd_m | Monthly cumulative discharge capacity (0.01kw.h) |
-| inc_d | Daily cumulative income (Unit: 0.001 euros) |
-| inc_m | Monthly cumulative income (Unit: 0.001 euros) |
+| inc_d | Daily cumulative income (Unit: 0.001 euros). Venus C/E (HMG) up to control firmware 152 only; 0 from 153. On the Venus E 3.0, Venus A and Venus D an unrelated status flag |
+| inc_m | Monthly cumulative income (Unit: 0.001 euros). Same as `inc_d` |
 | grd_f | Off grid power (VA) |
 | grd_o | Combined power (-: Charging +: Discharging, Unit: W) |
 | grd_t | Working status (0x0: sleep mode; 0x1: standby; 0x2: charging; 0x3: discharging; 0x4: backup mode; 0x5: OTA upgrade; 0x6: bypass status) |
@@ -158,10 +158,10 @@ Description of the above parameters:
 | cel_s | Battery working status (1: Not working; 2: Charging; 3: Discharge) |
 | cel_p | Battery energy (0.01kWh) |
 | cel_c | SOC |
-| err_t | Error code (fault code) |
-| err_a | Error code (warning code) |
+| err_t | Error code (fault code), printed as hex digits (`800` is 0x800). Always 0 on the Venus C/E (HMG) |
+| err_a | Error code (warning code), printed as hex digits. Always 0 on the Venus C/E (HMG) |
 | dev_n | Device version number |
-| grd_y | Grid type (0: Adaptive (220-240) (50-60hz) AUTO; 1: EN50549 EN50549; 2: Netherlands; 3: Germany; 4: Austria; 5: United Kingdom; 6: Spain; 7: Poland; 8: Italy; 9: China) |
+| grd_y | Grid type. Always 0: the grid standard is not reported |
 | wor_m | Working mode (0: Automatic; 1: Manual operation; 2: Trading, Venus C/E (HMG) up to control firmware 146 only; 3: Passive, set through the local API; 5: AI; 10: Modbus/RS485 control, Venus E 3.0/A/D) |
 | tim_0 | Start time (hour \| minute) \| End time (hour \| minute) \| Cycle \| Power \| Enable |
 | tim_1 | ditto |
@@ -175,14 +175,14 @@ Description of the above parameters:
 | tim_9 | ditto |
 | cts_m | Automatically switch the working mode switch based on CT signals (0: Off; 1: On) |
 | bac_u | Enable status of back up function (0: Close; 1: Open) |
-| tra_a | Transaction mode - region code |
-| tra_i | Transaction mode - electricity price during charging (0: EU; 1: China; 2: North America) |
-| tra_o | Transaction mode - electricity price during discharge |
+| tra_a | Transaction mode - region code, set with [`cd=3`](#6-set-transaction-mode-content) on the Venus C/E (HMG) up to control firmware 146. Unrelated on the Venus E 3.0, Venus A and Venus D |
+| tra_i | Transaction mode - electricity price during charging. Same availability as `tra_a` |
+| tra_o | Transaction mode - electricity price during discharge. Same availability as `tra_a` |
 | htt_p | HTTP Server Type |
-| prc_c | Obtain regional charging prices |
-| prc_d | Obtain regional discharge prices |
+| prc_c | Regional charging price (0.001 euros) on the Venus C/E (HMG) up to control firmware 146 only. Later firmware and the other models report the meter's link state here (0: OK) |
+| prc_d | Regional discharge price (0.001 euros) on the Venus C/E (HMG) up to control firmware 146 only. From 149 on the HMG, and on every Venus E 3.0, Venus A and Venus D, the configured `meter=` code (see [`cd=18`](#141-public)); 0 in between |
 | wif_s | WIFI signal strength (Less than 50: Good signal; 50-70: The signal is average; 70-80: Poor signal; Greater than 80: The signal is very weak) |
-| inc_a | Total cumulative income (Unit: 0.001 euros) |
+| inc_a | Total cumulative income (Unit: 0.001 euros). Venus C/E (HMG) up to control firmware 152 only; always 0 otherwise |
 | set_v | Power version — a *code* for the device's rated output power, not a wattage (see [Set version](#11-set-version)). The resulting power is reported back as `mdp_w`. |
 | mcp_w | Maximum charging power (Not exceeding 2500W) |
 | mdp_w | Maximum discharge power (see [Set maximum discharge power](#13-set-maximum-discharge-power)). On the Venus C/E (HMG) from control firmware 153, the limit in effect at that moment |

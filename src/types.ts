@@ -655,9 +655,9 @@ export interface VenusDeviceData extends BaseDeviceData {
   batteryWorkingStatus?: VenusBatteryWorkingStatus;
   batterySoc?: number;
 
-  // Error codes
-  errorCode?: number;
-  warningCode?: number;
+  // Error codes, as the hex digits the device reports
+  errorCode?: string;
+  warningCode?: string;
 
   // Device information
   deviceVersion?: number;

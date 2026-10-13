@@ -609,6 +609,76 @@ describe('Home Assistant Discovery', () => {
     ]);
   });
 
+  test('should remove the Venus price, income, error and grid type sensors where unfilled', () => {
+    const ids = [
+      'charging_price',
+      'discharge_price',
+      'daily_income',
+      'monthly_income',
+      'total_income',
+      'error_code',
+      'warning_code',
+      'grid_type',
+    ];
+    const offered = (deviceType: string, payload: string) => {
+      const state: Record<string, unknown> = {};
+      for (const parsed of Object.values(parseMessage(payload, deviceType, 'venus123'))) {
+        Object.assign(state, parsed);
+      }
+      const configs = generateDiscoveryConfigs(
+        { deviceType, deviceId: 'venus123' },
+        jupiterTopics(deviceType, 'venus123'),
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      );
+      return Object.fromEntries(
+        ids.map(id => {
+          const matching = configs.filter(c => c.topic.includes(`/${id}/`));
+          expect([id, matching.length]).toEqual([id, 1]);
+          return [id, matching[0].config !== null];
+        }),
+      );
+    };
+
+    // Real HMG-50 control firmware 156 reading (#240).
+    const hmg156 =
+      'tot_i=102607,tot_o=84500,ele_d=469,ele_m=1119,grd_d=391,grd_m=930,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=56,cel_c=11,err_t=0,err_a=0,dev_n=156,grd_y=0,wor_m=0,tim_0=0|0|0|0|0|0|0,tim_1=0|0|0|0|0|0|0,tim_2=0|0|0|0|0|0|0,tim_3=0|0|0|0|0|0|0,tim_4=0|0|0|0|0|0|0,tim_5=0|0|0|0|0|0|0,tim_6=0|0|0|0|0|0|0,tim_7=0|0|0|0|0|0|0,tim_8=0|0|0|0|0|0|0,tim_9=0|0|23|59|127|-2500|1,cts_m=0,bac_u=1,tra_a=1,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=2,wif_s=49,inc_a=0,set_v=1,mcp_w=-1,mdp_w=800,ct_t=5,phase_t=1,dchrg_t=0,bms_v=216,fc_v=202501211626,wifi_n=XXX,seq_s=0,ctrl_r=1,par=0,gen=255,ble=2,shelly_p=1010,c_ratio=100,udp=0,api=0,port=30000,id=2|0|1|255|0,bl=1,dod=88';
+    expect(Object.values(offered('HMG-50', hmg156)).some(Boolean)).toBe(false);
+
+    // Real Venus D control firmware 147 reading: only the error words are real.
+    const vnsd147 =
+      'cd=1,tot_i=6,tot_o=1109,ele_d=0,ele_m=0,grd_d=27,grd_m=27,inc_d=0,inc_m=0,grd_f=0,grd_o=801,grd_t=3,gct_s=1,cel_s=2,cel_p=233,cel_c=45,err_t=800,err_a=4,dev_n=147,grd_y=0,wor_m=5,tim_0=0|0|23|59|127|250|0,cts_m=0,bac_u=0,tra_a=74,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=3,wif_s=72,inc_a=0,set_v=1,mcp_w=2200,mdp_w=800,ct_t=3,phase_t=1,dchrg_t=0,bms_v=116,fc_v=202409090159,wifi_n=XXX,seq_s=3,ctrl_r=0,par=0,gen=0,ble=3,shelly_p=1010,c_ratio=100,udp=0,api=0,net=0,port=30000,inv_v=115,id=2|0|0|0|0,lk=0,bp=291,ei=0,eb=0,rp=347,gp=801,vp=801,bl=1,dod=88,bl_p=-1,led=1,as=3,mppt=104,pv1=2584|1,pv2=2638|1,pv3=3180|1,pv4=3080|1,pack=2|3|2|0,pv=24|24,fu=0|0,em=0';
+    expect(offered('VNSD-0', vnsd147)).toEqual({
+      charging_price: false,
+      discharge_price: false,
+      daily_income: false,
+      monthly_income: false,
+      total_income: false,
+      error_code: true,
+      warning_code: true,
+      grid_type: false,
+    });
+
+    // HMG control firmware 146 still reports prices and income.
+    const hmg146 = hmg156.replace('dev_n=156', 'dev_n=146');
+    expect(offered('HMG-50', hmg146)).toEqual({
+      charging_price: true,
+      discharge_price: true,
+      daily_income: true,
+      monthly_income: true,
+      total_income: true,
+      error_code: false,
+      warning_code: false,
+      grid_type: false,
+    });
+
+    // HMG control firmware 152: income, but no prices.
+    const hmg152 = offered('HMG-50', hmg156.replace('dev_n=156', 'dev_n=152'));
+    expect([hmg152.daily_income, hmg152.charging_price]).toEqual([true, false]);
+  });
+
   test('should offer Jupiter battery pack recovery on Jupiter Plus only', () => {
     const recoveryConfigs = (deviceType: string, state: object) =>
       generateDiscoveryConfigs(
