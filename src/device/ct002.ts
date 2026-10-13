@@ -17,7 +17,9 @@ import { extractMeterDeviceInfo, registerMeterBaseFields } from './meterBase.js'
  * - `TPM-CN` — CT002-CN
  * - `TPM2-0` — CT002, sold as the TPM2-100CT
  *
- * (`HME-2` is a CT002 as well and shares the `HME` base type with `HME-4`.)
+ * (`HME-2` is a CT002 as well and shares the `HME` base type with `HME-4`.
+ * `HME-3` and `HME-5` share that base type too, but they are CT003 smart meter
+ * readers with a different payload, and are registered in `smr.ts`.)
  */
 const requiredRuntimeInfoKeys = ['pwr_a', 'pwr_b', 'pwr_c', 'pwr_t'];
 

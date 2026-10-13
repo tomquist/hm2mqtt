@@ -1,4 +1,4 @@
-import { extractBaseType } from '../../src/deviceDefinition.js';
+import { extractBaseType, getRegisteredDeviceTypes } from '../../src/deviceDefinition.js';
 
 /**
  * Canned device responses, keyed by device type and by the `cd=` request they
@@ -65,20 +65,41 @@ const jupiterPlus: DeviceFixture = {
   },
 };
 
+const ct003: DeviceFixture = {
+  deviceType: 'HME-3',
+  source: 'CT003 firmware 117 runtime reading, from a user report (#202)',
+  responses: {
+    1:
+      'pwr_a=52,pwr_b=-7,pwr_c=-36,pwr_t=9,ble_s=6,wif_r=-73,fc4_v=202409090159,ver_v=117,' +
+      'eng_t=4553480,wif_s=2,slv_n=1,com_t=1,com_b=0,ptl_t=1,smt_n=100,har_f=1,sof_f=1,irs_f=0,' +
+      'pwr_f=7,frm_c=249,upd_t=1,udp_v=3',
+  },
+};
+
 /**
  * Fixtures used by the end-to-end scenarios. One device per family keeps a run
  * short while still covering three independent device definitions; the
  * discovery baseline covers every registered device type on its own.
  */
-export const deviceFixtures: DeviceFixture[] = [b2500V2, venus, jupiterPlus];
+export const e2eFixtures: DeviceFixture[] = [b2500V2, venus, jupiterPlus];
+
+/**
+ * Every fixture, used to fill in the device state the discovery baseline is
+ * generated from.
+ */
+export const deviceFixtures: DeviceFixture[] = [...e2eFixtures, ct003];
 
 /**
  * Look a fixture up by concrete type (`HMA-1`) or by the registered base type
- * (`HMA`) the device definitions are keyed on.
+ * (`HMA`) the device definitions are keyed on. A fixture whose concrete type is
+ * registered on its own (`HME-3`) only belongs to that type, not to its base
+ * type.
  */
 export function findDeviceFixture(deviceType: string): DeviceFixture | undefined {
+  const registered = new Set(getRegisteredDeviceTypes());
   return deviceFixtures.find(
     fixture =>
-      fixture.deviceType === deviceType || extractBaseType(fixture.deviceType) === deviceType,
+      fixture.deviceType === deviceType ||
+      (extractBaseType(fixture.deviceType) === deviceType && !registered.has(fixture.deviceType)),
   );
 }

@@ -533,6 +533,26 @@ describe('ControlHandler', () => {
       // cd=5 configures the attached smart meter on the SMR, so nothing is sent
       expect(publishCallback).not.toHaveBeenCalled();
     });
+
+    test('should not register the command for the HME-3 (CT003)', () => {
+      const ct003: Device = { deviceType: 'HME-3', deviceId: 'ct003device' };
+      const config: MqttConfig = {
+        brokerUrl: 'mqtt://test.mosquitto.org',
+        clientId: 'test-client',
+        topicPrefix: DEFAULT_TOPIC_PREFIX,
+        autodiscoveryTopicPrefix: 'homeassistant',
+        devices: [ct003],
+        responseTimeout: 15000,
+      };
+      deviceManager = new DeviceManager(config, () => {});
+      publishCallback = jest.fn();
+      controlHandler = controlHandlerFor(deviceManager, publishCallback);
+
+      handleControlTopic(ct003, 'phase1-measurement-reversed', 'true');
+
+      // On the CT003, cd=5 configures the meter interface and reboots the reader
+      expect(publishCallback).not.toHaveBeenCalled();
+    });
   });
   describe('meter buttons', () => {
     const meter = (deviceType: string): Device => ({ deviceType, deviceId: 'meterdevice' });

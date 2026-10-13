@@ -589,6 +589,36 @@ describe('Home Assistant Discovery', () => {
     expect(byObjectId('phase_read_status')?.config).toMatchObject({ enabled_by_default: false });
   });
 
+  test('should give the HME-3 and HME-5 (CT003) the SMR reader entities, not the CT002 ones', () => {
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'a',
+      deviceTopicNew: 'b',
+      deviceControlTopicOld: 'c',
+      deviceControlTopicNew: 'd',
+      availabilityTopic: 'e',
+      controlSubscriptionTopic: 'f',
+      publishTopic: 'g',
+    };
+    const topicsFor = (deviceType: string) =>
+      generateDiscoveryConfigs(
+        { deviceType, deviceId: '0123456789ab' },
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        { totalEnergy: 455348, phase1Charge: 100 },
+      ).map(c => c.topic.replace('0123456789ab', '<id>').replace(deviceType, '<type>'));
+
+    for (const deviceType of ['HME-3', 'HME-5']) {
+      const topics = topicsFor(deviceType);
+      expect(topics.sort()).toEqual(topicsFor('SMR-0').sort());
+      expect(topics.some(t => t.includes('/total_energy/'))).toBe(true);
+      expect(topics.some(t => t.includes('/p1_device_connected/'))).toBe(true);
+      expect(topics.some(t => /switch\/.*phase\d_measurement_reversed/.test(t))).toBe(false);
+      expect(topics.some(t => /phase\d_charge/.test(t))).toBe(false);
+    }
+  });
+
   test('should advertise the shared meter components for both CT002 and SMR', () => {
     const objectIds = (deviceType: string, deviceId: string, state: object = {}) => {
       const deviceTopics: DeviceTopics = {

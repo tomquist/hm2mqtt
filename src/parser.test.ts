@@ -525,7 +525,7 @@ describe('MQTT Message Parser', () => {
   test('should parse SMR smart meter reader message', () => {
     const message =
       'pwr_a=119,pwr_b=15,pwr_c=-136,pwr_t=-1,eng_t=1234567,smt_n=12,har_f=1,sof_f=0,irs_f=0,pwr_f=7,' +
-      'ble_s=5,wif_r=-79,fc4_v=202409090159,ver_v=108,wif_s=2,slv_n=0,cur_d=2,com_t=1,com_b=115200,ptl_t=3';
+      'ble_s=5,wif_r=-79,fc4_v=202409090159,ver_v=108,wif_s=2,slv_n=0,cur_d=2,com_t=1,com_b=0,ptl_t=1';
     const { data } = parseMessage(message, 'SMR-0', 'b8d08fc5f943');
 
     expect(data).toBeDefined();
@@ -556,8 +556,31 @@ describe('MQTT Message Parser', () => {
 
     // Keys hm2mqtt does not map are still exposed raw
     expect(result.values).toHaveProperty('com_t', '1');
-    expect(result.values).toHaveProperty('com_b', '115200');
-    expect(result.values).toHaveProperty('ptl_t', '3');
+    expect(result.values).toHaveProperty('com_b', '0');
+    expect(result.values).toHaveProperty('ptl_t', '1');
+  });
+
+  test('should parse the HME-3 (CT003) as a smart meter reader, not a CT002', () => {
+    // Real HME-3 firmware 117 reading from #202
+    const message =
+      'pwr_a=52,pwr_b=-7,pwr_c=-36,pwr_t=9,ble_s=6,wif_r=-73,fc4_v=202409090159,ver_v=117,' +
+      'eng_t=4553480,wif_s=2,slv_n=1,com_t=1,com_b=0,ptl_t=1,smt_n=100,har_f=1,sof_f=1,irs_f=0,' +
+      'pwr_f=7,frm_c=249,upd_t=1,udp_v=3';
+    const { data } = parseMessage(message, 'HME-3', '0123456789ab');
+
+    expect(data).toBeDefined();
+    const result = data as SmrMeterDeviceData;
+    expect(result).toHaveProperty('deviceType', 'HME-3');
+    expect(result).toHaveProperty('phase1Power', 52);
+    expect(result).toHaveProperty('totalPower', 9);
+    // eng_t is reported in 0.1 Wh
+    expect(result).toHaveProperty('totalEnergy', 455348);
+    expect(result).toHaveProperty('meterNumber', 100);
+    expect(result).toHaveProperty('p1DeviceConnected', true);
+    expect(result).toHaveProperty('phaseReadStatus', 7);
+    expect(result).toHaveProperty('firmwareVersion', 117);
+    // The CT003 has no measurement-direction bitmask
+    expect(result).not.toHaveProperty('phase1MeasurementReversed');
   });
 
   test('should report a disconnected P1 reader', () => {

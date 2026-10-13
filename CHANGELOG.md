@@ -19,6 +19,10 @@
 - B2500 (HMJ): Removed the *Input 1/2 Pass Through* sensors, which this model never reports and which were always off
 - B2500 (HMJ): Choosing an SMR or TPM2 meter is refused on firmware 116 and older, which cannot use them and would be left without a working meter
 
+### Fixed
+
+- Smart meters: The CT003 with device type `HME-3` or `HME-5` was handled as a CT002, so its energy and P1 status sensors were missing (fixes #202)
+
 ## [1.10.2] - 2026-10-13
 
 ### Changed

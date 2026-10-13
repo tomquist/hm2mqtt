@@ -1,4 +1,4 @@
-import { deviceFixtures } from '../../fixtures/devices.js';
+import { e2eFixtures } from '../../fixtures/devices.js';
 import { Rig, entitySlug, canRunScenarios, startRig, waitFor } from '../harness/index.js';
 
 /**
@@ -30,7 +30,7 @@ describeE2e('a fresh installation', () => {
   let rig: Rig;
 
   beforeAll(async () => {
-    rig = await startRig({ name: 'smoke', fixtures: deviceFixtures });
+    rig = await startRig({ name: 'smoke', fixtures: e2eFixtures });
     await rig.startHm2mqtt();
     // Discovery is announced only after a device has answered, so wait for
     // each device rather than for a fixed delay.
@@ -43,7 +43,7 @@ describeE2e('a fresh installation', () => {
     await rig?.stop();
   });
 
-  test.each(deviceFixtures.map(fixture => [fixture.deviceType] as const))(
+  test.each(e2eFixtures.map(fixture => [fixture.deviceType] as const))(
     '%s announces entities that reach a real state',
     async deviceType => {
       const device = rig.devices.find(candidate => candidate.deviceType === deviceType)!;

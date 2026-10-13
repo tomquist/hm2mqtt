@@ -39,7 +39,7 @@ import { resolve } from 'node:path';
 import { startBroker } from '../e2e/harness/broker.js';
 import { startSimulatedDevice, SimulatedDevice } from '../e2e/harness/device.js';
 import { REPO_ROOT } from '../e2e/harness/env.js';
-import { deviceFixtures } from '../fixtures/devices.js';
+import { e2eFixtures } from '../fixtures/devices.js';
 
 const PROBE_PATH = 'test/memory/probe.cjs';
 /** Must match MARKER in probe.cjs. */
@@ -260,7 +260,7 @@ export interface RunSummary {
 
 async function measureOnce(options: Options): Promise<RunSummary> {
   const broker = await startBroker();
-  const configured = deviceFixtures.flatMap(fixture =>
+  const configured = e2eFixtures.flatMap(fixture =>
     Array.from({ length: options.devices }, () => fixture),
   );
   const deviceEnv: Record<string, string> = {};
@@ -497,7 +497,7 @@ async function main() {
   }
   console.log(
     `Measuring ${entryPoint} (${options.docker ?? `node ${process.version}`}) for ${options.duration}s: ` +
-      `${options.devices * deviceFixtures.length} device(s), poll ${options.poll}s, ` +
+      `${options.devices * e2eFixtures.length} device(s), poll ${options.poll}s, ` +
       `proxy ${options.proxy ? 'on' : 'off'}, log level ${options.logLevel}` +
       (options.nodeArgs.length ? `, node ${options.nodeArgs.join(' ')}` : '') +
       (options.docker ? `, ${options.runtime} in ${options.docker}` : ''),

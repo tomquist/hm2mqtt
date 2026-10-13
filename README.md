@@ -33,7 +33,7 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 - Marstek Jupiter E
 - Marstek Jupiter Plus
 - Marstek CT002 Smart Meter (including the CT002-CN and the TPM2-100CT)
-- Marstek CT003 Smart Meter Reader (device types `SMR-0` P1, `SMR-1` Infrared, `SMR-2` TIC)
+- Marstek CT003 Smart Meter Reader (device types `HME-3`, `HME-5`, `SMR-0` P1, `SMR-1` Infrared, `SMR-2` TIC)
 - Marstek HMI micro inverters (MI800, HMI-2000 with 4 PV inputs)
 
 ## Prerequisites
@@ -561,7 +561,8 @@ The device type can be one of the following:
 - **HMN-X**: (e.g. HMN-1) Marstek Jupiter E
 - **HMM-X**: (e.g. HMM-1) Marstek Jupiter C
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus
-- **HME-X**: (e.g. HME-3) Marstek CT002 Smart Meter
+- **HME-2** / **HME-4**: Marstek CT002 Smart Meter
+- **HME-3** / **HME-5**: Marstek CT003 Smart Meter Reader (P1 port or infrared head)
 - **TPM-CN**: Marstek CT002-CN Smart Meter
 - **TPM2-X**: (e.g. TPM2-0) Marstek TPM2-100CT Smart Meter
 - **SMR-X**: Marstek CT003 Smart Meter Reader — `SMR-0` P1, `SMR-1` Infrared, `SMR-2` TIC
@@ -834,7 +835,7 @@ The following commands are supported by both Jupiter C, Jupiter E and Jupiter Pl
 - `refresh`: Requests the device data immediately, instead of waiting for the next poll
 - `factory-reset`: Resets the meter to factory settings
 - `hardware-reset`: Performs a hardware reset of the meter
-- `phase1-measurement-reversed` / `phase2-measurement-reversed` / `phase3-measurement-reversed`: Inverts the measurement direction of that phase (`on` or `off`). CT002 device types only (`HME-X`, `TPM-CN`, `TPM2-X`); on the CT003 readers the measurement direction is reported but cannot be set.
+- `phase1-measurement-reversed` / `phase2-measurement-reversed` / `phase3-measurement-reversed`: Inverts the measurement direction of that phase (`on` or `off`). CT002 device types only (`HME-2`, `HME-4`, `TPM-CN`, `TPM2-X`); on the CT003 readers the measurement direction is reported but cannot be set.
 
 All meter entities are disabled by default. See [docs/meters.md](docs/meters.md) for the underlying MQTT protocol.
 

@@ -309,23 +309,35 @@ export function extractBaseType(deviceType: string): string {
   return match != null ? match[1] : deviceType;
 }
 
+/**
+ * Look up the definition for a configured device type such as `HMA-1`.
+ *
+ * Most definitions are registered under the base type (`HMA`) and cover every
+ * variant of it. A few variants speak a different protocol than the rest of
+ * their base type (`HME-3` is a CT003, `HME-4` a CT002), so they are registered
+ * under the full type, which takes precedence. Each is tried exactly first and
+ * then case-insensitively.
+ */
 export function getDeviceDefinition(
   deviceType: string,
 ): DeviceDefinition<BaseDeviceData> | undefined {
   const baseType = extractBaseType(deviceType);
+  const candidates = baseType === deviceType ? [deviceType] : [deviceType, baseType];
 
-  // Exact match
-  const exact = deviceDefinitionRegistry.get(baseType);
-  if (exact) {
-    return exact;
-  }
+  for (const candidate of candidates) {
+    // Exact match
+    const exact = deviceDefinitionRegistry.get(candidate);
+    if (exact) {
+      return exact;
+    }
 
-  // Case-insensitive match
-  const upperBase = baseType.toUpperCase();
-  for (const [key, definition] of deviceDefinitionRegistry) {
-    if (key.toUpperCase() === upperBase) {
-      logger.info(`Device type "${deviceType}" matched as "${key}" (case-insensitive)`);
-      return definition;
+    // Case-insensitive match
+    const upperCandidate = candidate.toUpperCase();
+    for (const [key, definition] of deviceDefinitionRegistry) {
+      if (key.toUpperCase() === upperCandidate) {
+        logger.info(`Device type "${deviceType}" matched as "${key}" (case-insensitive)`);
+        return definition;
+      }
     }
   }
 

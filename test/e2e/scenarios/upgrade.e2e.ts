@@ -6,7 +6,7 @@ import {
   latestReleasedVersion,
   readBaselines,
 } from '../../discovery/paths.js';
-import { deviceFixtures } from '../../fixtures/devices.js';
+import { e2eFixtures } from '../../fixtures/devices.js';
 import { Rig, entitySlug, canRunScenarios, startRig, waitFor } from '../harness/index.js';
 
 /**
@@ -34,7 +34,7 @@ describeE2e(`upgrading an installation that already ran ${releasedVersion}`, () 
   let rig: Rig;
 
   beforeAll(async () => {
-    rig = await startRig({ name: 'upgrade', fixtures: deviceFixtures });
+    rig = await startRig({ name: 'upgrade', fixtures: e2eFixtures });
 
     // What the previous release left in the broker, for the devices this
     // scenario runs. Baselines are stored per device definition, so each is
