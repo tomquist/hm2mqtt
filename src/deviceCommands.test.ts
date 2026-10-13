@@ -847,6 +847,57 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
   {
+    description: 'B2500V2 time-period/1/start-time hour 24 (invalid)',
+    deviceType: 'HMA-1',
+    initialState: {
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/start-time',
+    input: '24:00',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 time-period/1/end-time hour 24 (invalid)',
+    deviceType: 'HMA-1',
+    initialState: {
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/end-time',
+    input: '24:00',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 time-period/1/end-time hour 29 (invalid)',
+    deviceType: 'HMA-1',
+    initialState: {
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/end-time',
+    input: '29:59',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 time-period/1/end-time 23:59 is the latest valid time',
+    deviceType: 'HMA-1',
+    initialState: {
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/end-time',
+    input: '23:59',
+    expectedOutput: 'cd=7,md=0,a1=1,b1=8:0,e1=23:59,v1=500',
+  },
+  {
+    // Only warned about: editing start and end separately passes through this.
+    description: 'B2500V2 time-period/1/end-time before the start time is still sent',
+    deviceType: 'HMA-1',
+    initialState: {
+      timePeriods: [{ enabled: true, startTime: '22:00', endTime: '23:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/end-time',
+    input: '06:00',
+    expectedOutput: 'cd=7,md=0,a1=1,b1=22:0,e1=6:0,v1=500',
+  },
+  {
     description: 'B2500V2 time-period/1/end-time valid',
     deviceType: 'HMA-1',
     initialState: {

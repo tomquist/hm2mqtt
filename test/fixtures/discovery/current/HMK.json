@@ -2653,7 +2653,7 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$",
       "state_topic": "hm2mqtt/HMK/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_1_end_time",
       "value_template": "{{ value_json.timePeriods[0].endTime }}"
@@ -2684,7 +2684,7 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$",
       "state_topic": "hm2mqtt/HMK/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_1_start_time",
       "value_template": "{{ value_json.timePeriods[0].startTime }}"
@@ -2715,7 +2715,7 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$",
       "state_topic": "hm2mqtt/HMK/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_2_end_time",
       "value_template": "{{ value_json.timePeriods[1].endTime }}"
@@ -2746,7 +2746,7 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$",
       "state_topic": "hm2mqtt/HMK/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_2_start_time",
       "value_template": "{{ value_json.timePeriods[1].startTime }}"
@@ -2777,7 +2777,7 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$",
       "state_topic": "hm2mqtt/HMK/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_3_end_time",
       "value_template": "{{ value_json.timePeriods[2].endTime }}"
@@ -2808,7 +2808,7 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$",
       "state_topic": "hm2mqtt/HMK/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_3_start_time",
       "value_template": "{{ value_json.timePeriods[2].startTime }}"
@@ -2839,7 +2839,7 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$",
       "state_topic": "hm2mqtt/HMK/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_4_end_time",
       "value_template": "{{ value_json.timePeriods[3].endTime }}"
@@ -2870,7 +2870,7 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$",
       "state_topic": "hm2mqtt/HMK/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_4_start_time",
       "value_template": "{{ value_json.timePeriods[3].startTime }}"
@@ -2901,7 +2901,7 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$",
       "state_topic": "hm2mqtt/HMK/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_5_end_time",
       "value_template": "{{ value_json.timePeriods[4].endTime }}"
@@ -2932,7 +2932,7 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$",
       "state_topic": "hm2mqtt/HMK/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_5_start_time",
       "value_template": "{{ value_json.timePeriods[4].startTime }}"

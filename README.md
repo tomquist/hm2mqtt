@@ -679,8 +679,8 @@ homeassistant/{component}/{node_id}/{object_id}/config
 - `charging-mode`: Sets charging mode (`chargeDischargeSimultaneously` or `chargeThenDischarge`)
 - `adaptive-mode`: Toggles adaptive mode (`on` or `off`). Changing any time period switches adaptive mode off on the device.
 - `time-period/[1-5]/enabled`: Enables/disables specific time period (`on` or `off`)
-- `time-period/[1-5]/start-time`: Sets start time for period (HH:MM format)
-- `time-period/[1-5]/end-time`: Sets end time for period (HH:MM format)
+- `time-period/[1-5]/start-time`: Sets start time for period (HH:MM format, 00:00-23:59)
+- `time-period/[1-5]/end-time`: Sets end time for period (HH:MM format, 00:00-23:59). After a restart, the device turns a period that ends before it starts into an all-day period, so split a period that crosses midnight into two.
 - `time-period/[1-5]/output-value`: Sets output power for period (0-800W)
 - `connected-phase`: Sets the phase the CT meter regulates on (`0`, `1` or `2` for phase 1, 2 and 3, `3`/`all` for all phases, or `255`/`auto` to start phase detection, which only runs in adaptive mode). On HMJ firmware 110, phase 1 cannot be selected.
 - `time-zone`: Sets time zone (UTC offset in minutes, e.g. `60` for UTC+1). The device only accepts a multiple of 10 between `-720` and `720`.
