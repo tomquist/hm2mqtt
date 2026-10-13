@@ -207,6 +207,48 @@ describe('DeviceManager', () => {
     expect(topics?.deviceControlTopicNew).toBe('marstek_energy/HMB-1/App/test123/ctrl');
   });
 
+  describe('encrypted topic id for HMG and the meters', () => {
+    const newTopicId = (deviceType: string, deviceId: string) => {
+      const config: MqttConfig = { ...mockConfig, devices: [{ deviceType, deviceId }] };
+      const topics = new DeviceManager(config, mockOnUpdateState).getDeviceTopics({
+        deviceType,
+        deviceId,
+      });
+      // Both new topics carry the same id
+      const id = topics?.deviceTopicNew.split('/')[3];
+      expect(topics?.deviceControlTopicNew.split('/')[3]).toBe(id);
+      // The old topics always keep the configured id
+      expect(topics?.deviceTopicOld).toBe(`hame_energy/${deviceType}/device/${deviceId}/ctrl`);
+      return id;
+    };
+
+    it('encrypts a configured MAC', () => {
+      // AES-128-CBC of the lowercase MAC, the id hame-relay shows as Remote ID (#215)
+      expect(newTopicId('HMG-50', '0123456789ab')).toBe('6f8008b9ee08cc3f8cf9f6c065a123dd');
+      expect(newTopicId('HME-4', '0123456789ab')).toBe('6f8008b9ee08cc3f8cf9f6c065a123dd');
+      for (const deviceType of ['HME-3', 'TPM-CN', 'TPM2-0', 'SMR-0']) {
+        expect(newTopicId(deviceType, '0123456789ab')).toBe('6f8008b9ee08cc3f8cf9f6c065a123dd');
+      }
+    });
+
+    it('lowercases the MAC before encrypting it', () => {
+      expect(newTopicId('HME-4', '0123456789AB')).toBe('6f8008b9ee08cc3f8cf9f6c065a123dd');
+    });
+
+    it('uses an id that is not a MAC as is (#231)', () => {
+      expect(newTopicId('HMG-50', '0123456789abcdef01234567')).toBe('0123456789abcdef01234567');
+      expect(newTopicId('HME-4', '6f8008b9ee08cc3f8cf9f6c065a123dd')).toBe(
+        '6f8008b9ee08cc3f8cf9f6c065a123dd',
+      );
+    });
+
+    it('does not encrypt the Venus E 3.0, A, D or the Jupiter', () => {
+      for (const deviceType of ['VNSE3-0', 'VNSA-0', 'VNSD-0', 'JPLS-8H']) {
+        expect(newTopicId(deviceType, '0123456789ab')).toBe('0123456789ab');
+      }
+    });
+  });
+
   describe('monotonic counter guard', () => {
     const venusConfig: MqttConfig = {
       brokerUrl: 'mqtt://localhost',

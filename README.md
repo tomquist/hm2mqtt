@@ -518,6 +518,8 @@ In hm2mqtt, `deviceId` must be the **Bluetooth MAC** of the device (12 hex chars
 **Troubleshooting (quick):**
 - If you pasted a long/cryptic cloud “device id” into hm2mqtt: replace it with the **Bluetooth MAC**.
 
+**Devices that talk straight to your own broker:** the Venus C/E (`HMG`, firmware 153 and later) and the Marstek smart meters use an encrypted form of their MAC in their MQTT topics. Configure the plain MAC; hm2mqtt works out the encrypted id itself. An id that is not a 12-digit MAC is used exactly as entered.
+
 ### 4) My Venus/Jupiter works in the Marstek app, but hm2mqtt shows it as offline
 
 These devices usually rely on cloud MQTT. hm2mqtt typically needs the MQTT data to be present in your local broker, which is commonly done by **hame-relay**.

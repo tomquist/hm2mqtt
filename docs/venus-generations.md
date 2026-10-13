@@ -21,13 +21,11 @@ The second generation's has not; see [Confidence](#confidence).
 | Products       | Venus C, Venus E, Venus A, Venus D | Venus X, Venus G, Venus E Mini |
 | Device types   | `HMG`, `VNSE3`, `VNSA`, `VNSD` (and the regional `VNSE3CH`, `VNSE3AU`, `VNSDCH`, `VNSACH`, `VDAC`, `VEPRO`, `VAAC2`, `VNSE4`) | `VENX`, `VNSG`, `VNSGPV`, `VNSEMINI` |
 | App code       | `pages/Ac_Coupler`, commands built by `CommonCommand` | `modules/devices`, commands built by `DataVenus*` tables and `venus_model.dart` |
-| MQTT topics    | `hame_energy/<type>/App/<mac>/ctrl` | `marstek_energy/<type>/App/<hashed id>/ctrl` |
+| MQTT topics    | `hame_energy/<type>/App/<mac>/ctrl`; `HMG` from firmware 153 on `marstek_energy/<type>/App/<encrypted mac>/ctrl` | `marstek_energy/<type>/App/<hashed id>/ctrl` |
 | Strategy class | `VenusMqttStrategy` | `VNXMqttStrategy` |
 
 `mqtt_factory` is what settles the grouping: it routes `VNSEMINI` behind
-`VNXMqttStrategy` alongside `VENX`, `VNSG` and `VNSGPV`. `MqttSendMixin.TOPIC`
-in that tree builds the `marstek_energy` topic with the hashed device id, where
-`CommonCommand` builds `hame_energy` with the plain MAC.
+`VNXMqttStrategy` alongside `VENX`, `VNSG` and `VNSGPV`.
 
 ## Where the numbering collides
 

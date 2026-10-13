@@ -58,19 +58,30 @@ Both families share most of their protocol. Where they differ, the section says 
 
 ## 2 Subscribe to your device
 
-Before sending/receiving messages in MQTT, you must subscribe to your device using the following command:
+The meters only use `marstek_energy` topics, never `hame_energy`. They publish
+on:
 
 ```
-hame_energy/{type}/device/{uid or mac}/ctrl
+marstek_energy/{type}/device/{id}/ctrl
 ```
 
-The parameters that need to be filled in the command include your device type, device ID or MAC.
-
-Commands are published to:
+and take commands on:
 
 ```
-hame_energy/{type}/App/{uid or mac}/ctrl
+marstek_energy/{type}/App/{id}/ctrl
 ```
+
+`{type}` is the device type, e.g. `HME-4`. `{id}` is the meter's MAC address
+(12 lowercase hex digits, no separators), encrypted with AES-128-CBC (key
+`!@#$%^&*()_+{}[]`, zero IV) and hex-encoded. For the MAC `0123456789ab` that is
+`6f8008b9ee08cc3f8cf9f6c065a123dd`. hm2mqtt works this id out itself when the
+configured device id is the MAC.
+
+When the meter stays on the Marstek cloud and hame-relay forwards its messages
+to a local broker, they appear there on
+`hame_energy/{type}/device/{mac}/ctrl`, and commands go to
+`hame_energy/{type}/App/{mac}/ctrl` with the plain MAC. The examples below use
+that form.
 
 ## 3 Read device information
 
