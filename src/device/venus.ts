@@ -73,10 +73,12 @@ enum CommandType {
   GET_FC41D_INFO = 10, // -> wifi_v=202409090159
   ENABLE_BACKUP = 11,
   GET_BMS_INFO = 14, // -> b_ver=212,b_chv=571,b_rci=1000,b_rdi=1000,b_soc=65,b_soh=100,b_cap=5120,b_vol=5223,b_cur=-94,b_tem=250,b_chf=192,b_slf=0,b_cpc=332,b_err=0,b_war=0,b_ret=102482070,b_ent=0,b_mot=23,b_tp1=18,b_tp2=19,b_tp3=18,b_tp4=19,b_vo1=3265,b_vo2=3265,b_vo3=3265,b_vo4=3265,b_vo5=3264,b_vo6=3264,b_vo7=3265,b_vo8=3265,b_vo9=3264,b_vo10=3265,b_vo11=3264,b_vo12=3265,b_vo13=3265,b_vo14=3265,b_vo15=3264,b_vo16=3262
-  // `cd=15,vs=<watts>` selects the rated output power ("power version"). The
-  // resulting power is reported back as `mdp_w`, and its code as `set_v`.
-  SET_DISCHARGE_POWER = 15,
+  // `cd=15,vs=<watts>` selects the rated output power ("power version"),
+  // reported back as the `set_v` code.
+  SET_POWER_VERSION = 15,
   SET_MAX_CHARGING_POWER = 16,
+  // `cd=17,dp=<watts>` sets the maximum discharge power, reported as `mdp_w`.
+  SET_MAX_DISCHARGE_POWER = 17,
   SET_METER_TYPE = 18, // also used for phase diagnosis via `cd=18,seq_check`
   GET_CT_POWER = 19,
   UPGRADE_FC4_MODULE = 20,
@@ -1854,7 +1856,7 @@ function registerRuntimeInfoMessage(
 
         // The command carries the rated power in watts, not the `set_v` code.
         const version = parseInt(message, 10);
-        publishCallback(processCommand(CommandType.SET_DISCHARGE_POWER, { vs: version }));
+        publishCallback(processCommand(CommandType.SET_POWER_VERSION, { vs: version }));
       },
     });
 
@@ -2315,6 +2317,13 @@ function registerRuntimeInfoMessage(
       }),
     );
 
+    // Maximum discharge power (`cd=17,dp=<W>`). The device rejects a limit
+    // above the model's maximum, or above 800 W while on the 800 W power
+    // version. A limit of 0 is refused here: the Venus E 3.0, Venus A and Venus
+    // D replace it with 800 W and switch to the 800 W version at the next boot.
+    // On the Venus C/E (HMG) from control firmware 153, `mdp_w` is the limit in
+    // effect at that moment, which the device lowers for state of charge,
+    // temperature and the BMS, so it can read back lower than the value set.
     field({
       key: 'mdp_w',
       path: ['maxDischargePower'],
@@ -2328,17 +2337,41 @@ function registerRuntimeInfoMessage(
         icon: 'mdi:flash',
         unit_of_measurement: 'W',
         command: 'max-discharge-power',
+        // 0 stays allowed so an HMG reading of 0 is not rejected.
         min: 0,
-        max: 2500,
+        max: model === 'VNSA' ? 1500 : 2500,
         step: 1,
       }),
     );
 
     command('max-discharge-power', {
-      handler: ({ message, publishCallback, updateDeviceState }) => {
-        const power = parseInt(message, 10);
-        if (isNaN(power) || power < 0 || power > 2500) {
-          logger.warn('Invalid maximum discharge power value:', message);
+      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
+        const power = Number(message.trim());
+        const build = venusBuild(deviceState.deviceVersion);
+        const maxPower =
+          model === 'VNSA'
+            ? 1500
+            : model === 'VNSD' && build !== undefined && build < 149
+              ? 2200
+              : 2500;
+        if (!Number.isInteger(power) || power < 1 || power > maxPower) {
+          logger.warn(`Invalid maximum discharge power value (1-${maxPower} W):`, message);
+          return;
+        }
+        if (model === 'HMG' && build === 147) {
+          logger.warn('Control firmware 147 has no maximum discharge power command');
+          return;
+        }
+        const versionLimit =
+          deviceState.versionSet === '800W'
+            ? 800
+            : deviceState.versionSet === '600W'
+              ? 600
+              : undefined;
+        if (versionLimit !== undefined && power > versionLimit) {
+          logger.warn(
+            `The device is on the ${deviceState.versionSet} power version and rejects more than ${versionLimit} W; change Version Set first`,
+          );
           return;
         }
 
@@ -2346,7 +2379,7 @@ function registerRuntimeInfoMessage(
           maxDischargePower: power,
         }));
 
-        publishCallback(processCommand(CommandType.SET_DISCHARGE_POWER, { vs: power }));
+        publishCallback(processCommand(CommandType.SET_MAX_DISCHARGE_POWER, { dp: power }));
       },
     });
 

@@ -185,7 +185,7 @@ Description of the above parameters:
 | inc_a | Total cumulative income (Unit: 0.001 euros) |
 | set_v | Power version — a *code* for the device's rated output power, not a wattage (see [Set version](#11-set-version)). The resulting power is reported back as `mdp_w`. |
 | mcp_w | Maximum charging power (Not exceeding 2500W) |
-| mdp_w | Maximum discharge power (Not exceeding 2500W) |
+| mdp_w | Maximum discharge power (see [Set maximum discharge power](#13-set-maximum-discharge-power)). On the Venus C/E (HMG) from control firmware 153, the limit in effect at that moment |
 | ct_t | The meter the device is currently configured for. The code space depends on the model — see [Reported meter type](#reported-meter-type-ct_t) |
 | phase_t | The phase where the device is located (0: Unknown; 1: Phase A; 2: Phase B; 3: Phase C; 4: Not detected) |
 | dchrg_t | Recharge mode (0: Single phase power supply; 1: Three phase power supply) |
@@ -527,11 +527,45 @@ You will receive a message with a ret value:
 
 ## 13 Set maximum discharge power
 
-The maximum discharge power is not a separate setting: it follows the power
-version, so it is changed with the same `cd=15,vs=<watts>` command as
-[Set version](#11-set-version) and read back as `mdp_w`. (Only the maximum
-*charging* power, `mcp_w`, is independently adjustable — see
-[Set maximum charging power](#12-set-maximum-charging-power).)
+Sets the maximum discharge power, read back as `mdp_w`. Available on every
+Venus E 3.0, Venus A and Venus D build, and on the Venus C/E (HMG) except
+control firmware 147.
+
+### 13.1 Public
+
+Topic:
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+```
+cd=17,dp=1000
+```
+
+| Key | Description |
+|-----|-------------|
+| cd | Instruction identification |
+| dp | Maximum discharge power in watts |
+
+The device rejects a value above the model's maximum: 2500 W on the Venus C/E
+(HMG) and Venus E 3.0, 1500 W on the Venus A, and 2200 W on the Venus D before
+control firmware 149 (2500 W from 149). On the 800 W power version (`set_v=1`)
+it also rejects anything above 800 W. On the Venus E 3.0, Venus A and Venus D a
+limit of 0 is replaced with 800 W at the next boot, which also switches the unit
+to the 800 W version.
+
+Changing the power version with [Set version](#11-set-version) also sets this
+limit.
+
+### 13.2 Receive
+
+`cd=17,ret=1` (accepted) or `cd=17,ret=0` (rejected). The Venus C/E (HMG) below
+control firmware 154 replies with a bare `ret=1` / `ret=0`.
+
+On the Venus C/E (HMG) from control firmware 153, `mdp_w` reports the limit in
+effect at that moment, which the device lowers for state of charge, temperature
+and the BMS, so it can read lower than the value set.
 
 ## 14 Set the meter type and supplementary power type
 

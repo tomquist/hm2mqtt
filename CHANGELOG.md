@@ -32,6 +32,7 @@
 - Venus: The *Bluetooth Advertising* switch showed the Bluetooth connection state instead of the setting, so it was often wrong. It now shows the setting, and on the Venus C/E (HMG) appears only from control firmware 156, the first to support it
 - Venus: The *Local API* switch and port now show up on the Venus E 3.0, Venus A and Venus D, and changing the port now takes effect
 - Venus: *Version Set* only offers the power versions the model accepts. The device ignored the others
+- Venus: *Maximum Discharge Power* changed the power version instead of the discharge limit, so most values did nothing and 800 or 2500 W switched the version. It now sets the discharge limit (fixes #60)
 
 ## [1.10.2] - 2026-10-13
 
