@@ -619,6 +619,30 @@ external meter type with `cd=18,meter=<code>,mac=<mac>`:
 | 4 | CT003 | required |
 | 5 | Shelly EM Gen3 | required |
 | 6 | Shelly Pro EM50 | required |
+| 8 | SMR-P1 | required |
+| 9 | SMR-IR | required |
+| 10 | SMR-TIC | required |
+| 11 | TPM2-100CT | required |
+
+Which codes a unit accepts depends on its model and control firmware build;
+higher codes are ignored:
+
+| Model | Builds | Accepted `meter=` codes |
+|-------|--------|-------------------------|
+| Venus C/E (HMG) | below 147 | 0-4 |
+| Venus C/E (HMG) | 147 | 0-6 |
+| Venus C/E (HMG) | 148 to 155 | 0-7 |
+| Venus C/E (HMG) | 156 and later | 0-11 |
+| Venus E 3.0 (VNSE3) | 144 | 0-11 |
+| Venus E 3.0, Venus A, Venus D | all other builds | 0-12 |
+
+When `meter=` is present, every other key in the command is ignored.
+
+The configured code is reported back as `prc_d` in the device information: on
+the Venus C/E (HMG) from control firmware 149, and on every Venus E 3.0, Venus A
+and Venus D build, where it equals `ct_t`. On the HMG, `ct_t` reports the meter
+that answers, in a different code space (see
+[Reported meter type](#reported-meter-type-ct_t)).
 
 ## 15 Obtain CT power
 

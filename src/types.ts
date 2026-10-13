@@ -680,7 +680,7 @@ export interface VenusDeviceData extends BaseDeviceData {
   ctType?: ReportedMeterType;
   phaseType?: VenusPhaseType;
   rechargeMode?: VenusRechargeMode;
-  meterType?: MeterType; // last configured via cd=18
+  meterType?: MeterType; // prc_d, set via cd=18 (HMG before 149: the last value set)
   meterMac?: string; // MAC used when configuring the meter type
   bmsVersion?: number;
   communicationModuleVersion?: string;

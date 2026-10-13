@@ -28,6 +28,7 @@
 - Smart meters: The CT003 with device type `HME-3` or `HME-5` was handled as a CT002, so its energy and P1 status sensors were missing (fixes #202)
 - Smart meters: *Bluetooth Signal* is now *Bluetooth State* and shows the connection state, e.g. *Connected*, instead of a number. *WiFi Status* names its states the same way
 - Venus: *Working Mode* offers *Trading* only on Venus C/E (HMG) firmware that still has it (146 and older), and shows *Passive* or *Modbus* instead of *Automatic* while the Local API or Modbus is in control (fixes #127)
+- Venus: *Meter Type* now shows the meter the device is configured for, instead of the last value set from Home Assistant
 
 ### Fixed
 

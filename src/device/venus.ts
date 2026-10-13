@@ -10,6 +10,7 @@ import {
   isValidVenusRechargeMode,
   isValidVenusVersionSet,
   isValidVenusWorkingMode,
+  MeterType,
   meterTypeCommandCodes,
   meterTypeLabels,
   normalizeMeterMac,
@@ -60,6 +61,7 @@ import {
   venusPvField,
   pipeValue,
   pipeArray,
+  pick,
 } from '../transforms.js';
 
 /**
@@ -385,6 +387,30 @@ const vnsCtTypeCodes: Record<string, ReportedMeterType> = {
   '12': 'stromleser',
   '13': 'ioMeter',
 };
+
+// The meter the device is configured for, as the `meter=` code `cd=18` takes,
+// is reported as `prc_d`: on the Venus C/E (HMG) from control firmware 149 and
+// on every Venus E 3.0, Venus A and Venus D build, where it is the same value as
+// `ct_t`. Earlier HMG builds report an electricity price or 0 there. They also
+// lack `c_ratio`, which the Meter Type readback requires alongside `prc_d`.
+const configuredMeterTypes = Object.fromEntries(
+  Object.entries(meterTypeCommandCodes).map(([meterType, code]) => [String(code), meterType]),
+) as Record<string, MeterType>;
+
+/**
+ * The highest `meter=` code a Venus C/E (HMG) build accepts: 4 before 147, 6 on
+ * 147, 7 from 148 and 11 from 156. Higher codes are ignored by the device.
+ * `undefined` while the build is unknown, or on the other models, which accept
+ * every code hm2mqtt offers.
+ */
+function venusMaxMeterCode(model: VenusModel, deviceVersion: number | undefined) {
+  const build = venusBuild(deviceVersion);
+  if (model !== 'HMG' || build === undefined) return undefined;
+  if (build >= 156) return 11;
+  if (build >= 148) return 7;
+  if (build >= 147) return 6;
+  return 4;
+}
 
 // Per-string PV input power (PV1–PV4) is reported by Venus models that have PV
 // inputs (e.g. Venus A/D). The corresponding entities are advertised purely
@@ -2360,9 +2386,16 @@ function registerRuntimeInfoMessage(
 
     // Configure the external meter type (cd=18,meter=...,mac=...).
     command('meter-type', {
-      handler: ({ message, publishCallback, updateDeviceState }) => {
+      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
         if (!isValidMeterType(message)) {
           logger.warn('Invalid meter type value:', message);
+          return;
+        }
+        const maxCode = venusMaxMeterCode(model, deviceState.deviceVersion);
+        if (maxCode !== undefined && meterTypeCommandCodes[message] > maxCode) {
+          logger.warn(
+            `Meter type ${message} is not supported by control firmware ${deviceState.deviceVersion}`,
+          );
           return;
         }
         updateDeviceState(state => {
@@ -2383,19 +2416,35 @@ function registerRuntimeInfoMessage(
         });
       },
     });
-    advertise(
-      ['meterType'],
+    // The configured meter is read back from `prc_d` where it is reported (see
+    // configuredMeterTypes). Older HMG builds keep the write-only select, which
+    // shows the last value set; the two advertisements never apply together.
+    field({
+      key: ['prc_d', 'c_ratio'],
+      path: ['meterType'],
+      transform: pick('prc_d', map(configuredMeterTypes)),
+    });
+    const reportsMeterType = (deviceVersion: number | undefined) =>
+      venusSupports(model, deviceVersion, { HMG: 149, VNSE3: 0, VNSA: 0, VNSD: 0 });
+    const meterTypeSelect = (optimistic: boolean) =>
       selectComponent<NonNullable<VenusDeviceData['meterType']>>({
         id: 'meter_type',
         name: 'Meter Type',
         icon: 'mdi:meter-electric',
         command: 'meter-type',
         valueMappings: meterTypeLabels,
-        // Write-only: the device never reports the configured meter type back.
-        optimistic: true,
+        optimistic,
         enabled_by_default: false,
-      }),
-    );
+      });
+    advertise(['meterType'], meterTypeSelect(false), {
+      enabled: state =>
+        reportsMeterType(state.deviceVersion) === true && state.meterType != null
+          ? true
+          : undefined,
+    });
+    advertise(['meterType'], meterTypeSelect(true), {
+      enabled: state => (reportsMeterType(state.deviceVersion) === false ? true : undefined),
+    });
 
     // Maximum discharge power (`cd=17,dp=<W>`). The device rejects a limit
     // above the model's maximum, or above 800 W while on the 800 W power

@@ -620,6 +620,34 @@ describe('Home Assistant Discovery', () => {
     ]);
   });
 
+  test('should read the Venus meter type back where the firmware reports it', () => {
+    const meterType = (deviceType: string, state: object) =>
+      generateDiscoveryConfigs(
+        { deviceType, deviceId: 'venus123' },
+        jupiterTopics(deviceType, 'venus123'),
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      )
+        .filter(c => c.topic.includes('/meter_type/'))
+        .map(c => c.config as Record<string, unknown> | null);
+
+    // Reported from HMG 149 and on every VNS build.
+    const hmg = meterType('HMG-50', { deviceVersion: 156, meterType: 'p1Meter' });
+    expect(hmg).toHaveLength(1);
+    expect(hmg[0]).toHaveProperty('state_topic');
+    const vnsa = meterType('VNSA-0', { meterType: 'ct002' });
+    expect(vnsa).toHaveLength(1);
+    expect(vnsa[0]).toHaveProperty('state_topic');
+    // Older HMG builds keep the write-only select.
+    const hmg148 = meterType('HMG-50', { deviceVersion: 148 });
+    expect(hmg148).toHaveLength(1);
+    expect(hmg148[0]).not.toHaveProperty('state_topic');
+    // Deferred while the HMG build is unknown.
+    expect(meterType('HMG-50', {})).toHaveLength(0);
+  });
+
   test('should remove the Venus price, income, error and grid type sensors where unfilled', () => {
     const ids = [
       'charging_price',

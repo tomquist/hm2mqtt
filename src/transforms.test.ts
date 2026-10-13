@@ -33,6 +33,7 @@ import {
   max,
   diff,
   average,
+  pick,
   // Execution functions
   executeTransform,
   executeMultiKeyTransform,
@@ -682,6 +683,20 @@ describe('transforms', () => {
     });
   });
 
+  describe('pick transform', () => {
+    it('applies the transform to the picked key only', () => {
+      const transform = pick('prc_d', map({ '2': 'p1Meter' }));
+      expect(executeMultiKeyTransform(transform, { prc_d: '2', c_ratio: '100' })).toBe('p1Meter');
+      expect(executeMultiKeyTransform(transform, { prc_d: '9', c_ratio: '100' })).toBeUndefined();
+    });
+
+    it('should generate the Jinja2 template of the picked key', () => {
+      expect(multiKeyTransformToJinja2(pick('a', number()), ['a', 'b'])).toBe(
+        transformToJinja2(number(), 'value_json.a'),
+      );
+    });
+  });
+
   describe('isMultiKeyTransform', () => {
     it('should identify multi-key transforms', () => {
       expect(isMultiKeyTransform(sum())).toBe(true);
@@ -689,6 +704,7 @@ describe('transforms', () => {
       expect(isMultiKeyTransform(max())).toBe(true);
       expect(isMultiKeyTransform(diff())).toBe(true);
       expect(isMultiKeyTransform(average())).toBe(true);
+      expect(isMultiKeyTransform(pick('a', number()))).toBe(true);
     });
 
     it('should return false for single-key transforms', () => {

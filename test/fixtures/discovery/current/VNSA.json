@@ -879,7 +879,9 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "unique_id": "0123456789ab_meter_type"
+      "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
+      "unique_id": "0123456789ab_meter_type",
+      "value_template": "{% set mapping = {\"ct001\":\"CT001\",\"shellyPro3em\":\"Shelly Pro 3EM\",\"p1Meter\":\"P1 Meter\",\"ct002\":\"CT002\",\"ct003\":\"CT003\",\"shellyEmGen3\":\"Shelly EM Gen3\",\"shellyProEm50\":\"Shelly Pro EM50\",\"ecoTracker\":\"EcoTracker\",\"smrP1\":\"SMR-P1\",\"smrIr\":\"SMR-IR\",\"smrTic\":\"SMR-TIC\",\"tpm2100ct\":\"TPM2-100CT\"} %}{% set stringifiedValue = value_json.meterType | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
     },
     "homeassistant/select/VNSA_0123456789ab/parallel_mode/config": {
       "availability": [

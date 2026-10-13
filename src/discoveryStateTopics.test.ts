@@ -109,7 +109,7 @@ describe('discovery state topics', () => {
     expect(unbacked).toEqual([]);
   });
 
-  test.each(['HMA', 'HMF', 'HMJ', 'HMK', 'HMG', 'VNSA', 'VNSD', 'VNSE3', 'HMN', 'HMM', 'JPLS'])(
+  test.each(['HMA', 'HMF', 'HMJ', 'HMK', 'HMN', 'HMM', 'JPLS'])(
     '%s advertises the write-only meter controls without a state topic',
     deviceType => {
       const meterControls = statefulAdvertisements().filter(
@@ -122,6 +122,21 @@ describe('discovery state topics', () => {
       for (const control of meterControls) {
         expect(control.hasStateTopic).toBe(false);
       }
+    },
+  );
+
+  test.each(['HMG', 'VNSA', 'VNSD', 'VNSE3'])(
+    '%s reads the meter type back but keeps the meter MAC write-only',
+    deviceType => {
+      const advertisements = statefulAdvertisements().filter(
+        advertisement => advertisement.deviceType === deviceType,
+      );
+      const meterMac = advertisements.filter(advertisement => advertisement.id === 'meter_mac');
+      expect(meterMac).toHaveLength(1);
+      expect(meterMac[0].hasStateTopic).toBe(false);
+
+      const meterType = advertisements.filter(advertisement => advertisement.id === 'meter_type');
+      expect(meterType.some(advertisement => advertisement.hasStateTopic)).toBe(true);
     },
   );
 });

@@ -42,6 +42,7 @@ export type Transform =
   | MaxTransform
   | DiffTransform
   | AverageTransform
+  | PickTransform
   | RoundTransform
   | InRangeTransform
   | HighByteTransform
@@ -63,7 +64,8 @@ export type MultiKeyTransform =
   | MinTransform
   | MaxTransform
   | DiffTransform
-  | AverageTransform;
+  | AverageTransform
+  | PickTransform;
 
 // =============================================================================
 // Single-Value Transforms
@@ -289,6 +291,18 @@ export interface AverageTransform {
   ignoreZero?: boolean;
 }
 
+/**
+ * Apply a single-value transform to one key of a multi-key field. The field's
+ * other keys only gate it: like every multi-key field it is skipped unless all
+ * of its keys are present, so a key that only newer firmware reports keeps an
+ * older firmware's unrelated value of `key` from being read.
+ */
+export interface PickTransform {
+  type: 'pick';
+  key: string;
+  transform: Exclude<Transform, MultiKeyTransform>;
+}
+
 // =============================================================================
 // Transform Factory Functions
 // =============================================================================
@@ -456,6 +470,16 @@ export const average = (
   scale,
   round: roundResult,
   ignoreZero,
+});
+
+/** Create a transform that reads one key of a multi-key field */
+export const pick = (
+  key: string,
+  transform: Exclude<Transform, MultiKeyTransform>,
+): PickTransform => ({
+  type: 'pick',
+  key,
+  transform,
 });
 
 // =============================================================================
@@ -628,6 +652,9 @@ export function executeMultiKeyTransform(
   transform: MultiKeyTransform,
   values: Record<string, string>,
 ): unknown {
+  if (transform.type === 'pick') {
+    return executeTransform(transform.transform, values[transform.key]);
+  }
   const numericValues = Object.values(values).map(v =>
     transform.type === 'sum' && transform.each
       ? Number(executeTransform(transform.each, v))
@@ -930,6 +957,9 @@ export function multiKeyTransformToJinja2(
   keys: string[],
   valuePrefix: string = 'value_json',
 ): string {
+  if (transform.type === 'pick') {
+    return transformToJinja2(transform.transform, `${valuePrefix}.${transform.key}`);
+  }
   // Use float(none) so invalid values become None instead of 0
   const values = keys.map(k => `${valuePrefix}.${k} | float(none)`);
   const rawListExpr = `[${values.join(', ')}]`;
@@ -1032,7 +1062,7 @@ function generateVenusPvFieldJinja2(
 
 /** Check if a transform is a multi-key transform */
 export function isMultiKeyTransform(transform: Transform): transform is MultiKeyTransform {
-  return ['sum', 'min', 'max', 'diff', 'average'].includes(transform.type);
+  return ['sum', 'min', 'max', 'diff', 'average', 'pick'].includes(transform.type);
 }
 
 // =============================================================================
