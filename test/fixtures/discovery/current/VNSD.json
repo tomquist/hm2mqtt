@@ -1012,7 +1012,7 @@
           "topic": "hm2mqtt/VNSD/availability/0123456789ab"
         }
       ],
-      "command_template": "{% set mapping = {\"Automatic\":\"automatic\",\"Manual\":\"manual\",\"Trading\":\"trading\",\"AI\":\"ai\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
+      "command_template": "{% set mapping = {\"Automatic\":\"automatic\",\"Manual\":\"manual\",\"AI\":\"ai\",\"Passive (Local API)\":\"passive\",\"Modbus\":\"modbus\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
       "command_topic": "hm2mqtt/VNSD/control/0123456789ab/working-mode",
       "device": {
         "connections": [["bluetooth", "01:23:45:67:89:AB"]],
@@ -1024,14 +1024,14 @@
       },
       "icon": "mdi:cog",
       "name": "Working Mode",
-      "options": ["Automatic", "Manual", "Trading", "AI"],
+      "options": ["Automatic", "Manual", "AI", "Passive (Local API)", "Modbus"],
       "origin": {
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
       "state_topic": "hm2mqtt/VNSD/device/0123456789ab/data",
       "unique_id": "0123456789ab_working_mode",
-      "value_template": "{% set mapping = {\"automatic\":\"Automatic\",\"manual\":\"Manual\",\"trading\":\"Trading\",\"ai\":\"AI\"} %}{% set stringifiedValue = value_json.workingMode | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
+      "value_template": "{% set mapping = {\"automatic\":\"Automatic\",\"manual\":\"Manual\",\"ai\":\"AI\",\"passive\":\"Passive (Local API)\",\"modbus\":\"Modbus\"} %}{% set stringifiedValue = value_json.workingMode | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
     },
     "homeassistant/sensor/VNSD_0123456789ab/avg_cell_voltage/config": null,
     "homeassistant/sensor/VNSD_0123456789ab/balance_session_minutes/config": null,

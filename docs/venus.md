@@ -162,7 +162,7 @@ Description of the above parameters:
 | err_a | Error code (warning code) |
 | dev_n | Device version number |
 | grd_y | Grid type (0: Adaptive (220-240) (50-60hz) AUTO; 1: EN50549 EN50549; 2: Netherlands; 3: Germany; 4: Austria; 5: United Kingdom; 6: Spain; 7: Poland; 8: Italy; 9: China) |
-| wor_m | Working mode (0: Automatic; 1: Manual operation; 2: Trading; 5: AI) |
+| wor_m | Working mode (0: Automatic; 1: Manual operation; 2: Trading, Venus C/E (HMG) up to control firmware 146 only; 3: Passive, set through the local API; 5: AI; 10: Modbus/RS485 control, Venus E 3.0/A/D) |
 | tim_0 | Start time (hour \| minute) \| End time (hour \| minute) \| Cycle \| Power \| Enable |
 | tim_1 | ditto |
 | tim_2 | ditto |
@@ -289,8 +289,15 @@ hame_energy/{type}/App/{uid or mac}/ctrl
 Payload:
 1. `cd=2,md=0` - Automatic mode
 2. `cd=2,md=1` - Manual mode
-3. `cd=2,md=2` - Trading mode
+3. `cd=2,md=2` - Trading mode (Venus C/E (HMG) up to control firmware 146 only; later firmware ignores it)
 4. `cd=2,md=5,nl=1` - AI mode (the `nl=1` flag is required to enable AI mode)
+
+Passive (`wor_m=3`) and Modbus (`wor_m=10`) cannot be selected with `cd=2`: the
+local API and Modbus control switch the device into them.
+
+### 4.2 Receive
+
+`cd=2,md=<working mode>`, the mode after the command.
 
 ## 5 Set automatic discharge time period
 
@@ -311,7 +318,7 @@ Description of the above parameters:
 | Key | Description |
 |-----|-------------|
 | cd | Instruction identification |
-| md | Working mode (0: Automatic; 1: Manual operation; 2: Trading; 5: AI) |
+| md | 1 (time period) |
 | nm | [0-9] |
 | bt | Start Time |
 | et | End Time |
@@ -320,6 +327,9 @@ Description of the above parameters:
 | as | Enable (0: disable; 1: enable) |
 
 ## 6 Set transaction mode content
+
+Venus C/E (HMG) up to control firmware 146 only. It also switches the device to
+trading mode.
 
 ### 6.1 Public
 
@@ -338,7 +348,7 @@ Description of the above parameters:
 | Key | Description |
 |-----|-------------|
 | cd | Instruction identification |
-| md | Working mode (0: Automatic; 1: Manual operation; 2: Trading; 5: AI) |
+| md | 2 (trading) |
 | id | Region code |
 | in | Electricity price during charging |
 | on | Electricity price during discharge |

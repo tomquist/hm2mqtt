@@ -1248,6 +1248,23 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('workingMode', 'ai');
   });
 
+  test('parses the Venus Passive, Modbus and Trading working modes per model', () => {
+    const base =
+      'cd=1,tot_i=6,tot_o=1109,ele_d=0,ele_m=0,grd_d=27,grd_m=27,inc_d=0,inc_m=0,grd_f=0,grd_o=801,grd_t=3,gct_s=1,cel_s=2,cel_p=233,cel_c=45,err_t=800,err_a=4,dev_n=147,grd_y=0,inc_a=0';
+    const mode = (deviceType: string, code: string) =>
+      (parseMessage(`${base},wor_m=${code}`, deviceType, 'venus123')['data'] as VenusDeviceData)
+        .workingMode;
+
+    expect(mode('VNSE3-0', '3')).toBe('passive');
+    expect(mode('HMG-50', '3')).toBe('passive');
+    expect(mode('VNSA-0', '10')).toBe('modbus');
+    // Only the HMG up to control firmware 146 has trading.
+    expect(mode('HMG-1', '2')).toBe('trading');
+    expect(mode('VNSD-0', '2')).toBeUndefined();
+    // Debug codes are not shown as another mode.
+    expect(mode('HMG-50', '10')).toBeUndefined();
+  });
+
   test('parses Jupiter AI working mode (wor_m=5)', () => {
     const message =
       'ele_d=349,ele_m=2193,ele_y=0,pv1_p=94,pv1_s=1,pv2_p=77,pv2_s=1,pv3_p=41,pv3_s=1,pv4_p=60,pv4_s=1,grd_o=250,grd_t=1,gct_s=1,cel_s=0,cel_p=424,cel_c=83,err_t=0,wor_m=5,tim_0=12|0|23|59|127|800|1,tim_1=0|0|12|0|127|150|1,tim_2=0|0|0|0|255|0|0,tim_3=0|0|0|0|255|0|0,tim_4=0|0|0|0|255|0|0,cts_m=0,grd_d=285,grd_m=2018,dev_n=134,dev_i=106,dev_m=206,dev_b=209,dev_t=110,wif_s=75,ala_c=0,ful_d=1,ssid=xxxx,stop_s=10,htt_p=0,ct_t=4,phase_t=1,dchrg=1,seq_s=3,ctrl_r=0,shelly_p=1010,c_ratio=100,b_lck=0,dod=88,total_b=1,online_b=1';

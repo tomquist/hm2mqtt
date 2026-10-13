@@ -578,6 +578,37 @@ describe('Home Assistant Discovery', () => {
     expect(hmg.every(c => c.config === null)).toBe(true);
   });
 
+  test('should offer the Venus working modes each model and build supports', () => {
+    const options = (deviceType: string, state: object) => {
+      const configs = generateDiscoveryConfigs(
+        { deviceType, deviceId: 'venus123' },
+        jupiterTopics(deviceType, 'venus123'),
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      ).filter(c => c.topic.includes('/working_mode/'));
+      expect(configs).toHaveLength(1);
+      return (configs[0].config as unknown as { options: string[] }).options;
+    };
+
+    expect(options('HMG-50', { deviceVersion: 156 })).toEqual([
+      'Automatic',
+      'Manual',
+      'AI',
+      'Passive (Local API)',
+    ]);
+    expect(options('HMG-1', {})).not.toContain('Trading');
+    expect(options('HMG-1', { deviceVersion: 146 })).toContain('Trading');
+    expect(options('VNSA-0', { deviceVersion: 151 })).toEqual([
+      'Automatic',
+      'Manual',
+      'AI',
+      'Passive (Local API)',
+      'Modbus',
+    ]);
+  });
+
   test('should offer Jupiter battery pack recovery on Jupiter Plus only', () => {
     const recoveryConfigs = (deviceType: string, state: object) =>
       generateDiscoveryConfigs(

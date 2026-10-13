@@ -430,9 +430,18 @@ export type VenusCTStatus = 'notConnected' | 'connected' | 'weakSignal';
  */
 export type VenusBatteryWorkingStatus = 'notWorking' | 'charging' | 'discharging' | 'unknown';
 
-const validVenusWorkingModes = ['automatic', 'manual', 'trading', 'ai'] as const;
+const validVenusWorkingModes = [
+  'automatic',
+  'manual',
+  'trading',
+  'ai',
+  'passive',
+  'modbus',
+] as const;
 /**
- * Venus device working mode types
+ * Venus device working mode types. `trading` exists only on the Venus C/E (HMG)
+ * up to control firmware 146. `passive` (Local API) and `modbus` are reported
+ * but cannot be selected.
  */
 export type VenusWorkingMode = (typeof validVenusWorkingModes)[number];
 

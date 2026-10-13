@@ -23,10 +23,11 @@ import {
   VenusDeviceData,
   VenusTimePeriod,
   VenusVersionSet,
+  VenusWorkingMode,
   WeekdaySet,
 } from '../types.js';
 import { registerNetworkInfoMessage } from './networkInfoBase.js';
-import { VenusModel, venusSupports } from './helpers.js';
+import { VenusModel, venusBuild, venusSupports } from './helpers.js';
 import { registerCellBalancingMessage } from './cellBalancingMessage.js';
 import { extractVenusSample } from '../cellBalancing.js';
 import logger from '../logger.js';
@@ -122,6 +123,9 @@ const venusRawFields = [
   'udp',
   'vp',
 ];
+
+const TRADING_UNSUPPORTED =
+  'Trading mode only exists on the Venus C/E (HMG) up to control firmware 146';
 
 // Minimum and maximum Depth of Discharge values based on Marstek app limits (30-88%).
 // NOTE: Experience has shown that these limits may change over time!
@@ -1059,40 +1063,65 @@ function registerRuntimeInfoMessage(
       }),
     );
 
+    // `wor_m`. Passive (3) is entered through the Local API and Modbus (10)
+    // through Modbus/RS485 control on the Venus E 3.0, Venus A and Venus D;
+    // neither can be selected with `cd=2`. Trading (2) only exists on the Venus
+    // C/E (HMG) up to control firmware 146. Other codes are debug and factory
+    // modes and are left unset rather than shown as some other mode.
+    const workingModeCodes: Record<string, VenusWorkingMode> =
+      model === 'HMG'
+        ? { '0': 'automatic', '1': 'manual', '2': 'trading', '3': 'passive', '5': 'ai' }
+        : { '0': 'automatic', '1': 'manual', '3': 'passive', '5': 'ai', '10': 'modbus' };
+    const supportsTrading = (deviceVersion: number | undefined) => {
+      if (model !== 'HMG') return false;
+      const build = venusBuild(deviceVersion);
+      return build === undefined ? undefined : build <= 146;
+    };
     field({
       key: 'wor_m',
       path: ['workingMode'],
-      transform: map(
-        {
-          '0': 'automatic',
-          '1': 'manual',
-          '2': 'trading',
-          '5': 'ai',
-        },
-        'automatic',
-      ),
+      transform: map(workingModeCodes),
     });
-    advertise(
-      ['workingMode'],
+    // `wor_m=0` is the self-consumption mode, which the Marstek app shows as
+    // "Self Consumption". The option is left as "Automatic" because it is what
+    // an entity in this select reports as its state: renaming it would break
+    // automations that set or compare the mode by name, for no functional gain.
+    // Marstek's own internal name for the mode is "Auto".
+    const workingModeLabels: Partial<Record<VenusWorkingMode, string>> = {
+      automatic: 'Automatic',
+      manual: 'Manual',
+      ai: 'AI',
+      passive: 'Passive (Local API)',
+      ...(model === 'HMG' ? {} : { modbus: 'Modbus' }),
+    };
+    const workingModeSelect = (valueMappings: Partial<Record<VenusWorkingMode, string>>) =>
       selectComponent<NonNullable<VenusDeviceData['workingMode']>>({
         id: 'working_mode',
         name: 'Working Mode',
         icon: 'mdi:cog',
         command: 'working-mode',
-        valueMappings: {
-          // `wor_m=0` is the self-consumption mode, which the Marstek app shows
-          // as "Self Consumption". The option is left as "Automatic" because it
-          // is what an entity in this select reports as its state: renaming it
-          // would break automations that set or compare the mode by name, for
-          // no functional gain. Marstek's own internal name for the mode is
-          // "Auto".
+        valueMappings: valueMappings as Record<VenusWorkingMode, string>,
+      });
+    if (model === 'HMG') {
+      // Firmware that still has trading also offers it; the two
+      // advertisements never apply at the same time.
+      advertise(['workingMode'], workingModeSelect(workingModeLabels), {
+        enabled: state => (supportsTrading(state.deviceVersion) === true ? undefined : true),
+      });
+      advertise(
+        ['workingMode'],
+        workingModeSelect({
           automatic: 'Automatic',
           manual: 'Manual',
           trading: 'Trading',
           ai: 'AI',
-        },
-      }),
-    );
+          passive: 'Passive (Local API)',
+        }),
+        { enabled: state => (supportsTrading(state.deviceVersion) === true ? true : undefined) },
+      );
+    } else {
+      advertise(['workingMode'], workingModeSelect(workingModeLabels));
+    }
 
     field({
       key: 'wifi_n',
@@ -2059,9 +2088,14 @@ function registerRuntimeInfoMessage(
       });
     }
 
-    // Transaction mode settings
+    // Transaction (trading) mode settings, `cd=3,md=2`: Venus C/E (HMG) up to
+    // control firmware 146 only.
     command('transaction-mode', {
-      handler: ({ message, publishCallback }) => {
+      handler: ({ message, publishCallback, deviceState }) => {
+        if (supportsTrading(deviceState.deviceVersion) === false) {
+          logger.warn(TRADING_UNSUPPORTED);
+          return;
+        }
         try {
           const params = JSON.parse(message);
           if (!params.id || !params.in || !params.on) {
@@ -2084,15 +2118,11 @@ function registerRuntimeInfoMessage(
     });
 
     command('working-mode', {
-      handler: ({ message, publishCallback, updateDeviceState }) => {
+      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
         if (!isValidVenusWorkingMode(message)) {
           logger.warn('Invalid working mode value:', message);
           return;
         }
-
-        updateDeviceState(() => ({
-          workingMode: message,
-        }));
 
         let mode: number;
         switch (message) {
@@ -2103,14 +2133,26 @@ function registerRuntimeInfoMessage(
             mode = 1;
             break;
           case 'trading':
+            if (supportsTrading(deviceState.deviceVersion) === false) {
+              logger.warn(TRADING_UNSUPPORTED);
+              return;
+            }
             mode = 2;
             break;
           case 'ai':
             mode = 5;
             break;
-          default:
-            mode = 0;
+          case 'passive':
+          case 'modbus':
+            logger.warn(
+              `Working mode ${message} is set by the Local API or Modbus control, not by hm2mqtt; choose automatic, manual or ai`,
+            );
+            return;
         }
+
+        updateDeviceState(() => ({
+          workingMode: message,
+        }));
 
         const params: CommandParams = { md: mode };
         // AI mode additionally requires the nl flag to be enabled
