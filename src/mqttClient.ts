@@ -132,6 +132,7 @@ export class MqttClient {
   /**
    * Determine whether the given publish path corresponds to a cd=1 request for
    * this device, i.e. data received on this path is a response to a cd=1 poll.
+   * Marstek Venus E Mini Uses a cd=01 message on firmware 301 - EU
    *
    * @param device - The device configuration
    * @param publishPath - The message path that received data
@@ -142,7 +143,7 @@ export class MqttClient {
       return false;
     }
     return deviceDefinition.messages.some(
-      message => message.refreshDataPayload === 'cd=1' && message.publishPath === publishPath,
+      message => (message.refreshDataPayload === 'cd=1' || message.refreshDataPayload === 'cd=01') && message.publishPath === publishPath,
     );
   }
 
