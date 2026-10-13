@@ -1,12 +1,23 @@
 import {
+  BaseDeviceData,
   BuildMessageFn,
   globalPollInterval,
   registerDeviceDefinition,
 } from '../deviceDefinition.js';
-import { CT002DeviceData, CT002PhaseEnergyInfo } from '../types.js';
-import { MIN_PHASE_ENERGY_POLL_INTERVAL_MS } from '../constants.js';
+import {
+  CT002DeviceData,
+  CT002EnergyInfo,
+  CT002PhaseEnergyInfo,
+  CT002PhaseMeasurementInfo,
+  MeterBaseDeviceData,
+} from '../types.js';
+import {
+  CT002_ENERGY_POLL_OFFSET_MS,
+  CT002_MEASUREMENT_POLL_OFFSET_MS,
+  MIN_PHASE_ENERGY_POLL_INTERVAL_MS,
+} from '../constants.js';
 import { sensorComponent } from '../homeAssistantDiscovery.js';
-import { number } from '../transforms.js';
+import { ct002Energy, number, sum } from '../transforms.js';
 import { extractMeterDeviceInfo, registerMeterBaseFields } from './meterBase.js';
 
 /**
@@ -41,14 +52,63 @@ function isPhaseEnergyMessage(values: Record<string, string>): boolean {
   return !('ret' in values) && phaseEnergyFields.every(({ key }) => key in values);
 }
 
-// The HME firmware has no `cd=19`, so the CT002s sold as `HME-X` only get the
-// runtime message.
+/** `cd=31` and `cd=32` exist from HME-4 firmware 124 on. */
+function supportsMeasurementCommands(state: BaseDeviceData): boolean {
+  return ((state as MeterBaseDeviceData).firmwareVersion ?? 0) >= 124;
+}
+
+/** Advertise only once the device has answered, as with the other optional readings. */
+const whenReported =
+  <T extends BaseDeviceData>(path: keyof T) =>
+  (state: T) =>
+    state[path] != null ? true : undefined;
+
+const phaseMeasurementFields = [
+  { phase: 1, voltage: 'va', current: 'ia', reactive: 'fvara' },
+  { phase: 2, voltage: 'vb', current: 'ib', reactive: 'fvarb' },
+  { phase: 3, voltage: 'vc', current: 'ic', reactive: 'fvarc' },
+] as const;
+
+const voltageAngleFields = [
+  { key: 'uab', path: 'phase12VoltageAngle', id: 'phase12_voltage_angle', name: 'Phase 1-2' },
+  { key: 'ubc', path: 'phase23VoltageAngle', id: 'phase23_voltage_angle', name: 'Phase 2-3' },
+  { key: 'uca', path: 'phase31VoltageAngle', id: 'phase31_voltage_angle', name: 'Phase 3-1' },
+] as const;
+
+const energyFields = [
+  { key: 'kwh_a', path: 'phase1PositiveEnergy', id: 'phase1_positive_energy', phase: 1 },
+  { key: 'kwh_b', path: 'phase2PositiveEnergy', id: 'phase2_positive_energy', phase: 2 },
+  { key: 'kwh_c', path: 'phase3PositiveEnergy', id: 'phase3_positive_energy', phase: 3 },
+  { key: 'n_kwh_a', path: 'phase1NegativeEnergy', id: 'phase1_negative_energy', phase: 1 },
+  { key: 'n_kwh_b', path: 'phase2NegativeEnergy', id: 'phase2_negative_energy', phase: 2 },
+  { key: 'n_kwh_c', path: 'phase3NegativeEnergy', id: 'phase3_negative_energy', phase: 3 },
+] as const;
+
+const energyTotals = [
+  {
+    keys: ['kwh_a', 'kwh_b', 'kwh_c'],
+    path: 'totalPositiveEnergy',
+    id: 'total_positive_energy',
+    name: 'Total Positive Energy',
+  },
+  {
+    keys: ['n_kwh_a', 'n_kwh_b', 'n_kwh_c'],
+    path: 'totalNegativeEnergy',
+    id: 'total_negative_energy',
+    name: 'Total Negative Energy',
+  },
+] as const;
+
+// The HME firmware has no `cd=19`. Instead, firmware 124 and later answers
+// `cd=31` (voltage and current) and `cd=32` (energy).
 registerDeviceDefinition(
   {
     deviceTypes: ['HME'],
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
+    registerPhaseMeasurementMessage(message);
+    registerEnergyMessage(message);
   },
 );
 
@@ -116,6 +176,153 @@ function registerPhaseEnergyMessage(message: BuildMessageFn) {
           }),
           { enabled: state => (state[path] != null ? true : undefined) },
         );
+      }
+    },
+  );
+}
+
+/**
+ * Per-phase voltage and current, requested with `cd=31` (HME-4 firmware 124 and
+ * later). The reply repeats the phase powers, which come from `cd=1` already,
+ * and carries power-factor, plain reactive-power and `ui*` fields that are
+ * always 0; none of those are mapped.
+ *
+ * `fvara`..`fvarc` are a reactive power per phase with the sign the metering
+ * chip reports (the measurement direction does not apply to them), and
+ * `uab`/`ubc`/`uca` are the angles between the phase voltages, about 120° each
+ * on a correctly wired three-phase supply. Both are disabled by default.
+ *
+ * Never send `cd=30`: on firmware 124 it is answered with this `cd=31` reply.
+ */
+function registerPhaseMeasurementMessage(message: BuildMessageFn) {
+  message<CT002PhaseMeasurementInfo>(
+    {
+      refreshDataPayload: 'cd=31',
+      isMessage: values => values.cd === '31' && 'va' in values,
+      publishPath: 'phase_measurements',
+      defaultState: {},
+      getAdditionalDeviceInfo: () => ({}),
+      pollInterval: globalPollInterval,
+      pollOffsetMs: CT002_MEASUREMENT_POLL_OFFSET_MS,
+      shouldPoll: supportsMeasurementCommands,
+      controlsDeviceAvailability: false,
+    },
+    ({ field, advertise }) => {
+      for (const { phase, voltage, current, reactive } of phaseMeasurementFields) {
+        const voltagePath = `phase${phase}Voltage` as const;
+        field({ key: voltage, path: [voltagePath], transform: number() });
+        advertise(
+          [voltagePath],
+          sensorComponent<number>({
+            id: `phase${phase}_voltage`,
+            name: `Phase ${phase} Voltage`,
+            device_class: 'voltage',
+            unit_of_measurement: 'V',
+            state_class: 'measurement',
+          }),
+          { enabled: whenReported(voltagePath) },
+        );
+
+        const currentPath = `phase${phase}Current` as const;
+        field({ key: current, path: [currentPath], transform: number() });
+        advertise(
+          [currentPath],
+          sensorComponent<number>({
+            id: `phase${phase}_current`,
+            name: `Phase ${phase} Current`,
+            device_class: 'current',
+            unit_of_measurement: 'A',
+            state_class: 'measurement',
+          }),
+          { enabled: whenReported(currentPath) },
+        );
+
+        const reactivePath = `phase${phase}ReactivePower` as const;
+        field({ key: reactive, path: [reactivePath], transform: number() });
+        advertise(
+          [reactivePath],
+          sensorComponent<number>({
+            id: `phase${phase}_reactive_power`,
+            name: `Phase ${phase} Reactive Power`,
+            device_class: 'reactive_power',
+            unit_of_measurement: 'var',
+            state_class: 'measurement',
+            enabled_by_default: false,
+          }),
+          { enabled: whenReported(reactivePath) },
+        );
+      }
+
+      for (const { key, path, id, name } of voltageAngleFields) {
+        field({ key, path: [path], transform: number() });
+        advertise(
+          [path],
+          sensorComponent<number>({
+            id,
+            name: `${name} Voltage Angle`,
+            icon: 'mdi:angle-acute',
+            unit_of_measurement: '°',
+            state_class: 'measurement',
+            enabled_by_default: false,
+          }),
+          { enabled: whenReported(path) },
+        );
+      }
+    },
+  );
+}
+
+/**
+ * Per-phase energy, requested with `cd=32` (HME-4 firmware 124 and later), e.g.
+ * `kwh_a=12.50kwh`. "Positive" and "negative" are the two directions of energy
+ * flow as the clamp sees it; which of them is import depends on how the clamp
+ * is fitted, and the measurement direction setting does not apply to them.
+ *
+ * The counters only live in the meter's memory, so they restart from 0 when it
+ * reboots. The meter's own `kwh`/`n_kwh` totals add the hundredths of the three
+ * phases without carrying (15.133 instead of 16.33), so the totals are computed
+ * from the phases instead. All of these are disabled by default.
+ */
+function registerEnergyMessage(message: BuildMessageFn) {
+  message<CT002EnergyInfo>(
+    {
+      refreshDataPayload: 'cd=32',
+      isMessage: values => values.cd === '32' && 'kwh_a' in values,
+      publishPath: 'energy',
+      defaultState: {},
+      getAdditionalDeviceInfo: () => ({}),
+      pollInterval: Math.max(globalPollInterval, MIN_PHASE_ENERGY_POLL_INTERVAL_MS),
+      pollOffsetMs: CT002_ENERGY_POLL_OFFSET_MS,
+      shouldPoll: supportsMeasurementCommands,
+      controlsDeviceAvailability: false,
+    },
+    ({ field, advertise }) => {
+      const energySensor = (id: string, name: string) =>
+        sensorComponent<number>({
+          id,
+          name,
+          device_class: 'energy',
+          unit_of_measurement: 'Wh',
+          state_class: 'total_increasing',
+          enabled_by_default: false,
+        });
+
+      for (const { key, path, id, phase } of energyFields) {
+        const direction = key.startsWith('n_') ? 'Negative' : 'Positive';
+        field({ key, path: [path], transform: ct002Energy(), monotonic: true });
+        advertise([path], energySensor(id, `Phase ${phase} ${direction} Energy`), {
+          enabled: whenReported(path),
+        });
+      }
+
+      for (const { keys, path, id, name } of energyTotals) {
+        field({
+          key: keys,
+          path: [path],
+          transform: sum(undefined, ct002Energy()),
+          monotonic: true,
+        });
+        advertise([path], energySensor(id, name), { enabled: whenReported(path) });
       }
     },
   );

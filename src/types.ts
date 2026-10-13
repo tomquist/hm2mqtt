@@ -1142,6 +1142,42 @@ export interface CT002PhaseEnergyInfo extends BaseDeviceData {
 }
 
 /**
+ * Per-phase voltage, current and related readings the CT002 (`HME-4` firmware
+ * 124 and later) returns for `cd=31`. The power-factor, plain reactive-power
+ * and `ui*` fields of that reply are always 0, so they are not mapped.
+ */
+export interface CT002PhaseMeasurementInfo extends BaseDeviceData {
+  phase1Voltage?: number; // va
+  phase2Voltage?: number; // vb
+  phase3Voltage?: number; // vc
+  phase1Current?: number; // ia
+  phase2Current?: number; // ib
+  phase3Current?: number; // ic
+  phase1ReactivePower?: number; // fvara
+  phase2ReactivePower?: number; // fvarb
+  phase3ReactivePower?: number; // fvarc
+  phase12VoltageAngle?: number; // uab
+  phase23VoltageAngle?: number; // ubc
+  phase31VoltageAngle?: number; // uca
+}
+
+/**
+ * Per-phase energy counters the CT002 (`HME-4` firmware 124 and later) returns
+ * for `cd=32`, in Wh. They count since the meter last started. Which direction
+ * is "positive" depends on how the clamps are oriented.
+ */
+export interface CT002EnergyInfo extends BaseDeviceData {
+  phase1PositiveEnergy?: number; // kwh_a
+  phase2PositiveEnergy?: number; // kwh_b
+  phase3PositiveEnergy?: number; // kwh_c
+  phase1NegativeEnergy?: number; // n_kwh_a
+  phase2NegativeEnergy?: number; // n_kwh_b
+  phase3NegativeEnergy?: number; // n_kwh_c
+  totalPositiveEnergy?: number; // sum of kwh_a..kwh_c
+  totalNegativeEnergy?: number; // sum of n_kwh_a..n_kwh_c
+}
+
+/**
  * Marstek smart meter reader (device type `SMR-X`), sold as the Marstek P1
  * Meter (SMR-0), Infrared Meter (SMR-1) and TIC Meter (SMR-2). They are sold as
  * the Marstek CT003 Smart Meter Reader.

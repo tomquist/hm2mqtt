@@ -373,6 +373,62 @@ describe('MqttClient shouldPoll gating', () => {
   });
 });
 
+describe('MqttClient poll offset', () => {
+  test('sends a message with a poll offset that much later than the others', () => {
+    jest.useFakeTimers();
+    try {
+      const message = (overrides: any) => ({
+        isMessage: () => true,
+        getAdditionalDeviceInfo: () => ({}),
+        pollInterval: 1000,
+        controlsDeviceAvailability: false,
+        enabled: true,
+        ...overrides,
+      });
+      mockGetDeviceDefinition.mockReturnValue({
+        messages: [
+          message({ refreshDataPayload: 'cd=1', publishPath: 'data' }),
+          message({ refreshDataPayload: 'cd=31', publishPath: 'm', pollOffsetMs: 2000 }),
+        ],
+      } as any);
+      mockPublish.mockClear();
+
+      const deviceManager: any = {
+        getDeviceTopics: () => ({
+          deviceControlTopicOld: 'old',
+          deviceControlTopicNew: 'new',
+          availabilityTopic: 'avail',
+        }),
+        getDeviceState: () => ({}),
+        getDevices: () => [],
+        getResponseTimeout: () => 5000,
+        setResponseTimeout: jest.fn(),
+        clearResponseTimeout: jest.fn(),
+      };
+      const config: any = {
+        brokerUrl: 'mqtt://localhost:1883',
+        clientId: 'test-client',
+        topicPrefix: 'homeassistant',
+        autodiscoveryTopicPrefix: 'homeassistant',
+      };
+      const mqttClient = new MqttClient(config, deviceManager, jest.fn());
+      const payloads = () => mockPublish.mock.calls.map((c: any[]) => c[1]);
+
+      mqttClient.requestDeviceData({ deviceType: 'HME-4', deviceId: 'meter' });
+      jest.advanceTimersByTime(0);
+      expect(payloads()).toEqual(['cd=1', 'cd=1']);
+
+      // The second message keeps its usual 100 ms slot plus the offset
+      jest.advanceTimersByTime(2099);
+      expect(payloads()).not.toContain('cd=31');
+      jest.advanceTimersByTime(1);
+      expect(payloads()).toEqual(['cd=1', 'cd=1', 'cd=31', 'cd=31']);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
+
 describe('MqttClient forced refresh', () => {
   const topics = {
     deviceTopicOld: 'hame_energy/HMA-1/device/b2500/ctrl',

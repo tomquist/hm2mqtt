@@ -4,6 +4,7 @@
 ### Added
 
 - B2500 (HMJ firmware 116 and later): *CT Status* now recognises the full-battery PV pass-through state, and a new *Full Battery Pass-Through* sensor shows whether that option is enabled
+- Smart meters: The CT002 (`HME-4`, firmware 124 and later) now also reports voltage, current and energy per phase
 
 ### Changed
 

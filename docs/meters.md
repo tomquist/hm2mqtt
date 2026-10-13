@@ -34,6 +34,12 @@ Both families share most of their protocol. Where they differ, the section says 
     2. [Receive](#102-receive)
 11. [Bound inverter information](#11-bound-inverter-information)
     1. [Public](#111-public)
+12. [Read voltage and current](#12-read-voltage-and-current)
+    1. [Public](#121-public)
+    2. [Receive](#122-receive)
+13. [Read the per-phase energy](#13-read-the-per-phase-energy)
+    1. [Public](#131-public)
+    2. [Receive](#132-receive)
 
 ## 1 Device types
 
@@ -355,3 +361,85 @@ Payload:
 1. `cd=14` — Read the list of bound inverters
 2. `cd=16` — Read the details of a bound inverter
 3. `cd=17` — Read a bound inverter's ID
+
+## 12 Read voltage and current
+
+`HME-4` firmware 124 and later. Firmware 120 does not answer.
+
+### 12.1 Public
+
+Topic:
+
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+
+```
+cd=31
+```
+
+### 12.2 Receive
+
+You will receive a message such as:
+
+```
+cd=31,va=231,vb=229,vc=232,ia=1.25,ib=0.40,ic=2.10,pa=119,pb=15,pc=-136,vara=0,varb=0,varc=0,fvara=12,fvarb=-3,fvarc=40,pfa=0,pfb=0,pfc=0,uia=0,uib=0,uic=0,uab=120,ubc=119,uca=121
+```
+
+| Field | Description |
+| --- | --- |
+| `va` / `vb` / `vc` | Phase voltage, in whole V |
+| `ia` / `ib` / `ic` | Phase current, in A with two decimals |
+| `pa` / `pb` / `pc` | Phase power, in W. The same values as `pwr_a` / `pwr_b` / `pwr_c` |
+| `fvara` / `fvarb` / `fvarc` | Reactive power per phase, in var. The sign is the metering chip's; the measurement direction does not apply to it |
+| `uab` / `ubc` / `uca` | Angle between two phase voltages, in degrees. About 120 each on a correctly wired three-phase supply |
+| `vara` … `varc`, `pfa` … `pfc`, `uia` … `uic` | Always `0` |
+
+> **Note:** Do not send `cd=30` to an `HME-4` on firmware 124: it is answered
+> with this `cd=31` reply instead of the power history.
+
+## 13 Read the per-phase energy
+
+`HME-4` firmware 124 and later. Firmware 120 does not answer.
+
+### 13.1 Public
+
+Topic:
+
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+
+```
+cd=32
+```
+
+### 13.2 Receive
+
+You will receive a message such as:
+
+```
+cd=32,kwh_a=12.50kwh,kwh_b=3.75kwh,kwh_c=0.08kwh,n_kwh_a=1.05kwh,n_kwh_b=0.99kwh,n_kwh_c=2.100kwh,kwh=15.133kwh,n_kwh=3.204kwh
+```
+
+| Field | Description |
+| --- | --- |
+| `kwh_a` / `kwh_b` / `kwh_c` | Energy per phase in one direction, as `<kWh>.<hundredths>kwh` |
+| `n_kwh_a` / `n_kwh_b` / `n_kwh_c` | Energy per phase in the other direction, same format |
+| `kwh` / `n_kwh` | Sum over the three phases. Wrong, see below |
+
+- Which direction is import depends on how the clamp is fitted. The measurement
+  direction setting does not apply to these counters.
+- The counters are kept in memory only and start again from 0 when the meter
+  reboots.
+- The hundredths run from `00` to `100` and are printed as they are, so
+  `2.100kwh` means 3.00 kWh. Right after a whole kWh is reached, the meter can
+  report the old hundredths with the new whole kWh once, so a value can be
+  briefly about 1 kWh too high.
+- `kwh` and `n_kwh` add the whole kWh and the hundredths of the three phases
+  separately, without carrying: in the example `15.133kwh` stands for 16.33 kWh.
+  hm2mqtt sums the phases itself instead.

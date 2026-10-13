@@ -8,7 +8,9 @@ import {
   B2500V2CtDiagnosisData,
   B2500V2DeviceData,
   CT002DeviceData,
+  CT002EnergyInfo,
   CT002PhaseEnergyInfo,
+  CT002PhaseMeasurementInfo,
   HmiInverterDeviceData,
   JupiterBMSInfo,
   JupiterDeviceData,
@@ -515,6 +517,48 @@ describe('MQTT Message Parser', () => {
   test('should not handle cd=19 on SMR readers', () => {
     // The SMR family reports its energy as eng_t in the cd=1 payload instead
     expect(parseMessage('ca=100,cb=200,cc=300,da=10,db=20,dc=30', 'SMR-0', 'abcd')).toEqual({});
+  });
+
+  test('should parse the CT002 cd=31 voltage and current reply', () => {
+    // Synthetic, follows the HME-4 firmware 124 cd=31 format
+    const message =
+      'cd=31,va=231,vb=229,vc=232,ia=1.25,ib=0.40,ic=2.10,pa=119,pb=15,pc=-136,vara=0,varb=0,' +
+      'varc=0,fvara=12,fvarb=-3,fvarc=40,pfa=0,pfb=0,pfc=0,uia=0,uib=0,uic=0,uab=120,ubc=119,uca=121';
+    const parsed = parseMessage(message, 'HME-4', 'abcd');
+
+    // Published under its own path; the cd=1 runtime message must not match
+    expect(Object.keys(parsed)).toEqual(['phase_measurements']);
+    const result = parsed['phase_measurements'] as CT002PhaseMeasurementInfo;
+    expect(result).toHaveProperty('phase1Voltage', 231);
+    expect(result).toHaveProperty('phase3Voltage', 232);
+    expect(result).toHaveProperty('phase1Current', 1.25);
+    expect(result).toHaveProperty('phase2Current', 0.4);
+    expect(result).toHaveProperty('phase2ReactivePower', -3);
+    expect(result).toHaveProperty('phase12VoltageAngle', 120);
+    expect(result).toHaveProperty('phase31VoltageAngle', 121);
+  });
+
+  test('should parse the CT002 cd=32 energy reply and compute its totals', () => {
+    // Synthetic, follows the HME-4 firmware 124 cd=32 format. The meter's own
+    // kwh/n_kwh totals add the hundredths without carrying (15.133 is 16.33)
+    const message =
+      'cd=32,kwh_a=12.50kwh,kwh_b=3.75kwh,kwh_c=0.08kwh,n_kwh_a=1.05kwh,n_kwh_b=0.99kwh,' +
+      'n_kwh_c=2.100kwh,kwh=15.133kwh,n_kwh=3.204kwh';
+    const parsed = parseMessage(message, 'HME-4', 'abcd');
+
+    expect(Object.keys(parsed)).toEqual(['energy']);
+    const result = parsed['energy'] as CT002EnergyInfo;
+    expect(result).toHaveProperty('phase1PositiveEnergy', 12500);
+    expect(result).toHaveProperty('phase3PositiveEnergy', 80);
+    // 100 hundredths are a whole kWh
+    expect(result).toHaveProperty('phase3NegativeEnergy', 3000);
+    expect(result).toHaveProperty('totalPositiveEnergy', 16330);
+    expect(result).toHaveProperty('totalNegativeEnergy', 5040);
+  });
+
+  test('should not parse cd=31/cd=32 on TPM-CN', () => {
+    expect(parseMessage('cd=31,va=231,vb=229,vc=232', 'TPM-CN', 'abcd')).toEqual({});
+    expect(parseMessage('cd=32,kwh_a=1.00kwh', 'TPM-CN', 'abcd')).toEqual({});
   });
 
   test('should decode the per-phase measurement direction bitmask', () => {

@@ -177,6 +177,12 @@ export interface MessageDefinition<T extends BaseDeviceData> {
    * dynamically poll per-pack BMS details only for packs that are present.
    */
   shouldPoll?: (state: BaseDeviceData) => boolean;
+  /**
+   * Extra delay, in ms, before this message's request is sent in a poll cycle,
+   * on top of the usual 100 ms spacing per message. For devices that only answer
+   * the last of several requests arriving close together.
+   */
+  pollOffsetMs?: number;
 }
 
 export type BaseDeviceData = {
@@ -230,6 +236,7 @@ export type BuildMessageFn = <T extends BaseDeviceData>(
     polled?: boolean;
     derive?: DeriveFn<T>;
     shouldPoll?: (state: BaseDeviceData) => boolean;
+    pollOffsetMs?: number;
   },
   args: BuildMessageDefinitionFn<T>,
 ) => void;

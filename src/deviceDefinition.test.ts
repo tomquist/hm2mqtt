@@ -44,3 +44,47 @@ describe('CT002 polled messages', () => {
     expect(payloads('TPM2-0')).toContain('cd=19');
   });
 });
+
+describe('CT002 cd=31/cd=32 polling', () => {
+  const messages = () => getDeviceDefinition('HME-4')?.messages ?? [];
+  const byPayload = (payload: string) => messages().find(m => m.refreshDataPayload === payload);
+  const state = (firmwareVersion?: number) =>
+    ({ deviceType: 'HME-4', deviceId: 'x', timestamp: '', values: {}, firmwareVersion }) as never;
+
+  test('polls cd=31 and cd=32 only from firmware 124 on', () => {
+    for (const payload of ['cd=31', 'cd=32']) {
+      const message = byPayload(payload);
+      expect(message?.shouldPoll?.(state(124))).toBe(true);
+      expect(message?.shouldPoll?.(state(130))).toBe(true);
+      expect(message?.shouldPoll?.(state(120))).toBe(false);
+      // Not before the firmware version is known
+      expect(message?.shouldPoll?.(state())).toBe(false);
+    }
+  });
+
+  test('sends cd=31 and cd=32 at least a second apart from cd=1 and from each other', () => {
+    const delay = (payload: string) => {
+      const index = messages().findIndex(m => m.refreshDataPayload === payload);
+      return index * 100 + (messages()[index].pollOffsetMs ?? 0);
+    };
+    expect(delay('cd=31') - delay('cd=1')).toBeGreaterThanOrEqual(1000);
+    expect(delay('cd=32') - delay('cd=31')).toBeGreaterThanOrEqual(1000);
+  });
+
+  test('is only offered on the HME CT002s', () => {
+    for (const deviceType of ['TPM-CN', 'TPM2-0', 'HME-3', 'SMR-0']) {
+      const payloads = getDeviceDefinition(deviceType)?.messages.map(m => m.refreshDataPayload);
+      expect(payloads).not.toContain('cd=31');
+      expect(payloads).not.toContain('cd=32');
+    }
+  });
+
+  test('no meter ever polls cd=30', () => {
+    // HME-4 firmware 124 answers cd=30 with the cd=31 reply
+    for (const deviceType of ['HME-2', 'HME-3', 'HME-4', 'HME-5', 'TPM-CN', 'TPM2-0', 'SMR-0']) {
+      for (const message of getDeviceDefinition(deviceType)?.messages ?? []) {
+        expect(message.refreshDataPayload).not.toMatch(/^cd=30\b/);
+      }
+    }
+  });
+});

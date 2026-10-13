@@ -794,6 +794,75 @@ describe('Home Assistant Discovery', () => {
     }
   });
 
+  test('should defer the CT002 voltage, current and energy configs until they are reported', () => {
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: 'a',
+      deviceTopicNew: 'b',
+      deviceControlTopicOld: 'c',
+      deviceControlTopicNew: 'd',
+      availabilityTopic: 'e',
+      controlSubscriptionTopic: 'f',
+      publishTopic: 'hm2mqtt/HME-4/device/meter',
+    };
+    const configs = (deviceType: string, state: object) =>
+      generateDiscoveryConfigs(
+        { deviceType, deviceId: 'meter' },
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      );
+    const byObjectId = (list: ReturnType<typeof configs>, objectId: string) =>
+      list.find(c => c.topic.endsWith(`/${objectId}/config`))?.config;
+    const isNew = (topic: string) =>
+      /(voltage|current|reactive_power|voltage_angle|positive_energy|negative_energy)\/config$/.test(
+        topic,
+      );
+
+    expect(configs('HME-4', {}).filter(c => isNew(c.topic))).toHaveLength(0);
+
+    const reported = configs('HME-4', {
+      phase1Voltage: 231,
+      phase1Current: 1.25,
+      phase1ReactivePower: 12,
+      phase12VoltageAngle: 120,
+      phase1PositiveEnergy: 12500,
+      totalNegativeEnergy: 5040,
+    });
+    expect(byObjectId(reported, 'phase1_voltage')).toMatchObject({
+      device_class: 'voltage',
+      unit_of_measurement: 'V',
+      state_topic: 'hm2mqtt/HME-4/device/meter/phase_measurements',
+    });
+    expect(byObjectId(reported, 'phase1_voltage')?.enabled_by_default).toBeUndefined();
+    expect(byObjectId(reported, 'phase1_current')).toMatchObject({
+      device_class: 'current',
+      unit_of_measurement: 'A',
+    });
+    expect(byObjectId(reported, 'phase1_reactive_power')).toMatchObject({
+      enabled_by_default: false,
+    });
+    expect(byObjectId(reported, 'phase12_voltage_angle')).toMatchObject({
+      enabled_by_default: false,
+    });
+    expect(byObjectId(reported, 'phase1_positive_energy')).toMatchObject({
+      device_class: 'energy',
+      unit_of_measurement: 'Wh',
+      state_class: 'total_increasing',
+      enabled_by_default: false,
+      state_topic: 'hm2mqtt/HME-4/device/meter/energy',
+    });
+    expect(byObjectId(reported, 'total_negative_energy')).toMatchObject({
+      state_class: 'total_increasing',
+    });
+    // Phases that were not reported stay deferred
+    expect(byObjectId(reported, 'phase2_voltage')).toBeUndefined();
+
+    // TPM-CN has no cd=31/cd=32
+    expect(configs('TPM-CN', { phase1Voltage: 231 }).filter(c => isNew(c.topic))).toHaveLength(0);
+  });
+
   test('should defer the CT002 phase energy configs until cd=19 is answered', () => {
     const deviceTopics: DeviceTopics = {
       deviceTopicOld: 'a',
