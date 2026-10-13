@@ -426,6 +426,17 @@ export type VenusWorkingStatus =
 export type VenusCTStatus = 'notConnected' | 'connected' | 'weakSignal';
 
 /**
+ * State of the Venus Bluetooth module, reported as `ble`. The advertising
+ * setting is separate (`bl`).
+ */
+export type VenusBluetoothState =
+  | 'notInitialised'
+  | 'advertising'
+  | 'connected'
+  | 'disconnected'
+  | 'notAdvertising';
+
+/**
  * Venus device battery working status types
  */
 export type VenusBatteryWorkingStatus = 'notWorking' | 'charging' | 'discharging' | 'unknown';
@@ -710,6 +721,9 @@ export interface VenusDeviceData extends BaseDeviceData {
   ledEnabled?: boolean; // led
   surplusFeedInEnabled?: boolean; // set via cd=43 (no status field; tracked optimistically)
   bluetoothAdvertisingEnabled?: boolean; // bl, set via cd=55
+  bluetoothState?: VenusBluetoothState; // ble
+  meterError?: number; // prc_c (HMG from 148, VNS)
+  mpptErrorCode?: string; // em, hex digits (Venus A/D)
   phaseDiagnosisStatus?: number; // seq_s
   inverterVersion?: number; // inv_v
   mpptVersion?: number; // mppt

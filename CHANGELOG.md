@@ -10,6 +10,7 @@
 - Venus: New *Restart* button (disabled by default). On the Venus C/E (HMG) it needs control firmware 151 or later
 - Venus: *Meter Type* accepts the P1 Meter and EcoTracker without a *Meter MAC*, and offers the Stromleser on the Venus E 3.0, Venus A and Venus D
 - Venus: *Auto Switch Working Mode* can now be turned on and off from Home Assistant
+- Venus: New diagnostic sensors (disabled by default) for the Bluetooth state, the external meter's error code and, on the Venus A/D, the PV charger's error code
 
 ### Changed
 

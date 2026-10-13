@@ -186,7 +186,7 @@ Description of the above parameters:
 | tra_i | Transaction mode - electricity price during charging. Same availability as `tra_a` |
 | tra_o | Transaction mode - electricity price during discharge. Same availability as `tra_a` |
 | htt_p | HTTP Server Type |
-| prc_c | Regional charging price (0.001 euros) on the Venus C/E (HMG) up to control firmware 146 only. Later firmware and the other models report the meter's link state here (0: OK) |
+| prc_c | Regional charging price (0.001 euros) on the Venus C/E (HMG) up to control firmware 146 only; 0 on 147. From 148 on the HMG, and on every Venus E 3.0, Venus A and Venus D, the external meter's error code (0: OK). HMG: 1 the meter's replies lack a valid power reading, 4 the meter does not answer, 5 more than six failures in a row. Venus E 3.0/A/D: 2-6 IP-meter failures, 6 a P1 meter disconnect. Cleared by every `cd=18,meter=` |
 | prc_d | Regional discharge price (0.001 euros) on the Venus C/E (HMG) up to control firmware 146 only. From 149 on the HMG, and on every Venus E 3.0, Venus A and Venus D, the configured `meter=` code (see [`cd=18`](#141-public)); 0 in between |
 | wif_s | WIFI signal strength (Less than 50: Good signal; 50-70: The signal is average; 70-80: Poor signal; Greater than 80: The signal is very weak) |
 | inc_a | Total cumulative income (Unit: 0.001 euros). Venus C/E (HMG) up to control firmware 152 only; always 0 otherwise |
@@ -239,7 +239,7 @@ guesses based on context and cross-referencing other commands:
 | pack | Battery pack summary `num\|mask\|idx\|?` — matches the `cd=42` BMS response (number of packs \| present-pack bitmask \| index) |
 | pv | PV energy `today\|this month`, both in units of 10 Wh. There is no lifetime total; the monthly value starts again at the beginning of each month |
 | fu | Surplus feed-in state `enabled\|?` — first component is `1` when surplus feed-in is enabled, `0` when disabled (see `cd=43`) |
-| em | *(unconfirmed)* |
+| em | PV charger (MPPT) error code, printed as hex digits |
 | peak_status | Peak shaving enabled (0: off; 1: on) (see [Configure peak shaving](#28-configure-peak-shaving)) |
 | peak_power | Peak shaving power cap (W) (see [Configure peak shaving](#28-configure-peak-shaving)) |
 

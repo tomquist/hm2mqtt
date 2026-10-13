@@ -1598,6 +1598,87 @@ function registerRuntimeInfoMessage(
       { enabled: () => false },
     );
 
+    // Diagnostics, disabled by default.
+    //
+    // `ble` is the state of the Bluetooth module, reported by the Venus C/E
+    // (HMG) from control firmware 149 and by every Venus E 3.0, Venus A and
+    // Venus D. The advertising setting is `bl` (Bluetooth Advertising).
+    field({
+      key: 'ble',
+      path: ['bluetoothState'],
+      transform: map({
+        '0': 'notInitialised',
+        '1': 'advertising',
+        '2': 'connected',
+        '3': 'disconnected',
+        '4': 'notAdvertising',
+      }),
+    });
+    advertise(
+      ['bluetoothState'],
+      sensorComponent<NonNullable<VenusDeviceData['bluetoothState']>>({
+        id: 'bluetooth_state',
+        name: 'Bluetooth State',
+        icon: 'mdi:bluetooth-settings',
+        enabled_by_default: false,
+        valueMappings: {
+          notInitialised: 'Not Initialised',
+          advertising: 'Advertising',
+          connected: 'Connected',
+          disconnected: 'Disconnected',
+          notAdvertising: 'Not Advertising',
+        },
+      }),
+      { enabled: state => (state.bluetoothState != null ? true : undefined) },
+    );
+
+    // `prc_c` is the external meter's error code (0: OK) on the Venus C/E
+    // (HMG) from control firmware 148 and on every Venus E 3.0, Venus A and
+    // Venus D; HMG 146 reports a price there and 147 always 0. On the HMG, 1
+    // means the meter's replies lack a valid power reading, 4 that it does not
+    // answer and 5 more than six failures in a row; on the other models 2 to 6
+    // are failures of an IP meter, 6 a P1 meter disconnect. Setting a meter
+    // with `cd=18,meter=` clears it.
+    field({
+      key: 'prc_c',
+      path: ['meterError'],
+      transform: number(),
+    });
+    advertise(
+      ['meterError'],
+      sensorComponent<number>({
+        id: 'meter_error',
+        name: 'Meter Error',
+        icon: 'mdi:meter-electric-outline',
+        enabled_by_default: false,
+      }),
+      {
+        enabled: state =>
+          venusSupports(model, state.deviceVersion, { HMG: 148, VNSE3: 0, VNSA: 0, VNSD: 0 }) &&
+          state.meterError != null
+            ? true
+            : undefined,
+      },
+    );
+
+    // `em` is the PV charger's (MPPT) error code, printed as hex digits. Only
+    // the Venus A and Venus D report it.
+    field({
+      key: 'em',
+      path: ['mpptErrorCode'],
+      transform: identity(),
+    });
+    advertise(
+      ['mpptErrorCode'],
+      sensorComponent<string>({
+        id: 'mppt_error',
+        name: 'MPPT Error Code',
+        icon: 'mdi:solar-power-variant-outline',
+        enabled_by_default: false,
+      }),
+      { enabled: state => (state.mpptErrorCode != null ? true : undefined) },
+    );
+
     command('peak-shaving', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
         const enable =

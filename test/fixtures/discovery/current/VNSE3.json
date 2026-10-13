@@ -1087,6 +1087,38 @@
       "unique_id": "0123456789ab_battery_working_status",
       "value_template": "{% set mapping = {\"notWorking\":\"Not Working\",\"charging\":\"Charging\",\"discharging\":\"Discharging\",\"unknown\":\"Unknown\"} %}{% set stringifiedValue = value_json.batteryWorkingStatus | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
     },
+    "homeassistant/sensor/VNSE3_0123456789ab/bluetooth_state/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/VNSE3/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "VNSE3",
+        "name": "HAME Energy VNSE3 0123456789ab",
+        "sw_version": "151"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:bluetooth-settings",
+      "name": "Bluetooth State",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/VNSE3/device/0123456789ab/data",
+      "unique_id": "0123456789ab_bluetooth_state",
+      "value_template": "{% set mapping = {\"notInitialised\":\"Not Initialised\",\"advertising\":\"Advertising\",\"connected\":\"Connected\",\"disconnected\":\"Disconnected\",\"notAdvertising\":\"Not Advertising\"} %}{% set stringifiedValue = value_json.bluetoothState | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
+    },
     "homeassistant/sensor/VNSE3_0123456789ab/bms_version/config": {
       "availability": [
         {
@@ -1546,6 +1578,38 @@
     },
     "homeassistant/sensor/VNSE3_0123456789ab/last_charge_cycle/config": null,
     "homeassistant/sensor/VNSE3_0123456789ab/max_cell_voltage/config": null,
+    "homeassistant/sensor/VNSE3_0123456789ab/meter_error/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/VNSE3/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "VNSE3",
+        "name": "HAME Energy VNSE3 0123456789ab",
+        "sw_version": "151"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:meter-electric-outline",
+      "name": "Meter Error",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_topic": "hm2mqtt/VNSE3/device/0123456789ab/data",
+      "unique_id": "0123456789ab_meter_error",
+      "value_template": "{{ value_json.meterError }}"
+    },
     "homeassistant/sensor/VNSE3_0123456789ab/min_cell_voltage/config": null,
     "homeassistant/sensor/VNSE3_0123456789ab/minutes_above_balance_threshold/config": null,
     "homeassistant/sensor/VNSE3_0123456789ab/minutes_above_high_balance_threshold/config": null,

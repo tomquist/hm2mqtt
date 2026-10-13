@@ -750,7 +750,9 @@ parallel operation).
 Venus devices also report a *Battery Health* sensor (state of health) on control
 firmware 149.2 and later, plus a set of raw diagnostic sensors for fields the
 device sends that have no confirmed meaning. All of the raw ones are disabled by
-default. See [docs/venus-generations.md](docs/venus-generations.md).
+default. See [docs/venus-generations.md](docs/venus-generations.md). The
+*Bluetooth State*, *Meter Error* (0 means OK) and, on the Venus A/D, *MPPT Error
+Code* diagnostic sensors are disabled by default as well.
 
 ### Venus E Mini Commands
 

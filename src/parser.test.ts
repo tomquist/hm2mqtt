@@ -1646,6 +1646,23 @@ describe('MQTT Message Parser', () => {
     expect((old['data'] as VenusDeviceData).bluetoothAdvertisingEnabled).toBeUndefined();
   });
 
+  test('parses the Venus Bluetooth state, meter error and MPPT error diagnostics', () => {
+    // Real Venus A control firmware 143 reading (#218).
+    const vnsa143 =
+      'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=1,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=0,cel_s=2,cel_p=157,cel_c=75,err_t=800,err_a=8,dev_n=143,grd_y=0,wor_m=1,tim_0=0|0|0|0|0|0|0,cts_m=0,bac_u=0,tra_a=74,tra_i=1,tra_o=0,htt_p=0,prc_c=0,prc_d=1,wif_s=51,inc_a=0,set_v=4,mcp_w=1200,mdp_w=1200,ct_t=1,phase_t=0,dchrg_t=1,bms_v=106,fc_v=202409090159,wifi_n=XXX,seq_s=1,ctrl_r=0,par=0,gen=0,ble=3,shelly_p=1010,c_ratio=100,udp=0,api=1,net=1,port=48977,inv_v=113,id=2|0|0|0|0,lk=0,bp=99,ei=0,eb=0,rp=107,gp=0,vp=0,mppt=0,pv1=1076|1,pv2=0|0,pv3=0|0,pv4=0|0,pack=1|1|1|0,pv=41|57,fu=1|0,em=0';
+    const vnsa = parseMessage(vnsa143, 'VNSA-0', 'venusA123')['data'] as VenusDeviceData;
+    expect(vnsa.bluetoothState).toBe('disconnected');
+    expect(vnsa.meterError).toBe(0);
+    expect(vnsa.mpptErrorCode).toBe('0');
+
+    // The MPPT error is printed as hex digits, kept as reported (synthetic).
+    const mppt = parseMessage(vnsa143.replace('em=0', 'em=1a'), 'VNSA-0', 'venusA123');
+    expect((mppt['data'] as VenusDeviceData).mpptErrorCode).toBe('1a');
+    // A failing IP meter (synthetic).
+    const meter = parseMessage(vnsa143.replace('prc_c=0', 'prc_c=6'), 'VNSA-0', 'venusA123');
+    expect((meter['data'] as VenusDeviceData).meterError).toBe(6);
+  });
+
   test('reads the Venus maximum charging power as a magnitude', () => {
     const maxChargingPower = (payload: string, deviceType: string) =>
       (parseMessage(payload, deviceType, 'venus123')['data'] as VenusDeviceData).maxChargingPower;

@@ -636,6 +636,32 @@ describe('Home Assistant Discovery', () => {
     expect(control?.config).toHaveProperty('state_topic');
   });
 
+  test('should advertise the Venus diagnostics disabled by default where reported', () => {
+    const diagnostics = (deviceType: string, state: object) =>
+      generateDiscoveryConfigs(
+        { deviceType, deviceId: 'venus123' },
+        jupiterTopics(deviceType, 'venus123'),
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      ).filter(c => /\/(bluetooth_state|meter_error|mppt_error)\//.test(c.topic));
+
+    const vnsa = diagnostics('VNSA-0', {
+      bluetoothState: 'connected',
+      meterError: 0,
+      mpptErrorCode: '0',
+    });
+    expect(vnsa).toHaveLength(3);
+    for (const config of vnsa) {
+      expect(config.config).toHaveProperty('enabled_by_default', false);
+    }
+    // The HMG reports the meter error from control firmware 148.
+    expect(diagnostics('HMG-50', { deviceVersion: 147, meterError: 0 })).toHaveLength(0);
+    expect(diagnostics('HMG-50', { deviceVersion: 148, meterError: 0 })).toHaveLength(1);
+    expect(diagnostics('VNSE3-0', {})).toHaveLength(0);
+  });
+
   test('should read the Venus meter type back where the firmware reports it', () => {
     const meterType = (deviceType: string, state: object) =>
       generateDiscoveryConfigs(
