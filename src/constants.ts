@@ -20,6 +20,18 @@ export const DEFAULT_AUTODISCOVERY_TOPIC_PREFIX = 'homeassistant';
 export const MIN_PHASE_ENERGY_POLL_INTERVAL_MS = 300000;
 
 /**
+ * How much earlier than its poll interval a message still counts as due.
+ *
+ * The polling timer fires once per interval, but the clock it reads when it
+ * does can lag a few milliseconds behind, so the time since the last request
+ * regularly comes out a hair short of the interval. Counting that as "not due
+ * yet" skipped the poll and read the device a whole interval late. Far above
+ * that jitter, and far below the shortest interval of one second, so no tick
+ * can poll twice.
+ */
+export const POLL_TIMING_TOLERANCE_MS = 250;
+
+/**
  * How long a single shutdown step may take before it is abandoned. Docker's
  * default grace period before SIGKILL is 10s, so both steps together have to
  * finish well inside it for the clean shutdown to be worth anything.
