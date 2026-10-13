@@ -1476,25 +1476,26 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('maxDischargePower', 800);
   });
 
-  test('maps the Venus set_v power-version code to the rated power', () => {
+  test('maps the Venus set_v power-version code to the rated power per model', () => {
     const base =
       'cd=1,tot_i=1,tot_o=212,ele_d=0,ele_m=1,grd_d=212,grd_m=212,inc_d=0,inc_m=0,grd_f=0,grd_o=423,grd_t=3,gct_s=1,cel_s=2,cel_p=483,cel_c=94,err_t=0,err_a=0,dev_n=142,grd_y=0,wor_m=0,inc_a=0';
-    const expected: Record<string, string> = {
-      '0': '2500W',
-      '1': '800W',
-      '2': '600W',
-      '3': '2200W',
-      '4': '1200W',
-      '5': '1500W',
-      '6': '2300W',
-      '7': '2000W',
-      '8': '3000W',
-      '9': '3600W',
+    const expected: Record<string, Record<string, string | undefined>> = {
+      'HMG-50': { '0': '2500W', '1': '800W', '2': undefined, '3': undefined },
+      'VNSE3-0': { '0': '2500W', '1': '800W', '2': '600W', '3': undefined },
+      // Code 0 is the model's default: 1500 W on the Venus A.
+      'VNSA-0': { '0': '1500W', '1': '800W', '3': '2200W', '4': '1200W', '5': '1500W' },
+      'VNSD-0': { '0': '2500W', '1': '800W', '3': '2200W', '4': '1200W', '5': undefined },
     };
 
-    for (const [code, label] of Object.entries(expected)) {
-      const parsed = parseMessage(`${base},set_v=${code}`, 'VNSD-0', 'venusD123');
-      expect((parsed['data'] as VenusDeviceData).versionSet).toBe(label);
+    for (const [deviceType, codes] of Object.entries(expected)) {
+      for (const [code, label] of Object.entries(codes)) {
+        const parsed = parseMessage(`${base},set_v=${code}`, deviceType, 'venus123');
+        expect([deviceType, code, (parsed['data'] as VenusDeviceData).versionSet]).toEqual([
+          deviceType,
+          code,
+          label,
+        ]);
+      }
     }
 
     // Unknown codes are left unmapped rather than guessed.

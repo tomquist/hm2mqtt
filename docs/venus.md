@@ -454,11 +454,27 @@ Payload:
 1. `cd=15,vs=800` - Set up 800W version
 2. `cd=15,vs=2500` - Set up 2500W version
 
-The `vs` parameter is the rated power **in watts**. These are the values the
-Marstek app sends; which of them a given unit accepts depends on its model and
-region:
+The `vs` parameter is the rated power **in watts**. Each model accepts only a
+few values, depending on its control firmware build; anything else is answered
+with `ret=0` and changes nothing:
 
-`600`, `800`, `1200`, `1500`, `2000`, `2200`, `2300`, `2400`, `2500`, `3000`, `3600`
+| Model | Builds | Accepted `vs` (stored as `set_v`) |
+|-------|--------|-----------------------------------|
+| Venus C/E (HMG) | 147 | none: this build has no `cd=15` |
+| Venus C/E (HMG) | all others | 800 (1), 2500 (0) |
+| Venus E 3.0 (VNSE3) | below 149 | 800 (1), 2500 (0) |
+| Venus E 3.0 (VNSE3) | 149 and later | 600 (2), 800 (1), 2500 (0) |
+| Venus A (VNSA) | below 149 | 800 (1), 1200 (4), 1500 (5), 2200 (3) |
+| Venus A (VNSA) | 149 and later | 800 (1), 1200 (4), 1500 (5) |
+| Venus D (VNSD) | below 149 | 800 (1), 1200 (4), 2200 (3) |
+| Venus D (VNSD) | 149 and later | 800 (1), 2200 (3), 2500 (0) |
+
+While a unit is on the 600 W version (`set_v=2`), the HMG from build 149 and the
+other models below build 149 ignore every change.
+
+Every accepted value also sets the maximum discharge power (`mdp_w`) to that
+wattage, capped at the model's limit, and `vs=800` lowers every time period
+whose power is above 800 W to 800 W.
 
 ### 11.2 Receive
 
@@ -482,6 +498,8 @@ rated powers as follows:
 | 7 | 2000 W |
 | 8 | 3000 W |
 | 9 | 3600 W |
+
+Codes 6 to 9 are never set by `cd=15`.
 
 Note that code `0` is **not** the 800 W version — observed device dumps report
 `set_v=0` alongside `mcp_w=2500,mdp_w=2500`, `set_v=1` alongside `mdp_w=800`,

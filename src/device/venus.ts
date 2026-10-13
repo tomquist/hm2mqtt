@@ -133,25 +133,63 @@ const DOD_MIN = 30;
 const DOD_MAX = 88;
 
 // The `set_v` field is a power-version *code*, not a wattage: it identifies the
-// device's rated output power, which is reported back as `mdp_w`. Code 0 means
-// "device default", which depends on the model and firmware version (2500 W for
-// a Venus C/D/E on recent firmware, less on older firmware, on a Venus A, or on
-// the Swiss variants). The regional variant cannot be told apart from MQTT
-// alone, so 0 is reported as the 2500 W default, which matches every observed
-// device dump (`set_v=0` alongside `mdp_w=2500`). Unknown codes are left
-// unmapped rather than guessed.
-const venusPowerVersions: Record<string, VenusVersionSet> = {
-  '0': '2500W',
-  '1': '800W',
-  '2': '600W',
-  '3': '2200W',
-  '4': '1200W',
-  '5': '1500W',
-  '6': '2300W',
-  '7': '2000W',
-  '8': '3000W',
-  '9': '3600W',
+// device's rated output power, while `cd=15,vs=` takes the wattage. Each model
+// accepts only a few of them, and which depends on the control firmware build:
+//
+// | Model | Builds | Accepted `vs` (stored `set_v`)                  |
+// |-------|--------|-------------------------------------------------|
+// | HMG   | 147    | none, there is no `cd=15`                       |
+// | HMG   | others | 800 (1), 2500 (0)                               |
+// | VNSE3 | < 149  | 800 (1), 2500 (0)                               |
+// | VNSE3 | ≥ 149  | 600 (2), 800 (1), 2500 (0)                      |
+// | VNSA  | < 149  | 800 (1), 1200 (4), 1500 (5), 2200 (3)           |
+// | VNSA  | ≥ 149  | 800 (1), 1200 (4), 1500 (5)                     |
+// | VNSD  | < 149  | 800 (1), 1200 (4), 2200 (3)                     |
+// | VNSD  | ≥ 149  | 800 (1), 2200 (3), 2500 (0)                     |
+//
+// Anything else is answered with `cd=15,ret=0` and changes nothing. Code 0 is
+// the model's default version. Other codes are left unmapped rather than
+// guessed.
+const venusPowerVersions: Record<VenusModel, Record<string, VenusVersionSet>> = {
+  HMG: { '0': '2500W', '1': '800W' },
+  VNSE3: { '0': '2500W', '1': '800W', '2': '600W' },
+  VNSA: { '0': '1500W', '1': '800W', '3': '2200W', '4': '1200W', '5': '1500W' },
+  VNSD: { '0': '2500W', '1': '800W', '3': '2200W', '4': '1200W' },
 };
+
+/** The power versions a model and build accept; the model's options while the build is unknown. */
+function acceptedVenusVersionSets(
+  model: VenusModel,
+  deviceVersion: number | undefined,
+): readonly VenusVersionSet[] {
+  const build = venusBuild(deviceVersion);
+  const options = venusVersionSetOptions(model);
+  if (build === undefined) return options;
+  switch (model) {
+    case 'HMG':
+      return build === 147 ? [] : options;
+    case 'VNSE3':
+      return build >= 149 ? options : ['800W', '2500W'];
+    case 'VNSA':
+      return build >= 149 ? ['800W', '1200W', '1500W'] : options;
+    case 'VNSD':
+      return build >= 149 ? ['800W', '2200W', '2500W'] : ['800W', '1200W', '2200W'];
+  }
+}
+
+/** Whether a model and build ignore every power-version change while on 600 W. */
+function venusLocksOn600W(model: VenusModel, deviceVersion: number | undefined): boolean {
+  const build = venusBuild(deviceVersion);
+  if (build === undefined) return false;
+  return model === 'HMG' ? build >= 149 : build < 149;
+}
+
+/** A model's power versions, lowest first. */
+function venusVersionSetOptions(model: VenusModel): VenusVersionSet[] {
+  return [...new Set(Object.values(venusPowerVersions[model]))].sort(
+    (a, b) => parseInt(a, 10) - parseInt(b, 10),
+  );
+}
 
 // Peak shaving caps the power drawn from the grid. The Marstek app defaults the
 // cap to 2000 W and does not enforce an upper bound of its own, so the limit
@@ -1774,7 +1812,7 @@ function registerRuntimeInfoMessage(
     field({
       key: 'set_v',
       path: ['versionSet'],
-      transform: map(venusPowerVersions),
+      transform: map(venusPowerVersions[model]),
     });
     advertise(
       ['versionSet'],
@@ -1783,15 +1821,30 @@ function registerRuntimeInfoMessage(
         name: 'Version Set',
         icon: 'mdi:power-socket',
         command: 'version-set',
-        valueMappings: venusVersionSetLabels,
+        valueMappings: Object.fromEntries(
+          venusVersionSetOptions(model).map(version => [version, venusVersionSetLabels[version]]),
+        ) as Record<VenusVersionSet, string>,
       }),
       { enabled: state => (state.versionSet != null ? true : undefined) },
     );
 
     command('version-set', {
-      handler: ({ message, publishCallback, updateDeviceState }) => {
+      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
         if (!isValidVenusVersionSet(message)) {
           logger.warn('Invalid version value:', message);
+          return;
+        }
+        if (!acceptedVenusVersionSets(model, deviceState.deviceVersion).includes(message)) {
+          logger.warn(
+            `Version ${message} is not accepted by this device (control firmware ${deviceState.deviceVersion ?? 'unknown'})`,
+          );
+          return;
+        }
+        if (
+          deviceState.versionSet === '600W' &&
+          venusLocksOn600W(model, deviceState.deviceVersion)
+        ) {
+          logger.warn('The device ignores power-version changes while on the 600W version');
           return;
         }
 

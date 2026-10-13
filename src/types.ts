@@ -577,8 +577,9 @@ export type WeekdaySet = `${0 | ''}${1 | ''}${2 | ''}${3 | ''}${4 | ''}${5 | ''}
 
 // Rated output power ("power version") of a Venus. The device reports this as a
 // numeric code in the `set_v` field, while the `cd=15,vs=` command takes the
-// rated power in watts. These are the power versions the Marstek app offers;
-// which of them a given unit accepts depends on its model and region.
+// rated power in watts. This is every power version a `set_v` code can stand
+// for; which of them a unit accepts depends on its model and control firmware
+// (see venus.ts).
 const venusValidVersionSets = [
   '600W',
   '800W',

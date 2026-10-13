@@ -827,7 +827,7 @@
           "topic": "hm2mqtt/HMG/availability/0123456789ab"
         }
       ],
-      "command_template": "{% set mapping = {\"600W Version\":\"600W\",\"800W Version\":\"800W\",\"1200W Version\":\"1200W\",\"1500W Version\":\"1500W\",\"2000W Version\":\"2000W\",\"2200W Version\":\"2200W\",\"2300W Version\":\"2300W\",\"2500W Version\":\"2500W\",\"3000W Version\":\"3000W\",\"3600W Version\":\"3600W\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
+      "command_template": "{% set mapping = {\"800W Version\":\"800W\",\"2500W Version\":\"2500W\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
       "command_topic": "hm2mqtt/HMG/control/0123456789ab/version-set",
       "device": {
         "connections": [["bluetooth", "01:23:45:67:89:AB"]],
@@ -839,25 +839,14 @@
       },
       "icon": "mdi:power-socket",
       "name": "Version Set",
-      "options": [
-        "600W Version",
-        "800W Version",
-        "1200W Version",
-        "1500W Version",
-        "2000W Version",
-        "2200W Version",
-        "2300W Version",
-        "2500W Version",
-        "3000W Version",
-        "3600W Version"
-      ],
+      "options": ["800W Version", "2500W Version"],
       "origin": {
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
       "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
       "unique_id": "0123456789ab_version_set",
-      "value_template": "{% set mapping = {\"600W\":\"600W Version\",\"800W\":\"800W Version\",\"1200W\":\"1200W Version\",\"1500W\":\"1500W Version\",\"2000W\":\"2000W Version\",\"2200W\":\"2200W Version\",\"2300W\":\"2300W Version\",\"2500W\":\"2500W Version\",\"3000W\":\"3000W Version\",\"3600W\":\"3600W Version\"} %}{% set stringifiedValue = value_json.versionSet | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
+      "value_template": "{% set mapping = {\"800W\":\"800W Version\",\"2500W\":\"2500W Version\"} %}{% set stringifiedValue = value_json.versionSet | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
     },
     "homeassistant/select/HMG_0123456789ab/working_mode/config": {
       "availability": [
