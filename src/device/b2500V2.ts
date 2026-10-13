@@ -661,6 +661,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn, baseOptions: B2500B
           '9': 'diagnosisTimeout',
           '10': 'chargingInProgress',
           '11': 'unableToFindChannel',
+          '12': 'fullBatteryPassThrough',
         },
         'notInDiagnosis',
       ),
@@ -678,6 +679,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn, baseOptions: B2500B
           diagnosisTimeout: 'Diagnosis timeout',
           chargingInProgress: 'Charging in progress',
           unableToFindChannel: 'Unable to find channel',
+          fullBatteryPassThrough: 'Full battery: PV pass-through',
           notInDiagnosis: 'Not in diagnosis',
         } satisfies Record<B2500V2SmartMeterStatus, string>,
       }),
@@ -930,6 +932,28 @@ function registerRuntimeInfoMessage(message: BuildMessageFn, baseOptions: B2500B
         );
       },
     });
+
+    // `fktc` decides what happens once every pack is full while surplus feed-in
+    // is on: with `1` the device keeps passing PV through (CT status 12), with
+    // `0` it stops its output. It is set with `cd=38,fktc=`.
+    field({
+      key: 'fktc',
+      path: ['fullBatteryPassThrough'],
+      transform: equalsBoolean('1'),
+    });
+    advertise(
+      ['fullBatteryPassThrough'],
+      binarySensorComponent({
+        id: 'full_battery_pass_through',
+        name: 'Full Battery Pass-Through',
+        icon: 'mdi:battery-arrow-up',
+        enabled_by_default: false,
+      }),
+      {
+        enabled: (state: B2500V2DeviceData) =>
+          state.fullBatteryPassThrough != null ? true : undefined,
+      },
+    );
 
     // MAC address used when configuring an external meter (CT002/CT003/Shelly).
     command('meter-mac', {

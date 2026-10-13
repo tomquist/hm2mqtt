@@ -240,6 +240,21 @@ describe('MQTT Message Parser', () => {
     expect((parsed['data'] as B2500V2DeviceData).ctInfo?.connectedPhase).toBe(expected);
   });
 
+  test('should read the B2500 full-battery pass-through setting and CT state 12', () => {
+    const base =
+      'p1=0,p2=0,w1=0,w2=0,pe=14,vv=224,sv=3,cs=0,cd=0,am=0,o1=0,o2=0,do=90,lv=800,cj=1,kn=313,g1=0,g2=0,b1=0,b2=0,md=0,d1=1,e1=0:0,f1=23:59,h1=800,sg=0,sp=80,st=0,tl=12,th=13,tc=0,tf=0,c0=255,c1=4';
+    const data = (extra: string, message = base) =>
+      parseMessage(`${message}${extra}`, 'HMJ-2', '12345')['data'] as B2500V2DeviceData;
+
+    expect(data(',ws=-60,fktc=1').fullBatteryPassThrough).toBe(true);
+    expect(data(',ws=-60,fktc=0').fullBatteryPassThrough).toBe(false);
+    // Firmware that does not report it leaves the value absent.
+    expect(data('').fullBatteryPassThrough).toBeUndefined();
+
+    expect(data('').ctInfo?.status).toBe('notInDiagnosis');
+    expect(data('', base.replace('c1=4', 'c1=12')).ctInfo?.status).toBe('fullBatteryPassThrough');
+  });
+
   test('should parse the B2500 cd=28 CT diagnosis', () => {
     const message = 'ct_t=3,phase_t=4,dchrg_t=1,seq_s=3,c0=10,c1=20,c2=30,cp=60,op=200';
     const parsed = parseMessage(message, 'HMA-1', '12345');

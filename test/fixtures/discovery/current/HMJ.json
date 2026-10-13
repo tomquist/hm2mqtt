@@ -1592,7 +1592,7 @@
       },
       "state_topic": "hm2mqtt/HMJ/device/0123456789ab/data",
       "unique_id": "0123456789ab_ct_status",
-      "value_template": "{% set mapping = {\"preparing1\":\"Preparing to diagnose CT001 (Step 1)\",\"preparing2\":\"Preparing to diagnose CT001 (Step 2)\",\"diagnosingEquipment\":\"Diagnosing CT001 equipment\",\"diagnosingChannel\":\"Diagnosing CT001 channel\",\"diagnosisTimeout\":\"Diagnosis timeout\",\"chargingInProgress\":\"Charging in progress\",\"unableToFindChannel\":\"Unable to find channel\",\"notInDiagnosis\":\"Not in diagnosis\"} %}{% set stringifiedValue = value_json.ctInfo.status | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
+      "value_template": "{% set mapping = {\"preparing1\":\"Preparing to diagnose CT001 (Step 1)\",\"preparing2\":\"Preparing to diagnose CT001 (Step 2)\",\"diagnosingEquipment\":\"Diagnosing CT001 equipment\",\"diagnosingChannel\":\"Diagnosing CT001 channel\",\"diagnosisTimeout\":\"Diagnosis timeout\",\"chargingInProgress\":\"Charging in progress\",\"unableToFindChannel\":\"Unable to find channel\",\"fullBatteryPassThrough\":\"Full battery: PV pass-through\",\"notInDiagnosis\":\"Not in diagnosis\"} %}{% set stringifiedValue = value_json.ctInfo.status | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
     },
     "homeassistant/sensor/HMJ_0123456789ab/ct_transmitted_power/config": {
       "availability": [

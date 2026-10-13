@@ -1,6 +1,10 @@
 # Changelog
 ## [Next]
 
+### Added
+
+- B2500 (HMJ firmware 116 and later): *CT Status* now recognises the full-battery PV pass-through state, and a new *Full Battery Pass-Through* sensor shows whether that option is enabled
+
 ### Changed
 
 - Home Assistant add-on: Runs on Node.js 24 instead of the outdated Node.js 18, which uses about 4 MB more memory (PR #461)

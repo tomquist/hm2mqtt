@@ -1024,6 +1024,7 @@ export enum CommandType {
   SET_CONNECTED_PHASE = 22,
   SET_SMART_METER_TYPE = 27,
   SURPLUS_FEED_IN = 31,
+  FULL_BATTERY_PASS_THROUGH = 38,
 }
 
 /**
@@ -1044,6 +1045,7 @@ const noFlashCommands: Record<CommandType, number> = {
   [CommandType.SOFTWARE_RESTART]: CommandType.SOFTWARE_RESTART,
   [CommandType.FACTORY_RESET]: CommandType.FACTORY_RESET,
   [CommandType.SURPLUS_FEED_IN]: 31,
+  [CommandType.FULL_BATTERY_PASS_THROUGH]: 38,
 };
 
 export function processCommand(

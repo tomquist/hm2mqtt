@@ -22,6 +22,7 @@ export type B2500V2SmartMeterStatus =
   | 'diagnosisTimeout'
   | 'chargingInProgress'
   | 'unableToFindChannel'
+  | 'fullBatteryPassThrough'
   | 'notInDiagnosis';
 /**
  * Meter a storage device reports as configured in its `ct_t` field. Each family
@@ -314,6 +315,10 @@ export interface B2500V2DeviceData extends B2500BaseDeviceData {
 
   // Surplus Feed-in state
   surplusFeedInEnabled?: boolean;
+
+  // `fktc`: keep passing PV through once every pack is full (surplus feed-in
+  // on) instead of stopping the output
+  fullBatteryPassThrough?: boolean;
 
   // Smart meter configuration (cd=27)
   meterType?: MeterType;
