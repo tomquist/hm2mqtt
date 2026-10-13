@@ -58,13 +58,16 @@ run_test() {
     # Create config file
     create_test_config "$config_file" "$config_content"
     
-    # Run container with the test configuration and mock run script
+    # Run container with the test configuration and mock run script. The
+    # base image's /init is skipped: its services ask the Supervisor API for
+    # the add-on's options, and without a Supervisor the newer base images
+    # stop the container. with-contenv only needs the directory /init creates.
     local output
-    output=$(docker run --rm \
+    output=$(docker run --rm --entrypoint "" \
         -v "$config_file:/data/options.json" \
         -v "$SCRIPT_DIR/test_run.sh:/test_run.sh" \
         hm2mqtt-test \
-        bash -c "chmod +x /test_run.sh && /test_run.sh" 2>&1)
+        bash -c "mkdir -p /run/s6/container_environment && chmod +x /test_run.sh && /test_run.sh" 2>&1)
     
     # Check each expected variable
     local all_passed=true
