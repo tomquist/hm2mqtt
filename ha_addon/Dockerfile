@@ -23,7 +23,7 @@ RUN npm run build
 RUN npm ci --only=production
 
 # Final stage
-FROM ${BUILD_FROM:-ghcr.io/hassio-addons/base:14.2.2}
+FROM ${BUILD_FROM:-ghcr.io/hassio-addons/base:21.0.8}
 ARG BUILD_COMMIT=unknown
 
 # Install Node.js
