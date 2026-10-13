@@ -228,6 +228,17 @@ describe('MQTT Message Parser', () => {
     expect((parsed['data'] as B2500V2DeviceData).ctType).toBe(expected);
   });
 
+  test.each([
+    ['0', 0],
+    ['2', 2],
+    ['3', 'searching'],
+    ['255', 'unknown'],
+  ])('decodes B2500 c0=%s as connected phase %s', (c0, expected) => {
+    const base = 'pe=75,kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0';
+    const parsed = parseMessage(`${base},c0=${c0}`, 'HMA-1', '12345');
+    expect((parsed['data'] as B2500V2DeviceData).ctInfo?.connectedPhase).toBe(expected);
+  });
+
   test('should drop the CT sensor no-reading sentinel from the power fields', () => {
     const base = 'pe=75,kn=500,lv=300,e1=0:0,do=90,p1=0,p2=0,w1=0,w2=0,vv=224,o1=0,o2=0,g1=0,g2=0';
     const ctInfo = (fields: string) =>

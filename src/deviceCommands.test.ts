@@ -451,12 +451,36 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
   {
-    // The select publishes the state name, not the code.
-    description: 'B2500V2 connected-phase searching maps to md=3',
+    // The select publishes the state name, not the code: `searching` is the
+    // state of the All Phases option.
+    description: 'B2500V2 connected-phase searching (All Phases) maps to md=3',
     deviceType: 'HMA-1',
     command: 'connected-phase',
     input: 'searching',
     expectedOutput: 'cd=22,md=3',
+  },
+  {
+    description: 'B2500V2 connected-phase all maps to md=3',
+    deviceType: 'HMA-1',
+    command: 'connected-phase',
+    input: 'all',
+    expectedOutput: 'cd=22,md=3',
+  },
+  {
+    description: 'B2500V2 connected-phase refuses Phase 1 on HMJ firmware 110',
+    deviceType: 'HMJ-2',
+    initialState: { deviceType: 'HMJ-2', deviceInfo: { deviceVersion: 110 }, adaptiveMode: true },
+    command: 'connected-phase',
+    input: '0',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 connected-phase allows Phase 1 on newer HMJ firmware',
+    deviceType: 'HMJ-2',
+    initialState: { deviceType: 'HMJ-2', deviceInfo: { deviceVersion: 116 } },
+    command: 'connected-phase',
+    input: '0',
+    expectedOutput: 'cd=22,md=0',
   },
   {
     description: 'B2500V2 connected-phase numeric 3 is accepted',

@@ -1176,7 +1176,7 @@
           "topic": "hm2mqtt/HMJ/availability/0123456789ab"
         }
       ],
-      "command_template": "{% set mapping = {\"Phase 1\":\"0\",\"Phase 2\":\"1\",\"Phase 3\":\"2\",\"Searching\":\"searching\",\"None\":\"unknown\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
+      "command_template": "{% set mapping = {\"Phase 1\":\"0\",\"Phase 2\":\"1\",\"Phase 3\":\"2\",\"All Phases\":\"searching\",\"Auto-detect\":\"unknown\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
       "command_topic": "hm2mqtt/HMJ/control/0123456789ab/connected-phase",
       "device": {
         "connections": [["bluetooth", "01:23:45:67:89:AB"]],
@@ -1186,14 +1186,14 @@
         "name": "HAME Energy HMJ 0123456789ab"
       },
       "name": "CT Connected Phase",
-      "options": ["Phase 1", "Phase 2", "Phase 3", "Searching", "None"],
+      "options": ["Phase 1", "Phase 2", "Phase 3", "All Phases", "Auto-detect"],
       "origin": {
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
       "state_topic": "hm2mqtt/HMJ/device/0123456789ab/data",
       "unique_id": "0123456789ab_ct_connected_phase",
-      "value_template": "{% set mapping = {\"0\":\"Phase 1\",\"1\":\"Phase 2\",\"2\":\"Phase 3\",\"searching\":\"Searching\",\"unknown\":\"None\"} %}{% set stringifiedValue = value_json.ctInfo.connectedPhase | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
+      "value_template": "{% set mapping = {\"0\":\"Phase 1\",\"1\":\"Phase 2\",\"2\":\"Phase 3\",\"searching\":\"All Phases\",\"unknown\":\"Auto-detect\"} %}{% set stringifiedValue = value_json.ctInfo.connectedPhase | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
     },
     "homeassistant/select/HMJ_0123456789ab/meter_type/config": {
       "availability": [

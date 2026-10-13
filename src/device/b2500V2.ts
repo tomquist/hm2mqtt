@@ -26,6 +26,7 @@ import {
 } from './b2500Base.js';
 import {
   BuildMessageFn,
+  extractBaseType,
   globalPollInterval,
   registerDeviceDefinition,
 } from '../deviceDefinition.js';
@@ -60,6 +61,21 @@ const CT_POWER_SENTINEL = 60000;
  * requires it, and -60 kW is far outside what a B2500 CT clamp can measure.
  */
 const ctPower = () => inRange(-(CT_POWER_SENTINEL - 1), CT_POWER_SENTINEL - 1);
+
+/**
+ * Whether the device is an HMJ whose firmware is known to be `version` or
+ * older. Unknown type or version is not a match.
+ */
+function isHmjAtMost(
+  state: Pick<B2500V2DeviceData, 'deviceType' | 'deviceInfo'>,
+  version: number,
+): boolean {
+  if (state.deviceType == null || extractBaseType(state.deviceType) !== 'HMJ') {
+    return false;
+  }
+  const deviceVersion = state.deviceInfo?.deviceVersion;
+  return deviceVersion != null && deviceVersion <= version;
+}
 
 /**
  * Create a time period handler for a specific setting
@@ -494,6 +510,12 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'measurement',
       }),
     );
+    // `c0` is the phase the device regulates on: 0-2 for a single phase, 3 for
+    // the sum of all phases (also what phase detection picks for meters that
+    // only report a total), and 255 while no phase has been determined yet.
+    // The state names `searching` and `unknown` predate that understanding and
+    // are kept so existing entities and automations keep working; only their
+    // labels say what they mean.
     field({
       key: 'c0',
       path: ['ctInfo', 'connectedPhase'],
@@ -509,31 +531,48 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           0: 'Phase 1',
           1: 'Phase 2',
           2: 'Phase 3',
-          searching: 'Searching',
-          unknown: 'None',
+          searching: 'All Phases',
+          unknown: 'Auto-detect',
         },
       }),
     );
     command('connected-phase', {
       handler: ({ message, publishCallback, deviceState }) => {
-        // The select publishes the state name, so the two non-numeric values it
-        // can report have to map back onto the codes the device takes. Without
-        // the `searching` alias, picking that option published the literal
-        // string and was rejected here, leaving it a dead entry in the picker.
+        // The select publishes the state name, so the non-numeric values it
+        // can report have to map back onto the codes the device takes.
+        // `md=255` clears the phase and starts detection; `md=3` regulates on
+        // the sum of all phases.
         const aliases: Record<string, string> = {
           auto: '255',
           none: '255',
           null: '255',
           unknown: '255',
+          detect: '255',
           searching: '3',
+          all: '3',
+          allphases: '3',
         };
         const channelValue = aliases[message.toLowerCase()] ?? message;
         const channel = parseInt(channelValue, 10);
-        // The device accepts 0-3 and 255 for "none", and ignores anything else,
-        // so reject it here rather than sending something that does nothing.
+        // The device accepts 0-3 and 255, and ignores anything else, so reject
+        // it here rather than sending something that does nothing.
         if (isNaN(channel) || (channel !== 255 && (channel < 0 || channel > 3))) {
           logger.warn('Invalid connected phase value:', message);
           return;
+        }
+
+        // HMJ firmware 110 and older treats `md=0` like `md=255` and only
+        // accepts the command at all while adaptive mode is on.
+        if (isHmjAtMost(deviceState, 110)) {
+          if (channel === 0) {
+            logger.warn(
+              'Phase 1 cannot be selected on this firmware: the device starts phase detection instead',
+            );
+            return;
+          }
+          if (deviceState.adaptiveMode !== true) {
+            logger.warn('This firmware ignores the connected phase while adaptive mode is off');
+          }
         }
 
         publishCallback(
