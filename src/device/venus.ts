@@ -2550,10 +2550,13 @@ function registerRuntimeInfoMessage(
     // The configured meter is read back from `prc_d` where it is reported (see
     // configuredMeterTypes). Older HMG builds keep the write-only select, which
     // shows the last value set; the two advertisements never apply together.
+    // HMG builds before 149 report `prc_d` but not `c_ratio`, so the field is
+    // skipped there without a warning.
     field({
       key: ['prc_d', 'c_ratio'],
       path: ['meterType'],
       transform: pick('prc_d', map(configuredMeterTypes)),
+      skip: values => values['c_ratio'] === undefined,
     });
     const reportsMeterType = (deviceVersion: number | undefined) =>
       venusSupports(model, deviceVersion, { HMG: 149, VNSE3: 0, VNSA: 0, VNSD: 0 });

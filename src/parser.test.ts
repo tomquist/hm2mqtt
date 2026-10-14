@@ -1523,7 +1523,15 @@ describe('MQTT Message Parser', () => {
     // not the meter code, so the last value set is left alone.
     const hmg148 =
       'tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=0,inc_m=0,grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=56,cel_c=11,err_t=0,err_a=0,dev_n=148,grd_y=0,wor_m=0,cts_m=0,bac_u=0,tra_a=1,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=0,wif_s=49,inc_a=0,set_v=0,mcp_w=2500,mdp_w=2500,ct_t=6,phase_t=1,dchrg_t=0,bms_v=212,fc_v=202409090159,wifi_n=XXX,seq_s=0,ctrl_r=1';
-    expect(parseMessage(hmg148, 'HMG-50', 'venus123')['data']).not.toHaveProperty('meterType');
+    const warnSpy = jest.spyOn(logger, 'warn');
+    try {
+      expect(parseMessage(hmg148, 'HMG-50', 'venus123')['data']).not.toHaveProperty('meterType');
+      expect(warnSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('Some values are missing for field meterType'),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
 
     // 12 is the Stromleser; a code without a meter type hm2mqtt knows is left unset.
     expect(meterType(vnsd147.replace('prc_d=3', 'prc_d=12'), 'VNSD-0')).toBe('stromleser');
