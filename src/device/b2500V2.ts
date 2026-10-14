@@ -164,16 +164,17 @@ export const timePeriodSettingHandler = (
 
       logger.debug(`Current period ${periodNumber} settings:`, newTimePeriodSettings[periodIndex]);
 
-      // The device runs a period that ends before it starts until its next
-      // restart, then replaces it with 00:00-23:59. Editing the start and end
-      // one at a time passes through such states, so warn but still send.
+      // The device never runs a period that ends before it starts, because it
+      // does not wrap a period past midnight, and replaces it with 00:00-23:59
+      // at its next restart, so it then runs all day. Editing the start and
+      // end one at a time passes through such states, so warn but still send.
       const { startTime, endTime } = newTimePeriodSettings[periodIndex];
       if (
         (setting === 'start-time' || setting === 'end-time') &&
         minutesOfDay(startTime) > minutesOfDay(endTime)
       ) {
         logger.warn(
-          `Time period ${periodNumber} ends before it starts (${startTime}-${endTime}). The device replaces such a period with 00:00-23:59 at its next restart; split it at midnight instead.`,
+          `Time period ${periodNumber} ends before it starts (${startTime}-${endTime}). The device never runs such a period, and runs it all day after its next restart; split it at midnight instead.`,
         );
       }
 
