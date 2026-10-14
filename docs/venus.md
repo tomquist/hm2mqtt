@@ -200,7 +200,7 @@ Description of the above parameters:
 | wif_s | WIFI signal strength (Less than 50: Good signal; 50-70: The signal is average; 70-80: Poor signal; Greater than 80: The signal is very weak) |
 | inc_a | Total cumulative income (Unit: 0.001 euros). Venus C/E (HMG) up to control firmware 152 only; always 0 otherwise |
 | set_v | Power version — a *code* for the device's rated output power, not a wattage (see [Set version](#11-set-version)). The resulting power is reported back as `mdp_w`. |
-| mcp_w | Maximum charging power (see [Set maximum charging power](#12-set-maximum-charging-power)). On the Venus C/E (HMG) from control firmware 153, the limit in effect at that moment, as a negative number |
+| mcp_w | Maximum charging power (see [Set maximum charging power](#12-set-maximum-charging-power)). On the Venus C/E (HMG) from control firmware 153, the limit in effect at that moment instead: 0 on 153 and 154, a negative number from 155 |
 | mdp_w | Maximum discharge power (see [Set maximum discharge power](#13-set-maximum-discharge-power)). On the Venus C/E (HMG) from control firmware 153, the limit in effect at that moment |
 | ct_t | The meter the device is currently configured for. The code space depends on the model — see [Reported meter type](#reported-meter-type-ct_t) |
 | phase_t | The phase where the device is located (0: Unknown; 1: Phase A; 2: Phase B; 3: Phase C; 4: Not detected) |
@@ -614,9 +614,9 @@ You will receive a message with a ret value:
 
 On the Venus C/E (HMG) up to control firmware 152 and on the other models,
 `mcp_w` reports the value set. From 153 the HMG reports the charge limit in
-effect at that moment as a negative number instead (`mcp_w=-1000` after
-`cp=1000`; 153 and 154 print it unsigned, as 65536 minus the limit). Like
-`mdp_w`, it can be lower than the value set.
+effect at that moment instead, which can be lower than the value set: 153 and
+154 report 0, and 155 and later report the limit as a negative number
+(`mcp_w=-1000` after `cp=1000`).
 
 ## 13 Set maximum discharge power
 

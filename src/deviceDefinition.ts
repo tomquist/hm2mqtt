@@ -102,6 +102,12 @@ export type FieldDefinition<
    * of PV strings.
    */
   allowPartial?: boolean;
+  /**
+   * Skips the field for a message when this returns true, so the state keeps
+   * the value it had, e.g. one set by a command. Use where a key stops meaning
+   * the field's value on some firmware.
+   */
+  skip?: (values: Record<string, string>) => boolean;
 } & (TypeAtPath<T, KP> extends number | undefined
   ? {}
   : {

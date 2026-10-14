@@ -56,8 +56,6 @@ import {
   diff,
   average,
   negate,
-  signed16,
-  absolute,
   venusPvField,
   pipeValue,
   pipeArray,
@@ -2644,15 +2642,16 @@ function registerRuntimeInfoMessage(
     // Maximum charging power (`cd=16,cp=<W>`). The Venus E 3.0 and Venus A
     // from control firmware 150 and the Venus D from 149.2 reject less than
     // 300 W; the upper limit is the same as for the discharge power. On the
-    // Venus C/E (HMG) from control firmware 153, `mcp_w` is the charge limit in
-    // effect at that moment, reported as a negative number (`mcp_w=-1000` after
-    // `cp=1000`); 153 and 154 print it unsigned, as 65536 minus the limit. It
-    // is read as its magnitude and, like `mdp_w`, can read back lower than the
-    // value set.
+    // Venus C/E (HMG) from control firmware 153, `mcp_w` is no longer the value
+    // set but the charge limit in effect at that moment: 153 and 154 report 0,
+    // 155 and later the limit as a negative number (`mcp_w=-1000` after
+    // `cp=1000`). Neither says what was set, so there `mcp_w` is ignored and
+    // the control shows the last value set from Home Assistant.
     field({
       key: 'mcp_w',
       path: ['maxChargingPower'],
-      transform: chain(number(), signed16(), absolute(), inRange(0, 2500)),
+      transform: chain(number(), inRange(0, 2500)),
+      skip: values => venusSupports(model, Number(values['dev_n']), { HMG: 153 }) === true,
     });
     advertise(
       ['maxChargingPower'],
@@ -2667,6 +2666,8 @@ function registerRuntimeInfoMessage(
         min: 0,
         max: model === 'VNSA' ? 1500 : 2500,
         step: 1,
+        // Absent on the HMG from 153 until it is set from Home Assistant.
+        optional: model === 'HMG',
       }),
     );
 

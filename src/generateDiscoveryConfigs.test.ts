@@ -734,6 +734,28 @@ describe('Home Assistant Discovery', () => {
     expect(hmg[0]!.options).not.toContain('Stromleser');
   });
 
+  test('should keep the Venus C/E (HMG) maximum charging power until it is set', () => {
+    const maxChargingPower = (deviceType: string) =>
+      generateDiscoveryConfigs(
+        { deviceType, deviceId: 'venus123' },
+        jupiterTopics(deviceType, 'venus123'),
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        { deviceVersion: 156 },
+      ).find(c => c.topic.includes('/max_charging_power/'))?.config as Record<string, unknown>;
+
+    // From 153 the HMG does not report the value set, so it can be absent.
+    expect(maxChargingPower('HMG-50')).toHaveProperty(
+      'value_template',
+      '{% if value_json.maxChargingPower is defined %}{{ value_json.maxChargingPower }}{% endif %}',
+    );
+    expect(maxChargingPower('VNSE3-0')).toHaveProperty(
+      'value_template',
+      '{{ value_json.maxChargingPower }}',
+    );
+  });
+
   test('should remove the Venus price, income, error and grid type sensors where unfilled', () => {
     const ids = [
       'charging_price',

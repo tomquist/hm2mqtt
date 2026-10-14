@@ -32,8 +32,6 @@ export type Transform =
   | TimeStringTransform
   | NegateTransform
   | NegateIfPositiveTransform
-  | Signed16Transform
-  | AbsoluteTransform
   | ParseIntTransform
   | IdentityTransform
   | MapTransform
@@ -134,19 +132,6 @@ export interface NegateTransform {
  */
 export interface NegateIfPositiveTransform {
   type: 'negateIfPositive';
-}
-
-/**
- * Read a 16-bit value as signed: values above 32767 are two's complement
- * negatives (65535 -> -1). Values that are already signed pass unchanged.
- */
-export interface Signed16Transform {
-  type: 'signed16';
-}
-
-/** The absolute value of a number */
-export interface AbsoluteTransform {
-  type: 'absolute';
 }
 
 /** Parse as integer */
@@ -349,12 +334,6 @@ export const negate = (): NegateTransform => ({ type: 'negate' });
 /** Create a transform that negates only positive values */
 export const negateIfPositive = (): NegateIfPositiveTransform => ({ type: 'negateIfPositive' });
 
-/** Create a transform that reads a 16-bit value as signed */
-export const signed16 = (): Signed16Transform => ({ type: 'signed16' });
-
-/** Create an absolute value transform */
-export const absolute = (): AbsoluteTransform => ({ type: 'absolute' });
-
 /** Create a parseInt transform */
 export const parseIntTransform = (): ParseIntTransform => ({ type: 'parseInt' });
 
@@ -549,17 +528,6 @@ export function executeTransform(
         return 0;
       }
       return num > 0 ? -num : num;
-    }
-
-    case 'signed16': {
-      const num = parseFloat(value);
-      if (isNaN(num)) return 0;
-      return num > 32767 ? num - 65536 : num;
-    }
-
-    case 'absolute': {
-      const num = parseFloat(value);
-      return isNaN(num) ? 0 : Math.abs(num);
     }
 
     case 'parseInt': {
@@ -845,12 +813,6 @@ export function transformToJinja2(
 
     case 'negateIfPositive':
       return `{% set n = ${valueExpr} | int(0) %}{% if n > 0 %}{{ -n }}{% else %}{{ n }}{% endif %}`;
-
-    case 'signed16':
-      return `{% set n = ${valueExpr} | float(0) %}{% if n > 32767 %}{{ n - 65536 }}{% else %}{{ n }}{% endif %}`;
-
-    case 'absolute':
-      return `{{ (${valueExpr} | float(0)) | abs }}`;
 
     case 'parseInt':
       return `{{ ${valueExpr} | int(0) }}`;

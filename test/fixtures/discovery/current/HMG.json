@@ -301,7 +301,7 @@
       "step": 1,
       "unique_id": "0123456789ab_max_charging_power",
       "unit_of_measurement": "W",
-      "value_template": "{{ value_json.maxChargingPower }}"
+      "value_template": "{% if value_json.maxChargingPower is defined %}{{ value_json.maxChargingPower }}{% endif %}"
     },
     "homeassistant/number/HMG_0123456789ab/max_discharge_power/config": {
       "availability": [

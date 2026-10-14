@@ -35,7 +35,7 @@
 - Venus: *Maximum Discharge Power* changed the power version instead of the discharge limit, so most values did nothing and 800 or 2500 W switched the version. It now sets the discharge limit (fixes #60, PR #462)
 - Venus: Removed the price, income and *Grid Type* sensors, and the error and warning code sensors on the Venus C/E (HMG), where the firmware never fills them; they showed meter data or a constant zero. Error codes containing letters are no longer cut short (PR #462)
 - Venus A/D: *PV Energy Total* was this month's PV energy, not a lifetime total, and is now called *PV Energy This Month* (PR #462)
-- Venus: *Maximum Charging Power* stayed empty on Venus C/E (HMG) firmware 153 and later, which reports it as a negative number. Values the model's firmware rejects are now refused (PR #462)
+- Venus: *Maximum Charging Power* stayed empty on Venus C/E (HMG) firmware 153 and later, which does not report it, and now shows the last value set there. Values the model's firmware rejects are now refused (PR #462)
 - Venus C/E (HMG) and Venus E 3.0: *Enable Cell Data* no longer requests per-pack battery details these models do not provide (PR #462)
 - Venus C/E (HMG): The network sensors, such as the IP address, never appeared because this model answers in a slightly different format (PR #462)
 

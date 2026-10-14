@@ -93,6 +93,9 @@ function applyMessageDefinition<T extends BaseDeviceData>(
   fields: FieldDefinition<T, KeyPath<T>>[],
 ): void {
   for (const field of fields) {
+    if (field.skip?.(values)) {
+      continue;
+    }
     let key = field.key;
     if (typeof key === 'string') {
       // Single-key field
