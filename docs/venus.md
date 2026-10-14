@@ -1414,7 +1414,7 @@ hame_energy/{type}/App/{uid or mac}/ctrl
 Payload:
 1. `cd=8,dt=1` - On. This also sets the working mode at once: Automatic
    (`wor_m=0`) while the meter delivers data (`gct_s=1`), Manual (`wor_m=1`)
-   when it does not (`gct_s=2`; on the Venus C/E (HMG) also `gct_s=0`).
+   when it does not (`gct_s=0` or `gct_s=2`).
 2. `cd=8,dt=0` - Off
 
 ### 32.2 Receive

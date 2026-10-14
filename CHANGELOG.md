@@ -9,7 +9,7 @@
 - Venus C/E (HMG): *Depth of Discharge* now goes up to 90 %, which the firmware allows (PR #462)
 - Venus: New *Restart* button (disabled by default). On the Venus C/E (HMG) it needs control firmware 151 or later (PR #462)
 - Venus: *Meter Type* accepts the P1 Meter and EcoTracker without a *Meter MAC*, and offers the Stromleser on the Venus E 3.0, Venus A and Venus D (PR #462)
-- Venus: *Auto Switch Working Mode* can now be turned on and off from Home Assistant (PR #462)
+- Venus: *Auto Switch Working Mode* can now be turned on and off from Home Assistant. It is now a switch instead of a binary sensor, so automations using the old entity need updating (PR #462)
 - Venus: New diagnostic sensors (disabled by default) for the Bluetooth state, the external meter's error code and, on the Venus A/D, the PV charger's error code (PR #462)
 
 ### Changed

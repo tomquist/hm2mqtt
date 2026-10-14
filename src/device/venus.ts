@@ -1979,8 +1979,8 @@ function registerRuntimeInfoMessage(
 
     // Automatic working-mode switching (`cts_m`, set with `cd=8,dt=1|0`).
     // Turning it on also sets the working mode at once: Automatic while the
-    // meter delivers data (`gct_s=1`), Manual when it does not (`gct_s=2`, and
-    // on the HMG also 0). The device replies `cd=8,ret=1`.
+    // meter delivers data (`gct_s=1`), Manual when it does not (`gct_s=0` or
+    // 2). The device replies `cd=8,ret=1`.
     field({
       key: 'cts_m',
       path: ['autoSwitchWorkingMode'],
