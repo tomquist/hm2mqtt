@@ -1641,7 +1641,8 @@ function registerRuntimeInfoMessage(
     // means the meter's replies lack a valid power reading, 4 that it does not
     // answer and 5 more than six failures in a row; on the other models 2 to 6
     // are failures of an IP meter, 6 a P1 meter disconnect. Setting a meter
-    // with `cd=18,meter=` clears it.
+    // with `cd=18,meter=` clears it on the HMG, Venus E 3.0 and Venus D from
+    // 149 and on the Venus A from 148.7, but not on earlier builds.
     field({
       key: 'prc_c',
       path: ['meterError'],

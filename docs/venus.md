@@ -195,7 +195,7 @@ Description of the above parameters:
 | tra_i | Transaction mode - electricity price during charging. Same availability as `tra_a` |
 | tra_o | Transaction mode - electricity price during discharge. Same availability as `tra_a` |
 | htt_p | HTTP Server Type |
-| prc_c | Regional charging price (0.001 euros) on the Venus C/E (HMG) up to control firmware 146 only; 0 on 147. From 148 on the HMG, and on every Venus E 3.0, Venus A and Venus D, the external meter's error code (0: OK). HMG: 1 the meter's replies lack a valid power reading, 4 the meter does not answer, 5 more than six failures in a row. Venus E 3.0/A/D: 2-6 IP-meter failures, 6 a P1 meter disconnect. Cleared by every `cd=18,meter=` |
+| prc_c | Regional charging price (0.001 euros) on the Venus C/E (HMG) up to control firmware 146 only; 0 on 147. From 148 on the HMG, and on every Venus E 3.0, Venus A and Venus D, the external meter's error code (0: OK). HMG: 1 the meter's replies lack a valid power reading, 4 the meter does not answer, 5 more than six failures in a row. Venus E 3.0/A/D: 2-6 IP-meter failures, 6 a P1 meter disconnect. Cleared by `cd=18,meter=` on the HMG from 149, the Venus E 3.0 and Venus D from 149 and the Venus A from 148.7, but not on earlier builds |
 | prc_d | Regional discharge price (0.001 euros) on the Venus C/E (HMG) up to control firmware 146 only. From 149 on the HMG, and on every Venus E 3.0, Venus A and Venus D, the configured `meter=` code (see [`cd=18`](#141-public)); 0 in between |
 | wif_s | WIFI signal strength (Less than 50: Good signal; 50-70: The signal is average; 70-80: Poor signal; Greater than 80: The signal is very weak) |
 | inc_a | Total cumulative income (Unit: 0.001 euros). Venus C/E (HMG) up to control firmware 152 only; always 0 otherwise |
@@ -651,6 +651,10 @@ to the 800 W version.
 Changing the power version with [Set version](#11-set-version) also sets this
 limit.
 
+This is a saved setting, not a control for continuous regulation: the device
+writes every accepted value to its non-volatile memory, so automations should
+not send it over and over.
+
 ### 13.2 Receive
 
 `cd=17,ret=1` (accepted) or `cd=17,ret=0` (rejected). The Venus C/E (HMG) below
@@ -658,7 +662,8 @@ control firmware 154 replies with a bare `ret=1` / `ret=0`.
 
 On the Venus C/E (HMG) from control firmware 153, `mdp_w` reports the limit in
 effect at that moment, which the device lowers for state of charge, temperature
-and the BMS, so it can read lower than the value set.
+and the BMS, so it can read lower than the value set. Comparing it with the
+value set therefore does not show whether the setting needs sending again.
 
 ## 14 Set the meter type and supplementary power type
 
@@ -710,6 +715,10 @@ higher codes are ignored:
 | Venus E 3.0, Venus A, Venus D | all other builds | 0-12 |
 
 When `meter=` is present, every other key in the command is ignored.
+
+The P1 Meter, EcoTracker and Stromleser are reached at the IP address stored on
+the device, which `cd=18` does not set. Set it first, for example in the
+Marstek app; until then the device cannot read these meters.
 
 The configured code is reported back as `prc_d` in the device information: on
 the Venus C/E (HMG) from control firmware 149, and on every Venus E 3.0, Venus A

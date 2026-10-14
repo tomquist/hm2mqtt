@@ -21,7 +21,7 @@ The second generation's has not; see [Confidence](#confidence).
 | Products       | Venus C, Venus E, Venus A, Venus D | Venus X, Venus G, Venus E Mini |
 | Device types   | `HMG`, `VNSE3`, `VNSA`, `VNSD` (and the regional `VNSE3CH`, `VNSE3AU`, `VNSDCH`, `VNSACH`, `VDAC`, `VEPRO`, `VAAC2`, `VNSE4`) | `VENX`, `VNSG`, `VNSGPV`, `VNSEMINI` |
 | App code       | `pages/Ac_Coupler`, commands built by `CommonCommand` | `modules/devices`, commands built by `DataVenus*` tables and `venus_model.dart` |
-| MQTT topics    | `hame_energy/<type>/App/<id>/ctrl` up to HMG control firmware 152, `marstek_energy/<type>/App/<id>/ctrl` otherwise (see below) | `marstek_energy/<type>/App/<hashed id>/ctrl` |
+| MQTT topics    | The device's own MQTT client: `hame_energy/<type>/App/<id>/ctrl` up to HMG control firmware 152, `marstek_energy/<type>/App/<id>/ctrl` otherwise (see below) | `marstek_energy/<type>/App/<hashed id>/ctrl` |
 | Strategy class | `VenusMqttStrategy` | `VNXMqttStrategy` |
 
 `mqtt_factory` is what settles the grouping: it routes `VNSEMINI` behind
