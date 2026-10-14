@@ -939,11 +939,10 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       },
     });
 
-    // Reboot, `cd=61`. The first generation has no reboot command at all, so
-    // this is not a renumbering of anything - `cd=10` on those models is the
-    // WiFi-module version query, not a restart. No parameters, so there is
-    // nothing here to get wrong beyond the number itself. Disabled by default,
-    // matching the reset buttons on the other families.
+    // The Mini app's reboot flow adds `rst=1` to its `cd=61` MQTT command.
+    // This differs from the BLE command and must not be sent without that
+    // parameter. The first-generation Venus has no reboot command; `cd=10`
+    // there is a WiFi-module version query.
     advertise(
       [],
       buttonComponent({
@@ -958,7 +957,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     command('restart', {
       handler: ({ message, publishCallback }) => {
         if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
-          publishCallback('cd=61');
+          publishCallback('cd=61,rst=1');
         }
       },
     });

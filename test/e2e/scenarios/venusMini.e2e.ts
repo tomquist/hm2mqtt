@@ -16,6 +16,7 @@ describeE2e('Venus E Mini scheduling with existing reported sensors', () => {
   let draftPower: string;
   let controlsSwitch: string;
   let applyButton: string;
+  let restartButton: string;
   let scheduleTopic: string;
   let controlsDiscoveryTopic: string;
 
@@ -71,7 +72,8 @@ describeE2e('Venus E Mini scheduling with existing reported sensors', () => {
       if (
         topic.endsWith('/schedule_controls_enabled/config') ||
         topic.endsWith('/schedule_1_draft_power/config') ||
-        topic.endsWith('/schedule_1_apply/config')
+        topic.endsWith('/schedule_1_apply/config') ||
+        topic.endsWith('/restart/config')
       ) {
         if (config == null || typeof config !== 'object') {
           throw new Error(`Missing discovery config for ${topic}`);
@@ -80,12 +82,16 @@ describeE2e('Venus E Mini scheduling with existing reported sensors', () => {
         if (topic.endsWith('/schedule_controls_enabled/config')) {
           controlsDiscoveryTopic = topic;
         }
+        if (topic.endsWith('/restart/config')) {
+          userEnabled.components[topic] = { ...config, enabled_by_default: true };
+        }
       }
     }
     await rig.seedRetainedDiscovery([userEnabled]);
     draftPower = await rig.waitForEntity(`${slug}_schedule_slot_1_draft_power`);
     controlsSwitch = await rig.waitForEntity(`${slug}_experimental_schedule_controls`);
     applyButton = await rig.waitForEntity(`${slug}_schedule_slot_1_apply`);
+    restartButton = await rig.waitForEntity(`${slug}_restart`);
     await rig.startHm2mqtt();
     await waitFor(
       'Mini to report healthy telemetry with controls disabled',
@@ -159,5 +165,17 @@ describeE2e('Venus E Mini scheduling with existing reported sensors', () => {
   test('Home Assistant logs no complaint about reported or draft schedule entities', () => {
     rig.homeAssistant.assertNoProblems();
     expect(rig.devices[0].failures).toHaveLength(0);
+  });
+
+  test('restart publishes the exact app-derived request once and disables schedule controls', async () => {
+    expect(scheduleState()?.controlsEnabled).toBe(true);
+    await action(restartButton, 'button.press');
+    await waitFor(
+      'app-derived restart request',
+      () => rig.devices[0].requests.includes('cd=61,rst=1'),
+      { diagnose: () => rig.devices[0].requests.join('\n') },
+    );
+    expect(rig.devices[0].requests.filter(request => request === 'cd=61,rst=1')).toHaveLength(1);
+    expect(scheduleState()?.controlsEnabled).toBe(false);
   });
 });

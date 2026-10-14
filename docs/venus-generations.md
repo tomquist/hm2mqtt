@@ -94,7 +94,7 @@ Declared in `modules/devices/entity/dev_data.dart` (the `VxCmd` mixin).
 | Access power | `cd=46,cv=<n>` | `CMD_SET_ACCESS_POWER` |
 | Anti-reverse-flow | `cd=54,am=<n>` | `CMD_SET_ANTL_REVERSE` |
 | Bluetooth advertising | `cd=55,adv=<0\|1>` | `CMD_SET_BLUETOOTH_STATE` |
-| Reboot | `cd=61` | `CMD_SET_REBOOT` |
+| Reboot | MQTT request `cd=61,rst=1` (derived from the app's model reboot method and MQTT command descriptor) | `CMD_SET_REBOOT` descriptor |
 | Configure WiFi | *(Bluetooth only — no MQTT form)* | `CMD_SET_WIFI` |
 | Manual mode config | `cd=` *(built at the call site)* | `CMD_SET_MODE_MANUAL_INFO` |
 
@@ -252,7 +252,7 @@ Of the second generation, only the Venus E Mini is supported, and only partly:
 - `cd=47` through `cd=52` manual-mode schedule slots — implemented
 - `cd=18,meter=,mac=` meter type — implemented
 - `cd=05` factory reset — implemented
-- `cd=61` reboot — implemented
+- `cd=61,rst=1` reboot request — app-derived; device-side result remains unconfirmed
 - `cd=01` refresh and `cd=59` get CT power — also exposed as buttons, so a poll
   can be triggered on demand
 

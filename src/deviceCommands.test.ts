@@ -1910,14 +1910,13 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
 
-  // Reboot is cd=61 here. The Venus C/D/E have no reboot command at all -
-  // cd=10 on those models is the WiFi-module version query.
+  // The Mini app's MQTT reboot request includes rst=1 with cd=61.
   {
     description: 'Venus E Mini restart with PRESS',
     deviceType: 'VNSEMINI-0',
     command: 'restart',
     input: 'PRESS',
-    expectedOutput: 'cd=61',
+    expectedOutput: 'cd=61,rst=1',
   },
   {
     description: 'Venus E Mini restart ignores an unrelated payload',
@@ -2500,10 +2499,11 @@ describe('Device Commands', () => {
         const device = setupTest(deviceType, initialState, useFlashCommands ?? true);
 
         const isMiniSchedule = deviceType === 'VNSEMINI-0' && command.startsWith('schedule/');
+        const isMiniRestart = deviceType === 'VNSEMINI-0' && command === 'restart';
         const periods =
           (initialState as Partial<VenusMiniDeviceData> | undefined)?.timePeriods ?? [];
         const responseTopic = `hame_energy/${device.deviceType}/device/${device.deviceId}/ctrl`;
-        if (isMiniSchedule) {
+        if (isMiniSchedule || isMiniRestart) {
           for (let sample = 0; sample < 3; sample++) {
             jest.advanceTimersByTime(1000);
             controlHandler.handleDeviceMessage(device, responseTopic, miniRuntimePayload(periods));

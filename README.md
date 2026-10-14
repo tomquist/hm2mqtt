@@ -859,7 +859,10 @@ change.
   MAC. Shows the last value set. Disabled by default.
 - `refresh`: Refreshes the device data. Disabled by default.
 - `get-ct-power`: Gets current transformer power readings. Disabled by default.
-- `restart`: Reboots the device. Disabled by default.
+- `restart`: Sends the app-derived MQTT reboot request once on the latest live
+  namespace. The request format is app-confirmed; device-side reboot behavior
+  is not yet hardware-confirmed. Schedule controls are disabled until healthy
+  telemetry returns. Disabled by default.
 - `factory-reset`: Resets the device to factory settings. Disabled by default.
 
 **Beta.** Runtime polling and manual schedule command formats have been confirmed

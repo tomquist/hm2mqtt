@@ -449,10 +449,26 @@ export class VenusMiniScheduleSession implements DeviceControlSession {
 
   handleCommand(command: string, message: string, retained: boolean): boolean {
     if (!command.startsWith('schedule/')) {
-      if (command === 'restart' && message === 'PRESS') {
-        this.fail('Restart requested; schedule controls disabled');
+      if (command === 'restart') {
+        if (retained) {
+          this.warn('Retained restart commands are ignored');
+          return true;
+        }
+        if (!['true', '1', 'press'].includes(message.toLowerCase())) {
+          return false;
+        }
+
+        const namespace = this.namespace;
+        this.fail('Battery restart requested; schedule controls disabled');
         this.lastClock = undefined;
-        return false;
+        if (!namespace) {
+          this.warn('Restart not sent: no live device MQTT namespace has been observed');
+          return true;
+        }
+        void this.publish('cd=61,rst=1', namespace).catch(error => {
+          this.warn(`Restart publish failed: ${String(error)}`);
+        });
+        return true;
       }
       if (this.pending && !['refresh', 'get-ct-power', 'restart'].includes(command)) {
         this.warn('Apply is pending; other device writes are blocked');

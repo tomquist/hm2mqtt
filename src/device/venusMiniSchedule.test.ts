@@ -609,14 +609,38 @@ describe('Venus E Mini guarded schedules', () => {
     expect(state().lastError).toMatch(/Incomplete/);
   });
 
-  test('restart cancels pending Apply without blocking the restart command', () => {
+  test('restart cancels pending Apply and sends the app MQTT payload once on the live namespace', () => {
     enable();
     command('schedule/1/apply');
     command('restart');
     expect(state().controlsEnabled).toBe(false);
-    expect(publish.mock.calls.at(-1)?.[1]).toBe('cd=61');
+    expect(publish.mock.calls.at(-1)?.[1]).toBe('cd=61,rst=1');
+    expect(publish.mock.calls.at(-1)?.[3]).toEqual({
+      namespace: 'hame_energy',
+      automaticRefresh: false,
+    });
     advanceRuntime();
     expect(publish.mock.calls.filter(([, payload]) => payload.startsWith('cd=47'))).toHaveLength(0);
+  });
+
+  test('restart uses the latest live Marstek namespace and ignores retained or invalid requests', () => {
+    healthy();
+    jest.advanceTimersByTime(1000);
+    runtime({}, 'marstek_energy');
+    command('restart', 'PRESS', true);
+    command('restart', 'invalid');
+    expect(publish).not.toHaveBeenCalled();
+    command('restart');
+    expect(publish.mock.calls).toHaveLength(1);
+    expect(publish.mock.calls[0][1]).toBe('cd=61,rst=1');
+    expect(publish.mock.calls[0][3]?.namespace).toBe('marstek_energy');
+  });
+
+  test('restart is not broadcast if there is no live device MQTT namespace', () => {
+    command('restart');
+    expect(publish).not.toHaveBeenCalled();
+    expect(state().controlsEnabled).toBe(false);
+    expect(state().lastError).toMatch(/no live device MQTT namespace/);
   });
 
   test('turning off controls during preflight cancels the write', () => {
