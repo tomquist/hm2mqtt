@@ -162,31 +162,33 @@ const HMG_DOD_MAX = 90;
 // | VNSD  | ≥ 149  | 800 (1), 2200 (3), 2500 (0)                     |
 //
 // Anything else is answered with `cd=15,ret=0` and changes nothing. Code 0 is
-// the model's default version. Other codes are left unmapped rather than
-// guessed.
+// the model's default version. Code 2 (600 W, the Swiss variants) can be
+// reported by every model, so every model decodes it and offers it, but
+// `vs=600` is sent only where the build accepts it. On the Venus A, `vs=2200`
+// is not sent: it leaves the unit above its 1500 W limit, so code 3 is neither
+// decoded nor offered there. Other codes are left unmapped rather than guessed.
 const venusPowerVersions: Record<VenusModel, Record<string, VenusVersionSet>> = {
-  HMG: { '0': '2500W', '1': '800W' },
+  HMG: { '0': '2500W', '1': '800W', '2': '600W' },
   VNSE3: { '0': '2500W', '1': '800W', '2': '600W' },
-  VNSA: { '0': '1500W', '1': '800W', '3': '2200W', '4': '1200W', '5': '1500W' },
-  VNSD: { '0': '2500W', '1': '800W', '3': '2200W', '4': '1200W' },
+  VNSA: { '0': '1500W', '1': '800W', '2': '600W', '4': '1200W', '5': '1500W' },
+  VNSD: { '0': '2500W', '1': '800W', '2': '600W', '3': '2200W', '4': '1200W' },
 };
 
-/** The power versions a model and build accept; the model's options while the build is unknown. */
+/** The power versions hm2mqtt sends to a model and build; all it may accept while the build is unknown. */
 function acceptedVenusVersionSets(
   model: VenusModel,
   deviceVersion: number | undefined,
 ): readonly VenusVersionSet[] {
   const build = venusBuild(deviceVersion);
-  const options = venusVersionSetOptions(model);
-  if (build === undefined) return options;
   switch (model) {
     case 'HMG':
-      return build === 147 ? [] : options;
+      return build === 147 ? [] : ['800W', '2500W'];
     case 'VNSE3':
-      return build >= 149 ? options : ['800W', '2500W'];
+      return build === undefined || build >= 149 ? ['600W', '800W', '2500W'] : ['800W', '2500W'];
     case 'VNSA':
-      return build >= 149 ? ['800W', '1200W', '1500W'] : options;
+      return ['800W', '1200W', '1500W'];
     case 'VNSD':
+      if (build === undefined) return ['800W', '1200W', '2200W', '2500W'];
       return build >= 149 ? ['800W', '2200W', '2500W'] : ['800W', '1200W', '2200W'];
   }
 }

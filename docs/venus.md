@@ -536,8 +536,14 @@ with `ret=0` and changes nothing:
 | Venus D (VNSD) | below 149 | 800 (1), 1200 (4), 2200 (3) |
 | Venus D (VNSD) | 149 and later | 800 (1), 2200 (3), 2500 (0) |
 
-While a unit is on the 600 W version (`set_v=2`), the HMG from build 149 and the
-other models below build 149 ignore every change.
+Every model can report the 600 W version (`set_v=2`), for example on the Swiss
+variants, including the models whose `cd=15` does not accept `vs=600`. While a
+unit is on the 600 W version, the HMG from build 149 and the other models below
+build 149 ignore every change.
+
+On the Venus A below build 149, `vs=2200` is accepted, but it leaves the unit
+above its 1500 W limit: every boot then sets `mdp_w` to 2200 W. hm2mqtt does
+not send it.
 
 Every accepted value also sets the maximum discharge power (`mdp_w`) to that
 wattage, capped at the model's limit, and `vs=800` lowers every time period

@@ -934,7 +934,7 @@
           "topic": "hm2mqtt/VNSA/availability/0123456789ab"
         }
       ],
-      "command_template": "{% set mapping = {\"800W Version\":\"800W\",\"1200W Version\":\"1200W\",\"1500W Version\":\"1500W\",\"2200W Version\":\"2200W\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
+      "command_template": "{% set mapping = {\"600W Version\":\"600W\",\"800W Version\":\"800W\",\"1200W Version\":\"1200W\",\"1500W Version\":\"1500W\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
       "command_topic": "hm2mqtt/VNSA/control/0123456789ab/version-set",
       "device": {
         "connections": [["bluetooth", "01:23:45:67:89:AB"]],
@@ -946,14 +946,14 @@
       },
       "icon": "mdi:power-socket",
       "name": "Version Set",
-      "options": ["800W Version", "1200W Version", "1500W Version", "2200W Version"],
+      "options": ["600W Version", "800W Version", "1200W Version", "1500W Version"],
       "origin": {
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_version_set",
-      "value_template": "{% set mapping = {\"800W\":\"800W Version\",\"1200W\":\"1200W Version\",\"1500W\":\"1500W Version\",\"2200W\":\"2200W Version\"} %}{% set stringifiedValue = value_json.versionSet | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
+      "value_template": "{% set mapping = {\"600W\":\"600W Version\",\"800W\":\"800W Version\",\"1200W\":\"1200W Version\",\"1500W\":\"1500W Version\"} %}{% set stringifiedValue = value_json.versionSet | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
     },
     "homeassistant/select/VNSA_0123456789ab/working_mode/config": {
       "availability": [

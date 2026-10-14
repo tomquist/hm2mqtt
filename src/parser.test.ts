@@ -1534,11 +1534,26 @@ describe('MQTT Message Parser', () => {
     const base =
       'cd=1,tot_i=1,tot_o=212,ele_d=0,ele_m=1,grd_d=212,grd_m=212,inc_d=0,inc_m=0,grd_f=0,grd_o=423,grd_t=3,gct_s=1,cel_s=2,cel_p=483,cel_c=94,err_t=0,err_a=0,dev_n=142,grd_y=0,wor_m=0,inc_a=0';
     const expected: Record<string, Record<string, string | undefined>> = {
-      'HMG-50': { '0': '2500W', '1': '800W', '2': undefined, '3': undefined },
+      'HMG-50': { '0': '2500W', '1': '800W', '2': '600W', '3': undefined },
       'VNSE3-0': { '0': '2500W', '1': '800W', '2': '600W', '3': undefined },
-      // Code 0 is the model's default: 1500 W on the Venus A.
-      'VNSA-0': { '0': '1500W', '1': '800W', '3': '2200W', '4': '1200W', '5': '1500W' },
-      'VNSD-0': { '0': '2500W', '1': '800W', '3': '2200W', '4': '1200W', '5': undefined },
+      // Code 0 is the model's default: 1500 W on the Venus A. Code 3 (2200 W)
+      // is above the Venus A's limit and is not shown.
+      'VNSA-0': {
+        '0': '1500W',
+        '1': '800W',
+        '2': '600W',
+        '3': undefined,
+        '4': '1200W',
+        '5': '1500W',
+      },
+      'VNSD-0': {
+        '0': '2500W',
+        '1': '800W',
+        '2': '600W',
+        '3': '2200W',
+        '4': '1200W',
+        '5': undefined,
+      },
     };
 
     for (const [deviceType, codes] of Object.entries(expected)) {
