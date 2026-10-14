@@ -712,6 +712,7 @@ export interface VenusDeviceData extends BaseDeviceData {
   phaseType?: VenusPhaseType;
   rechargeMode?: VenusRechargeMode;
   meterType?: VenusMeterType; // prc_d, set via cd=18 (HMG before 149: the last value set)
+  lastSetMeterType?: VenusMeterType; // the meter type last set from Home Assistant since hm2mqtt started; never read from the device
   meterMac?: string; // MAC used when configuring the meter type
   bmsVersion?: number;
   communicationModuleVersion?: string;

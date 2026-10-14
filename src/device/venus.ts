@@ -2483,16 +2483,18 @@ function registerRuntimeInfoMessage(
           return;
         }
         updateDeviceState(state => {
-          // If a meter type is already configured, re-apply it with the new MAC
-          // so the device stays in sync when the MAC is edited afterwards.
-          if (state.meterType) {
-            const resolved = venusMeterMac(state.meterType, mac);
+          // If a meter type was set from Home Assistant since hm2mqtt started
+          // and the device is still on it, re-apply it with the new MAC so the
+          // device stays in sync when the MAC is edited afterwards. The type
+          // read back from the device does not count: during a meter swap the
+          // MAC is set before the new type, and re-applying the old type would
+          // point the old meter at the new MAC.
+          const meterType = state.lastSetMeterType;
+          if (meterType && (state.meterType == null || state.meterType === meterType)) {
+            const resolved = venusMeterMac(meterType, mac);
             if (resolved !== null) {
               publishCallback(
-                processCommand(
-                  CommandType.SET_METER_TYPE,
-                  venusMeterParams(state.meterType, resolved),
-                ),
+                processCommand(CommandType.SET_METER_TYPE, venusMeterParams(meterType, resolved)),
               );
             }
           }
@@ -2541,7 +2543,7 @@ function registerRuntimeInfoMessage(
           publishCallback(
             processCommand(CommandType.SET_METER_TYPE, venusMeterParams(message, mac)),
           );
-          return { meterType: message };
+          return { meterType: message, lastSetMeterType: message };
         });
       },
     });
