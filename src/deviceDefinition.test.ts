@@ -45,6 +45,43 @@ describe('CT002 polled messages', () => {
   });
 });
 
+describe('B2500 cd=28 polling', () => {
+  const shouldPoll = (deviceType: string, deviceVersion?: number, deviceSubversion?: number) => {
+    const message = getDeviceDefinition(deviceType)?.messages.find(
+      m => m.refreshDataPayload === 'cd=28',
+    );
+    expect(message?.shouldPoll).toBeDefined();
+    return message?.shouldPoll?.({
+      deviceType,
+      deviceId: 'x',
+      timestamp: '',
+      values: {},
+      deviceInfo: { deviceVersion, deviceSubversion },
+    } as never);
+  };
+
+  test('polls the HMJ from firmware 102', () => {
+    expect(shouldPoll('HMJ-2', 102)).toBe(true);
+    expect(shouldPoll('HMJ-2', 116)).toBe(true);
+    expect(shouldPoll('HMJ-2', 101)).toBe(false);
+  });
+
+  test('polls the other models from firmware 224 subversion 3', () => {
+    for (const deviceType of ['HMA-1', 'HMF-2', 'HMK-1']) {
+      expect(shouldPoll(deviceType, 226)).toBe(true);
+      expect(shouldPoll(deviceType, 224, 3)).toBe(true);
+      expect(shouldPoll(deviceType, 224, 2)).toBe(false);
+      expect(shouldPoll(deviceType, 224)).toBe(false);
+      expect(shouldPoll(deviceType, 220, 5)).toBe(false);
+    }
+  });
+
+  test('does not poll before the firmware version is known', () => {
+    expect(shouldPoll('HMJ-2')).toBe(false);
+    expect(shouldPoll('HMA-1')).toBe(false);
+  });
+});
+
 describe('CT002 cd=31/cd=32 polling', () => {
   const messages = () => getDeviceDefinition('HME-4')?.messages ?? [];
   const byPayload = (payload: string) => messages().find(m => m.refreshDataPayload === payload);

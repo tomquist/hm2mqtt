@@ -691,8 +691,8 @@ homeassistant/{component}/{node_id}/{object_id}/config
 - `surplus-feed-in`: Toggles Surplus Feed-in mode (`on` or `off`). When enabled, surplus PV power is fed into the home grid when the battery is nearly full.
 - `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits; `:`/`-` in the input are stripped). The device does not report this back, so the entity shows the last value set.
 - `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `p1Meter`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50`, `ecoTracker`, `smrP1`, `smrIr`, `smrTic` or `tpm2100ct`). For every meter except the CT001 and the Shelly Pro 3EM, set `meter-mac` first. The SMR and TPM2 meters are refused on HMJ firmware 116 and older, which cannot use them. The *CT Type* sensor shows the meter the device took.
-- `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`).
-- `phase-diagnosis`: Starts grid-phase detection. Progress shows up on the *CT Status* and *Phase Detection* sensors.
+- `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`). The device reports the setting back from HMJ firmware 102, and on the other models from firmware 224.3. On older firmware the entity shows the last value set.
+- `phase-diagnosis`: Starts grid-phase detection. Progress shows up on the *CT Status* sensor, and on the same firmware as above also on the *Phase Detection* sensor.
 
 ### Venus Device Commands
 Applies to HMG/VNSE3/VNSA/VNSD. None of the commands below are available on the Venus E Mini (VNSEMINI), which has its own, much smaller command set — see [Venus E Mini Commands](#venus-e-mini-commands).

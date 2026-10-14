@@ -28,6 +28,7 @@ import {
   registerB2500CellBalancingMessage,
 } from './b2500Base.js';
 import {
+  BaseDeviceData,
   BuildMessageFn,
   extractBaseType,
   globalPollInterval,
@@ -1040,6 +1041,24 @@ function isB2500CtDiagnosisMessage(message: Record<string, string>): boolean {
   return 'dchrg_t' in message && 'seq_s' in message && !('pe' in message);
 }
 
+/**
+ * Whether the firmware answers `cd=28`: the HMJ from firmware 102, the other
+ * models from firmware 224 subversion 3. Older firmware never replies, so it is
+ * not polled, and neither is a device whose model or firmware is not known yet.
+ */
+function supportsCtDiagnosis(state: BaseDeviceData): boolean {
+  const { deviceType, deviceInfo } = state as Partial<B2500V2DeviceData>;
+  const version = deviceInfo?.deviceVersion;
+  if (deviceType == null || version == null) {
+    return false;
+  }
+  if (extractBaseType(deviceType) === 'HMJ') {
+    return version >= 102;
+  }
+  const subversion = deviceInfo?.deviceSubversion;
+  return version > 224 || (version === 224 && subversion != null && subversion >= 3);
+}
+
 function registerCtDiagnosisMessage(message: BuildMessageFn) {
   const options = {
     refreshDataPayload: 'cd=28',
@@ -1049,6 +1068,7 @@ function registerCtDiagnosisMessage(message: BuildMessageFn) {
     pollInterval: 300000,
     controlsDeviceAvailability: false,
     getAdditionalDeviceInfo: () => ({}),
+    shouldPoll: supportsCtDiagnosis,
   } as const;
   // The recharge-mode and phase-diagnosis commands live here so the re-read
   // after them fetches this reply.
@@ -1077,8 +1097,18 @@ function registerCtDiagnosisMessage(message: BuildMessageFn) {
       path: ['rechargeMode'],
       transform: map({ '0': 'singlePhase', '1': 'threePhase' }),
     });
-    advertise(
-      ['rechargeMode'],
+    // Set only by a reply, never by the command above, so it tells whether the
+    // device reports the setting at all.
+    field({
+      key: 'dchrg_t',
+      path: ['rechargeModeReported'],
+      transform: map({}, true),
+    });
+    // Until the device has reported the setting, the select stays optimistic
+    // and shows the last value set: firmware that does not answer `cd=28`
+    // would otherwise leave it unknown after every restart. The two
+    // advertisements never apply together.
+    const rechargeModeSelect = (optimistic: boolean) =>
       selectComponent<NonNullable<B2500V2CtDiagnosisData['rechargeMode']>>({
         id: 'recharge_mode',
         name: 'Recharge Mode',
@@ -1088,9 +1118,15 @@ function registerCtDiagnosisMessage(message: BuildMessageFn) {
           singlePhase: 'Single Phase',
           threePhase: 'Three Phase',
         },
+        optimistic,
         enabled_by_default: false,
-      }),
-    );
+      });
+    advertise(['rechargeMode'], rechargeModeSelect(false), {
+      enabled: state => (state.rechargeModeReported ? true : undefined),
+    });
+    advertise(['rechargeMode'], rechargeModeSelect(true), {
+      enabled: state => (state.rechargeModeReported ? undefined : true),
+    });
 
     // Starts the grid-phase detection routine. The device clears the phase and
     // moves the CT status to "Preparing to diagnose CT001 (Step 1)", so progress

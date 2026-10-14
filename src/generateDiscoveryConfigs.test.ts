@@ -247,6 +247,47 @@ describe('Home Assistant Discovery', () => {
     ).not.toBeNull();
   });
 
+  test('should keep the B2500 Recharge Mode optimistic until the device reports it', () => {
+    const deviceType = 'HMA-1';
+    const device: Device = { deviceType, deviceId: 'test123' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: `hame_energy/${deviceType}/device/test123/ctrl`,
+      deviceTopicNew: `marstek_energy/${deviceType}/device/test123/ctrl`,
+      publishTopic: `hame_energy/${deviceType}/device/test123/data`,
+      deviceControlTopicOld: `hame_energy/${deviceType}/App/test123/ctrl`,
+      deviceControlTopicNew: `marstek_energy/${deviceType}/App/test123/ctrl`,
+      controlSubscriptionTopic: `hame_energy/${deviceType}/control/test123/control`,
+      availabilityTopic: `hame_energy/${deviceType}/availability/test123`,
+    };
+    const rechargeMode = (state: object) => {
+      const configs = generateDiscoveryConfigs(
+        device,
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        { deviceType, deviceInfo: { deviceVersion: 224 }, ...state },
+      ).filter(c => c.topic.endsWith('/recharge_mode/config'));
+      expect(configs).toHaveLength(1);
+      return configs[0].config;
+    };
+
+    // Not reported yet, or only set from Home Assistant: no state topic.
+    expect(rechargeMode({})).not.toHaveProperty('state_topic');
+    expect(rechargeMode({ rechargeMode: 'threePhase' })).not.toHaveProperty('state_topic');
+
+    // Once a `cd=28` reply has arrived, the select reads the device's value.
+    const reply = parseMessage(
+      'ct_t=3,phase_t=4,dchrg_t=1,seq_s=3,c0=10,c1=20,c2=30,cp=60,op=200',
+      deviceType,
+      'test123',
+    )['ctDiagnosis'];
+    expect(rechargeMode(reply)).toHaveProperty(
+      'state_topic',
+      `hame_energy/${deviceType}/device/test123/data/ctDiagnosis`,
+    );
+  });
+
   test('should support custom autodiscovery topic prefix', () => {
     const device: Device = { deviceType: 'HMA-1', deviceId: 'test123' };
     const deviceTopics: DeviceTopics = {

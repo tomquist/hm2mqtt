@@ -335,6 +335,8 @@ export interface B2500V2DeviceData extends B2500BaseDeviceData {
 export interface B2500V2CtDiagnosisData extends BaseDeviceData {
   // Grid recharge mode (`dchrg_t`), set via `cd=27,dchrg=`
   rechargeMode?: B2500RechargeMode;
+  // Whether the device has reported `dchrg_t` (a command does not set this)
+  rechargeModeReported?: boolean;
   // Phase detection progress (`seq_s`)
   phaseDetection?: 'idle' | 'detecting' | 'failed' | 'done';
   // Not part of this reply: command handlers see the merged device state,
