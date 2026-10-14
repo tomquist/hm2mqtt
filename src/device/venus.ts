@@ -621,10 +621,11 @@ function registerRuntimeInfoMessage(
 
     // PV energy. The `pv` field is `<today>|<this month>`, both in units of
     // 10 Wh, so each is scaled by 10 to Wh. There is no lifetime total. The
-    // monthly value drops back at the start of a month, so it has no monotonic
-    // guard; `total_increasing` lets Home Assistant read that drop as a meter
-    // reset. Its id stays `pv_energy_total` so existing statistics and Energy
-    // dashboard configurations keep working.
+    // monthly value drops back at the start of a month. The monotonic guard
+    // holds a single low reading back and accepts the drop once the next
+    // reading confirms it; `total_increasing` lets Home Assistant read it as a
+    // meter reset. Its id stays `pv_energy_total` so existing statistics and
+    // Energy dashboard configurations keep working.
     field({
       key: 'pv',
       path: ['pvEnergyToday'],
@@ -646,6 +647,7 @@ function registerRuntimeInfoMessage(
       key: 'pv',
       path: ['pvEnergyTotal'],
       transform: chain(pipeValue(1), multiply(10)),
+      monotonic: true,
     });
     advertise(
       ['pvEnergyTotal'],

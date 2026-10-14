@@ -309,12 +309,19 @@ describe('DeviceManager', () => {
       expect(daily()).toBe(5.1);
     });
 
-    it("accepts the monthly reset of the Venus month's PV energy at once", () => {
+    it("accepts the monthly reset of the Venus month's PV energy once confirmed", () => {
       const vnsa = { deviceType: 'VNSA-0', deviceId: 'venusA123' };
       const venusA = new DeviceManager({ ...venusConfig, devices: [vnsa] }, jest.fn());
+      const month = () => (venusA.getDeviceState(vnsa) as any).pvEnergyTotal;
       venusA.updateDeviceState(vnsa, 'data', () => ({ pvEnergyTotal: 9000 }));
+      venusA.updateDeviceState(vnsa, 'data', () => ({ pvEnergyTotal: 0 })); // glitch
+      expect(month()).toBe(9000);
+      venusA.updateDeviceState(vnsa, 'data', () => ({ pvEnergyTotal: 9010 }));
+      expect(month()).toBe(9010);
       venusA.updateDeviceState(vnsa, 'data', () => ({ pvEnergyTotal: 30 })); // new month
-      expect((venusA.getDeviceState(vnsa) as any).pvEnergyTotal).toBe(30);
+      expect(month()).toBe(9010);
+      venusA.updateDeviceState(vnsa, 'data', () => ({ pvEnergyTotal: 40 })); // confirmed
+      expect(month()).toBe(40);
     });
 
     describe('CT002 cd=32 energy counters', () => {
