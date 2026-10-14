@@ -59,8 +59,9 @@ Both families share most of their protocol. Where they differ, the section says 
 
 ## 2 Subscribe to your device
 
-The meters only use `marstek_energy` topics, never `hame_energy`. They publish
-on:
+The `TPM-CN`, `TPM2-0` and `SMR` meters, the `HME-2` and `HME-4` from firmware
+119 and the `HME-3` and `HME-5` from firmware 116 use `marstek_energy` topics.
+They publish on:
 
 ```
 marstek_energy/{type}/device/{id}/ctrl
@@ -77,6 +78,16 @@ marstek_energy/{type}/App/{id}/ctrl
 `!@#$%^&*()_+{}[]`, zero IV) and hex-encoded. For the MAC `0123456789ab` that is
 `6f8008b9ee08cc3f8cf9f6c065a123dd`. hm2mqtt works this id out itself when the
 configured device id is the MAC.
+
+From `HME-4` firmware 124 and `HME-3` firmware 122, a meter that has been given
+an id by the Marstek cloud uses that stored id as `{id}` instead of the
+encrypted MAC. Such a meter has to be configured with that id, exactly as it
+appears in its topics; hm2mqtt uses any id that is not a 12 hex digit MAC as
+is.
+
+Older firmware (`HME-2`/`HME-4` before 119, `HME-3`/`HME-5` before 116) uses
+`hame_energy/{type}/device/{id}/ctrl` and `hame_energy/{type}/App/{id}/ctrl`
+with the plain id. hm2mqtt listens on both forms.
 
 When the meter stays on the Marstek cloud and hame-relay forwards its messages
 to a local broker, they appear there on

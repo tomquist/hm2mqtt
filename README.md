@@ -518,7 +518,7 @@ In hm2mqtt, `deviceId` must be the **Bluetooth MAC** of the device (12 hex chars
 **Troubleshooting (quick):**
 - If you pasted a long/cryptic cloud “device id” into hm2mqtt: replace it with the **Bluetooth MAC**.
 
-**Devices that talk straight to your own broker:** the Venus C/E (`HMG`, firmware 153 and later) and the Marstek smart meters use an encrypted form of their MAC in their MQTT topics. Configure the plain MAC; hm2mqtt works out the encrypted id itself. An id that is not a 12-digit MAC is used exactly as entered.
+**Devices that talk straight to your own broker:** the Venus C/E (`HMG`, firmware 153 and later) and the Marstek smart meters use an encrypted form of their MAC in their MQTT topics. Configure the plain MAC; hm2mqtt works out the encrypted id itself. Older meter firmware (`HME-2`/`HME-4` before 119, `HME-3`/`HME-5` before 116) uses the plain id on `hame_energy` topics, which hm2mqtt listens on as well. Newer firmware (the Venus C/E from 154, the `HME-4` from 124 and the `HME-3` from 122) can use an id assigned by the Marstek cloud instead of the encrypted MAC. If your device does, enter that id exactly as it appears in its topics: an id that is not a 12-digit MAC is used exactly as entered.
 
 ### 4) My Venus/Jupiter works in the Marstek app, but hm2mqtt shows it as offline
 
