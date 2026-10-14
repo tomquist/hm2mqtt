@@ -85,8 +85,8 @@ describe('B2500 cd=28 polling', () => {
 describe('CT002 cd=31/cd=32 polling', () => {
   const messages = () => getDeviceDefinition('HME-4')?.messages ?? [];
   const byPayload = (payload: string) => messages().find(m => m.refreshDataPayload === payload);
-  const state = (firmwareVersion?: number) =>
-    ({ deviceType: 'HME-4', deviceId: 'x', timestamp: '', values: {}, firmwareVersion }) as never;
+  const state = (firmwareVersion?: number, deviceType = 'HME-4') =>
+    ({ deviceType, deviceId: 'x', timestamp: '', values: {}, firmwareVersion }) as never;
 
   test('polls cd=31 and cd=32 only from firmware 124 on', () => {
     for (const payload of ['cd=31', 'cd=32']) {
@@ -96,6 +96,9 @@ describe('CT002 cd=31/cd=32 polling', () => {
       expect(message?.shouldPoll?.(state(120))).toBe(false);
       // Not before the firmware version is known
       expect(message?.shouldPoll?.(state())).toBe(false);
+      // Only the HME-4 has them; the HME-2 shares its definition
+      expect(message?.shouldPoll?.(state(124, 'HME-2'))).toBe(false);
+      expect(message?.shouldPoll?.(state(124, 'HME-1'))).toBe(false);
     }
   });
 

@@ -86,6 +86,14 @@ export type FieldDefinition<
    */
   monotonic?: boolean;
   /**
+   * Only meaningful together with `monotonic`. A drop no larger than this is
+   * held: the previous value is kept until the counter catches up, however
+   * long the lower readings last. A larger drop goes through the usual reset
+   * confirmation. For counters that can briefly read too high by a known
+   * amount.
+   */
+  monotonicHoldDropsUpTo?: number;
+  /**
    * Only meaningful for multi-key (aggregate) fields. When set, the field is
    * computed from whichever keys are present instead of requiring all of them:
    * if none of the keys are present the field is skipped silently, and a partial

@@ -477,7 +477,9 @@ cd=32,kwh_a=12.50kwh,kwh_b=3.75kwh,kwh_c=0.08kwh,n_kwh_a=1.05kwh,n_kwh_b=0.99kwh
 - The hundredths run from `00` to `100` and are printed as they are, so
   `2.100kwh` means 3.00 kWh. Right after a whole kWh is reached, the meter can
   report the old hundredths with the new whole kWh once, so a value can be
-  briefly about 1 kWh too high.
+  briefly about 1 kWh too high. hm2mqtt therefore keeps showing the previous
+  value through a drop of up to about 1 kWh until the counter catches up, and
+  takes only a larger drop as a reboot.
 - `kwh` and `n_kwh` add the whole kWh and the hundredths of the three phases
   separately, without carrying: in the example `15.133kwh` stands for 16.33 kWh.
   hm2mqtt sums the phases itself instead.

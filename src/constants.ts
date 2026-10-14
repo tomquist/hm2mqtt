@@ -30,6 +30,16 @@ export const CT002_MEASUREMENT_POLL_OFFSET_MS = 2000;
 export const CT002_ENERGY_POLL_OFFSET_MS = 4000;
 
 /**
+ * For about 200 ms after each whole kWh, the HME-4 `cd=32` energy counters read
+ * up to 1 kWh too high (the new kWh with the old hundredths). A reading taken
+ * then is followed by a drop of at most 1 kWh, so a drop up to this size is
+ * held until the counter catches up, which delays at most about 1 kWh. A
+ * larger drop, such as the restart from 0 after a reboot, is accepted as a
+ * reset once the next reading confirms it.
+ */
+export const CT002_ENERGY_HOLD_DROPS_UP_TO_WH = 1050;
+
+/**
  * How much earlier than its poll interval a message still counts as due.
  *
  * The polling timer fires once per interval, but the clock it reads when it

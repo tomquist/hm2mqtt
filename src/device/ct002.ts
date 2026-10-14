@@ -13,6 +13,7 @@ import {
 } from '../types.js';
 import {
   CT002_ENERGY_POLL_OFFSET_MS,
+  CT002_ENERGY_HOLD_DROPS_UP_TO_WH,
   CT002_MEASUREMENT_POLL_OFFSET_MS,
   MIN_PHASE_ENERGY_POLL_INTERVAL_MS,
 } from '../constants.js';
@@ -52,9 +53,15 @@ function isPhaseEnergyMessage(values: Record<string, string>): boolean {
   return !('ret' in values) && phaseEnergyFields.every(({ key }) => key in values);
 }
 
-/** `cd=31` and `cd=32` exist from HME-4 firmware 124 on. */
+/**
+ * `cd=31` and `cd=32` exist from HME-4 firmware 124 on. The HME-2 (and HME-1)
+ * share the definition but are not polled.
+ */
 function supportsMeasurementCommands(state: BaseDeviceData): boolean {
-  return ((state as MeterBaseDeviceData).firmwareVersion ?? 0) >= 124;
+  return (
+    state.deviceType?.toUpperCase() === 'HME-4' &&
+    ((state as MeterBaseDeviceData).firmwareVersion ?? 0) >= 124
+  );
 }
 
 /** Advertise only once the device has answered, as with the other optional readings. */
@@ -279,7 +286,11 @@ function registerPhaseMeasurementMessage(message: BuildMessageFn) {
  * is fitted, and the measurement direction setting does not apply to them.
  *
  * The counters only live in the meter's memory, so they restart from 0 when it
- * reboots. The meter's own `kwh`/`n_kwh` totals add the hundredths of the three
+ * reboots. Right after each whole kWh they briefly read up to 1 kWh too high,
+ * so a drop of up to about 1 kWh holds the previous value until the counter
+ * catches up (see CT002_ENERGY_HOLD_DROPS_UP_TO_WH); only a larger drop is
+ * taken as a reboot. The
+ * meter's own `kwh`/`n_kwh` totals add the hundredths of the three
  * phases without carrying (15.133 instead of 16.33), so the totals are computed
  * from the phases instead. All of these are disabled by default.
  */
@@ -309,7 +320,13 @@ function registerEnergyMessage(message: BuildMessageFn) {
 
       for (const { key, path, id, phase } of energyFields) {
         const direction = key.startsWith('n_') ? 'Negative' : 'Positive';
-        field({ key, path: [path], transform: ct002Energy(), monotonic: true });
+        field({
+          key,
+          path: [path],
+          transform: ct002Energy(),
+          monotonic: true,
+          monotonicHoldDropsUpTo: CT002_ENERGY_HOLD_DROPS_UP_TO_WH,
+        });
         advertise([path], energySensor(id, `Phase ${phase} ${direction} Energy`), {
           enabled: whenReported(path),
         });
@@ -321,6 +338,7 @@ function registerEnergyMessage(message: BuildMessageFn) {
           path: [path],
           transform: sum(undefined, ct002Energy()),
           monotonic: true,
+          monotonicHoldDropsUpTo: CT002_ENERGY_HOLD_DROPS_UP_TO_WH,
         });
         advertise([path], energySensor(id, name), { enabled: whenReported(path) });
       }
