@@ -571,15 +571,7 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'HMA-1',
     command: 'sync-time',
     input: '{"wy":480,"yy":123,"mm":1,"rr":2,"hh":23,"mn":56,"ss":56}',
-    expectedOutput: ['cd=9,wy=480', 'cd=8,wy=480,yy=123,mm=1,rr=2,hh=23,mn=56,ss=56'],
-  },
-  {
-    // The device would not store this offset, so only the clock is sent.
-    description: 'B2500V2 sync-time with JSON and an unsupported offset',
-    deviceType: 'HMA-1',
-    command: 'sync-time',
-    input: '{"wy":345,"yy":123,"mm":1,"rr":2,"hh":23,"mn":56,"ss":56}',
-    expectedOutput: ['cd=8,wy=345,yy=123,mm=1,rr=2,hh=23,mn=56,ss=56'],
+    expectedOutput: ['cd=8,wy=480,yy=123,mm=1,rr=2,hh=23,mn=56,ss=56'],
   },
   {
     // Every field here is a legal 0: UTC+0, January, midnight, zero minute/second.
@@ -587,7 +579,7 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'HMA-1',
     command: 'sync-time',
     input: '{"wy":0,"yy":126,"mm":0,"rr":1,"hh":0,"mn":0,"ss":0}',
-    expectedOutput: ['cd=9,wy=0', 'cd=8,wy=0,yy=126,mm=0,rr=1,hh=0,mn=0,ss=0'],
+    expectedOutput: ['cd=8,wy=0,yy=126,mm=0,rr=1,hh=0,mn=0,ss=0'],
   },
   {
     description: 'B2500V2 sync-time with incomplete JSON (invalid)',

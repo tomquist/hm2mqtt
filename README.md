@@ -686,8 +686,8 @@ homeassistant/{component}/{node_id}/{object_id}/config
 - `time-period/[1-5]/end-time`: Sets end time for period (HH:MM format, 00:00-23:59). After a restart, the device turns a period that ends before it starts into an all-day period, so split a period that crosses midnight into two.
 - `time-period/[1-5]/output-value`: Sets output power for period (0-800W)
 - `connected-phase`: Sets the phase the CT meter regulates on (`0`, `1` or `2` for phase 1, 2 and 3, `3`/`all` for all phases, or `255`/`auto` to start phase detection, which only runs in adaptive mode). On HMJ firmware 110, phase 1 cannot be selected.
-- `time-zone`: Sets time zone (UTC offset in minutes, e.g. `60` for UTC+1). The device only accepts a multiple of 10 between `-720` and `720`.
-- `sync-time`: Synchronizes the device clock and time zone with the server
+- `time-zone`: Sets time zone (UTC offset in minutes, e.g. `60` for UTC+1). The device only accepts a multiple of 10 between `-720` and `720`. This is the only command that sets the offset the discharge timers use, so send it again after a daylight-saving change.
+- `sync-time`: Synchronizes the device clock with the server. It does not change the device's time zone.
 - `surplus-feed-in`: Toggles Surplus Feed-in mode (`on` or `off`). When enabled, surplus PV power is fed into the home grid when the battery is nearly full.
 - `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits; `:`/`-` in the input are stripped). The device does not report this back, so the entity shows the last value set.
 - `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `p1Meter`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50`, `ecoTracker`, `smrP1`, `smrIr`, `smrTic` or `tpm2100ct`). For every meter except the CT001 and the Shelly Pro 3EM, set `meter-mac` first. The SMR and TPM2 meters are refused on HMJ firmware 116 and older, which cannot use them. The *CT Type* sensor shows the meter the device took.

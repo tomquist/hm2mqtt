@@ -261,36 +261,20 @@ describe('ControlHandler', () => {
     });
 
     test('should handle sync-time control topic with PRESS', () => {
-      // Freeze time so that the generated payload is deterministic
+      // Freeze time so that the generated payload is deterministic. A host
+      // without a time zone runs in UTC.
       const mockDate = new Date(Date.UTC(2023, 0, 1, 12, 30, 45));
       jest.useFakeTimers().setSystemTime(mockDate);
-      jest.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-60);
+      jest.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(0);
 
       try {
         // Call the method with a sync time message
         handleControlTopic(testDeviceV2, 'sync-time', 'PRESS');
 
-        // The device takes its time zone only from `cd=9`, so that goes out
-        // first, followed by the clock.
+        // Only the clock is sent: the device's time zone (`cd=9`) is left as
+        // it was set in the app or with `time-zone`.
         expect(publishCallback.mock.calls.map(call => call[1])).toEqual([
-          'cd=9,wy=60',
-          'cd=8,wy=60,yy=123,mm=0,rr=1,hh=12,mn=30,ss=45',
-        ]);
-      } finally {
-        jest.useRealTimers();
-      }
-    });
-
-    test('should sync only the clock when the device cannot store the offset', () => {
-      // UTC+5:45 is not a multiple of 10 minutes, which the device rejects.
-      jest.useFakeTimers().setSystemTime(new Date(Date.UTC(2023, 0, 1, 12, 30, 45)));
-      jest.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(-345);
-
-      try {
-        handleControlTopic(testDeviceV2, 'sync-time', 'PRESS');
-
-        expect(publishCallback.mock.calls.map(call => call[1])).toEqual([
-          'cd=8,wy=345,yy=123,mm=0,rr=1,hh=12,mn=30,ss=45',
+          'cd=8,wy=0,yy=123,mm=0,rr=1,hh=12,mn=30,ss=45',
         ]);
       } finally {
         jest.useRealTimers();
@@ -298,7 +282,8 @@ describe('ControlHandler', () => {
     });
 
     test('should sync UTC clock fields together with the local offset', () => {
-      // The device's clock is UTC; `wy` tells it how far local time is ahead.
+      // The device's clock is UTC; the host's offset still goes in `wy`, which
+      // the device requires but ignores.
       // Simulate UTC+5:30 at 2023-12-31T23:59:58Z, which is local 2024-01-01
       // 05:29:58 — every field except the seconds differs between the two zones,
       // so a regression to any single local getter changes the payload. The
@@ -318,7 +303,6 @@ describe('ControlHandler', () => {
         handleControlTopic(testDeviceV2, 'sync-time', 'PRESS');
 
         expect(publishCallback.mock.calls.map(call => call[1])).toEqual([
-          'cd=9,wy=330',
           'cd=8,wy=330,yy=123,mm=11,rr=31,hh=23,mn=59,ss=58',
         ]);
       } finally {
@@ -339,9 +323,8 @@ describe('ControlHandler', () => {
 
       handleControlTopic(testDeviceV2, 'sync-time', JSON.stringify(timeData));
 
-      // Check that the publish callback was called with the correct payloads
+      // Check that the publish callback was called with the correct payload
       expect(publishCallback.mock.calls.map(call => call[1])).toEqual([
-        'cd=9,wy=480',
         'cd=8,wy=480,yy=123,mm=1,rr=2,hh=23,mn=56,ss=56',
       ]);
     });

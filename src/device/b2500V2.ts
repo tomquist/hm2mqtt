@@ -828,36 +828,17 @@ function registerRuntimeInfoMessage(message: BuildMessageFn, baseOptions: B2500B
     });
     command('sync-time', {
       handler: ({ message, publishCallback, deviceState }) => {
-        // The device ignores `wy` in `cd=8`: the offset its discharge timers
-        // use is only ever set by `cd=9`. So the offset goes out first as
-        // `cd=9`, and the clock follows as `cd=8`. The device keeps the clock
-        // in UTC and applies the stored offset when it evaluates a discharge
-        // timer, whose start and end are configured in local time.
-        const publishTime = (timeData: CommandParams) => {
-          const wy = Number(timeData.wy);
-          if (isValidTimeZoneOffset(wy)) {
-            publishCallback(
-              processCommand(CommandType.TIME_ZONE, { wy }, deviceState.useFlashCommands),
-            );
-          } else {
-            // The device only stores offsets within ±720 minutes that are a
-            // whole multiple of 10, so it keeps the one it already had. Sync
-            // the clock anyway rather than letting it drift as well.
-            logger.warn(
-              'Timezone offset not supported by the device, it will keep its previous offset and the discharge timers may run at the wrong time:',
-              timeData.wy,
-            );
-          }
-          publishCallback(
-            processCommand(CommandType.SYNC_TIME, timeData, deviceState.useFlashCommands),
-          );
-        };
         try {
           // If the message is "PRESS" or similar from Home Assistant button, generate current time
           if (message === 'PRESS' || message === 'press' || message === 'true' || message === '1') {
             const now = new Date();
+            // `cd=08` sets the clock, which the device keeps in UTC. Its `wy`
+            // is required but not stored: the offset the discharge timers use
+            // is only ever set by `cd=09` (the `time-zone` command). Sync Time
+            // does not send that, so the offset set in the app or with
+            // `time-zone` is kept, whatever time zone this host runs in.
             // `mm` is 0-based and `yy` is the year minus 1900.
-            publishTime({
+            const timeData = {
               wy: -now.getTimezoneOffset(),
               yy: now.getUTCFullYear() - 1900,
               mm: now.getUTCMonth(),
@@ -865,7 +846,10 @@ function registerRuntimeInfoMessage(message: BuildMessageFn, baseOptions: B2500B
               hh: now.getUTCHours(),
               mn: now.getUTCMinutes(),
               ss: now.getUTCSeconds(),
-            });
+            };
+            publishCallback(
+              processCommand(CommandType.SYNC_TIME, timeData, deviceState.useFlashCommands),
+            );
             return;
           }
 
@@ -879,7 +863,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn, baseOptions: B2500B
             return;
           }
 
-          publishTime(timeData);
+          publishCallback(
+            processCommand(CommandType.SYNC_TIME, timeData, deviceState.useFlashCommands),
+          );
         } catch {
           logger.warn('Invalid time sync data:', message);
         }
