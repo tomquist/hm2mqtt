@@ -5,7 +5,6 @@
 
 - B2500 (HMJ firmware 116 and later): *CT Status* now recognises the full-battery PV pass-through state, and a new *Full Battery Pass-Through* sensor shows whether that option is enabled (PR #462)
 - Smart meters: The CT002 (`HME-4`, firmware 124 and later) now also reports voltage, current and energy per phase (PR #462)
-- Venus C/E (`HMG`) and the Marstek smart meters now also work when they talk straight to your own MQTT broker, without hame-relay, if you configure their MAC address (PR #462)
 - Venus C/E (HMG): *Depth of Discharge* now goes up to 90 %, which the firmware allows (PR #462)
 - Venus: New *Restart* button (disabled by default). On the Venus C/E (HMG) it needs control firmware 151 or later (PR #462)
 - Venus: *Meter Type* accepts the P1 Meter and EcoTracker without a *Meter MAC*, and offers the Stromleser on the Venus E 3.0, Venus A and Venus D (PR #462)

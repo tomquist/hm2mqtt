@@ -21,22 +21,29 @@ The second generation's has not; see [Confidence](#confidence).
 | Products       | Venus C, Venus E, Venus A, Venus D | Venus X, Venus G, Venus E Mini |
 | Device types   | `HMG`, `VNSE3`, `VNSA`, `VNSD` (and the regional `VNSE3CH`, `VNSE3AU`, `VNSDCH`, `VNSACH`, `VDAC`, `VEPRO`, `VAAC2`, `VNSE4`) | `VENX`, `VNSG`, `VNSGPV`, `VNSEMINI` |
 | App code       | `pages/Ac_Coupler`, commands built by `CommonCommand` | `modules/devices`, commands built by `DataVenus*` tables and `venus_model.dart` |
-| MQTT topics    | The device's own MQTT client: `hame_energy/<type>/App/<id>/ctrl` up to HMG control firmware 152, `marstek_energy/<type>/App/<id>/ctrl` otherwise (see below) | `marstek_energy/<type>/App/<hashed id>/ctrl` |
+| MQTT topics    | `hame_energy/<type>/App/<mac>/ctrl` | `marstek_energy/<type>/App/<hashed id>/ctrl` |
 | Strategy class | `VenusMqttStrategy` | `VNXMqttStrategy` |
 
 `mqtt_factory` is what settles the grouping: it routes `VNSEMINI` behind
-`VNXMqttStrategy` alongside `VENX`, `VNSG` and `VNSGPV`.
+`VNXMqttStrategy` alongside `VENX`, `VNSG` and `VNSGPV`. `MqttSendMixin.TOPIC`
+in that tree builds the `marstek_energy` topic with the hashed device id, where
+`CommonCommand` builds `hame_energy` with the plain MAC.
 
-On the devices themselves the first generation's topic depends on the model and
-control firmware build:
+Through the Marstek cloud, the topic id a first-generation Venus uses depends on
+the broker generation and the firmware:
 
-- **Venus C/E (HMG) up to 152:** `hame_energy`, with the device's own chip ID
-  in lowercase hex as the id, not the MAC.
-- **HMG 153:** `marstek_energy`, with the AES id of the Bluetooth MAC.
-- **HMG 154 and later:** `marstek_energy`, with the AES id of the Bluetooth MAC,
-  or the cloud-assigned id once one is stored.
-- **Venus E 3.0, Venus A and Venus D:** the control firmware has only
-  `marstek_energy` topics, with a cloud-assigned id or the AES id of the MAC.
+- **Plain id** on the older `hame-2024` broker (`hame_energy` topics): the
+  Venus C/E (HMG) up to control firmware 152.
+- **AES id of the MAC** on the `hame-2025` broker (`marstek_energy` topics):
+  HMG 153.
+- **Salt-based id** on the `hame-2025` broker: HMG from 154 and, on most
+  firmware, the Venus E 3.0, Venus A and Venus D. It is derived from a
+  per-device salt issued by the Marstek cloud, so it cannot be computed from the
+  MAC alone.
+
+hame-relay works out which one applies and forwards the messages to
+`hame_energy/<type>/device/<mac>/ctrl` on your own broker, which is where
+hm2mqtt expects them.
 
 ## Where the numbering collides
 

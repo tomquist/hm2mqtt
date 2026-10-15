@@ -59,41 +59,35 @@ Both families share most of their protocol. Where they differ, the section says 
 
 ## 2 Subscribe to your device
 
-The `TPM-CN`, `TPM2-0` and `SMR` meters, the `HME-2` and `HME-4` from firmware
-119 and the `HME-3` and `HME-5` from firmware 116 use `marstek_energy` topics.
-They publish on:
+Before sending/receiving messages in MQTT, you must subscribe to your device using the following command:
 
 ```
-marstek_energy/{type}/device/{id}/ctrl
+hame_energy/{type}/device/{uid or mac}/ctrl
 ```
 
-and take commands on:
+The parameters that need to be filled in the command include your device type, device ID or MAC.
+
+Commands are published to:
 
 ```
-marstek_energy/{type}/App/{id}/ctrl
+hame_energy/{type}/App/{uid or mac}/ctrl
 ```
 
-`{type}` is the device type, e.g. `HME-4`. `{id}` is the meter's MAC address
-(12 lowercase hex digits, no separators), encrypted with AES-128-CBC (key
-`!@#$%^&*()_+{}[]`, zero IV) and hex-encoded. For the MAC `0123456789ab` that is
-`6f8008b9ee08cc3f8cf9f6c065a123dd`. hm2mqtt works this id out itself when the
-configured device id is the MAC.
+Through the Marstek cloud, the topic id a meter uses depends on the broker
+generation and its firmware:
 
-From `HME-4` firmware 124 and `HME-3` firmware 122, a meter that has been given
-an id by the Marstek cloud uses that stored id as `{id}` instead of the
-encrypted MAC. Such a meter has to be configured with that id, exactly as it
-appears in its topics; hm2mqtt uses any id that is not a 12 hex digit MAC as
-is.
+- **Plain id** on the older `hame-2024` broker (`hame_energy` topics).
+- **AES id of the MAC** on the `hame-2025` broker (`marstek_energy` topics),
+  for example `HME-2`/`HME-4` firmware 119–121 and `HME-3`/`HME-5` firmware
+  116–119.
+- **Salt-based id** on the `hame-2025` broker: `HME-2`/`HME-4` from firmware
+  122, `HME-3`/`HME-5` from 120, and the `TPM2` and `SMR` meters always. It is
+  derived from a per-device salt issued by the Marstek cloud, so it cannot be
+  computed from the MAC alone.
 
-Older firmware (`HME-2`/`HME-4` before 119, `HME-3`/`HME-5` before 116) uses
-`hame_energy/{type}/device/{id}/ctrl` and `hame_energy/{type}/App/{id}/ctrl`
-with the plain id. hm2mqtt listens on both forms.
-
-When the meter stays on the Marstek cloud and hame-relay forwards its messages
-to a local broker, they appear there on
-`hame_energy/{type}/device/{mac}/ctrl`, and commands go to
-`hame_energy/{type}/App/{mac}/ctrl` with the plain MAC. The examples below use
-that form.
+hame-relay works out which one applies and forwards the messages to
+`hame_energy/{type}/device/{mac}/ctrl` on your own broker, which is the form
+shown above.
 
 ## 3 Read device information
 

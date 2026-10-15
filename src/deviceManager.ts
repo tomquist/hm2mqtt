@@ -52,14 +52,6 @@ export class DeviceManager {
   // Consecutive below-previous reading counts per device, per monotonic field id.
   private monotonicBelowCount: Record<DeviceKey, Record<string, number>> = {};
   private readonly encryptedDeviceTypes = new Set(['HMA', 'HMF', 'HMK', 'HMJ']);
-  /**
-   * Device types whose newer firmware uses the encrypted id in the
-   * `marstek_energy` topics: the Venus C/E (`HMG`, from firmware 153) and the
-   * Marstek smart meters. Unlike the B2500 types above, these are only
-   * encrypted when the configured id is the 12 hex digit MAC — an id copied
-   * from elsewhere (e.g. a cloud device id from hame-relay) is used as is.
-   */
-  private readonly macEncryptedDeviceTypes = new Set(['HMG', 'HME', 'TPM', 'TPM2', 'SMR']);
 
   constructor(
     private config: MqttConfig,
@@ -101,7 +93,9 @@ export class DeviceManager {
       const deviceKey = this.getDeviceKey(device);
       logger.info(`Initializing topics for device: ${deviceKey}`);
       let deviceId = device.deviceId;
-      let deviceIdNew = this.newTopicDeviceId(device.deviceType, deviceId);
+      let deviceIdNew = this.shouldEncryptDeviceId(device.deviceType)
+        ? calculateNewVersionTopicId(deviceId)
+        : deviceId;
 
       const prefix = this.config.topicPrefix;
       this.deviceTopics[deviceKey] = {
@@ -131,19 +125,9 @@ export class DeviceManager {
     return `${device.deviceType}:${device.deviceId}`;
   }
 
-  /**
-   * The id used in the `marstek_energy` topics. The `hame_energy` topics always
-   * use the configured id.
-   */
-  private newTopicDeviceId(deviceType: string, deviceId: string): string {
-    const baseType = extractBaseType(deviceType).toUpperCase();
-    if (this.encryptedDeviceTypes.has(baseType)) {
-      return calculateNewVersionTopicId(deviceId);
-    }
-    if (this.macEncryptedDeviceTypes.has(baseType) && /^[0-9a-f]{12}$/i.test(deviceId)) {
-      return calculateNewVersionTopicId(deviceId.toLowerCase());
-    }
-    return deviceId;
+  private shouldEncryptDeviceId(deviceType: string): boolean {
+    const baseType = extractBaseType(deviceType);
+    return this.encryptedDeviceTypes.has(baseType.toUpperCase());
   }
 
   /**
