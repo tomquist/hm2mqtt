@@ -18,6 +18,7 @@
 
 ### Fixed
 
+- Smart meters: The CT002 *Phase 1/2/3 Measurement Reversed* switches showed the opposite of the meter's setting, so a new meter showed every phase as reversed and switching them off reversed them. They now match the Marstek app: on means that phase is reversed
 - B2500 V2/V3: *CT Connected Phase* labelled the all-phases setting *Searching* and the setting that starts phase detection *None*. They are now called *All Phases* and *Auto-detect* (PR #462)
 - B2500 V2/V3: The `time-zone` command refuses offsets the device would ignore, and logs a warning instead (PR #462)
 - B2500 V2/V3: Changing a timer period also switches the device out of adaptive mode. *Adaptive Mode* now shows this straight away (PR #462)

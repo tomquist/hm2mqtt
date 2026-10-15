@@ -468,10 +468,10 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('firmwareVersion', 119);
     expect(result).toHaveProperty('wifiStatus', 2);
     expect(result).toHaveProperty('slaveCount', 1);
-    // cur_d=0: no phase has its measurement direction reversed
-    expect(result).toHaveProperty('phase1MeasurementReversed', false);
-    expect(result).toHaveProperty('phase2MeasurementReversed', false);
-    expect(result).toHaveProperty('phase3MeasurementReversed', false);
+    // cur_d=0: every phase bit clear, so every phase is reversed
+    expect(result).toHaveProperty('phase1MeasurementReversed', true);
+    expect(result).toHaveProperty('phase2MeasurementReversed', true);
+    expect(result).toHaveProperty('phase3MeasurementReversed', true);
   });
 
   test('should parse CT002 messages for the TPM and TPM2 device types', () => {
@@ -563,14 +563,25 @@ describe('MQTT Message Parser', () => {
   });
 
   test('should decode the per-phase measurement direction bitmask', () => {
-    // cur_d=5 -> bit 0 (phase 1) and bit 2 (phase 3) set
-    const message = 'pwr_a=0,pwr_b=0,pwr_c=0,pwr_t=0,cur_d=5';
-    const { data } = parseMessage(message, 'HME-4', 'abcd');
+    // A set bit is a phase measured as installed, a clear bit a reversed one.
+    // cur_d=5 -> bits 0 and 2 set, bit 1 (phase 2) clear
+    const decode = (curD: string) =>
+      parseMessage(`pwr_a=0,pwr_b=0,pwr_c=0,pwr_t=0,cur_d=${curD}`, 'HME-4', 'abcd')
+        .data as CT002DeviceData;
 
-    const result = data as CT002DeviceData;
-    expect(result).toHaveProperty('phase1MeasurementReversed', true);
-    expect(result).toHaveProperty('phase2MeasurementReversed', false);
-    expect(result).toHaveProperty('phase3MeasurementReversed', true);
+    expect(decode('5')).toMatchObject({
+      phase1MeasurementReversed: false,
+      phase2MeasurementReversed: true,
+      phase3MeasurementReversed: false,
+    });
+    // 7 is the factory setting; 255 is what blank settings report until a restart
+    for (const curD of ['7', '255']) {
+      expect(decode(curD)).toMatchObject({
+        phase1MeasurementReversed: false,
+        phase2MeasurementReversed: false,
+        phase3MeasurementReversed: false,
+      });
+    }
   });
 
   test('should parse SMR smart meter reader message', () => {
@@ -601,9 +612,10 @@ describe('MQTT Message Parser', () => {
     expect(result).toHaveProperty('wifiStatus', 2);
     // Shared with the CT002: slave count and the per-phase direction bitmask
     expect(result).toHaveProperty('slaveCount', 0);
-    expect(result).toHaveProperty('phase1MeasurementReversed', false);
-    expect(result).toHaveProperty('phase2MeasurementReversed', true);
-    expect(result).toHaveProperty('phase3MeasurementReversed', false);
+    // cur_d=2 (synthetic): only the phase 2 bit set, so phases 1 and 3 reversed
+    expect(result).toHaveProperty('phase1MeasurementReversed', true);
+    expect(result).toHaveProperty('phase2MeasurementReversed', false);
+    expect(result).toHaveProperty('phase3MeasurementReversed', true);
 
     // Keys hm2mqtt does not map are still exposed raw
     expect(result.values).toHaveProperty('com_t', '1');

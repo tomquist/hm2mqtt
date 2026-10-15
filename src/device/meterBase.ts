@@ -46,15 +46,17 @@ function measurementDirectionMask(state: {
   phase3MeasurementReversed?: boolean;
 }): number {
   return phaseMeasurementDirections.reduce(
-    (mask, { bit, path }) => (state[path] ? mask | (1 << bit) : mask),
+    (mask, { bit, path }) => (state[path] ? mask : mask | (1 << bit)),
     0,
   );
 }
 
 /**
- * `cur_d` is a bitmask with one bit per phase, set when that phase's
- * measurement direction is reversed. (The CT002 also accepts the key under the
- * alias `cur_dir`.)
+ * `cur_d` is a bitmask with one bit per phase (bit 0 = phase A), set when that
+ * phase is measured as installed and clear when its power is inverted. The
+ * factory setting is 7, nothing reversed; a device on blank settings can report
+ * 255 until it restarts, which also reads as nothing reversed. (The CT002 also
+ * accepts the key under the alias `cur_dir`.)
  *
  * It is written back with `cd=5,p1=<mask>`, using the same bit layout the
  * runtime payload reports. `TPM2` devices spell the parameter `dir` instead:
@@ -73,7 +75,7 @@ function registerPhaseMeasurementDirection<T extends MeterBaseDeviceData>(
     args as unknown as BuildMessageDefinitionArgs<MeterBaseDeviceData>;
 
   for (const { bit, path, id, label } of phaseMeasurementDirections) {
-    field({ key: 'cur_d', path: [path], transform: bitBoolean(bit) });
+    field({ key: 'cur_d', path: [path], transform: bitBoolean(bit, true) });
 
     const name = `Phase ${label} Measurement Reversed`;
     // Only advertise once the device has actually reported `cur_d`, so devices
@@ -95,7 +97,7 @@ function registerPhaseMeasurementDirection<T extends MeterBaseDeviceData>(
     );
     command(commandName, {
       handler: ({ device, message, publishCallback, updateDeviceState }) => {
-        const reversed = message.toLowerCase() === 'true' || message === '1' || message === 'ON';
+        const reversed = ['true', '1', 'on'].includes(message.toLowerCase());
         // The device takes the whole bitmask, so fold the new value into the
         // other two phases as currently reported.
         const state = updateDeviceState(() => ({ [path]: reversed }));

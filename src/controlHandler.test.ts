@@ -446,26 +446,28 @@ describe('ControlHandler', () => {
     });
 
     test('should fold the switched phase into the reported bitmask', () => {
-      // Device currently reports phases 1 and 3 reversed (cur_d=5)
+      // Device currently reports phases 1 and 3 reversed (cur_d=2: only the
+      // phase 2 bit set, as a set bit means measured as installed)
       deviceManager.updateDeviceState(ct002, 'data', () => ({
         phase1MeasurementReversed: true,
         phase2MeasurementReversed: false,
         phase3MeasurementReversed: true,
       }));
 
-      // Turning phase 2 on must keep 1 and 3 set: 1 | 2 | 4 = 7
+      // Reversing phase 2 as well clears its bit: all three clear = 0
       handleControlTopic(ct002, 'phase2-measurement-reversed', 'true');
-      expect(publishCallback).toHaveBeenCalledWith(ct002, 'cd=5,p1=7');
+      expect(publishCallback).toHaveBeenCalledWith(ct002, 'cd=5,p1=0');
 
-      // Turning phase 1 back off leaves 2 and 3: 2 | 4 = 6
+      // Returning phase 1 to normal sets only its bit: 1
       handleControlTopic(ct002, 'phase1-measurement-reversed', 'false');
-      expect(publishCallback).toHaveBeenLastCalledWith(ct002, 'cd=5,p1=6');
+      expect(publishCallback).toHaveBeenLastCalledWith(ct002, 'cd=5,p1=1');
     });
 
     test('should use the p1 parameter on TPM-CN and dir on TPM2', () => {
       const cases: Array<[string, string]> = [
-        ['TPM-CN', 'cd=5,p1=1'],
-        ['TPM2-0', 'cd=5,dir=1'],
+        // Reversing phase 1 clears bit 0 and keeps phases 2 and 3 normal: 6
+        ['TPM-CN', 'cd=5,p1=6'],
+        ['TPM2-0', 'cd=5,dir=6'],
       ];
 
       for (const [deviceType, expected] of cases) {

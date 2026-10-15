@@ -843,7 +843,7 @@ The following commands are supported by both Jupiter C, Jupiter E and Jupiter Pl
 - `refresh`: Requests the device data immediately, instead of waiting for the next poll
 - `factory-reset`: Resets the meter to factory settings. The `HME-3` and `HME-4` firmware up to 122 and 124 ignores this command
 - `hardware-reset`: Restarts the meter. No setting is changed
-- `phase1-measurement-reversed` / `phase2-measurement-reversed` / `phase3-measurement-reversed`: Inverts the measurement direction of that phase (`on` or `off`). CT002 device types only (`HME-2`, `HME-4`, `TPM-CN`, `TPM2-X`); the CT003 readers have no measurement-direction setting.
+- `phase1-measurement-reversed` / `phase2-measurement-reversed` / `phase3-measurement-reversed`: Inverts the measurement direction of that phase (`on` reverses it, `off` measures it as installed, which is the factory setting). CT002 device types only (`HME-2`, `HME-4`, `TPM-CN`, `TPM2-X`); the CT003 readers have no measurement-direction setting.
 
 All meter entities are disabled by default. See [docs/meters.md](docs/meters.md) for the underlying MQTT protocol.
 

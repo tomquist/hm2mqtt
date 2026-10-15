@@ -114,6 +114,15 @@ describe('transforms', () => {
       expect(executeTransform(bitBoolean(1), '1')).toBe(false);
     });
 
+    it('should be true for a clear bit when inverted', () => {
+      expect(executeTransform(bitBoolean(1, true), '5')).toBe(true);
+      expect(executeTransform(bitBoolean(0, true), '5')).toBe(false);
+      expect(executeTransform(bitBoolean(2, true), '255')).toBe(false);
+      expect(transformToJinja2(bitBoolean(1, true), 'value')).toBe(
+        '{{ (value | int(0)) | bitwise_and(2) == 0 }}',
+      );
+    });
+
     it('should generate correct Jinja2 template', () => {
       expect(transformToJinja2(bitBoolean(0), 'value')).toBe(
         '{{ (value | int(0)) | bitwise_and(1) > 0 }}',

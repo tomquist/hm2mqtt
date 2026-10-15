@@ -110,7 +110,7 @@ cd=1
 You will receive a message, such as:
 
 ```
-pwr_a=119,pwr_b=15,pwr_c=-136,pwr_t=-1,ble_s=5,wif_r=-79,fc4_v=202409090159,ver_v=119,wif_s=2,slv_n=1,cur_d=0
+pwr_a=119,pwr_b=15,pwr_c=-136,pwr_t=-1,ble_s=5,wif_r=-79,fc4_v=202409090159,ver_v=119,wif_s=2,slv_n=1,cur_d=7
 ```
 
 Description of the above parameters:
@@ -210,9 +210,14 @@ phases at once as a bitmask:
 | 1 (value 2) | Phase B |
 | 2 (value 4) | Phase C |
 
-A set bit means that phase is measured in reverse. The same bitmask is reported
-as the `cur_d` field in the device information, so the current setting can be
-read back before changing a single phase.
+A set bit means that phase is measured as installed; a clear bit reverses it,
+so the meter reports that phase's power with the opposite sign. The total
+`pwr_t` is the sum after the reversal; the energy counters are not affected.
+The factory setting is `7` (no phase reversed). A meter whose settings have
+never been written can report `255` until it restarts, which also means no
+phase is reversed. The same bitmask is reported as the `cur_d` field in the
+device information, so the current setting can be read back before changing a
+single phase.
 
 ### 5.1 Public
 
@@ -227,7 +232,8 @@ Payload:
 1. `cd=5,p1={mask}` — for every device type except `TPM2-*`
 2. `cd=5,dir={mask}` — for `TPM2-*`
 
-For example, `cd=5,p1=5` reverses phases A and C and leaves phase B as measured.
+For example, `cd=5,p1=5` reverses phase B and leaves phases A and C as
+installed; `cd=5,p1=7` reverses none.
 
 The `HME-4` only uses the low byte of `p1` (`p1=256` is taken as `0`) and
 rejects values above `7`. It does not recognise `dir`.

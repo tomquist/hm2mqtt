@@ -95,6 +95,8 @@ export interface BooleanTransform {
 export interface BitBooleanTransform {
   type: 'bitBoolean';
   bit: number;
+  /** True when the bit is clear rather than set. */
+  inverted?: boolean;
 }
 
 /** Compare value equals a specific string */
@@ -307,8 +309,9 @@ export const multiply = (multiplier: number): MultiplyTransform => ({
 /** Create a boolean transform */
 export const boolean = (): BooleanTransform => ({ type: 'boolean' });
 
-/** Create a bit boolean transform */
-export const bitBoolean = (bit: number): BitBooleanTransform => ({ type: 'bitBoolean', bit });
+/** Create a bit boolean transform; `inverted` makes it true when the bit is clear */
+export const bitBoolean = (bit: number, inverted = false): BitBooleanTransform =>
+  inverted ? { type: 'bitBoolean', bit, inverted } : { type: 'bitBoolean', bit };
 
 /** Create an equals boolean transform */
 export const equalsBoolean = (compareValue: string): EqualsBooleanTransform => ({
@@ -492,7 +495,7 @@ export function executeTransform(
       return Boolean(Number(value) & 1);
 
     case 'bitBoolean':
-      return Boolean(Number(value) & (1 << transform.bit));
+      return Boolean(Number(value) & (1 << transform.bit)) !== Boolean(transform.inverted);
 
     case 'equalsBoolean':
       return value === transform.compareValue;
@@ -793,7 +796,7 @@ export function transformToJinja2(
       return `{{ (${valueExpr} | int(0)) | bitwise_and(1) > 0 }}`;
 
     case 'bitBoolean':
-      return `{{ (${valueExpr} | int(0)) | bitwise_and(${1 << transform.bit}) > 0 }}`;
+      return `{{ (${valueExpr} | int(0)) | bitwise_and(${1 << transform.bit}) ${transform.inverted ? '==' : '>'} 0 }}`;
 
     case 'equalsBoolean':
       return `{{ ${valueExpr} == '${transform.compareValue}' }}`;
