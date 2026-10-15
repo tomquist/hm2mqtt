@@ -29,6 +29,22 @@ The second generation's has not; see [Confidence](#confidence).
 in that tree builds the `marstek_energy` topic with the hashed device id, where
 `CommonCommand` builds `hame_energy` with the plain MAC.
 
+Through the Marstek cloud, the topic id a first-generation Venus uses depends on
+the broker generation and the firmware:
+
+- **Plain id** on the older `hame-2024` broker (`hame_energy` topics): the
+  Venus C/E (HMG) up to control firmware 152.
+- **AES id of the MAC** on the `hame-2025` broker (`marstek_energy` topics):
+  HMG 153.
+- **Salt-based id** on the `hame-2025` broker: HMG from 154 and, on most
+  firmware, the Venus E 3.0, Venus A and Venus D. It is derived from a
+  per-device salt issued by the Marstek cloud, so it cannot be computed from the
+  MAC alone.
+
+hame-relay works out which one applies and forwards the messages to
+`hame_energy/<type>/device/<mac>/ctrl` on your own broker, which is where
+hm2mqtt expects them.
+
 ## Where the numbering collides
 
 Only some commands moved. These are the ones where both generations implement
@@ -41,7 +57,7 @@ code while working on the other:
 | Set LED             | `cd=59,led=` | `cd=56,led=` |
 | Set device time     | `cd=4,yy=,mm=,rr=,hh=,mn=` | `cd=33` |
 | Network info        | `cd=26` | `cd=03` |
-| Reboot              | *(none — see below)* | `cd=61` |
+| Reboot              | `cd=28` (see below) | `cd=61` |
 
 And these agree, which is why the split is easy to miss:
 
@@ -54,10 +70,12 @@ And these agree, which is why the split is easy to miss:
 | Get CT power        | `cd=19` — but not on the Venus E Mini, which has no `cd=19` and uses `cd=59` |
 | Bluetooth advertising | `cd=55,adv=` |
 
-The first generation has no reboot command at all, on Venus. `cd=10` is not one:
-on this family it is `GET_FC41D_INFO`, the WiFi module version query, and it is
-only the *B2500* that restarts with `cd=10`. Reaching for that number on a Venus
-queries the WiFi module instead.
+The first generation reboots with `cd=28`: every Venus E 3.0, Venus A and Venus D
+build, and the Venus C/E (HMG) from control firmware 151. The device answers
+`cd=28,ret=1` and restarts about a second later; HMG 151 to 153 restart without
+answering. `cd=10` is not a reboot: on this family it is `GET_FC41D_INFO`, the
+WiFi module version query, and it is only the *B2500* that restarts with
+`cd=10`. Reaching for that number on a Venus queries the WiFi module instead.
 
 The second generation writes every command number as two characters, which for
 the single-digit ones means zero-padded: `cd=01`, `cd=02`, `cd=03`, `cd=04`,
@@ -179,8 +197,8 @@ The entities carry the same ids and names as their counterparts on the
 first-generation Venus models, and the same option names where the two models
 have the same option, so an automation can treat them alike; only the numbers on
 the wire differ. The ranges are still each model's own — the Mini has no
-`trading` working mode, and takes a depth of discharge of 30-90% against the
-Venus 30-88%. Where this model has no counterpart at all — the LED, backup
+`trading` working mode, and takes a depth of discharge of 30-90%, like the Venus
+C/E (HMG), against 30-88% on the Venus E 3.0, Venus A and Venus D. Where this model has no counterpart at all — the LED, backup
 power, peak shaving, surplus feed-in, the local API, the power limits — no
 entity is invented for it.
 
@@ -228,25 +246,24 @@ client happens to send.
 
 Three things that came out of it, from `VNSD-0` control 150:
 
-- **There is no reboot command on the first generation.** The only reboot string
-  in the image is `system will reboot!`, sitting next to `Reset, clear all…`,
-  `Reset, clear part…` and `Reset, clear cert…` — rebooting is a side effect of
-  the reset command, not a command of its own. `cd=61` really is new in the
-  second generation.
+- **The first generation reboots with `cd=28`**, a command of its own,
+  answered `cd=28,ret=1` (see above). `cd=61` is the second generation's number
+  for it.
 - **`cd=5` has a third variant.** The image contains `rs=1`, `rs=2` *and*
-  `rs=3`, matching those three reset strings. Only `rs=1` and `rs=2` are
-  documented in [venus.md](venus.md), and the app never sends `rs=3`. It is
-  present in every archived build back to v147, and in `VNSA-0` and `VNSE3-0`
-  too. Which `rs` value maps to which variant is inferred from their order in
-  the binary, not proven — the strings have no literal-pool references to
-  follow.
+  `rs=3`: `rs=1` clears everything, `rs=2` clears part of the settings and
+  `rs=3` clears only the certificates, and each reboots the device. The app
+  never sends `rs=3`. It is present in every archived build back to v147, and
+  in `VNSA-0` and `VNSE3-0` too. The Venus C/E (HMG) has only `rs=1` and
+  `rs=2`.
 - **`ct_dev=` and `ip=` are real.** Both appear in the firmware's parameter
   table, confirming the app-side readings of the conditional third meter
   parameter and of `setP1MeterIp`.
 
 Feature timing lines up with the archive's own changelog: `soh` appears in
 control 149.2, `peak_status`/`peak_power` in 150 — the release that lists "Add
-Peak-shaving function".
+Peak-shaving function". The Venus E 3.0 and Venus A add `soh` in 150 instead;
+[venus.md](venus.md#fields-added-by-firmware-build) lists the fields each model
+and build adds.
 
 ## Confidence
 

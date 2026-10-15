@@ -10,9 +10,11 @@ import { bitBoolean, identity, number } from '../transforms.js';
 
 /**
  * Shared building blocks for the Marstek meters: the CT002 smart meter
- * (`HME-X`, see `ct002.ts`) and the SMR smart meter readers (`SMR-X`, see
- * `smr.ts`). Both speak the same protocol and report the same per-phase power
- * and connectivity keys.
+ * (`HME-2`, `HME-4`, `TPM-CN`, `TPM2-X`, see `ct002.ts`) and the CT003 smart
+ * meter readers (`HME-3`, `HME-5`, `SMR-X`, see `smr.ts`). Both speak the same
+ * protocol and report the same per-phase power and connectivity keys.
+ *
+ * On the `HME-4` the powers are 16-bit values and wrap around beyond ±32767 W.
  */
 
 export function extractMeterDeviceInfo(state: MeterBaseDeviceData) {
@@ -109,11 +111,16 @@ const isPress = (message: string) =>
   message.toLowerCase() === 'true' || message === '1' || message === 'PRESS';
 
 /**
- * Buttons every Marstek meter supports: a manual data refresh (`cd=1`), a
+ * Buttons offered on every Marstek meter: a manual data refresh (`cd=1`), a
  * factory reset (`cd=11`) and a hardware reset (`cd=8`).
  *
+ * `cd=8` restarts the meter. It replies `reset ct` and reboots; no setting is
+ * changed. `cd=11` is the factory reset command. The `HME-3` and `HME-4`
+ * firmware up to 122 and 124 ignores it; it is kept for firmware that handles
+ * it.
+ *
  * All three are disabled by default — the meters are polled automatically, and
- * the two resets are destructive.
+ * the factory reset is destructive.
  */
 function registerMeterCommands<T extends MeterBaseDeviceData>(
   args: BuildMessageDefinitionArgs<T>,
@@ -233,8 +240,8 @@ export function registerMeterBaseFields<T extends MeterBaseDeviceData>(
   registerPhaseMeasurementDirection(args, options);
   registerMeterCommands(args);
 
-  // Number of slave meters attached. Each one is queried individually with
-  // `cd=4,p1=<index>` whenever this is greater than zero.
+  // Number of slave devices (the batteries that read this meter). `cd=4` lists
+  // them, but its `;`-joined, paged reply is not parsed.
   field({ key: 'slv_n', path: ['slaveCount'], transform: number() });
   advertise(
     ['slaveCount'],
@@ -246,12 +253,22 @@ export function registerMeterBaseFields<T extends MeterBaseDeviceData>(
     }),
   );
 
+  // `ble_s` is the state of the Bluetooth module, not a signal strength. The id
+  // and state path keep their original `bluetooth_signal`/`bluetoothSignal`
+  // names so existing entities and state-topic consumers keep working.
   field({ key: 'ble_s', path: ['bluetoothSignal'], transform: number() });
   advertise(
     ['bluetoothSignal'],
     sensorComponent<number>({
       id: 'bluetooth_signal',
-      name: 'Bluetooth Signal',
+      name: 'Bluetooth State',
+      valueMappings: {
+        0: 'Initial',
+        2: 'Advertising',
+        5: 'Connected',
+        6: 'Disconnected',
+        7: 'Not initialised',
+      },
     }),
   );
 
@@ -286,12 +303,19 @@ export function registerMeterBaseFields<T extends MeterBaseDeviceData>(
     }),
   );
 
+  // `wif_s` is the state of the WiFi connection; the signal strength is
+  // `wif_r` above.
   field({ key: 'wif_s', path: ['wifiStatus'], transform: number() });
   advertise(
     ['wifiStatus'],
     sensorComponent<number>({
       id: 'wifi_status',
       name: 'WiFi Status',
+      valueMappings: {
+        0: 'Disconnected',
+        2: 'Connected',
+        3: 'No access point',
+      },
     }),
   );
 }

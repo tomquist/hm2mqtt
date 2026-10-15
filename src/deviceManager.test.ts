@@ -267,6 +267,81 @@ describe('DeviceManager', () => {
       expect(daily()).toBe(5.1);
     });
 
+    it("accepts the monthly reset of the Venus month's PV energy once confirmed", () => {
+      const vnsa = { deviceType: 'VNSA-0', deviceId: 'venusA123' };
+      const venusA = new DeviceManager({ ...venusConfig, devices: [vnsa] }, jest.fn());
+      const month = () => (venusA.getDeviceState(vnsa) as any).pvEnergyTotal;
+      venusA.updateDeviceState(vnsa, 'data', () => ({ pvEnergyTotal: 9000 }));
+      venusA.updateDeviceState(vnsa, 'data', () => ({ pvEnergyTotal: 0 })); // glitch
+      expect(month()).toBe(9000);
+      venusA.updateDeviceState(vnsa, 'data', () => ({ pvEnergyTotal: 9010 }));
+      expect(month()).toBe(9010);
+      venusA.updateDeviceState(vnsa, 'data', () => ({ pvEnergyTotal: 30 })); // new month
+      expect(month()).toBe(9010);
+      venusA.updateDeviceState(vnsa, 'data', () => ({ pvEnergyTotal: 40 })); // confirmed
+      expect(month()).toBe(40);
+    });
+
+    describe('CT002 cd=32 energy counters', () => {
+      const hme = { deviceType: 'HME-4', deviceId: 'meter123' };
+      let meter: DeviceManager;
+      beforeEach(() => {
+        meter = new DeviceManager({ ...venusConfig, devices: [hme] }, jest.fn());
+      });
+      const setEnergy = (phase1PositiveEnergy: number) =>
+        meter.updateDeviceState(hme, 'energy', () => ({ phase1PositiveEnergy }));
+      const energy = () => (meter.getDeviceState(hme) as any).phase1PositiveEnergy;
+
+      it('holds the previous value after the rollover glitch until the counter catches up', () => {
+        setEnergy(5990);
+        setEnergy(6990); // read right after the rollover: new kWh, old hundredths
+        expect(energy()).toBe(6990);
+        // The drops that follow are within the glitch, however often they repeat.
+        setEnergy(6020);
+        expect(energy()).toBe(6990);
+        setEnergy(6500);
+        expect(energy()).toBe(6990);
+        setEnergy(7000);
+        expect(energy()).toBe(7000);
+      });
+
+      it('accepts a meter reboot seen near 0 once a following reading confirms it', () => {
+        setEnergy(7000);
+        setEnergy(12); // pending confirmation
+        expect(energy()).toBe(7000);
+        setEnergy(30);
+        expect(energy()).toBe(30);
+      });
+
+      it('accepts a meter reboot first seen above 1 kWh', () => {
+        setEnergy(50000);
+        setEnergy(1500); // pending confirmation
+        expect(energy()).toBe(50000);
+        setEnergy(1600);
+        expect(energy()).toBe(1600);
+      });
+
+      it('holds a small drop that is not a reboot', () => {
+        setEnergy(50000);
+        setEnergy(49500);
+        expect(energy()).toBe(50000);
+        setEnergy(49800);
+        expect(energy()).toBe(50000);
+        setEnergy(50100);
+        expect(energy()).toBe(50100);
+      });
+
+      it('accepts a reboot that follows a held glitch', () => {
+        setEnergy(1990);
+        setEnergy(1020); // after a glitch reading of 1990 -> held
+        expect(energy()).toBe(1990);
+        setEnergy(10);
+        expect(energy()).toBe(1990);
+        setEnergy(25);
+        expect(energy()).toBe(25);
+      });
+    });
+
     it('guards nested cumulative paths without dropping sibling fields', () => {
       const b2500 = new DeviceManager(mockConfig, jest.fn());
       const hma = mockConfig.devices[0];

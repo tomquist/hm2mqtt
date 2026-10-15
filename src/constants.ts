@@ -12,12 +12,32 @@ export const DEFAULT_TOPIC_PREFIX = 'hm2mqtt';
 export const DEFAULT_AUTODISCOVERY_TOPIC_PREFIX = 'homeassistant';
 
 /**
- * Lower bound for how often the CT002 per-phase charge/discharge counters are
- * polled. They are cumulative and move slowly, so there is no point requesting
- * them at the runtime polling interval. A shorter `MQTT_POLLING_INTERVAL` does
- * not lower this floor; a longer one wins.
+ * Lower bound for how often the CT002 per-phase energy counters (`cd=19` on
+ * TPM-CN/TPM2, `cd=32` on HME-4) are polled. They are cumulative and move
+ * slowly, so there is no point requesting them at the runtime polling interval.
+ * A shorter `MQTT_POLLING_INTERVAL` does not lower this floor; a longer one
+ * wins.
  */
 export const MIN_PHASE_ENERGY_POLL_INTERVAL_MS = 300000;
+
+/**
+ * How long after `cd=1` the HME-4 `cd=31` and `cd=32` requests are sent in a
+ * poll cycle. The meter only answers the last command that arrived before it
+ * got round to replying, so requests sent back to back could cost the `cd=1`
+ * reply, which decides whether the meter counts as online.
+ */
+export const CT002_MEASUREMENT_POLL_OFFSET_MS = 2000;
+export const CT002_ENERGY_POLL_OFFSET_MS = 4000;
+
+/**
+ * For about 200 ms after each whole kWh, the HME-4 `cd=32` energy counters read
+ * up to 1 kWh too high (the new kWh with the old hundredths). A reading taken
+ * then is followed by a drop of at most 1 kWh, so a drop up to this size is
+ * held until the counter catches up, which delays at most about 1 kWh. A
+ * larger drop, such as the restart from 0 after a reboot, is accepted as a
+ * reset once the next reading confirms it.
+ */
+export const CT002_ENERGY_HOLD_DROPS_UP_TO_WH = 1050;
 
 /**
  * How much earlier than its poll interval a message still counts as due.

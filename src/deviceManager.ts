@@ -282,7 +282,9 @@ export class DeviceManager {
    * counters. A reading lower than the last good value is rejected — the last
    * good value is written back into the candidate — until a subsequent reading
    * confirms the drop persists, at which point it is accepted as a genuine
-   * period reset. Mutates `candidate` in place.
+   * period reset. A field with `monotonicHoldDropsUpTo` holds through any drop
+   * no larger than that, and only treats a larger one as a possible reset.
+   * Mutates `candidate` in place.
    */
   private guardMonotonicFields(
     device: Device,
@@ -318,7 +320,20 @@ export class DeviceManager {
         continue;
       }
 
-      // Backward jump.
+      // Backward jump. A drop small enough to come from a reading that was too
+      // high is held until the counter catches up.
+      const holdDropsUpTo = field.monotonicHoldDropsUpTo;
+      if (holdDropsUpTo != null && prevVal - nextVal <= holdDropsUpTo) {
+        if (counts[fieldId] == null) {
+          logger.warn(
+            `Holding ${device.deviceType}:${device.deviceId} ${fieldPath.join('.')} at ${prevVal} after a small drop to ${nextVal}, until the counter catches up`,
+          );
+        }
+        // 0: holding, with no reset awaiting confirmation.
+        counts[fieldId] = 0;
+        setAtPath(candidate, fieldPath, prevVal);
+        continue;
+      }
       const count = (counts[fieldId] ?? 0) + 1;
       if (count > MONOTONIC_RESET_CONFIRMATIONS) {
         // Drop confirmed across consecutive readings: accept as a genuine reset.

@@ -24,11 +24,13 @@ import {
   pipeValue,
   pipeArray,
   bitMaskToWeekday,
+  ct002Energy,
   sum,
   min,
   max,
   diff,
   average,
+  pick,
   // Execution functions
   executeTransform,
   executeMultiKeyTransform,
@@ -488,6 +490,30 @@ describe('transforms', () => {
     });
   });
 
+  describe('ct002Energy transform', () => {
+    it('should read whole kWh and hundredths as Wh', () => {
+      expect(executeTransform(ct002Energy(), '12.50kwh')).toBe(12500);
+      expect(executeTransform(ct002Energy(), '0.08kwh')).toBe(80);
+      expect(executeTransform(ct002Energy(), '0.08')).toBe(80);
+    });
+
+    it('should carry hundredths printed as 100', () => {
+      // The meter prints a full 100 hundredths without carrying it
+      expect(executeTransform(ct002Energy(), '2.100kwh')).toBe(3000);
+    });
+
+    it('should fall back to plain kWh and treat garbage as 0', () => {
+      expect(executeTransform(ct002Energy(), '1.5')).toBe(1500);
+      expect(executeTransform(ct002Energy(), 'nope')).toBe(0);
+    });
+
+    it('should generate a Jinja2 template', () => {
+      const template = transformToJinja2(ct002Energy(), 'value');
+      expect(template).toContain('regex_findall');
+      expect(template).toContain('* 1000 + (m[0][1] | int) * 10');
+    });
+  });
+
   describe('multi-key transforms', () => {
     describe('sum transform', () => {
       it('should sum all values', () => {
@@ -503,6 +529,21 @@ describe('transforms', () => {
         expect(executeMultiKeyTransform(sum(10), { a: '1076', b: '0' })).toBe(107.6);
         // Leading number is parsed from pipe-delimited values
         expect(executeMultiKeyTransform(sum(10), { pv1: '1076|1', pv2: '0|0' })).toBe(107.6);
+      });
+
+      it('should apply a per-value transform before summing', () => {
+        const values = { a: '12.50kwh', b: '3.75kwh', c: '0.08kwh' };
+        expect(executeMultiKeyTransform(sum(undefined, ct002Energy()), values)).toBe(16330);
+        expect(
+          executeMultiKeyTransform(sum(undefined, ct002Energy()), {
+            a: '1.05kwh',
+            b: '0.99kwh',
+            c: '2.100kwh',
+          }),
+        ).toBe(5040);
+        const template = multiKeyTransformToJinja2(sum(undefined, ct002Energy()), ['a', 'b']);
+        expect(template).toContain('{% set __sum0 %}');
+        expect(template).toContain('{{ [__sum0 | float(0), __sum1 | float(0)] | sum }}');
       });
 
       it('should generate correct Jinja2 template', () => {
@@ -601,6 +642,20 @@ describe('transforms', () => {
     });
   });
 
+  describe('pick transform', () => {
+    it('applies the transform to the picked key only', () => {
+      const transform = pick('prc_d', map({ '2': 'p1Meter' }));
+      expect(executeMultiKeyTransform(transform, { prc_d: '2', c_ratio: '100' })).toBe('p1Meter');
+      expect(executeMultiKeyTransform(transform, { prc_d: '9', c_ratio: '100' })).toBeUndefined();
+    });
+
+    it('should generate the Jinja2 template of the picked key', () => {
+      expect(multiKeyTransformToJinja2(pick('a', number()), ['a', 'b'])).toBe(
+        transformToJinja2(number(), 'value_json.a'),
+      );
+    });
+  });
+
   describe('isMultiKeyTransform', () => {
     it('should identify multi-key transforms', () => {
       expect(isMultiKeyTransform(sum())).toBe(true);
@@ -608,6 +663,7 @@ describe('transforms', () => {
       expect(isMultiKeyTransform(max())).toBe(true);
       expect(isMultiKeyTransform(diff())).toBe(true);
       expect(isMultiKeyTransform(average())).toBe(true);
+      expect(isMultiKeyTransform(pick('a', number()))).toBe(true);
     });
 
     it('should return false for single-key transforms', () => {

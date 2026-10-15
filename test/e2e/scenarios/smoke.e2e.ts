@@ -1,4 +1,4 @@
-import { deviceFixtures } from '../../fixtures/devices.js';
+import { e2eFixtures } from '../../fixtures/devices.js';
 import { Rig, entitySlug, canRunScenarios, startRig, waitFor } from '../harness/index.js';
 
 /**
@@ -15,22 +15,21 @@ const describeE2e = canRunScenarios() ? describe : describe.skip;
 /**
  * Known findings, not noise.
  *
- * Three sensors read a value their device declares but does not always send —
- * *WiFi Signal Strength* on the B2500 V2, and *Local API Enabled* and *Local
- * API Port* on the Venus. Home Assistant then renders their template against a
- * payload without the value and logs a warning on every poll — the same spam as
- * a template pointed at a value no device reports, except that these fields are
- * merely optional rather than absent. Guarding
- * those templates with `is defined` fixes all three; delete the entry with the
- * fix, and note that anything *new* still fails the assertion below.
+ * One sensor reads a value its device declares but does not always send —
+ * *WiFi Signal Strength* on the B2500 V2. Home Assistant then renders its
+ * template against a payload without the value and logs a warning on every
+ * poll — the same spam as a template pointed at a value no device reports,
+ * except that this field is merely optional rather than absent. Guarding the
+ * template with `is defined` fixes it; delete the entry with the fix, and note
+ * that anything *new* still fails the assertion below.
  */
-const KNOWN_FINDINGS = [/has no attribute '(wifiSignalStrength|localApiEnabled|localApiPort)'/];
+const KNOWN_FINDINGS = [/has no attribute 'wifiSignalStrength'/];
 
 describeE2e('a fresh installation', () => {
   let rig: Rig;
 
   beforeAll(async () => {
-    rig = await startRig({ name: 'smoke', fixtures: deviceFixtures });
+    rig = await startRig({ name: 'smoke', fixtures: e2eFixtures });
     await rig.startHm2mqtt();
     // Discovery is announced only after a device has answered, so wait for
     // each device rather than for a fixed delay.
@@ -43,7 +42,7 @@ describeE2e('a fresh installation', () => {
     await rig?.stop();
   });
 
-  test.each(deviceFixtures.map(fixture => [fixture.deviceType] as const))(
+  test.each(e2eFixtures.map(fixture => [fixture.deviceType] as const))(
     '%s announces entities that reach a real state',
     async deviceType => {
       const device = rig.devices.find(candidate => candidate.deviceType === deviceType)!;

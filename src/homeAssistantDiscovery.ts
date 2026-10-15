@@ -141,11 +141,17 @@ function valueTemplate(
   args: AdvertiseBuilderArgs & {
     valueMappings?: Record<string | number, string>;
     defaultValue?: string;
+    optional?: boolean;
   },
 ) {
   let value = getJinjaPath(args.keyPath);
   if (args.valueMappings) {
     return mappingValueTemplate({ value, valueMappings: args.valueMappings });
+  }
+  if (args.optional) {
+    // Renders nothing while the value is absent, which Home Assistant ignores,
+    // instead of warning about the missing key on every message.
+    return `{% if ${value} is defined %}{{ ${value} }}{% endif %}`;
   }
   return `{{ ${value}${args.defaultValue ? ` | default('${args.defaultValue}')` : ''} }}`;
 }
@@ -259,6 +265,11 @@ export const numberComponent =
       max?: number;
       step?: number;
       mode?: string;
+      /**
+       * The value can be absent from the state, e.g. until it is set from Home
+       * Assistant. Home Assistant then keeps the value it last received.
+       */
+      optional?: boolean;
     },
   ): HaStatefulAdvertiseBuilder<number> =>
   args => ({

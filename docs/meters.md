@@ -34,6 +34,13 @@ Both families share most of their protocol. Where they differ, the section says 
     2. [Receive](#102-receive)
 11. [Bound inverter information](#11-bound-inverter-information)
     1. [Public](#111-public)
+12. [Read voltage and current](#12-read-voltage-and-current)
+    1. [Public](#121-public)
+    2. [Receive](#122-receive)
+13. [Read the per-phase energy](#13-read-the-per-phase-energy)
+    1. [Public](#131-public)
+    2. [Receive](#132-receive)
+14. [Other commands](#14-other-commands)
 
 ## 1 Device types
 
@@ -66,6 +73,22 @@ Commands are published to:
 hame_energy/{type}/App/{uid or mac}/ctrl
 ```
 
+Through the Marstek cloud, the topic id a meter uses depends on the broker
+generation and its firmware:
+
+- **Plain id** on the older `hame-2024` broker (`hame_energy` topics).
+- **AES id of the MAC** on the `hame-2025` broker (`marstek_energy` topics),
+  for example `HME-2`/`HME-4` firmware 119–121 and `HME-3`/`HME-5` firmware
+  116–119.
+- **Salt-based id** on the `hame-2025` broker: `HME-2`/`HME-4` from firmware
+  122, `HME-3`/`HME-5` from 120, and the `TPM2` and `SMR` meters always. It is
+  derived from a per-device salt issued by the Marstek cloud, so it cannot be
+  computed from the MAC alone.
+
+hame-relay works out which one applies and forwards the messages to
+`hame_energy/{type}/device/{mac}/ctrl` on your own broker, which is the form
+shown above.
+
 ## 3 Read device information
 
 ### 3.1 Public
@@ -97,10 +120,10 @@ Description of the above parameters:
 | `pwr_a` | Phase A power, in W |
 | `pwr_b` | Phase B power, in W |
 | `pwr_c` | Phase C power, in W |
-| `pwr_t` | Total power, in W |
-| `ble_s` | Bluetooth signal |
+| `pwr_t` | Total power, in W. On the `HME-4` all powers are 16-bit values that wrap around beyond ±32767 W |
+| `ble_s` | Bluetooth state: `0` initial, `2` advertising, `5` connected, `6` disconnected, `7` not initialised. Not a signal strength |
 | `wif_r` | Wi-Fi RSSI, in dBm |
-| `wif_s` | Wi-Fi status |
+| `wif_s` | Wi-Fi state: `0` disconnected, `2` connected (has an IP address), `3` access point not found |
 | `fc4_v` | FC41D firmware version |
 | `ver_v` | Firmware version |
 | `slv_n` | Number of attached slave devices. See [section 7](#7-read-slave-device-information) |
@@ -112,22 +135,26 @@ The CT003 additionally reports:
 
 | Field | Description |
 | --- | --- |
-| `eng_t` | Total energy, in 0.1 Wh. This is a net reading (import minus export) and can therefore decrease as well as increase |
+| `eng_t` | Total energy, in 0.1 Wh. On an SML meter (`ptl_t=0`) this is the import register only; on a DSMR meter (`ptl_t=1`) it is the net reading (import minus export, both tariffs) and can therefore decrease as well as increase |
 | `smt_n` | Number identifying the configured smart meter model. See [section 6](#6-configure-the-connected-smart-meter) |
 | `har_f` | P1 device connected |
 | `sof_f` | P1 read status |
 | `irs_f` | Infrared read status |
 | `pwr_f` | Phase read status, a bitmask with one bit per phase |
-| `com_t` | Interface type of the connected smart meter (unconfirmed) |
-| `com_b` | Baud rate of the connected smart meter (unconfirmed) |
-| `ptl_t` | Protocol type of the connected smart meter (unconfirmed) |
+| `com_t` | Interface: `0` infrared head, `1` P1 port. See [section 6](#6-configure-the-connected-smart-meter) |
+| `com_b` | Serial settings code, not a baud rate. See [section 6](#6-configure-the-connected-smart-meter) |
+| `ptl_t` | Protocol: `0` SML, `1` DSMR |
 
-The CT002 accepts an `eng_t` field but does not use it; it reports its energy
-through [section 4](#4-read-the-per-phase-charge-and-discharge-counters) instead.
+The CT002 does not report `eng_t`. The `HME-4` reports its energy with `cd=32`
+(see [section 13](#13-read-the-per-phase-energy)); for `TPM-CN` and `TPM2-*`
+see [section 4](#4-read-the-per-phase-charge-and-discharge-counters).
 
 ## 4 Read the per-phase charge and discharge counters
 
-CT002 only. These counters are not part of the `cd=1` payload.
+`TPM-CN` and `TPM2-*` only, and unverified: no reply to `cd=19` has been
+reported from a real meter yet. The `HME-3` and `HME-4` firmware does not
+handle `cd=19`, so hm2mqtt does not poll it on the `HME-*` device types. These
+counters are not part of the `cd=1` payload.
 
 ### 4.1 Public
 
@@ -202,17 +229,22 @@ Payload:
 
 For example, `cd=5,p1=5` reverses phases A and C and leaves phase B as measured.
 
+The `HME-4` only uses the low byte of `p1` (`p1=256` is taken as `0`) and
+rejects values above `7`. It does not recognise `dir`.
+
 > **Note:** On the CT003 family, `cd=5` configures the connected smart meter
 > instead — see [section 6](#6-configure-the-connected-smart-meter). Do not send
 > the direction command to a CT003.
 
 ### 5.2 Receive
 
-You will receive a `cd=5` message carrying the resulting bitmask.
+`HME-4` firmware 124 replies `cd=5,cur={mask}` with the bitmask now in effect.
+It also replies when it rejected the value, then with the unchanged bitmask.
+Firmware 120 does not reply.
 
 ## 6 Configure the connected smart meter
 
-CT003 only. Selects which smart meter the reader is attached to.
+CT003 only. Selects how the reader talks to the attached smart meter.
 
 ### 6.1 Public
 
@@ -228,21 +260,33 @@ Payload:
 cd=5,p1={interfaceType},p2={baudRate},p3={protocolType},p4={meterNum}
 ```
 
-| Parameter | Description |
-| --- | --- |
-| `p1` | Interface type. `0` = infrared, `4` = TIC, otherwise P1 |
-| `p2` | Baud rate |
-| `p3` | Protocol type |
-| `p4` | Meter number, identifying the meter model |
+| Parameter | Reported as | Description |
+| --- | --- | --- |
+| `p1` | `com_t` | Interface. `0` = infrared head, `1` = P1 port. The `HME-3` stores `2` or more as `1`, so it has no TIC setting |
+| `p2` | `com_b` | Serial settings code, see below. Any other value is stored as `0` |
+| `p3` | `ptl_t` | Protocol. `0` = SML, `1` = DSMR. `2` or more is stored as `1` |
+| `p4` | `smt_n` | Meter number, `0`–`255`, identifying the meter model |
 
-The four values come from Marstek's smart meter catalogue, which the app
-retrieves from the cloud. The selected meter number is reported back as the
-`smt_n` field in the device information.
+| `com_b` | P1 port | Infrared head |
+| --- | --- | --- |
+| `0` | 115200 baud, 8N1 | 115200 baud, 8N1 |
+| `1` | 9600 baud, 8N1 | 9600 baud, 8N1 |
+| `2` | 9600 baud, 7E1 | 9600 baud, 8N1 |
+| `3` | 115200 baud, 7E1 | 9600 baud, 8N1 |
+
+All four parameters are required; if one is missing the command is ignored. The
+`HME-3` stores the values and reboots without replying. The defaults, also
+restored by a factory reset, are `com_t=1`, `com_b=0`, `ptl_t=1` and
+`smt_n=100`.
+
+The values for a given meter come from Marstek's smart meter catalogue, which
+the app retrieves from the cloud.
 
 ## 7 Read slave device information
 
-Queried once per slave device when the device information reports `slv_n`
-greater than zero.
+Lists the attached slave devices (the batteries that read this meter) when the
+device information reports `slv_n` greater than zero. hm2mqtt does not use it:
+the reply joins records with `;`, which its comma-separated parser cannot read.
 
 ### 7.1 Public
 
@@ -255,21 +299,29 @@ hame_energy/{type}/App/{uid or mac}/ctrl
 Payload:
 
 ```
-cd=4,p1={index}
+cd=4,p1={any}
 ```
 
-`{index}` is the zero-based index of the slave device.
+`p1` must be present, but its value is ignored: there is no query for a single
+slave. Without slaves there is no reply.
 
 ### 7.2 Receive
 
-You will receive a message containing:
+You will receive one or more messages, each with up to five records such as:
+
+```
+slv_ip=192.168.1.20,slv_t=HMG-50,slv_p=A,slv_id=0123456789ab;
+```
 
 | Field | Description |
 | --- | --- |
-| `slv_id` | Slave device ID |
 | `slv_ip` | Slave device IP address |
-| `slv_t` | Slave device type |
-| `slv_p` | Slave device port |
+| `slv_t` | Slave device type, e.g. `HMG-50` |
+| `slv_p` | Phase the slave is assigned to: `0`, `A`, `B`, `C` or `D` |
+| `slv_id` | Slave device ID |
+
+The `HME-4` sends three messages (the third can be empty), the `HME-3` up to
+two.
 
 ## 8 Restore factory settings
 
@@ -287,6 +339,10 @@ Payload:
 cd=11
 ```
 
+The `HME-3` and `HME-4` firmware up to 122 and 124 does not handle `cd=11`: the
+meter does not reply and nothing is reset. On that firmware a factory reset is
+only possible over Bluetooth.
+
 ## 9 Hardware reset
 
 ### 9.1 Public
@@ -302,6 +358,9 @@ Payload:
 ```
 cd=8
 ```
+
+Restarts the meter. It replies `reset ct` and reboots about 300 ms later. No
+setting is changed.
 
 ## 10 Read connection information
 
@@ -345,3 +404,95 @@ Payload:
 1. `cd=14` — Read the list of bound inverters
 2. `cd=16` — Read the details of a bound inverter
 3. `cd=17` — Read a bound inverter's ID
+
+## 12 Read voltage and current
+
+`HME-4` firmware 124 and later. Firmware 120 does not answer.
+
+### 12.1 Public
+
+Topic:
+
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+
+```
+cd=31
+```
+
+### 12.2 Receive
+
+You will receive a message such as:
+
+```
+cd=31,va=231,vb=229,vc=232,ia=1.25,ib=0.40,ic=2.10,pa=119,pb=15,pc=-136,vara=0,varb=0,varc=0,fvara=12,fvarb=-3,fvarc=40,pfa=0,pfb=0,pfc=0,uia=0,uib=0,uic=0,uab=120,ubc=119,uca=121
+```
+
+| Field | Description |
+| --- | --- |
+| `va` / `vb` / `vc` | Phase voltage, in whole V |
+| `ia` / `ib` / `ic` | Phase current, in A with two decimals |
+| `pa` / `pb` / `pc` | Phase power, in W. The same values as `pwr_a` / `pwr_b` / `pwr_c` |
+| `fvara` / `fvarb` / `fvarc` | Reactive power per phase, in var. The sign is the metering chip's; the measurement direction does not apply to it |
+| `uab` / `ubc` / `uca` | Angle between two phase voltages, in degrees. About 120 each on a correctly wired three-phase supply |
+| `vara` … `varc`, `pfa` … `pfc`, `uia` … `uic` | Always `0` |
+
+> **Note:** Do not send `cd=30` to an `HME-4` on firmware 124: it is answered
+> with this `cd=31` reply instead of the power history.
+
+## 13 Read the per-phase energy
+
+`HME-4` firmware 124 and later. Firmware 120 does not answer.
+
+### 13.1 Public
+
+Topic:
+
+```
+hame_energy/{type}/App/{uid or mac}/ctrl
+```
+
+Payload:
+
+```
+cd=32
+```
+
+### 13.2 Receive
+
+You will receive a message such as:
+
+```
+cd=32,kwh_a=12.50kwh,kwh_b=3.75kwh,kwh_c=0.08kwh,n_kwh_a=1.05kwh,n_kwh_b=0.99kwh,n_kwh_c=2.100kwh,kwh=15.133kwh,n_kwh=3.204kwh
+```
+
+| Field | Description |
+| --- | --- |
+| `kwh_a` / `kwh_b` / `kwh_c` | Energy per phase in one direction, as `<kWh>.<hundredths>kwh` |
+| `n_kwh_a` / `n_kwh_b` / `n_kwh_c` | Energy per phase in the other direction, same format |
+| `kwh` / `n_kwh` | Sum over the three phases. Wrong, see below |
+
+- Which direction is import depends on how the clamp is fitted. The measurement
+  direction setting does not apply to these counters.
+- The counters are kept in memory only and start again from 0 when the meter
+  reboots.
+- The hundredths run from `00` to `100` and are printed as they are, so
+  `2.100kwh` means 3.00 kWh. Right after a whole kWh is reached, the meter can
+  report the old hundredths with the new whole kWh once, so a value can be
+  briefly about 1 kWh too high. hm2mqtt therefore keeps showing the previous
+  value through a drop of up to about 1 kWh until the counter catches up, and
+  takes only a larger drop as a reboot.
+- `kwh` and `n_kwh` add the whole kWh and the hundredths of the three phases
+  separately, without carrying: in the example `15.133kwh` stands for 16.33 kWh.
+  hm2mqtt sums the phases itself instead.
+
+## 14 Other commands
+
+| Payload | Reply |
+| --- | --- |
+| `cd=2` | Network information: `wif_n` (SSID), `ip_ad`, `udp_f`, `gate`, `mask`, `dns` |
+| `cd=29,num={1-30}` | Per-phase power history, newest first: `p1=[…],p2=[…],p3=[…]` |
+| `cd=30,num={1-30}` | Total power history. Do not send it to an `HME-4` on firmware 124, which answers with the `cd=31` reply, or to an `HME-3` on firmware 122, which does not answer it |

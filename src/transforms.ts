@@ -40,6 +40,7 @@ export type Transform =
   | MaxTransform
   | DiffTransform
   | AverageTransform
+  | PickTransform
   | RoundTransform
   | InRangeTransform
   | HighByteTransform
@@ -50,6 +51,7 @@ export type Transform =
   | PipeValueTransform
   | PipeArrayTransform
   | BitMaskToWeekdayTransform
+  | Ct002EnergyTransform
   | ChainTransform;
 
 /**
@@ -60,7 +62,8 @@ export type MultiKeyTransform =
   | MinTransform
   | MaxTransform
   | DiffTransform
-  | AverageTransform;
+  | AverageTransform
+  | PickTransform;
 
 // =============================================================================
 // Single-Value Transforms
@@ -218,6 +221,16 @@ export interface BitMaskToWeekdayTransform {
   type: 'bitMaskToWeekday';
 }
 
+/**
+ * Parse a CT002 `cd=32` energy value into Wh. The meter prints it as
+ * `<kWh>.<hundredths>kwh`, e.g. `12.50kwh`, but the hundredths run up to 100
+ * and are printed without a carry, so `2.100kwh` means 3.00 kWh. A value that
+ * does not have two or three fraction digits is read as plain kWh.
+ */
+export interface Ct002EnergyTransform {
+  type: 'ct002Energy';
+}
+
 // =============================================================================
 // Multi-Value Aggregation Transforms
 // =============================================================================
@@ -226,6 +239,8 @@ export interface BitMaskToWeekdayTransform {
 export interface SumTransform {
   type: 'sum';
   scale?: number;
+  /** Transform applied to each value before summing, instead of reading its leading number */
+  each?: Exclude<Transform, MultiKeyTransform>;
 }
 
 /** Get minimum value */
@@ -259,6 +274,18 @@ export interface AverageTransform {
   round?: boolean;
   /** Ignore values that are exactly 0 (e.g. unused battery cells) */
   ignoreZero?: boolean;
+}
+
+/**
+ * Apply a single-value transform to one key of a multi-key field. The field's
+ * other keys only gate it: like every multi-key field it is skipped unless all
+ * of its keys are present, so a key that only newer firmware reports keeps an
+ * older firmware's unrelated value of `key` from being read.
+ */
+export interface PickTransform {
+  type: 'pick';
+  key: string;
+  transform: Exclude<Transform, MultiKeyTransform>;
 }
 
 // =============================================================================
@@ -384,8 +411,12 @@ export const venusPvField = (field: VenusPvFieldTransform['field']): VenusPvFiel
 /** Create a bitmask to weekday transform */
 export const bitMaskToWeekday = (): BitMaskToWeekdayTransform => ({ type: 'bitMaskToWeekday' });
 
+/** Create a CT002 cd=32 energy transform (`"12.50kwh"` → 12500 Wh) */
+export const ct002Energy = (): Ct002EnergyTransform => ({ type: 'ct002Energy' });
+
 /** Create a sum transform */
-export const sum = (scale?: number): SumTransform => ({ type: 'sum', scale });
+export const sum = (scale?: number, each?: SumTransform['each']): SumTransform =>
+  each ? { type: 'sum', scale, each } : { type: 'sum', scale };
 
 /** Create a min transform */
 export const min = (scale?: number, ignoreZero?: boolean): MinTransform => ({
@@ -418,6 +449,16 @@ export const average = (
   scale,
   round: roundResult,
   ignoreZero,
+});
+
+/** Create a transform that reads one key of a multi-key field */
+export const pick = (
+  key: string,
+  transform: Exclude<Transform, MultiKeyTransform>,
+): PickTransform => ({
+  type: 'pick',
+  key,
+  transform,
 });
 
 // =============================================================================
@@ -566,6 +607,9 @@ export function executeTransform(
         .filter((_, index) => bitmask & (1 << index))
         .join('');
     }
+
+    case 'ct002Energy':
+      return executeCt002Energy(value);
   }
 }
 
@@ -576,7 +620,14 @@ export function executeMultiKeyTransform(
   transform: MultiKeyTransform,
   values: Record<string, string>,
 ): unknown {
-  const numericValues = Object.values(values).map(v => parseFloat(v));
+  if (transform.type === 'pick') {
+    return executeTransform(transform.transform, values[transform.key]);
+  }
+  const numericValues = Object.values(values).map(v =>
+    transform.type === 'sum' && transform.each
+      ? Number(executeTransform(transform.each, v))
+      : parseFloat(v),
+  );
 
   switch (transform.type) {
     case 'sum': {
@@ -688,6 +739,16 @@ function executeMPPTPVField(value: string, field: MPPTPVFieldTransform['field'])
     case 'power':
       return safeParseInt(parts[2]) / 10;
   }
+}
+
+function executeCt002Energy(value: string): number {
+  const match = /^(\d+)\.(\d{2,3})(?:kwh)?$/i.exec(value.trim());
+  if (match) {
+    // Whole kWh plus hundredths, in Wh. Integer arithmetic, so sums stay exact.
+    return parseInt(match[1], 10) * 1000 + parseInt(match[2], 10) * 10;
+  }
+  const kwh = parseFloat(value);
+  return Number.isNaN(kwh) ? 0 : Math.round(kwh * 1000);
 }
 
 function executeVenusPvField(
@@ -839,6 +900,9 @@ export function transformToJinja2(
     case 'bitMaskToWeekday':
       // Convert bitmask to weekday set string - only mutate inside loop, output once at end
       return `{% set bm = ${valueExpr} | int(0) %}{% set days = '' %}{% for i in range(7) %}{% if bm | bitwise_and(2**i) %}{% set days = days ~ i %}{% endif %}{% endfor %}{{ days }}`;
+
+    case 'ct002Energy':
+      return `{% set m = (${valueExpr} | string | trim) | regex_findall('^(\\d+)\\.(\\d{2,3})(?:kwh)?$', ignorecase=true) %}{% if m %}{{ (m[0][0] | int) * 1000 + (m[0][1] | int) * 10 }}{% else %}{{ ((${valueExpr} | string | regex_replace('kwh$', '', ignorecase=true) | float(0)) * 1000) | round | int }}{% endif %}`;
   }
 }
 
@@ -855,6 +919,9 @@ export function multiKeyTransformToJinja2(
   keys: string[],
   valuePrefix: string = 'value_json',
 ): string {
+  if (transform.type === 'pick') {
+    return transformToJinja2(transform.transform, `${valuePrefix}.${transform.key}`);
+  }
   // Use float(none) so invalid values become None instead of 0
   const values = keys.map(k => `${valuePrefix}.${k} | float(none)`);
   const rawListExpr = `[${values.join(', ')}]`;
@@ -866,6 +933,20 @@ export function multiKeyTransformToJinja2(
 
   switch (transform.type) {
     case 'sum': {
+      if (transform.each) {
+        // Capture each transformed value in a variable, then sum those
+        const each = transform.each;
+        const captured = keys
+          .map(
+            (k, i) =>
+              `{% set __sum${i} %}${transformToJinja2(each, `${valuePrefix}.${k}`)}{% endset %}`,
+          )
+          .join('');
+        const summedEach = `[${keys.map((_, i) => `__sum${i} | float(0)`).join(', ')}] | sum`;
+        return transform.scale
+          ? `${captured}{{ (${summedEach}) / ${transform.scale} }}`
+          : `${captured}{{ ${summedEach} }}`;
+      }
       // For sum, we can use default 0 since adding 0 doesn't affect the result
       const summed = `[${keys.map(k => `${valuePrefix}.${k} | float(0)`).join(', ')}] | sum`;
       return transform.scale ? `{{ (${summed}) / ${transform.scale} }}` : `{{ ${summed} }}`;
@@ -943,7 +1024,7 @@ function generateVenusPvFieldJinja2(
 
 /** Check if a transform is a multi-key transform */
 export function isMultiKeyTransform(transform: Transform): transform is MultiKeyTransform {
-  return ['sum', 'min', 'max', 'diff', 'average'].includes(transform.type);
+  return ['sum', 'min', 'max', 'diff', 'average', 'pick'].includes(transform.type);
 }
 
 // =============================================================================

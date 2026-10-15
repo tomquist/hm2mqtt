@@ -460,7 +460,7 @@ export class MqttClient {
             });
           },
           // Spread out the requests to avoid flooding the device
-          idx * 100,
+          idx * 100 + (message.pollOffsetMs ?? 0),
         );
       }
     }
