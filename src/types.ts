@@ -937,6 +937,19 @@ export interface VenusBMSPackDetail extends BaseDeviceData {
 }
 
 /**
+ * The readings a first-generation Venus returns for `cd=19` (Get CT Power), in
+ * watts and with the signs as received. They are not part of the `cd=1`
+ * runtime payload.
+ */
+export interface VenusCtPowerInfo extends BaseDeviceData {
+  ctPhaseAPower?: number; // get_power[0], meter phase A (positive = import)
+  ctPhaseBPower?: number; // get_power[1], meter phase B
+  ctPhaseCPower?: number; // get_power[2], meter phase C
+  ctTotalPower?: number; // get_power[3], meter total
+  ctOutputPower?: number; // get_power[4], the device's AC power (= grd_o)
+}
+
+/**
  * Network configuration reported by the `cd=26` response. Venus and Jupiter
  * answer it with the same payload, so they share this shape — see
  * `device/networkInfoBase.ts`.

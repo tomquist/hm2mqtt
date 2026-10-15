@@ -567,6 +567,16 @@ describe('MqttClient forced refresh', () => {
     ).toEqual([]);
   });
 
+  test('does not force a message that is never polled', () => {
+    // E.g. a reply that only a button asks for: the button sends the request
+    // itself, and the read-back after it must not send anything more.
+    const mqttClient = setUpPolledClient([runtime(), cells({ polled: false })]);
+
+    expect(
+      payloadsAfter(() => mqttClient.requestDeviceData(device, { forceMessageIndices: [1] })),
+    ).toEqual([]);
+  });
+
   test('does not force a message its poll predicate rules out', () => {
     const mqttClient = setUpPolledClient([runtime(), cells({ shouldPoll: () => false })]);
 

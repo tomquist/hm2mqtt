@@ -20,6 +20,7 @@ import {
   VenusBMSInfo,
   VenusBMSPackInfo,
   VenusBMSPackDetail,
+  VenusCtPowerInfo,
   VenusDeviceData,
   VenusMiniDeviceData,
   VenusNetworkInfo,
@@ -1844,6 +1845,89 @@ describe('MQTT Message Parser', () => {
   test('does not read other Venus replies with ip and gate as network info', () => {
     const parsed = parseMessage('cd=24,ip=192.168.1.20,gate=192.168.1.1', 'VNSA-0', 'venus123');
     expect(parsed).not.toHaveProperty('network');
+  });
+
+  describe('Venus Get CT Power reply (cd=19)', () => {
+    // Synthetic: no cd=19 reply has been captured yet. The order is phase A,
+    // phase B, phase C, meter total, then the device's own AC power (grd_o).
+    test('parses the Venus E 3.0, Venus A and Venus D reply with the cd=19 prefix', () => {
+      const parsed = parseMessage('cd=19,get_power=120|-30|15|105|300', 'VNSD-0', 'venus123');
+
+      expect(Object.keys(parsed)).toEqual(['ctPower']);
+      const result = parsed['ctPower'] as VenusCtPowerInfo;
+      expect(result.ctPhaseAPower).toBe(120);
+      expect(result.ctPhaseBPower).toBe(-30);
+      expect(result.ctPhaseCPower).toBe(15);
+      expect(result.ctTotalPower).toBe(105);
+      expect(result.ctOutputPower).toBe(300);
+    });
+
+    test('parses the Venus C/E (HMG) reply, sent without a prefix', () => {
+      const parsed = parseMessage('get_power=-250|0|0|-250|-800', 'HMG-50', 'venus123');
+
+      expect(Object.keys(parsed)).toEqual(['ctPower']);
+      expect(parsed['ctPower']).toMatchObject({
+        ctPhaseAPower: -250,
+        ctPhaseBPower: 0,
+        ctPhaseCPower: 0,
+        ctTotalPower: -250,
+        ctOutputPower: -800,
+      });
+    });
+
+    test('parses the HMG reply prefixed with id= from the gid topic', () => {
+      const parsed = parseMessage('id=3,get_power=410|95|-60|445|0', 'HMG-25', 'venus123');
+
+      expect(Object.keys(parsed)).toEqual(['ctPower']);
+      expect(parsed['ctPower']).toMatchObject({
+        ctPhaseAPower: 410,
+        ctPhaseBPower: 95,
+        ctPhaseCPower: -60,
+        ctTotalPower: 445,
+        ctOutputPower: 0,
+      });
+    });
+
+    test.each([
+      ['too few parts', 'cd=19,get_power=120|-30|15|105'],
+      ['too many parts', 'cd=19,get_power=120|-30|15|105|300|7'],
+      ['a non-numeric part', 'cd=19,get_power=120|-30|x|105|300'],
+      ['an empty value', 'cd=19,get_power='],
+    ])('sets no reading from a reply with %s', (_, message) => {
+      const parsed = parseMessage(message, 'VNSA-0', 'venus123');
+      const result = parsed['ctPower'] as VenusCtPowerInfo;
+      expect(result.ctPhaseAPower).toBeUndefined();
+      expect(result.ctPhaseBPower).toBeUndefined();
+      expect(result.ctPhaseCPower).toBeUndefined();
+      expect(result.ctTotalPower).toBeUndefined();
+      expect(result.ctOutputPower).toBeUndefined();
+    });
+
+    test.each([
+      [
+        'the meter_data line',
+        'VNSD-0',
+        'cd=19, meter: type=3,real_tol_power=105,real_power1=120,real_power2=-30,real_power3=15,err_flag=0',
+      ],
+      [
+        'the HMG meter_data line',
+        'HMG-50',
+        'meter: type=6,real_tol_power=105,real_power1=120,real_power2=-30,real_power3=15,err_flag=0',
+      ],
+      [
+        'the debug line',
+        'VNSE3-0',
+        'cd=19,ct_st=1,conn_st=1,err=0/0,wifi=1,send_ok=12,recv_ok=12,at_fail=0,no_resp=0,no_reply=0,sock=1,ip=192.168.1.30,port=12345,reason=0',
+      ],
+    ])('does not read %s as CT power', (_, deviceType, message) => {
+      const parsed = parseMessage(message, deviceType, 'venus123');
+      expect(parsed).not.toHaveProperty('ctPower');
+    });
+
+    test('is not read as the cd=1 runtime message', () => {
+      const parsed = parseMessage('cd=19,get_power=120|-30|15|105|300', 'VNSE3-0', 'venus123');
+      expect(parsed).not.toHaveProperty('data');
+    });
   });
 
   test('parses a real Venus E Mini (VNSEMINI) cd=1 reading', () => {

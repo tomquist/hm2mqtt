@@ -607,5 +607,43 @@ describe('ControlHandler', () => {
       expect(commanded.commands.map(c => c.command)).toContain('discharge-depth');
       expect(commanded.refreshDataPayload).toBe('cd=1');
     });
+
+    test.each(['HMG-50', 'VNSE3-0', 'VNSA-0', 'VNSD-0'])(
+      'sends Get CT Power on %s from a message that is never polled',
+      deviceType => {
+        const venus: Device = { deviceType, deviceId: 'venus123' };
+        const venusManager = new DeviceManager(
+          {
+            brokerUrl: 'mqtt://test.mosquitto.org',
+            clientId: 'test-client',
+            topicPrefix: DEFAULT_TOPIC_PREFIX,
+            autodiscoveryTopicPrefix: 'homeassistant',
+            devices: [venus],
+          },
+          () => {},
+        );
+        const sent: Array<{ payload: string; messageIndex: number }> = [];
+        const handler = new ControlHandler(venusManager, (_device, payload, messageIndex) => {
+          sent.push({ payload, messageIndex });
+        });
+        const topics = venusManager.getDeviceTopics(venus);
+        if (!topics) {
+          throw new Error('Device topics not found');
+        }
+        handler.handleControlTopic(
+          venus,
+          `${topics.controlSubscriptionTopic}/get-ct-power`,
+          'PRESS',
+        );
+
+        expect(sent.map(s => s.payload)).toEqual(['cd=19']);
+        const commanded = getDeviceDefinition(deviceType)?.messages[sent[0].messageIndex];
+        // The read-back after a command forces only the message the command
+        // belongs to. This one is never polled, so a press is not followed by
+        // a cd=1 re-read; the reply arrives on its own.
+        expect(commanded?.polled).toBe(false);
+        expect(commanded?.publishPath).toBe('ctPower');
+      },
+    );
   });
 });

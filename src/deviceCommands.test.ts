@@ -2048,6 +2048,20 @@ const commandTestCases: CommandTestCase[] = [
     input: 'PRESS',
     expectedOutput: 'cd=19',
   },
+  {
+    description: 'Venus D get-ct-power with PRESS',
+    deviceType: 'VNSD-0',
+    command: 'get-ct-power',
+    input: 'PRESS',
+    expectedOutput: 'cd=19',
+  },
+  {
+    description: 'Venus get-ct-power ignores an unrelated payload',
+    deviceType: 'VNSE3-0',
+    command: 'get-ct-power',
+    input: 'nope',
+    expectedOutput: null,
+  },
 
   // backup-enabled command (cd=11)
   {

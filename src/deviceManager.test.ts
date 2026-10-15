@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
 import './device/registry.js';
 import { DeviceManager } from './deviceManager.js';
+import { DataHandler } from './dataHandler.js';
 import { registerDeviceDefinition } from './deviceDefinition.js';
 import { MqttConfig } from './types.js';
 import { DEFAULT_TOPIC_PREFIX } from './constants.js';
@@ -462,6 +463,34 @@ describe('DeviceManager', () => {
       dm.updateDeviceState(device, 'data', () => ({ raw: 1 }) as any);
       expect(Object.keys(seen)).toContain('data');
       expect(seen['data'].raw).toBe(1);
+    });
+  });
+
+  describe('Venus CT power readings', () => {
+    const hmg = { deviceType: 'HMG-50', deviceId: 'venus123' };
+
+    it('keeps the readings of the last press until the next one', () => {
+      const dm = new DeviceManager({ ...mockConfig, devices: [hmg] }, jest.fn());
+      const dataHandler = new DataHandler(dm);
+      const reading = () => {
+        const state = dm.getDeviceState(hmg) as any;
+        return [state.ctPhaseAPower, state.ctTotalPower, state.ctOutputPower];
+      };
+
+      // Synthetic replies: no cd=19 reply has been captured yet
+      dataHandler.handleDeviceData(hmg, 'get_power=120|-30|15|105|300');
+      expect(reading()).toEqual([120, 105, 300]);
+
+      // A regular poll and a malformed reply leave them alone
+      dataHandler.handleDeviceData(
+        hmg,
+        'cel_p=138,cel_c=27,tot_i=1,tot_o=1,ele_d=1,ele_m=1,grd_d=1,grd_m=1,inc_d=0,inc_m=0,inc_a=0,grd_f=0,grd_o=50,grd_t=3,gct_s=1,cel_s=3,err_t=0,err_a=0,dev_n=150,grd_y=0,wor_m=1',
+      );
+      dataHandler.handleDeviceData(hmg, 'get_power=1|2|3');
+      expect(reading()).toEqual([120, 105, 300]);
+
+      dataHandler.handleDeviceData(hmg, 'get_power=0|0|0|0|-400');
+      expect(reading()).toEqual([0, 0, -400]);
     });
   });
 

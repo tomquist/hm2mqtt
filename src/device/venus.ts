@@ -19,6 +19,7 @@ import {
   VenusBMSInfo,
   VenusBMSPackInfo,
   VenusBMSPackDetail,
+  VenusCtPowerInfo,
   VenusDeviceData,
   VenusMeterType,
   venusMeterTypeCommandCodes,
@@ -450,6 +451,7 @@ registerDeviceDefinition(
     registerBMSInfoMessage(message);
     registerVenusCellBalancingMessage(message);
     registerVenusNetworkInfoMessage(message);
+    registerVenusCtPowerMessage(message);
   },
 );
 
@@ -462,6 +464,7 @@ registerDeviceDefinition(
     registerBMSInfoMessage(message);
     registerVenusCellBalancingMessage(message);
     registerVenusNetworkInfoMessage(message);
+    registerVenusCtPowerMessage(message);
   },
 );
 
@@ -482,6 +485,7 @@ for (const model of ['VNSA', 'VNSD'] as const) {
       registerBMSPackMessage(message, { scaleTemperatures: true });
       registerBMSPackDetailMessages(message, { scaleTemperatures: true });
       registerVenusNetworkInfoMessage(message);
+      registerVenusCtPowerMessage(message);
     },
   );
 }
@@ -2169,25 +2173,6 @@ function registerRuntimeInfoMessage(
       }),
     );
 
-    command('get-ct-power', {
-      handler: ({ message, publishCallback }) => {
-        if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
-          publishCallback(processCommand(CommandType.GET_CT_POWER));
-        }
-      },
-    });
-    advertise(
-      [],
-      buttonComponent({
-        id: 'get_ct_power',
-        name: 'Get CT Power',
-        icon: 'mdi:current-ac',
-        command: 'get-ct-power',
-        payload_press: 'PRESS',
-        enabled_by_default: false,
-      }),
-    );
-
     // Time period settings
     for (let i = 0; i < 10; i++) {
       const periodIndex = i;
@@ -3214,4 +3199,105 @@ function registerVenusNetworkInfoMessage(message: BuildMessageFn) {
     isMessage: isVenusNetworkInfoMessage,
     ipEnabledByDefault: true,
   });
+}
+
+// The `cd=19` reply, `get_power=A|B|C|T|G`: the external meter's power on
+// phases A, B and C and its total, as the meter reports them (positive =
+// importing from the grid; all four are 0 while no meter data arrives),
+// followed by the device's own AC power, the same value as `grd_o` (positive =
+// discharging). The Venus E 3.0, Venus A and Venus D prefix the reply with
+// `cd=19,`; the Venus C/E (HMG) sends it without a prefix, or with `id=<n>,` on
+// its gid topic from control firmware 154.
+const ctPowerPattern = /^-?\d+(?:\|-?\d+){4}$/;
+
+function isVenusCtPowerMessage(values: Record<string, string>): boolean {
+  return 'get_power' in values;
+}
+
+/**
+ * The readings fetched by the Get CT Power button. They are only sent in reply
+ * to that button, so the message is never polled and its values stay as they
+ * were until the next press. A reply that is not five integers is ignored.
+ */
+function registerVenusCtPowerMessage(message: BuildMessageFn) {
+  message<VenusCtPowerInfo>(
+    {
+      refreshDataPayload: processCommand(CommandType.GET_CT_POWER),
+      isMessage: isVenusCtPowerMessage,
+      publishPath: 'ctPower',
+      defaultState: {},
+      getAdditionalDeviceInfo: () => ({}),
+      pollInterval: globalPollInterval,
+      controlsDeviceAvailability: false,
+      polled: false,
+    },
+    ({ field, command, advertise }) => {
+      const readings: {
+        path:
+          | 'ctPhaseAPower'
+          | 'ctPhaseBPower'
+          | 'ctPhaseCPower'
+          | 'ctTotalPower'
+          | 'ctOutputPower';
+        id: string;
+        name: string;
+        enabled_by_default?: boolean;
+      }[] = [
+        { path: 'ctPhaseAPower', id: 'ct_phase_a_power', name: 'CT Phase A Power' },
+        { path: 'ctPhaseBPower', id: 'ct_phase_b_power', name: 'CT Phase B Power' },
+        { path: 'ctPhaseCPower', id: 'ct_phase_c_power', name: 'CT Phase C Power' },
+        { path: 'ctTotalPower', id: 'ct_total_power', name: 'CT Total Power' },
+        // The same value as Combined Power, so it is off by default.
+        {
+          path: 'ctOutputPower',
+          id: 'ct_output_power',
+          name: 'CT Output Power',
+          enabled_by_default: false,
+        },
+      ];
+
+      for (const [index, reading] of readings.entries()) {
+        field({
+          key: 'get_power',
+          path: [reading.path],
+          transform: pipeValue(index),
+          skip: values => !ctPowerPattern.test(values['get_power'] ?? ''),
+        });
+        advertise(
+          [reading.path],
+          sensorComponent<number>({
+            id: reading.id,
+            name: reading.name,
+            device_class: 'power',
+            unit_of_measurement: 'W',
+            state_class: 'measurement',
+            enabled_by_default: reading.enabled_by_default,
+          }),
+          { enabled: state => (state[reading.path] != null ? true : undefined) },
+        );
+      }
+
+      // Asks for the readings above. It belongs to this message rather than the
+      // runtime one so that a press sends `cd=19` alone and is not followed by a
+      // `cd=1` re-read.
+      command('get-ct-power', {
+        handler: ({ message, publishCallback }) => {
+          if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
+            publishCallback(processCommand(CommandType.GET_CT_POWER));
+          }
+        },
+      });
+      advertise(
+        [],
+        buttonComponent({
+          id: 'get_ct_power',
+          name: 'Get CT Power',
+          icon: 'mdi:current-ac',
+          command: 'get-ct-power',
+          payload_press: 'PRESS',
+          enabled_by_default: false,
+        }),
+      );
+    },
+  );
 }

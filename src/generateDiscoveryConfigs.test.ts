@@ -1195,6 +1195,69 @@ describe('Home Assistant Discovery', () => {
     expect(configs('TPM-CN', { phase1Voltage: 231 }).filter(c => isNew(c.topic))).toHaveLength(0);
   });
 
+  test('should defer the Venus CT power sensors until Get CT Power is answered', () => {
+    const ids = [
+      'ct_phase_a_power',
+      'ct_phase_b_power',
+      'ct_phase_c_power',
+      'ct_total_power',
+      'ct_output_power',
+    ];
+    const ctPowerConfigs = (deviceType: string, message?: string) => {
+      const deviceTopics: DeviceTopics = {
+        deviceTopicOld: 'a',
+        deviceTopicNew: 'b',
+        deviceControlTopicOld: 'c',
+        deviceControlTopicNew: 'd',
+        availabilityTopic: 'e',
+        controlSubscriptionTopic: `hm2mqtt/${deviceType}/control/venus`,
+        publishTopic: `hm2mqtt/${deviceType}/device/venus`,
+      };
+      const state = message ? parseMessage(message, deviceType, 'venus')['ctPower'] : {};
+      return generateDiscoveryConfigs(
+        { deviceType, deviceId: 'venus' },
+        deviceTopics,
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      ).filter(c => ids.some(id => c.topic.endsWith(`/${id}/config`)));
+    };
+
+    for (const deviceType of ['HMG-50', 'VNSE3-0', 'VNSA-0', 'VNSD-0']) {
+      expect(ctPowerConfigs(deviceType)).toHaveLength(0);
+      // Synthetic reply: no cd=19 reply has been captured yet
+      const answered = ctPowerConfigs(deviceType, 'cd=19,get_power=120|-30|15|105|300');
+      expect(answered.map(c => c.config?.unique_id)).toEqual(ids.map(id => `venus_${id}`));
+      for (const config of answered) {
+        expect(config.config).toMatchObject({
+          state_topic: `hm2mqtt/${deviceType}/device/venus/ctPower`,
+          device_class: 'power',
+          unit_of_measurement: 'W',
+          state_class: 'measurement',
+        });
+      }
+    }
+
+    const answered = ctPowerConfigs('HMG-50', 'get_power=120|-30|15|105|300');
+    const byId = (id: string) => answered.find(c => c.topic.endsWith(`/${id}/config`))?.config;
+    expect(byId('ct_phase_a_power')).toMatchObject({
+      name: 'CT Phase A Power',
+      value_template: '{{ value_json.ctPhaseAPower }}',
+    });
+    expect(byId('ct_phase_a_power')?.enabled_by_default).toBeUndefined();
+    expect(byId('ct_total_power')).toMatchObject({ name: 'CT Total Power' });
+    // The device's own power repeats Combined Power
+    expect(byId('ct_output_power')).toMatchObject({
+      name: 'CT Output Power',
+      value_template: '{{ value_json.ctOutputPower }}',
+      enabled_by_default: false,
+    });
+
+    // A malformed reply sets nothing, so the sensors stay deferred
+    expect(ctPowerConfigs('VNSD-0', 'cd=19,get_power=120|-30|15')).toHaveLength(0);
+  });
+
   test('should defer the CT002 phase energy configs until cd=19 is answered', () => {
     const deviceTopics: DeviceTopics = {
       deviceTopicOld: 'a',

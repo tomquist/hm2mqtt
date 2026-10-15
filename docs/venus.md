@@ -754,9 +754,25 @@ You will receive a message:
 get_power=%d|%d|%d|%d|%d (A-phase power | B-phase power | C-phase power | three-phase total power | output power) Unit: W
 ```
 
-The Venus E 3.0, Venus A and Venus D prefix it with `cd=19,`; the Venus C/E
-(HMG) does not. The HMG ignores a second `cd=19` that arrives within about five
-seconds of the last one.
+For example `cd=19,get_power=120|-30|15|105|300`. All five values are integer
+watts, in this order on every model and build:
+
+| Position | Value |
+|----------|-------|
+| 1, 2, 3 | External meter power on phase A, B and C, with the meter's sign: positive while importing from the grid, negative while exporting |
+| 4 | The meter's total power, same sign |
+| 5 | The device's own AC power, the same value as `grd_o` in `cd=1`: positive while discharging, negative while charging |
+
+The four meter values are 0 while no meter data arrives.
+
+The Venus E 3.0, Venus A and Venus D prefix the reply with `cd=19,`; the Venus
+C/E (HMG) does not, and from control firmware 154 prefixes it with `id=<n>,`
+when the command arrived on its gid topic. The HMG ignores a second `cd=19`
+that arrives within about five seconds of the last one.
+
+hm2mqtt sends `cd=19` only when the *Get CT Power* button is pressed, and shows
+the reply as *CT Phase A/B/C Power*, *CT Total Power* and *CT Output Power*.
+The values stay as they are until the next press.
 
 ## 16 Upgrade the firmware of the FC4 module
 

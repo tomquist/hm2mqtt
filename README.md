@@ -704,7 +704,7 @@ Applies to HMG/VNSE3/VNSA/VNSD. None of the commands below are available on the 
 - `time-period/[0-9]/end-time`: Sets end time for period (HH:MM format)
 - `time-period/[0-9]/power`: Sets power value for period (-2500 to 2500W; negative charges the battery)
 - `time-period/[0-9]/weekday`: Sets days of week for period (0-6; 0 is most likely Monday, which is not confirmed)
-- `get-ct-power`: Gets current transformer power readings
+- `get-ct-power`: Gets current transformer power readings: the meter's power per phase and in total, and the device's own output power, shown in the *CT … Power* sensors until the next press
 - `transaction-mode`: Sets transaction mode parameters. Venus C/E (HMG) up to control firmware 146 only.
 - `discharge-depth`: Sets the battery depth of discharge (30-88%; 30-90% on the Venus C/E (HMG)). Only available on devices that report it.
 - `backup-enabled`: Toggles the backup/EPS ("UPS") power function (`on` or `off`)
