@@ -250,7 +250,7 @@ jobs:
           push: ${{ inputs.push }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ steps.lower-repo.outputs.ADDON_IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ inputs.push }}
           build-args: |
-            BUILD_FROM=ghcr.io/hassio-addons/base:21.0.8
+            BUILD_FROM=ghcr.io/hassio-addons/base:21.0.9
             BUILD_COMMIT=${{ steps.commit.outputs.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
