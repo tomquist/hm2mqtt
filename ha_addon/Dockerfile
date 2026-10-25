@@ -2,7 +2,7 @@
 ARG BUILD_FROM
 
 # Build stage
-FROM node:26.11-alpine AS builder
+FROM node:26.12-alpine AS builder
 
 WORKDIR /build
 
@@ -23,7 +23,7 @@ RUN npm run build
 RUN npm ci --only=production
 
 # Final stage
-FROM ${BUILD_FROM:-ghcr.io/hassio-addons/base:21.0.8}
+FROM ${BUILD_FROM:-ghcr.io/hassio-addons/base:21.0.9}
 ARG BUILD_COMMIT=unknown
 
 # Install Node.js

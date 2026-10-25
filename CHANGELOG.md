@@ -14,6 +14,7 @@
 ### Changed
 
 - Home Assistant add-on: Runs on Node.js 24 instead of the outdated Node.js 18, which uses about 4 MB more memory (PR #461)
+- Docker image and Home Assistant add-on: Built with the Node.js October 2026 security release (fixes #467, PR #468)
 - B2500 V2/V3: On firmware that reports it, *Recharge Mode* now shows the device's actual setting, and a new *Phase Detection* sensor shows the progress of phase detection (PR #462)
 
 ### Fixed
