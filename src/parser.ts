@@ -38,15 +38,18 @@ export function parseMessage(
     // The Venus cd=26 network-info response uses a non-standard colon-delimited
     // format instead of key=value pairs, e.g.:
     //   cd=26,dev_net_info:ip:1.2.3.4,gate:1.2.3.1,mask:255.255.255.0,dns:1.2.3.1,ct_connect_ip:1.2.3.255
-    // Normalize it to standard key=value pairs (ip=…, gate=…, …) so the generic
-    // parser below can handle it like any other message.
-    const normalizedMessage = message.startsWith('cd=26,')
-      ? message
-          .replace('dev_net_info:', '')
-          .split(',')
-          .map(pair => (pair.includes('=') ? pair : pair.replace(':', '=')))
-          .join(',')
-      : message;
+    // The Venus C/E (HMG) sends it without the `cd=26,` prefix, so the reply
+    // starts with `dev_net_info:`. Normalize it to standard key=value pairs
+    // (ip=…, gate=…, …) so the generic parser below can handle it like any
+    // other message.
+    const normalizedMessage =
+      message.startsWith('cd=26,') || message.startsWith('dev_net_info:')
+        ? message
+            .replace('dev_net_info:', '')
+            .split(',')
+            .map(pair => (pair.includes('=') ? pair : pair.replace(':', '=')))
+            .join(',')
+        : message;
 
     // Parse the comma-separated key-value pairs
     const pairs = normalizedMessage.split(',');
@@ -90,6 +93,9 @@ function applyMessageDefinition<T extends BaseDeviceData>(
   fields: FieldDefinition<T, KeyPath<T>>[],
 ): void {
   for (const field of fields) {
+    if (field.skip?.(values)) {
+      continue;
+    }
     let key = field.key;
     if (typeof key === 'string') {
       // Single-key field

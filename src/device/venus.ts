@@ -5,12 +5,11 @@ import {
 } from '../deviceDefinition.js';
 import {
   CommandParams,
-  isValidMeterType,
   isValidVenusParallelMode,
   isValidVenusRechargeMode,
   isValidVenusVersionSet,
+  isValidVenusMeterType,
   isValidVenusWorkingMode,
-  meterTypeCommandCodes,
   meterTypeLabels,
   normalizeMeterMac,
   ReportedMeterType,
@@ -21,11 +20,15 @@ import {
   VenusBMSPackInfo,
   VenusBMSPackDetail,
   VenusDeviceData,
+  VenusMeterType,
+  venusMeterTypeCommandCodes,
   VenusTimePeriod,
   VenusVersionSet,
+  VenusWorkingMode,
   WeekdaySet,
 } from '../types.js';
 import { registerNetworkInfoMessage } from './networkInfoBase.js';
+import { VenusModel, venusBuild, venusSupports } from './helpers.js';
 import { registerCellBalancingMessage } from './cellBalancingMessage.js';
 import { extractVenusSample } from '../cellBalancing.js';
 import logger from '../logger.js';
@@ -45,7 +48,6 @@ import {
   identity,
   number,
   equalsBoolean,
-  bitBoolean,
   chain,
   inRange,
   sum,
@@ -57,6 +59,7 @@ import {
   venusPvField,
   pipeValue,
   pipeArray,
+  pick,
 } from '../transforms.js';
 
 /**
@@ -68,19 +71,27 @@ enum CommandType {
   SET_TIME_PERIOD = 3,
   SET_DEVICE_TIME = 4,
   FACTORY_RESET = 5,
+  // `cd=8,dt=1|0` turns automatic working-mode switching on or off (`cts_m`).
+  SET_AUTO_SWITCH_WORKING_MODE = 8,
   UPGRADE_FIRMWARE = 9,
   GET_FC41D_INFO = 10, // -> wifi_v=202409090159
   ENABLE_BACKUP = 11,
   GET_BMS_INFO = 14, // -> b_ver=212,b_chv=571,b_rci=1000,b_rdi=1000,b_soc=65,b_soh=100,b_cap=5120,b_vol=5223,b_cur=-94,b_tem=250,b_chf=192,b_slf=0,b_cpc=332,b_err=0,b_war=0,b_ret=102482070,b_ent=0,b_mot=23,b_tp1=18,b_tp2=19,b_tp3=18,b_tp4=19,b_vo1=3265,b_vo2=3265,b_vo3=3265,b_vo4=3265,b_vo5=3264,b_vo6=3264,b_vo7=3265,b_vo8=3265,b_vo9=3264,b_vo10=3265,b_vo11=3264,b_vo12=3265,b_vo13=3265,b_vo14=3265,b_vo15=3264,b_vo16=3262
-  // `cd=15,vs=<watts>` selects the rated output power ("power version"). The
-  // resulting power is reported back as `mdp_w`, and its code as `set_v`.
-  SET_DISCHARGE_POWER = 15,
+  // `cd=15,vs=<watts>` selects the rated output power ("power version"),
+  // reported back as the `set_v` code.
+  SET_POWER_VERSION = 15,
   SET_MAX_CHARGING_POWER = 16,
+  // `cd=17,dp=<watts>` sets the maximum discharge power, reported as `mdp_w`.
+  SET_MAX_DISCHARGE_POWER = 17,
   SET_METER_TYPE = 18, // also used for phase diagnosis via `cd=18,seq_check`
   GET_CT_POWER = 19,
   UPGRADE_FC4_MODULE = 20,
   SET_PARALLEL_MODE = 23,
   GET_NETWORK_INFO = 26,
+  // `cd=28` reboots the device about a second later (Venus E 3.0, Venus A and
+  // Venus D, and the Venus C/E (HMG) from control firmware 151). The reply,
+  // `cd=28,ret=1`, does not come on HMG 151 to 153.
+  REBOOT = 28,
   SET_LOCAL_API = 30,
   GET_BMS_PACK_INFO = 42,
   SURPLUS_FEED_IN = 43,
@@ -104,12 +115,10 @@ enum CommandType {
 // - `ei` is a 64-bit hex value (`ei=%llx`)
 // - `eb` is a hex value (`eb=%x`)
 //
-// `bl` is included here rather than wired to the Bluetooth Advertising switch:
-// that already reads bit 2 of `ble`, and nothing establishes that `bl` is the
-// same flag rather than a second, related one.
+// `bl` is not raw either: it is the Bluetooth advertising setting, which the
+// Bluetooth Advertising switch reads.
 const venusRawFields = [
   'as',
-  'bl',
   'bl_p',
   'c_ratio',
   'ctrl_r',
@@ -125,31 +134,88 @@ const venusRawFields = [
   'vp',
 ];
 
-// Minimum and maximum Depth of Discharge values based on Marstek app limits (30-88%).
-// NOTE: Experience has shown that these limits may change over time!
+const TRADING_UNSUPPORTED =
+  'Trading mode only exists on the Venus C/E (HMG) up to control firmware 146';
+
+// Depth of Discharge limits. `cd=56,dod=` accepts 30-88 % on the Venus E 3.0,
+// Venus A and Venus D and 30-90 % on the Venus C/E (HMG), plus 0, which the
+// device stores as 88 %. The Marstek app sends 88 % as 0.
 const DOD_MIN = 30;
 const DOD_MAX = 88;
+const HMG_DOD_MAX = 90;
 
 // The `set_v` field is a power-version *code*, not a wattage: it identifies the
-// device's rated output power, which is reported back as `mdp_w`. Code 0 means
-// "device default", which depends on the model and firmware version (2500 W for
-// a Venus C/D/E on recent firmware, less on older firmware, on a Venus A, or on
-// the Swiss variants). The regional variant cannot be told apart from MQTT
-// alone, so 0 is reported as the 2500 W default, which matches every observed
-// device dump (`set_v=0` alongside `mdp_w=2500`). Unknown codes are left
-// unmapped rather than guessed.
-const venusPowerVersions: Record<string, VenusVersionSet> = {
-  '0': '2500W',
-  '1': '800W',
-  '2': '600W',
-  '3': '2200W',
-  '4': '1200W',
-  '5': '1500W',
-  '6': '2300W',
-  '7': '2000W',
-  '8': '3000W',
-  '9': '3600W',
+// device's rated output power, while `cd=15,vs=` takes the wattage. Each model
+// accepts only a few of them, and which depends on the control firmware build:
+//
+// | Model | Builds | Accepted `vs` (stored `set_v`)                  |
+// |-------|--------|-------------------------------------------------|
+// | HMG   | 147    | none, there is no `cd=15`                       |
+// | HMG   | others | 800 (1), 2500 (0)                               |
+// | VNSE3 | < 149  | 800 (1), 2500 (0)                               |
+// | VNSE3 | ≥ 149  | 600 (2), 800 (1), 2500 (0)                      |
+// | VNSA  | < 149  | 800 (1), 1200 (4), 1500 (5), 2200 (3)           |
+// | VNSA  | ≥ 149  | 800 (1), 1200 (4), 1500 (5)                     |
+// | VNSD  | < 149  | 800 (1), 1200 (4), 2200 (3)                     |
+// | VNSD  | ≥ 149  | 800 (1), 2200 (3), 2500 (0)                     |
+//
+// Anything else is answered with `cd=15,ret=0` and changes nothing. Code 0 is
+// the model's default version. Code 2 (600 W, the Swiss variants) can be
+// reported by every model, so every model decodes it and offers it, but
+// `vs=600` is sent only where the build accepts it. On the Venus A, `vs=2200`
+// is not sent: it leaves the unit above its 1500 W limit, so code 3 is neither
+// decoded nor offered there. Other codes are left unmapped rather than guessed.
+const venusPowerVersions: Record<VenusModel, Record<string, VenusVersionSet>> = {
+  HMG: { '0': '2500W', '1': '800W', '2': '600W' },
+  VNSE3: { '0': '2500W', '1': '800W', '2': '600W' },
+  VNSA: { '0': '1500W', '1': '800W', '2': '600W', '4': '1200W', '5': '1500W' },
+  VNSD: { '0': '2500W', '1': '800W', '2': '600W', '3': '2200W', '4': '1200W' },
 };
+
+/** The power versions hm2mqtt sends to a model and build; all it may accept while the build is unknown. */
+function acceptedVenusVersionSets(
+  model: VenusModel,
+  deviceVersion: number | undefined,
+): readonly VenusVersionSet[] {
+  const build = venusBuild(deviceVersion);
+  switch (model) {
+    case 'HMG':
+      return build === 147 ? [] : ['800W', '2500W'];
+    case 'VNSE3':
+      return build === undefined || build >= 149 ? ['600W', '800W', '2500W'] : ['800W', '2500W'];
+    case 'VNSA':
+      return ['800W', '1200W', '1500W'];
+    case 'VNSD':
+      if (build === undefined) return ['800W', '1200W', '2200W', '2500W'];
+      return build >= 149 ? ['800W', '2200W', '2500W'] : ['800W', '1200W', '2200W'];
+  }
+}
+
+/** Whether a model and build ignore every power-version change while on 600 W. */
+function venusLocksOn600W(model: VenusModel, deviceVersion: number | undefined): boolean {
+  const build = venusBuild(deviceVersion);
+  if (build === undefined) return false;
+  return model === 'HMG' ? build >= 149 : build < 149;
+}
+
+/**
+ * The highest maximum charging or discharge power (`cd=16,cp=` / `cd=17,dp=`)
+ * a model and build accept, in watts: 1500 W on the Venus A, 2200 W on the
+ * Venus D before control firmware 149, 2500 W otherwise. While the build is
+ * unknown the model's newest limit applies.
+ */
+function venusMaxPowerLimit(model: VenusModel, deviceVersion: number | undefined): number {
+  if (model === 'VNSA') return 1500;
+  const build = venusBuild(deviceVersion);
+  return model === 'VNSD' && build !== undefined && build < 149 ? 2200 : 2500;
+}
+
+/** A model's power versions, lowest first. */
+function venusVersionSetOptions(model: VenusModel): VenusVersionSet[] {
+  return [...new Set(Object.values(venusPowerVersions[model]))].sort(
+    (a, b) => parseInt(a, 10) - parseInt(b, 10),
+  );
+}
 
 // Peak shaving caps the power drawn from the grid. The Marstek app defaults the
 // cap to 2000 W and does not enforce an upper bound of its own, so the limit
@@ -324,6 +390,53 @@ const vnsCtTypeCodes: Record<string, ReportedMeterType> = {
   '13': 'ioMeter',
 };
 
+// The meter the device is configured for, as the `meter=` code `cd=18` takes,
+// is reported as `prc_d`: on the Venus C/E (HMG) from control firmware 149 and
+// on every Venus E 3.0, Venus A and Venus D build, where it is the same value as
+// `ct_t`. Earlier HMG builds report an electricity price or 0 there. They also
+// lack `c_ratio`, which the Meter Type readback requires alongside `prc_d`.
+const configuredMeterTypes = Object.fromEntries(
+  Object.entries(venusMeterTypeCommandCodes).map(([meterType, code]) => [String(code), meterType]),
+) as Record<string, VenusMeterType>;
+
+/**
+ * The highest `meter=` code a model and build accept; the device ignores
+ * higher codes. The Venus C/E (HMG) takes up to 4 before control firmware 147,
+ * 6 on 147, 7 from 148 and 11 from 156, and never 12 (Stromleser). The Venus E
+ * 3.0 takes up to 11 on 144, and the Venus E 3.0, Venus A and Venus D up to 12
+ * otherwise. While the build is unknown the model's highest code applies.
+ */
+function venusMaxMeterCode(model: VenusModel, deviceVersion: number | undefined): number {
+  const build = venusBuild(deviceVersion);
+  if (model === 'HMG') {
+    if (build === undefined || build >= 156) return 11;
+    if (build >= 148) return 7;
+    if (build >= 147) return 6;
+    return 4;
+  }
+  return model === 'VNSE3' && build !== undefined && build <= 144 ? 11 : 12;
+}
+
+/**
+ * The MAC to send with `cd=18,meter=`, or `undefined` to send none. The MAC is
+ * optional: the P1 Meter, EcoTracker and Stromleser are found by IP address, so
+ * they are configured without one when none is set. Otherwise the shared rules
+ * apply, and `null` means a required MAC is missing.
+ */
+function venusMeterMac(meterType: VenusMeterType, configuredMac?: string) {
+  if (meterType === 'p1Meter' || meterType === 'ecoTracker' || meterType === 'stromleser') {
+    return configuredMac;
+  }
+  return resolveMeterMac(meterType, configuredMac);
+}
+
+/** The `cd=18` parameters that configure a meter. */
+function venusMeterParams(meterType: VenusMeterType, mac: string | undefined): CommandParams {
+  const params: CommandParams = { meter: venusMeterTypeCommandCodes[meterType] };
+  if (mac !== undefined) params.mac = mac;
+  return params;
+}
+
 // Per-string PV input power (PV1–PV4) is reported by Venus models that have PV
 // inputs (e.g. Venus A/D). The corresponding entities are advertised purely
 // based on whether the device reports the `pv1`–`pv4` fields in its payload, so
@@ -333,11 +446,9 @@ registerDeviceDefinition(
     deviceTypes: ['HMG'],
   },
   ({ message }) => {
-    registerRuntimeInfoMessage(message, { ctTypeCodes: hmgCtTypeCodes });
+    registerRuntimeInfoMessage(message, { model: 'HMG' });
     registerBMSInfoMessage(message);
     registerVenusCellBalancingMessage(message);
-    registerBMSPackMessage(message);
-    registerBMSPackDetailMessages(message);
     registerVenusNetworkInfoMessage(message);
   },
 );
@@ -347,35 +458,53 @@ registerDeviceDefinition(
     deviceTypes: ['VNSE3'],
   },
   ({ message }) => {
-    registerRuntimeInfoMessage(message);
+    registerRuntimeInfoMessage(message, { model: 'VNSE3' });
     registerBMSInfoMessage(message);
     registerVenusCellBalancingMessage(message);
-    registerBMSPackMessage(message);
-    registerBMSPackDetailMessages(message);
     registerVenusNetworkInfoMessage(message);
   },
 );
 
 // Venus A (VNSA) and Venus D (VNSD) use a different scaling for the BMS
 // cell/MOSFET temperatures (factor of 10) compared to the other Venus variants.
-registerDeviceDefinition(
-  {
-    deviceTypes: ['VNSA', 'VNSD'],
-  },
-  ({ message }) => {
-    registerRuntimeInfoMessage(message);
-    registerBMSInfoMessage(message, { scaleTemperatures: true });
-    registerVenusCellBalancingMessage(message);
-    registerBMSPackMessage(message, { scaleTemperatures: true });
-    registerBMSPackDetailMessages(message, { scaleTemperatures: true });
-    registerVenusNetworkInfoMessage(message);
-  },
-);
+// Only these two have the per-pack BMS commands (cd=40 to cd=45); the Venus
+// C/E (HMG) and Venus E 3.0 do not answer them.
+// They are registered separately so options and limits can differ per model.
+for (const model of ['VNSA', 'VNSD'] as const) {
+  registerDeviceDefinition(
+    {
+      deviceTypes: [model],
+    },
+    ({ message }) => {
+      registerRuntimeInfoMessage(message, { model });
+      registerBMSInfoMessage(message, { scaleTemperatures: true });
+      registerVenusCellBalancingMessage(message);
+      registerBMSPackMessage(message, { scaleTemperatures: true });
+      registerBMSPackDetailMessages(message, { scaleTemperatures: true });
+      registerVenusNetworkInfoMessage(message);
+    },
+  );
+}
 
 function registerRuntimeInfoMessage(
   message: BuildMessageFn,
-  { ctTypeCodes = vnsCtTypeCodes }: { ctTypeCodes?: Record<string, ReportedMeterType> } = {},
+  {
+    model,
+  }: {
+    /** The model this definition is for; per-model options and gates use it. */
+    model: VenusModel;
+  },
 ) {
+  const ctTypeCodes = model === 'HMG' ? hmgCtTypeCodes : vnsCtTypeCodes;
+  // Enabled predicate for a sensor that only the Venus C/E (HMG) fills, and
+  // only before `firstEmptyBuild`: removed on every other model and on later
+  // HMG builds, deferred while the HMG build is unknown.
+  const filledOnHmgBefore =
+    (firstEmptyBuild: number) => (state: Pick<VenusDeviceData, 'deviceVersion'>) => {
+      if (model !== 'HMG') return false;
+      const empty = venusSupports(model, state.deviceVersion, { HMG: firstEmptyBuild });
+      return empty === undefined ? undefined : !empty;
+    };
   let options = {
     refreshDataPayload: 'cd=1',
     isMessage: isVenusRuntimeInfoMessage,
@@ -490,11 +619,13 @@ function registerRuntimeInfoMessage(
       { enabled: state => (state.totalPvPower != null ? true : undefined) },
     );
 
-    // PV energy. The `pv` field holds pipe-separated values in units of 10 Wh:
-    // today's collected PV energy first and the cumulative total last. Each
-    // component is scaled by 10 to convert to Wh. The total is read from the
-    // last component so additional values (e.g. monthly/yearly) being inserted
-    // before it would not break the mapping.
+    // PV energy. The `pv` field is `<today>|<this month>`, both in units of
+    // 10 Wh, so each is scaled by 10 to Wh. There is no lifetime total. The
+    // monthly value drops back at the start of a month. The monotonic guard
+    // holds a single low reading back and accepts the drop once the next
+    // reading confirms it; `total_increasing` lets Home Assistant read it as a
+    // meter reset. Its id stays `pv_energy_total` so existing statistics and
+    // Energy dashboard configurations keep working.
     field({
       key: 'pv',
       path: ['pvEnergyToday'],
@@ -515,14 +646,14 @@ function registerRuntimeInfoMessage(
     field({
       key: 'pv',
       path: ['pvEnergyTotal'],
-      transform: chain(pipeValue(-1), multiply(10)),
+      transform: chain(pipeValue(1), multiply(10)),
       monotonic: true,
     });
     advertise(
       ['pvEnergyTotal'],
       sensorComponent<number>({
         id: 'pv_energy_total',
-        name: 'PV Energy Total',
+        name: 'PV Energy This Month',
         device_class: 'energy',
         unit_of_measurement: 'Wh',
         state_class: 'total_increasing',
@@ -633,7 +764,12 @@ function registerRuntimeInfoMessage(
       }),
     );
 
-    // Income information
+    // Income (`inc_d`, `inc_m`, `inc_a`, 0.001 €). Only the Venus C/E (HMG)
+    // up to control firmware 152 fills them; from 153 they are always 0. On the
+    // Venus E 3.0, Venus A and Venus D `inc_a` is always 0 and `inc_d`/`inc_m`
+    // are unrelated status flags. The fields are still needed to recognise the
+    // message, so only the sensors are removed where they carry no income.
+    const reportsIncome = filledOnHmgBefore(153);
     field({
       key: 'inc_d',
       path: ['dailyIncome'],
@@ -648,6 +784,7 @@ function registerRuntimeInfoMessage(
         unit_of_measurement: '€',
         state_class: 'total',
       }),
+      { enabled: reportsIncome },
     );
 
     field({
@@ -664,6 +801,7 @@ function registerRuntimeInfoMessage(
         unit_of_measurement: '€',
         state_class: 'total',
       }),
+      { enabled: reportsIncome },
     );
 
     field({
@@ -679,10 +817,14 @@ function registerRuntimeInfoMessage(
         device_class: 'monetary',
         unit_of_measurement: '€',
       }),
+      { enabled: reportsIncome },
     );
 
-    // Electricity prices. Reported in the same 0.001 € unit as the income
-    // fields, so the value is divided by 1000 to convert it to euros.
+    // Electricity prices, in the same 0.001 € unit as the income fields. Only
+    // the Venus C/E (HMG) up to control firmware 146 reports prices here. Later
+    // HMG builds and every Venus E 3.0, Venus A and Venus D send 0 or meter data
+    // instead (`prc_d` is the configured `meter=` code).
+    const reportsPrices = filledOnHmgBefore(147);
     field({
       key: 'prc_c',
       path: ['chargingPrice'],
@@ -696,6 +838,7 @@ function registerRuntimeInfoMessage(
         device_class: 'monetary',
         unit_of_measurement: '€',
       }),
+      { enabled: reportsPrices },
     );
 
     field({
@@ -711,6 +854,7 @@ function registerRuntimeInfoMessage(
         device_class: 'monetary',
         unit_of_measurement: '€',
       }),
+      { enabled: reportsPrices },
     );
 
     // Grid information
@@ -922,33 +1066,38 @@ function registerRuntimeInfoMessage(
       }),
     );
 
-    // Error codes
+    // Error and warning words, printed as hex digits (`err_t=800`, `1a0`), so
+    // they are kept as the reported string. The Venus C/E (HMG) always reports
+    // 0, so the sensors only exist on the other models.
+    const reportsErrorCodes = () => model !== 'HMG';
     field({
       key: 'err_t',
       path: ['errorCode'],
-      transform: number(),
+      transform: identity(),
     });
     advertise(
       ['errorCode'],
-      sensorComponent<number>({
+      sensorComponent<string>({
         id: 'error_code',
         name: 'Error Code',
         icon: 'mdi:alert-circle',
       }),
+      { enabled: reportsErrorCodes },
     );
 
     field({
       key: 'err_a',
       path: ['warningCode'],
-      transform: number(),
+      transform: identity(),
     });
     advertise(
       ['warningCode'],
-      sensorComponent<number>({
+      sensorComponent<string>({
         id: 'warning_code',
         name: 'Warning Code',
         icon: 'mdi:alert',
       }),
+      { enabled: reportsErrorCodes },
     );
 
     // Device information
@@ -1012,6 +1161,8 @@ function registerRuntimeInfoMessage(
       }),
     );
 
+    // `grd_y` is always 0: the grid standard is never reported, so the sensor
+    // is removed on every model.
     field({
       key: 'grd_y',
       path: ['gridType'],
@@ -1050,42 +1201,68 @@ function registerRuntimeInfoMessage(
           china: 'China',
         },
       }),
+      { enabled: () => false },
     );
 
+    // `wor_m`. Passive (3) is entered through the Local API and Modbus (10)
+    // through Modbus/RS485 control on the Venus E 3.0, Venus A and Venus D;
+    // neither can be selected with `cd=2`. Trading (2) only exists on the Venus
+    // C/E (HMG) up to control firmware 146. Other codes are debug and factory
+    // modes and are left unset rather than shown as some other mode.
+    const workingModeCodes: Record<string, VenusWorkingMode> =
+      model === 'HMG'
+        ? { '0': 'automatic', '1': 'manual', '2': 'trading', '3': 'passive', '5': 'ai' }
+        : { '0': 'automatic', '1': 'manual', '3': 'passive', '5': 'ai', '10': 'modbus' };
+    const supportsTrading = (deviceVersion: number | undefined) => {
+      if (model !== 'HMG') return false;
+      const build = venusBuild(deviceVersion);
+      return build === undefined ? undefined : build <= 146;
+    };
     field({
       key: 'wor_m',
       path: ['workingMode'],
-      transform: map(
-        {
-          '0': 'automatic',
-          '1': 'manual',
-          '2': 'trading',
-          '5': 'ai',
-        },
-        'automatic',
-      ),
+      transform: map(workingModeCodes),
     });
-    advertise(
-      ['workingMode'],
+    // `wor_m=0` is the self-consumption mode, which the Marstek app shows as
+    // "Self Consumption". The option is left as "Automatic" because it is what
+    // an entity in this select reports as its state: renaming it would break
+    // automations that set or compare the mode by name, for no functional gain.
+    // Marstek's own internal name for the mode is "Auto".
+    const workingModeLabels: Partial<Record<VenusWorkingMode, string>> = {
+      automatic: 'Automatic',
+      manual: 'Manual',
+      ai: 'AI',
+      passive: 'Passive (Local API)',
+      ...(model === 'HMG' ? {} : { modbus: 'Modbus' }),
+    };
+    const workingModeSelect = (valueMappings: Partial<Record<VenusWorkingMode, string>>) =>
       selectComponent<NonNullable<VenusDeviceData['workingMode']>>({
         id: 'working_mode',
         name: 'Working Mode',
         icon: 'mdi:cog',
         command: 'working-mode',
-        valueMappings: {
-          // `wor_m=0` is the self-consumption mode, which the Marstek app shows
-          // as "Self Consumption". The option is left as "Automatic" because it
-          // is what an entity in this select reports as its state: renaming it
-          // would break automations that set or compare the mode by name, for
-          // no functional gain. Marstek's own internal name for the mode is
-          // "Auto".
+        valueMappings: valueMappings as Record<VenusWorkingMode, string>,
+      });
+    if (model === 'HMG') {
+      // Firmware that still has trading also offers it; the two
+      // advertisements never apply at the same time.
+      advertise(['workingMode'], workingModeSelect(workingModeLabels), {
+        enabled: state => (supportsTrading(state.deviceVersion) === true ? undefined : true),
+      });
+      advertise(
+        ['workingMode'],
+        workingModeSelect({
           automatic: 'Automatic',
           manual: 'Manual',
           trading: 'Trading',
           ai: 'AI',
-        },
-      }),
-    );
+          passive: 'Passive (Local API)',
+        }),
+        { enabled: state => (supportsTrading(state.deviceVersion) === true ? true : undefined) },
+      );
+    } else {
+      advertise(['workingMode'], workingModeSelect(workingModeLabels));
+    }
 
     field({
       key: 'wifi_n',
@@ -1101,6 +1278,36 @@ function registerRuntimeInfoMessage(
       }),
     );
 
+    // Local API (cd=30). Every Venus E 3.0, Venus A and Venus D build has it;
+    // the Venus C/E (HMG) from control firmware 153. `api` and `port` are only
+    // reported where the command exists. The device looks for `port` after
+    // `api`, so a port is only applied when it follows `api` in the command:
+    // `cd=30,api=1,port=9090`. It replies `cd=30,ret=<api>,port=<port>`.
+    const supportsLocalApi = (deviceVersion: number | undefined) =>
+      venusSupports(model, deviceVersion, { HMG: 153, VNSE3: 0, VNSA: 0, VNSD: 0 });
+    const localApiEnabled = (state: Pick<VenusDeviceData, 'deviceVersion' | 'localApiEnabled'>) => {
+      if (supportsLocalApi(state.deviceVersion) === false) return false;
+      return state.localApiEnabled != null ? true : undefined;
+    };
+    const canSetLocalApi = (
+      deviceState: Pick<VenusDeviceData, 'deviceVersion' | 'localApiEnabled'>,
+    ) => {
+      if (supportsLocalApi(deviceState.deviceVersion) === false) {
+        logger.warn(
+          'Local API needs control firmware 153 or later on the Venus C/E (HMG); this device reports',
+          deviceState.deviceVersion,
+        );
+        return false;
+      }
+      if (deviceState.localApiEnabled == null) {
+        logger.warn(
+          'Local API control is not available until the device reports its local API state',
+        );
+        return false;
+      }
+      return true;
+    };
+
     field({
       key: 'api',
       path: ['localApiEnabled'],
@@ -1114,7 +1321,7 @@ function registerRuntimeInfoMessage(
         icon: 'mdi:lan',
         command: 'local-api-enabled',
       }),
-      { enabled: state => (state.deviceVersion == null ? undefined : state.deviceVersion >= 153) },
+      { enabled: localApiEnabled },
     );
 
     field({
@@ -1129,22 +1336,16 @@ function registerRuntimeInfoMessage(
         name: 'Local API Port',
         icon: 'mdi:numeric',
         command: 'local-api-port',
-        min: 0,
+        min: 1,
         max: 65535,
         step: 1,
       }),
-      { enabled: state => (state.deviceVersion == null ? undefined : state.deviceVersion >= 153) },
+      { enabled: localApiEnabled },
     );
 
     command('local-api-enabled', {
       handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
-        if ((deviceState.deviceVersion ?? 0) < 153) {
-          logger.warn(
-            'Local API control not supported for firmware version',
-            deviceState.deviceVersion,
-          );
-          return;
-        }
+        if (!canSetLocalApi(deviceState)) return;
         const enabled = message.toLowerCase() === 'true' || message === '1' || message === 'ON';
         updateDeviceState(() => ({ localApiEnabled: enabled }));
         const params: CommandParams = { api: enabled ? 1 : 0 };
@@ -1157,24 +1358,20 @@ function registerRuntimeInfoMessage(
 
     command('local-api-port', {
       handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
-        if ((deviceState.deviceVersion ?? 0) < 153) {
-          logger.warn(
-            'Local API control not supported for firmware version',
-            deviceState.deviceVersion,
-          );
-          return;
-        }
+        if (!canSetLocalApi(deviceState)) return;
         const port = parseInt(message, 10);
-        if (isNaN(port) || port < 0 || port > 65535) {
+        if (isNaN(port) || port < 1 || port > 65535) {
           logger.warn('Invalid local API port value:', message);
           return;
         }
         updateDeviceState(() => ({ localApiPort: port }));
-        const params: CommandParams = { port };
-        if (deviceState.localApiEnabled != null) {
-          params.api = deviceState.localApiEnabled ? 1 : 0;
-        }
-        publishCallback(processCommand(CommandType.SET_LOCAL_API, params));
+        // `api` has to come first, or the device ignores the port.
+        publishCallback(
+          processCommand(CommandType.SET_LOCAL_API, {
+            api: deviceState.localApiEnabled ? 1 : 0,
+            port,
+          }),
+        );
       },
     });
 
@@ -1254,15 +1451,19 @@ function registerRuntimeInfoMessage(
       },
     });
 
-    // Bluetooth advertising / "lock" (cd=55, adv=1 enables advertising, adv=0
-    // disables it). The state is reported in the `ble` field as a bitmask where
-    // bit 2 (value 4) is set when advertising is enabled (Bluetooth lock off).
+    // Bluetooth advertising (cd=55). `bl` is the advertising setting (1 = on,
+    // the factory default), which `cd=55,adv=1|0` writes and keeps across
+    // reboots. `ble` is the state of the Bluetooth module (advertising,
+    // connected, ...), not the setting. The Venus C/E (HMG) has both the
+    // command and `bl` from control firmware 156, the other models from 144.
     // The optimistic update in the command handler gives immediate feedback
     // until the next cd=1 poll reconciles with the device.
+    const supportsBluetoothAdvertising = (deviceVersion: number | undefined) =>
+      venusSupports(model, deviceVersion, { HMG: 156, VNSE3: 144, VNSA: 144, VNSD: 144 });
     field({
-      key: 'ble',
+      key: 'bl',
       path: ['bluetoothAdvertisingEnabled'],
-      transform: bitBoolean(2),
+      transform: equalsBoolean('1'),
     });
     advertise(
       ['bluetoothAdvertisingEnabled'],
@@ -1272,10 +1473,24 @@ function registerRuntimeInfoMessage(
         icon: 'mdi:bluetooth',
         command: 'bluetooth-advertising',
       }),
-      { enabled: state => (state.bluetoothAdvertisingEnabled != null ? true : undefined) },
+      {
+        enabled: state => {
+          if (state.bluetoothAdvertisingEnabled != null) return true;
+          // Firmware without the setting: remove a switch earlier versions
+          // advertised from `ble`.
+          return supportsBluetoothAdvertising(state.deviceVersion) === false ? false : undefined;
+        },
+      },
     );
     command('bluetooth-advertising', {
-      handler: ({ message, publishCallback, updateDeviceState }) => {
+      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
+        if (supportsBluetoothAdvertising(deviceState.deviceVersion) === false) {
+          logger.warn(
+            'Bluetooth advertising needs control firmware 156 on the Venus C/E (HMG) and 144 on the other models; this device reports',
+            deviceState.deviceVersion,
+          );
+          return;
+        }
         const enable =
           message.toLowerCase() === 'true' || message.toLowerCase() === 'on' || message === '1';
         updateDeviceState(() => ({ bluetoothAdvertisingEnabled: enable }));
@@ -1285,9 +1500,9 @@ function registerRuntimeInfoMessage(
 
     // Peak shaving (cd=63), which caps how much power the device draws from the
     // grid. Reported as `peak_status` (0/1) and `peak_power` (the cap, in W) on
-    // firmware that supports it (control v150 and up on Venus D/E). The device
-    // expects both parts in one command, so enabling sends `cd=63,as=1,vv=<W>`
-    // and disabling sends `cd=63,as=0`.
+    // firmware that supports it: the Venus E 3.0, Venus A and Venus D from
+    // control firmware 150. Enabling needs the cap in the same command, so it
+    // sends `cd=63,as=1,vv=<W>`; disabling sends `cd=63,as=0`.
     field({
       key: 'peak_status',
       path: ['peakShavingEnabled'],
@@ -1325,8 +1540,9 @@ function registerRuntimeInfoMessage(
       { enabled: state => (state.peakShavingPower != null ? true : undefined) },
     );
 
-    // State of health. Added to the cd=1 response in control firmware 149.2,
-    // so it only appears on units new enough to send it. The same quantity is
+    // State of health. Added to the cd=1 response in control firmware 150 on
+    // the Venus E 3.0 and Venus A and 149.2 on the Venus D, so it only appears
+    // on units new enough to send it. The same quantity is
     // reported as `b_soh` in the cd=14 BMS response, where a real capture read
     // 100 on a healthy pack - hence the percentage. That capture is the whole
     // basis for the unit: no cd=1 payload carrying `soh` has been seen, so if
@@ -1373,6 +1589,99 @@ function registerRuntimeInfoMessage(
         { enabled: state => (state.raw?.[key] != null ? true : undefined) },
       );
     }
+    // Remove the retained config of the former raw `bl` sensor.
+    advertise(
+      ['raw', 'bl'],
+      sensorComponent<number>({
+        id: 'raw_bl',
+        name: 'Raw bl',
+        icon: 'mdi:help-circle-outline',
+        enabled_by_default: false,
+      }),
+      { enabled: () => false },
+    );
+
+    // Diagnostics, disabled by default.
+    //
+    // `ble` is the state of the Bluetooth module, reported by the Venus C/E
+    // (HMG) from control firmware 149 and by every Venus E 3.0, Venus A and
+    // Venus D. The advertising setting is `bl` (Bluetooth Advertising).
+    field({
+      key: 'ble',
+      path: ['bluetoothState'],
+      transform: map({
+        '0': 'notInitialised',
+        '1': 'advertising',
+        '2': 'connected',
+        '3': 'disconnected',
+        '4': 'notAdvertising',
+      }),
+    });
+    advertise(
+      ['bluetoothState'],
+      sensorComponent<NonNullable<VenusDeviceData['bluetoothState']>>({
+        id: 'bluetooth_state',
+        name: 'Bluetooth State',
+        icon: 'mdi:bluetooth-settings',
+        enabled_by_default: false,
+        valueMappings: {
+          notInitialised: 'Not Initialised',
+          advertising: 'Advertising',
+          connected: 'Connected',
+          disconnected: 'Disconnected',
+          notAdvertising: 'Not Advertising',
+        },
+      }),
+      { enabled: state => (state.bluetoothState != null ? true : undefined) },
+    );
+
+    // `prc_c` is the external meter's error code (0: OK) on the Venus C/E
+    // (HMG) from control firmware 148 and on every Venus E 3.0, Venus A and
+    // Venus D; HMG 146 reports a price there and 147 always 0. On the HMG, 1
+    // means the meter's replies lack a valid power reading, 4 that it does not
+    // answer and 5 more than six failures in a row; on the other models 2 to 6
+    // are failures of an IP meter, 6 a P1 meter disconnect. Setting a meter
+    // with `cd=18,meter=` clears it on the HMG, Venus E 3.0 and Venus D from
+    // 149 and on the Venus A from 148.7, but not on earlier builds.
+    field({
+      key: 'prc_c',
+      path: ['meterError'],
+      transform: number(),
+    });
+    advertise(
+      ['meterError'],
+      sensorComponent<number>({
+        id: 'meter_error',
+        name: 'Meter Error',
+        icon: 'mdi:meter-electric-outline',
+        enabled_by_default: false,
+      }),
+      {
+        enabled: state =>
+          venusSupports(model, state.deviceVersion, { HMG: 148, VNSE3: 0, VNSA: 0, VNSD: 0 }) &&
+          state.meterError != null
+            ? true
+            : undefined,
+      },
+    );
+
+    // `em` is the PV charger's (MPPT) error code, printed as hex digits. Only
+    // the Venus A and Venus D report it.
+    field({
+      key: 'em',
+      path: ['mpptErrorCode'],
+      transform: identity(),
+    });
+    advertise(
+      ['mpptErrorCode'],
+      sensorComponent<string>({
+        id: 'mppt_error',
+        name: 'MPPT Error Code',
+        icon: 'mdi:solar-power-variant-outline',
+        enabled_by_default: false,
+      }),
+      { enabled: state => (state.mpptErrorCode != null ? true : undefined) },
+    );
 
     command('peak-shaving', {
       handler: ({ message, publishCallback, updateDeviceState }) => {
@@ -1412,14 +1721,12 @@ function registerRuntimeInfoMessage(
 
     // Battery power (bp/rp) and grid power (gp), reported on newer firmware.
     //
-    // The Marstek app shows a single battery-power value and a single
-    // grid-power value. Battery power normally comes from `bp` and grid power
-    // from `grd_o` (the Combined Power sensor), but on some models the app uses
-    // a "calculated" reading instead: `rp` for battery power and `gp` for grid
-    // power. Which models those are is not something the payload reveals, so
-    // both readings are published, with the calculated one disabled by default.
-    // On the devices seen so far the two differ slightly (e.g. bp=291 vs
-    // rp=347) while `gp` matched `grd_o` exactly.
+    // `bp` is the battery power. `rp` and `gp` are calculated from `vp`, the
+    // inverter's AC power (`grd_o`, or `grd_f` in backup mode): `gp` is
+    // `vp - grd_f`, so it equals `grd_o` while nothing is drawn from the backup
+    // output, and `rp` is the total PV power minus `vp`. The calculated battery
+    // power therefore differs slightly from `bp` (e.g. bp=291 vs rp=347) and is
+    // disabled by default.
     field({
       key: 'bp',
       path: ['batteryPower'],
@@ -1671,7 +1978,10 @@ function registerRuntimeInfoMessage(
       );
     }
 
-    // Additional settings
+    // Automatic working-mode switching (`cts_m`, set with `cd=8,dt=1|0`).
+    // Turning it on also sets the working mode at once: Automatic while the
+    // meter delivers data (`gct_s=1`), Manual when it does not (`gct_s=0` or
+    // 2). The device replies `cd=8,ret=1`.
     field({
       key: 'cts_m',
       path: ['autoSwitchWorkingMode'],
@@ -1679,17 +1989,37 @@ function registerRuntimeInfoMessage(
     });
     advertise(
       ['autoSwitchWorkingMode'],
+      switchComponent({
+        id: 'auto_switch_working_mode',
+        name: 'Auto Switch Working Mode',
+        icon: 'mdi:auto-fix',
+        command: 'auto-switch-working-mode',
+      }),
+    );
+    // Remove the read-only binary sensor earlier versions advertised.
+    advertise(
+      ['autoSwitchWorkingMode'],
       binarySensorComponent({
         id: 'auto_switch_working_mode',
         name: 'Auto Switch Working Mode',
         icon: 'mdi:auto-fix',
       }),
+      { enabled: () => false },
     );
+    command('auto-switch-working-mode', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const enabled = message.toLowerCase() === 'true' || message === '1' || message === 'ON';
+        updateDeviceState(() => ({ autoSwitchWorkingMode: enabled }));
+        publishCallback(
+          processCommand(CommandType.SET_AUTO_SWITCH_WORKING_MODE, { dt: enabled ? 1 : 0 }),
+        );
+      },
+    });
 
     field({
       key: 'set_v',
       path: ['versionSet'],
-      transform: map(venusPowerVersions),
+      transform: map(venusPowerVersions[model]),
     });
     advertise(
       ['versionSet'],
@@ -1698,15 +2028,30 @@ function registerRuntimeInfoMessage(
         name: 'Version Set',
         icon: 'mdi:power-socket',
         command: 'version-set',
-        valueMappings: venusVersionSetLabels,
+        valueMappings: Object.fromEntries(
+          venusVersionSetOptions(model).map(version => [version, venusVersionSetLabels[version]]),
+        ) as Record<VenusVersionSet, string>,
       }),
       { enabled: state => (state.versionSet != null ? true : undefined) },
     );
 
     command('version-set', {
-      handler: ({ message, publishCallback, updateDeviceState }) => {
+      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
         if (!isValidVenusVersionSet(message)) {
           logger.warn('Invalid version value:', message);
+          return;
+        }
+        if (!acceptedVenusVersionSets(model, deviceState.deviceVersion).includes(message)) {
+          logger.warn(
+            `Version ${message} is not accepted by this device (control firmware ${deviceState.deviceVersion ?? 'unknown'})`,
+          );
+          return;
+        }
+        if (
+          deviceState.versionSet === '600W' &&
+          venusLocksOn600W(model, deviceState.deviceVersion)
+        ) {
+          logger.warn('The device ignores power-version changes while on the 600W version');
           return;
         }
 
@@ -1716,7 +2061,7 @@ function registerRuntimeInfoMessage(
 
         // The command carries the rated power in watts, not the `set_v` code.
         const version = parseInt(message, 10);
-        publishCallback(processCommand(CommandType.SET_DISCHARGE_POWER, { vs: version }));
+        publishCallback(processCommand(CommandType.SET_POWER_VERSION, { vs: version }));
       },
     });
 
@@ -1742,8 +2087,9 @@ function registerRuntimeInfoMessage(
     command('factory-reset', {
       handler: ({ message, publishCallback }) => {
         if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
-          // rs=1 restores factory settings and clears accumulated data
-          // rs=2 restores factory settings without clearing accumulated data
+          // rs=1 clears everything, including the certificates (and on HMG 156
+          // the cloud topic id); rs=2 clears only part and keeps the
+          // certificates. Both reboot the device; rs=2 is the safe one.
           publishCallback(processCommand(CommandType.FACTORY_RESET, { rs: 2 }));
         }
       },
@@ -1758,6 +2104,38 @@ function registerRuntimeInfoMessage(
         payload_press: 'PRESS',
         enabled_by_default: false,
       }),
+    );
+
+    // Restart (`cd=28`). Nothing waits for a reply, since HMG 151 to 153
+    // reboot without one. The cd=1 re-read that follows any command goes out
+    // before the reboot and is harmless.
+    const supportsRestart = (deviceVersion: number | undefined) =>
+      venusSupports(model, deviceVersion, { HMG: 151, VNSE3: 0, VNSA: 0, VNSD: 0 });
+    command('restart', {
+      handler: ({ message, publishCallback, deviceState }) => {
+        if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
+          if (supportsRestart(deviceState.deviceVersion) === false) {
+            logger.warn(
+              'Restart needs control firmware 151 or later on the Venus C/E (HMG); this device reports',
+              deviceState.deviceVersion,
+            );
+            return;
+          }
+          publishCallback(processCommand(CommandType.REBOOT));
+        }
+      },
+    });
+    advertise(
+      [],
+      buttonComponent({
+        id: 'restart',
+        name: 'Restart',
+        icon: 'mdi:restart',
+        command: 'restart',
+        payload_press: 'PRESS',
+        enabled_by_default: false,
+      }),
+      { enabled: state => supportsRestart(state.deviceVersion) },
     );
 
     command('sync-time', {
@@ -2003,9 +2381,14 @@ function registerRuntimeInfoMessage(
       });
     }
 
-    // Transaction mode settings
+    // Transaction (trading) mode settings, `cd=3,md=2`: Venus C/E (HMG) up to
+    // control firmware 146 only.
     command('transaction-mode', {
-      handler: ({ message, publishCallback }) => {
+      handler: ({ message, publishCallback, deviceState }) => {
+        if (supportsTrading(deviceState.deviceVersion) === false) {
+          logger.warn(TRADING_UNSUPPORTED);
+          return;
+        }
         try {
           const params = JSON.parse(message);
           if (!params.id || !params.in || !params.on) {
@@ -2028,15 +2411,11 @@ function registerRuntimeInfoMessage(
     });
 
     command('working-mode', {
-      handler: ({ message, publishCallback, updateDeviceState }) => {
+      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
         if (!isValidVenusWorkingMode(message)) {
           logger.warn('Invalid working mode value:', message);
           return;
         }
-
-        updateDeviceState(() => ({
-          workingMode: message,
-        }));
 
         let mode: number;
         switch (message) {
@@ -2047,17 +2426,29 @@ function registerRuntimeInfoMessage(
             mode = 1;
             break;
           case 'trading':
+            if (supportsTrading(deviceState.deviceVersion) === false) {
+              logger.warn(TRADING_UNSUPPORTED);
+              return;
+            }
             mode = 2;
             break;
           case 'ai':
             mode = 5;
             break;
-          default:
-            mode = 0;
+          case 'passive':
+          case 'modbus':
+            logger.warn(
+              `Working mode ${message} is set by the Local API or Modbus control, not by hm2mqtt; choose automatic, manual or ai`,
+            );
+            return;
         }
 
+        updateDeviceState(() => ({
+          workingMode: message,
+        }));
+
         const params: CommandParams = { md: mode };
-        // AI mode additionally requires the nl flag to be enabled
+        // `cd=2` ignores `nl`, but the Marstek app sends `nl=1` with AI mode, so do the same
         if (message === 'ai') {
           params.nl = 1;
         }
@@ -2093,16 +2484,18 @@ function registerRuntimeInfoMessage(
           return;
         }
         updateDeviceState(state => {
-          // If a meter type is already configured, re-apply it with the new MAC
-          // so the device stays in sync when the MAC is edited afterwards.
-          if (state.meterType) {
-            const resolved = resolveMeterMac(state.meterType, mac);
+          // If a meter type was set from Home Assistant since hm2mqtt started
+          // and the device is still on it, re-apply it with the new MAC so the
+          // device stays in sync when the MAC is edited afterwards. The type
+          // read back from the device does not count: during a meter swap the
+          // MAC is set before the new type, and re-applying the old type would
+          // point the old meter at the new MAC.
+          const meterType = state.lastSetMeterType;
+          if (meterType && (state.meterType == null || state.meterType === meterType)) {
+            const resolved = venusMeterMac(meterType, mac);
             if (resolved !== null) {
               publishCallback(
-                processCommand(CommandType.SET_METER_TYPE, {
-                  meter: meterTypeCommandCodes[state.meterType],
-                  mac: resolved,
-                }),
+                processCommand(CommandType.SET_METER_TYPE, venusMeterParams(meterType, resolved)),
               );
             }
           }
@@ -2127,13 +2520,21 @@ function registerRuntimeInfoMessage(
 
     // Configure the external meter type (cd=18,meter=...,mac=...).
     command('meter-type', {
-      handler: ({ message, publishCallback, updateDeviceState }) => {
-        if (!isValidMeterType(message)) {
+      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
+        if (!isValidVenusMeterType(message)) {
           logger.warn('Invalid meter type value:', message);
           return;
         }
+        if (
+          venusMeterTypeCommandCodes[message] > venusMaxMeterCode(model, deviceState.deviceVersion)
+        ) {
+          logger.warn(
+            `Meter type ${message} is not supported by this device (control firmware ${deviceState.deviceVersion ?? 'unknown'})`,
+          );
+          return;
+        }
         updateDeviceState(state => {
-          const mac = resolveMeterMac(message, state.meterMac);
+          const mac = venusMeterMac(message, state.meterMac);
           if (mac === null) {
             logger.warn(
               `Meter type ${message} requires a MAC; set the "Meter MAC" entity before selecting it`,
@@ -2141,29 +2542,58 @@ function registerRuntimeInfoMessage(
             return;
           }
           publishCallback(
-            processCommand(CommandType.SET_METER_TYPE, {
-              meter: meterTypeCommandCodes[message],
-              mac,
-            }),
+            processCommand(CommandType.SET_METER_TYPE, venusMeterParams(message, mac)),
           );
-          return { meterType: message };
+          return { meterType: message, lastSetMeterType: message };
         });
       },
     });
-    advertise(
-      ['meterType'],
+    // The configured meter is read back from `prc_d` where it is reported (see
+    // configuredMeterTypes). Older HMG builds keep the write-only select, which
+    // shows the last value set; the two advertisements never apply together.
+    // HMG builds before 149 report `prc_d` but not `c_ratio`, so the field is
+    // skipped there without a warning.
+    field({
+      key: ['prc_d', 'c_ratio'],
+      path: ['meterType'],
+      transform: pick('prc_d', map(configuredMeterTypes)),
+      skip: values => values['c_ratio'] === undefined,
+    });
+    const reportsMeterType = (deviceVersion: number | undefined) =>
+      venusSupports(model, deviceVersion, { HMG: 149, VNSE3: 0, VNSA: 0, VNSD: 0 });
+    const meterTypeSelect = (optimistic: boolean) =>
       selectComponent<NonNullable<VenusDeviceData['meterType']>>({
         id: 'meter_type',
         name: 'Meter Type',
         icon: 'mdi:meter-electric',
         command: 'meter-type',
-        valueMappings: meterTypeLabels,
-        // Write-only: the device never reports the configured meter type back.
-        optimistic: true,
+        // The Stromleser is only offered where `meter=12` exists.
+        valueMappings: (model === 'HMG'
+          ? meterTypeLabels
+          : { ...meterTypeLabels, stromleser: reportedMeterTypeLabels.stromleser }) as Record<
+          VenusMeterType,
+          string
+        >,
+        optimistic,
         enabled_by_default: false,
-      }),
-    );
+      });
+    advertise(['meterType'], meterTypeSelect(false), {
+      enabled: state =>
+        reportsMeterType(state.deviceVersion) === true && state.meterType != null
+          ? true
+          : undefined,
+    });
+    advertise(['meterType'], meterTypeSelect(true), {
+      enabled: state => (reportsMeterType(state.deviceVersion) === false ? true : undefined),
+    });
 
+    // Maximum discharge power (`cd=17,dp=<W>`). The device rejects a limit
+    // above the model's maximum, or above 800 W while on the 800 W power
+    // version. A limit of 0 is refused here: the Venus E 3.0, Venus A and Venus
+    // D replace it with 800 W and switch to the 800 W version at the next boot.
+    // On the Venus C/E (HMG) from control firmware 153, `mdp_w` is the limit in
+    // effect at that moment, which the device lowers for state of charge,
+    // temperature and the BMS, so it can read back lower than the value set.
     field({
       key: 'mdp_w',
       path: ['maxDischargePower'],
@@ -2177,17 +2607,35 @@ function registerRuntimeInfoMessage(
         icon: 'mdi:flash',
         unit_of_measurement: 'W',
         command: 'max-discharge-power',
+        // 0 stays allowed so an HMG reading of 0 is not rejected.
         min: 0,
-        max: 2500,
+        max: model === 'VNSA' ? 1500 : 2500,
         step: 1,
       }),
     );
 
     command('max-discharge-power', {
-      handler: ({ message, publishCallback, updateDeviceState }) => {
-        const power = parseInt(message, 10);
-        if (isNaN(power) || power < 0 || power > 2500) {
-          logger.warn('Invalid maximum discharge power value:', message);
+      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
+        const power = Number(message.trim());
+        const maxPower = venusMaxPowerLimit(model, deviceState.deviceVersion);
+        if (!Number.isInteger(power) || power < 1 || power > maxPower) {
+          logger.warn(`Invalid maximum discharge power value (1-${maxPower} W):`, message);
+          return;
+        }
+        if (model === 'HMG' && venusBuild(deviceState.deviceVersion) === 147) {
+          logger.warn('Control firmware 147 has no maximum discharge power command');
+          return;
+        }
+        const versionLimit =
+          deviceState.versionSet === '800W'
+            ? 800
+            : deviceState.versionSet === '600W'
+              ? 600
+              : undefined;
+        if (versionLimit !== undefined && power > versionLimit) {
+          logger.warn(
+            `The device is on the ${deviceState.versionSet} power version and rejects more than ${versionLimit} W; change Version Set first`,
+          );
           return;
         }
 
@@ -2195,14 +2643,23 @@ function registerRuntimeInfoMessage(
           maxDischargePower: power,
         }));
 
-        publishCallback(processCommand(CommandType.SET_DISCHARGE_POWER, { vs: power }));
+        publishCallback(processCommand(CommandType.SET_MAX_DISCHARGE_POWER, { dp: power }));
       },
     });
 
+    // Maximum charging power (`cd=16,cp=<W>`). The Venus E 3.0 and Venus A
+    // from control firmware 150 and the Venus D from 149.2 reject less than
+    // 300 W; the upper limit is the same as for the discharge power. On the
+    // Venus C/E (HMG) from control firmware 153, `mcp_w` is no longer the value
+    // set but the charge limit in effect at that moment: 153 and 154 report 0,
+    // 155 and later the limit as a negative number (`mcp_w=-1000` after
+    // `cp=1000`). Neither says what was set, so there `mcp_w` is ignored and
+    // the control shows the last value set from Home Assistant.
     field({
       key: 'mcp_w',
       path: ['maxChargingPower'],
       transform: chain(number(), inRange(0, 2500)),
+      skip: values => venusSupports(model, Number(values['dev_n']), { HMG: 153 }) === true,
     });
     advertise(
       ['maxChargingPower'],
@@ -2212,17 +2669,30 @@ function registerRuntimeInfoMessage(
         icon: 'mdi:flash',
         unit_of_measurement: 'W',
         command: 'max-charging-power',
+        // The 300 W minimum is only enforced by the command: Home Assistant
+        // rejects a state below the entity minimum, and the HMG reports 0.
         min: 0,
-        max: 2500,
+        max: model === 'VNSA' ? 1500 : 2500,
         step: 1,
+        // Absent on the HMG from 153 until it is set from Home Assistant.
+        optional: model === 'HMG',
       }),
     );
 
     command('max-charging-power', {
-      handler: ({ message, publishCallback, updateDeviceState }) => {
+      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
         const power = parseInt(message, 10);
-        if (isNaN(power) || power < 0 || power > 2500) {
-          logger.warn('Invalid maximum charging power value:', message);
+        const maxPower = venusMaxPowerLimit(model, deviceState.deviceVersion);
+        const minPower =
+          venusSupports(model, deviceState.deviceVersion, {
+            VNSE3: 150,
+            VNSA: 150,
+            VNSD: 149.2,
+          }) === true
+            ? 300
+            : 0;
+        if (isNaN(power) || power < minPower || power > maxPower) {
+          logger.warn(`Invalid maximum charging power value (${minPower}-${maxPower} W):`, message);
           return;
         }
 
@@ -2235,12 +2705,13 @@ function registerRuntimeInfoMessage(
     });
 
     // Depth of Discharge (dod). The device reports the actual percentage; values
-    // outside the valid range are treated as unknown. The maximum is encoded as 0
-    // only in the write direction (see the discharge-depth command below).
+    // outside the valid range are treated as unknown. 88 % is encoded as 0 only
+    // in the write direction (see the discharge-depth command below).
+    const dodMax = model === 'HMG' ? HMG_DOD_MAX : DOD_MAX;
     field({
       key: 'dod',
       path: ['depthOfDischarge'],
-      transform: chain(number(), inRange(DOD_MIN, DOD_MAX)),
+      transform: chain(number(), inRange(DOD_MIN, dodMax)),
     });
     advertise(
       ['depthOfDischarge'],
@@ -2251,7 +2722,7 @@ function registerRuntimeInfoMessage(
         device_class: 'battery',
         command: 'discharge-depth',
         min: DOD_MIN,
-        max: DOD_MAX,
+        max: dodMax,
         step: 1,
       }),
       { enabled: state => (state.depthOfDischarge != null ? true : undefined) },
@@ -2260,16 +2731,16 @@ function registerRuntimeInfoMessage(
       handler: ({ message, publishCallback, updateDeviceState }) => {
         // Require an exact integer payload (reject e.g. "88foo", "30.5", "", " 70 ").
         const dod = /^\d+$/.test(message) ? parseInt(message, 10) : NaN;
-        if (Number.isNaN(dod) || dod < DOD_MIN || dod > DOD_MAX) {
+        if (Number.isNaN(dod) || dod < DOD_MIN || dod > dodMax) {
           logger.warn(
-            `Invalid depth of discharge value (should be ${DOD_MIN}-${DOD_MAX}):`,
+            `Invalid depth of discharge value (should be ${DOD_MIN}-${dodMax}):`,
             message,
           );
           return;
         }
         updateDeviceState(() => ({ depthOfDischarge: dod }));
-        // The device expects the maximum depth of discharge (DOD_MAX) to be sent as 0.
-        const dodValue = dod >= DOD_MAX ? 0 : dod;
+        // 88 % is sent as 0, as the Marstek app does; 89 and 90 (HMG) as-is.
+        const dodValue = dod === DOD_MAX ? 0 : dod;
         publishCallback(processCommand(CommandType.DEPTH_OF_DISCHARGE, { dod: dodValue }));
       },
     });
@@ -2731,8 +3202,10 @@ function registerBMSPackDetailMessage(
 // The cd=26 response reports the device's network configuration. Its
 // non-standard colon-delimited format is normalized into ip/gate/mask/dns/
 // ct_connect_ip keys by the message parser before it reaches these fields.
+// The Venus C/E (HMG) answers without the `cd=26,` prefix, and control
+// firmware 149 without `ct_connect_ip`.
 function isVenusNetworkInfoMessage(values: Record<string, string>): boolean {
-  return 'ip' in values && 'gate' in values && 'ct_connect_ip' in values;
+  return (values.cd === undefined || values.cd === '26') && 'ip' in values && 'gate' in values;
 }
 
 function registerVenusNetworkInfoMessage(message: BuildMessageFn) {

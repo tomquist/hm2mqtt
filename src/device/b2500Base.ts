@@ -63,11 +63,22 @@ export function isB2500RuntimeInfoMessage(values: Record<string, string>) {
   return requiredRuntimeInfoKeys.every(key => key in values);
 }
 
-export function registerBaseMessage({
-  field,
-  command,
-  advertise,
-}: BuildMessageDefinitionArgs<B2500BaseDeviceData>) {
+export interface B2500BaseMessageOptions {
+  /**
+   * Whether the model reports PV pass-through in bit 1 of `p1`/`p2`. HMJ
+   * firmware only ever reports 0 or 1 there, so its pass-through sensors would
+   * always be off.
+   */
+  reportsPassThrough?: boolean;
+}
+
+export function registerBaseMessage(
+  { field, command, advertise }: BuildMessageDefinitionArgs<B2500BaseDeviceData>,
+  { reportsPassThrough = true }: B2500BaseMessageOptions = {},
+) {
+  // `false` publishes an empty config, which also clears one retained from an
+  // earlier version.
+  const passThroughOptions = reportsPassThrough ? {} : { enabled: () => false };
   advertise(
     ['timestamp'],
     sensorComponent<string>({
@@ -184,6 +195,7 @@ export function registerBaseMessage({
       name: 'Input 1 Pass Through',
       device_class: 'power',
     }),
+    passThroughOptions,
   );
   field({
     key: 'p2',
@@ -210,6 +222,7 @@ export function registerBaseMessage({
       name: 'Input 2 Pass Through',
       device_class: 'power',
     }),
+    passThroughOptions,
   );
   field({
     key: 'w1',
@@ -1011,6 +1024,7 @@ export enum CommandType {
   SET_CONNECTED_PHASE = 22,
   SET_SMART_METER_TYPE = 27,
   SURPLUS_FEED_IN = 31,
+  FULL_BATTERY_PASS_THROUGH = 38,
 }
 
 /**
@@ -1031,6 +1045,7 @@ const noFlashCommands: Record<CommandType, number> = {
   [CommandType.SOFTWARE_RESTART]: CommandType.SOFTWARE_RESTART,
   [CommandType.FACTORY_RESET]: CommandType.FACTORY_RESET,
   [CommandType.SURPLUS_FEED_IN]: 31,
+  [CommandType.FULL_BATTERY_PASS_THROUGH]: 38,
 };
 
 export function processCommand(

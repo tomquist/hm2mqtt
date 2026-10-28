@@ -1,9 +1,11 @@
 import { ControlHandlerDefinition } from '../controlHandler.js';
 import {
   B2500V2CD16Data,
+  B2500V2CtDiagnosisData,
   B2500V2DeviceData,
   B2500V2SmartMeterStatus,
   CommandParams,
+  MeterType,
   meterTypeCommandCodes,
   meterTypeLabels,
   normalizeMeterMac,
@@ -15,6 +17,7 @@ import {
 } from '../types.js';
 import logger from '../logger.js';
 import {
+  B2500BaseMessageOptions,
   CommandType,
   extractAdditionalDeviceInfo,
   isB2500RuntimeInfoMessage,
@@ -25,7 +28,9 @@ import {
   registerB2500CellBalancingMessage,
 } from './b2500Base.js';
 import {
+  BaseDeviceData,
   BuildMessageFn,
+  extractBaseType,
   globalPollInterval,
   registerDeviceDefinition,
 } from '../deviceDefinition.js';
@@ -62,6 +67,48 @@ const CT_POWER_SENTINEL = 60000;
 const ctPower = () => inRange(-(CT_POWER_SENTINEL - 1), CT_POWER_SENTINEL - 1);
 
 /**
+ * Whether the device is an HMJ whose firmware is known to be `version` or
+ * older. Unknown type or version is not a match.
+ */
+function isHmjAtMost(
+  state: Pick<B2500V2DeviceData, 'deviceType' | 'deviceInfo'>,
+  version: number,
+): boolean {
+  if (state.deviceType == null || extractBaseType(state.deviceType) !== 'HMJ') {
+    return false;
+  }
+  const deviceVersion = state.deviceInfo?.deviceVersion;
+  return deviceVersion != null && deviceVersion <= version;
+}
+
+/**
+ * HMJ firmware 116 and older only has drivers for meter codes 0-7. It stores a
+ * higher code anyway and is then left without a working meter, so those are
+ * refused there. Warns when it refuses.
+ */
+function isMeterUnsupported(
+  state: Pick<B2500V2DeviceData, 'deviceType' | 'deviceInfo'>,
+  meterType: MeterType,
+): boolean {
+  if (meterTypeCommandCodes[meterType] < 8 || !isHmjAtMost(state, 116)) {
+    return false;
+  }
+  logger.warn(
+    `Meter type ${meterType} is not supported: this firmware (${state.deviceInfo?.deviceVersion}) has no driver for this meter`,
+  );
+  return true;
+}
+
+/**
+ * The device stores a time zone offset (`cd=9,wy=`) only if it is a whole
+ * number of minutes within ±720 that is a multiple of 10, and ignores anything
+ * else.
+ */
+function isValidTimeZoneOffset(wy: number): boolean {
+  return Number.isInteger(wy) && Math.abs(wy) <= 720 && wy % 10 === 0;
+}
+
+/**
  * Create a time period handler for a specific setting
  */
 export const timePeriodSettingHandler = (
@@ -88,7 +135,7 @@ export const timePeriodSettingHandler = (
           break;
         case 'start-time':
           // Validate time format (HH:MM)
-          if (!/^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
+          if (!/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
             logger.warn('Invalid start time format (should be HH:MM):', message);
             return;
           }
@@ -96,7 +143,7 @@ export const timePeriodSettingHandler = (
           break;
         case 'end-time':
           // Validate time format (HH:MM)
-          if (!/^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
+          if (!/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(message)) {
             logger.warn('Invalid end time format (should be HH:MM):', message);
             return;
           }
@@ -117,8 +164,30 @@ export const timePeriodSettingHandler = (
 
       logger.debug(`Current period ${periodNumber} settings:`, newTimePeriodSettings[periodIndex]);
 
+      // The device never runs a period that ends before it starts, because it
+      // does not wrap a period past midnight, and replaces it with 00:00-23:59
+      // at its next restart, so it then runs all day. Editing the start and
+      // end one at a time passes through such states, so warn but still send.
+      const { startTime, endTime } = newTimePeriodSettings[periodIndex];
+      if (
+        (setting === 'start-time' || setting === 'end-time') &&
+        minutesOfDay(startTime) > minutesOfDay(endTime)
+      ) {
+        logger.warn(
+          `Time period ${periodNumber} ends before it starts (${startTime}-${endTime}). The device never runs such a period, and runs it all day after its next restart; split it at midnight instead.`,
+        );
+      }
+
       // Build time period parameters for all periods
       const params = buildTimePeriodParams(newTimePeriodSettings);
+
+      // `md=0` makes the device apply the periods and also turns adaptive
+      // mode off: no single command edits a period and stays adaptive.
+      if (state.adaptiveMode === true) {
+        logger.info(
+          `Changing a timer period turns adaptive mode off on ${device.deviceId} (device behaviour)`,
+        );
+      }
 
       // Process the command and send it
       publishCallback(
@@ -126,10 +195,20 @@ export const timePeriodSettingHandler = (
       );
 
       // Update the device state with the new settings
-      return { timePeriods: newTimePeriodSettings };
+      return { timePeriods: newTimePeriodSettings, adaptiveMode: false };
     });
   },
 });
+
+// Home Assistant checks reported states against the text pattern too. Devices
+// report `24:0` for a period ending at midnight, so the entity accepts 24:00
+// even though the commands refuse it.
+const TIME_PERIOD_STATE_PATTERN = '^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$';
+
+function minutesOfDay(time: string): number {
+  const [h, m] = time.split(':').map(part => parseInt(part, 10));
+  return h * 60 + m;
+}
 
 /**
  * Build time period parameters for all periods
@@ -180,20 +259,23 @@ function buildTimePeriodParams(
   return params;
 }
 
-registerDeviceDefinition(
-  {
-    deviceTypes: ['HMA', 'HMF', 'HMJ', 'HMK'],
-  },
-  ({ message }) => {
-    registerRuntimeInfoMessage(message);
+function registerB2500V2Definition(deviceTypes: string[], options: B2500BaseMessageOptions) {
+  registerDeviceDefinition({ deviceTypes }, ({ message }) => {
+    registerRuntimeInfoMessage(message, options);
+    registerCtDiagnosisMessage(message);
     registerExtraBatteryData(message);
     registerCellDataMessage(message);
     registerB2500CellBalancingMessage(message, { hasPackCurrent: true });
     registerCalibrationDataMessage(message);
-  },
-);
+  });
+}
 
-function registerRuntimeInfoMessage(message: BuildMessageFn) {
+// The HMJ is registered on its own because its firmware reports less than the
+// other models, and discovery cannot read the model from the device state.
+registerB2500V2Definition(['HMA', 'HMF', 'HMK'], { reportsPassThrough: true });
+registerB2500V2Definition(['HMJ'], { reportsPassThrough: false });
+
+function registerRuntimeInfoMessage(message: BuildMessageFn, baseOptions: B2500BaseMessageOptions) {
   let options = {
     refreshDataPayload: 'cd=1',
     isMessage: isB2500RuntimeInfoMessage,
@@ -222,7 +304,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
   };
 
   message<B2500V2DeviceData>(options, ({ field, command, advertise }) => {
-    registerBaseMessage({ command, advertise, field });
+    registerBaseMessage({ command, advertise, field }, baseOptions);
 
     // Charging and discharging settings
     field({
@@ -231,7 +313,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       transform: number(),
     });
     // Read-only on V2. The threshold setting is only offered on the V1 (HMB);
-    // V2 models report the current value in `lv` but do not act on `cd=6`.
+    // V2 models do not act on `cd=6`, and their `lv` is not a threshold: every
+    // control loop overwrites it with the current total output setpoint
+    // (output 1 + output 2). The entity keeps its name.
     advertise(
       ['batteryOutputThreshold'],
       sensorComponent<number>({
@@ -339,7 +423,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           id: `time_period_${i + 1}_start_time`,
           name: `Time Period ${i + 1} Start Time`,
           command: `time-period/${i + 1}/start-time`,
-          pattern: '^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$',
+          pattern: TIME_PERIOD_STATE_PATTERN,
         }),
       );
       field({
@@ -353,7 +437,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           id: `time_period_${i + 1}_end_time`,
           name: `Time Period ${i + 1} End Time`,
           command: `time-period/${i + 1}/end-time`,
-          pattern: '^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$',
+          pattern: TIME_PERIOD_STATE_PATTERN,
         }),
       );
       field({
@@ -494,6 +578,12 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'measurement',
       }),
     );
+    // `c0` is the phase the device regulates on: 0-2 for a single phase, 3 for
+    // the sum of all phases (also what phase detection picks for meters that
+    // only report a total), and 255 while no phase has been determined yet.
+    // The state names `searching` and `unknown` predate that understanding and
+    // are kept so existing entities and automations keep working; only their
+    // labels say what they mean.
     field({
       key: 'c0',
       path: ['ctInfo', 'connectedPhase'],
@@ -509,31 +599,48 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           0: 'Phase 1',
           1: 'Phase 2',
           2: 'Phase 3',
-          searching: 'Searching',
-          unknown: 'None',
+          searching: 'All Phases',
+          unknown: 'Auto-detect',
         },
       }),
     );
     command('connected-phase', {
       handler: ({ message, publishCallback, deviceState }) => {
-        // The select publishes the state name, so the two non-numeric values it
-        // can report have to map back onto the codes the device takes. Without
-        // the `searching` alias, picking that option published the literal
-        // string and was rejected here, leaving it a dead entry in the picker.
+        // The select publishes the state name, so the non-numeric values it
+        // can report have to map back onto the codes the device takes.
+        // `md=255` clears the phase and starts detection; `md=3` regulates on
+        // the sum of all phases.
         const aliases: Record<string, string> = {
           auto: '255',
           none: '255',
           null: '255',
           unknown: '255',
+          detect: '255',
           searching: '3',
+          all: '3',
+          allphases: '3',
         };
         const channelValue = aliases[message.toLowerCase()] ?? message;
         const channel = parseInt(channelValue, 10);
-        // The device accepts 0-3 and 255 for "none", and ignores anything else,
-        // so reject it here rather than sending something that does nothing.
+        // The device accepts 0-3 and 255, and ignores anything else, so reject
+        // it here rather than sending something that does nothing.
         if (isNaN(channel) || (channel !== 255 && (channel < 0 || channel > 3))) {
           logger.warn('Invalid connected phase value:', message);
           return;
+        }
+
+        // HMJ firmware 110 and older treats `md=0` like `md=255` and only
+        // accepts the command at all while adaptive mode is on.
+        if (isHmjAtMost(deviceState, 110)) {
+          if (channel === 0) {
+            logger.warn(
+              'Phase 1 cannot be selected on this firmware: the device starts phase detection instead',
+            );
+            return;
+          }
+          if (deviceState.adaptiveMode !== true) {
+            logger.warn('This firmware ignores the connected phase while adaptive mode is off');
+          }
         }
 
         publishCallback(
@@ -558,6 +665,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           '9': 'diagnosisTimeout',
           '10': 'chargingInProgress',
           '11': 'unableToFindChannel',
+          '12': 'fullBatteryPassThrough',
         },
         'notInDiagnosis',
       ),
@@ -575,6 +683,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           diagnosisTimeout: 'Diagnosis timeout',
           chargingInProgress: 'Charging in progress',
           unableToFindChannel: 'Unable to find channel',
+          fullBatteryPassThrough: 'Full battery: PV pass-through',
           notInDiagnosis: 'Not in diagnosis',
         } satisfies Record<B2500V2SmartMeterStatus, string>,
       }),
@@ -644,6 +753,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
+    // `m3` is `g1` + `g2`, the B2500's own total output, not a separate
+    // micro-inverter measurement. The entity keeps its name.
     field({
       key: 'm3',
       path: ['ctInfo', 'microInverterPower'],
@@ -703,9 +814,12 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
     command('time-zone', {
       handler: ({ message, publishCallback, deviceState }) => {
-        const timezone = parseInt(message, 10);
-        if (isNaN(timezone)) {
-          logger.warn('Invalid time zone value:', message);
+        const timezone = Number(message.trim());
+        if (message.trim() === '' || !isValidTimeZoneOffset(timezone)) {
+          logger.warn(
+            'Invalid time zone value (should be a UTC offset in minutes, a multiple of 10 between -720 and 720):',
+            message,
+          );
           return;
         }
 
@@ -720,25 +834,14 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           // If the message is "PRESS" or similar from Home Assistant button, generate current time
           if (message === 'PRESS' || message === 'press' || message === 'true' || message === '1') {
             const now = new Date();
-            // `cd=08` takes UTC clock fields together with the local offset in
-            // `wy`. The device stores the clock as sent and applies the offset
-            // itself when it evaluates a discharge timer, whose start and end
-            // are configured in local time — so sending local wall-clock time
-            // makes every schedule fire `wy` minutes early.
+            // `cd=08` sets the clock, which the device keeps in UTC. Its `wy`
+            // is required but not stored: the offset the discharge timers use
+            // is only ever set by `cd=09` (the `time-zone` command). Sync Time
+            // does not send that, so the offset set in the app or with
+            // `time-zone` is kept, whatever time zone this host runs in.
             // `mm` is 0-based and `yy` is the year minus 1900.
-            const wy = -now.getTimezoneOffset();
-            if (Math.abs(wy) > 720 || wy % 10 !== 0) {
-              // The device only stores offsets within ±720 minutes that are a
-              // whole multiple of 10; it drops anything else and keeps the one
-              // it already had. The clock fields are still accepted, so sync
-              // them anyway rather than letting the clock drift as well.
-              logger.warn(
-                'Timezone offset not supported by the device, it will keep its previous offset and the discharge timers may run at the wrong time:',
-                wy,
-              );
-            }
             const timeData = {
-              wy,
+              wy: -now.getTimezoneOffset(),
               yy: now.getUTCFullYear() - 1900,
               mm: now.getUTCMonth(),
               rr: now.getUTCDate(),
@@ -822,6 +925,28 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       },
     });
 
+    // `fktc` decides what happens once every pack is full while surplus feed-in
+    // is on: with `1` the device keeps passing PV through (CT status 12), with
+    // `0` it stops its output. It is set with `cd=38,fktc=`.
+    field({
+      key: 'fktc',
+      path: ['fullBatteryPassThrough'],
+      transform: equalsBoolean('1'),
+    });
+    advertise(
+      ['fullBatteryPassThrough'],
+      binarySensorComponent({
+        id: 'full_battery_pass_through',
+        name: 'Full Battery Pass-Through',
+        icon: 'mdi:battery-arrow-up',
+        enabled_by_default: false,
+      }),
+      {
+        enabled: (state: B2500V2DeviceData) =>
+          state.fullBatteryPassThrough != null ? true : undefined,
+      },
+    );
+
     // MAC address used when configuring an external meter (CT002/CT003/Shelly).
     command('meter-mac', {
       handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
@@ -831,7 +956,7 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           return;
         }
         updateDeviceState(state => {
-          if (state.meterType) {
+          if (state.meterType && !isMeterUnsupported(deviceState, state.meterType)) {
             const resolved = resolveMeterMac(state.meterType, mac);
             if (resolved !== null) {
               publishCallback(
@@ -868,6 +993,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           logger.warn('Invalid meter type value:', message);
           return;
         }
+        if (isMeterUnsupported(deviceState, message)) {
+          return;
+        }
         updateDeviceState(state => {
           const mac = resolveMeterMac(message, state.meterMac);
           if (mac === null) {
@@ -901,11 +1029,54 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         enabled_by_default: false,
       }),
     );
+  });
+}
 
+/**
+ * The `cd=28` CT diagnosis reply:
+ * `ct_t,phase_t,dchrg_t,seq_s,c0,c1,c2,cp,op`. It is the only place the
+ * device reports the recharge mode. `c0`-`c2` here are the CT phase powers, not
+ * the phase code `c0` means in `cd=1`, so they are not read.
+ */
+function isB2500CtDiagnosisMessage(message: Record<string, string>): boolean {
+  return 'dchrg_t' in message && 'seq_s' in message && !('pe' in message);
+}
+
+/**
+ * Whether the firmware answers `cd=28`: the HMJ from firmware 102, the other
+ * models from firmware 224 subversion 3. Older firmware never replies, so it is
+ * not polled, and neither is a device whose model or firmware is not known yet.
+ */
+function supportsCtDiagnosis(state: BaseDeviceData): boolean {
+  const { deviceType, deviceInfo } = state as Partial<B2500V2DeviceData>;
+  const version = deviceInfo?.deviceVersion;
+  if (deviceType == null || version == null) {
+    return false;
+  }
+  if (extractBaseType(deviceType) === 'HMJ') {
+    return version >= 102;
+  }
+  const subversion = deviceInfo?.deviceSubversion;
+  return version > 224 || (version === 224 && subversion != null && subversion >= 3);
+}
+
+function registerCtDiagnosisMessage(message: BuildMessageFn) {
+  const options = {
+    refreshDataPayload: 'cd=28',
+    isMessage: isB2500CtDiagnosisMessage,
+    publishPath: 'ctDiagnosis',
+    defaultState: {},
+    pollInterval: 300000,
+    controlsDeviceAvailability: false,
+    getAdditionalDeviceInfo: () => ({}),
+    shouldPoll: supportsCtDiagnosis,
+  } as const;
+  // The recharge-mode and phase-diagnosis commands live here so the re-read
+  // after them fetches this reply.
+  message<B2500V2CtDiagnosisData>(options, ({ field, command, advertise }) => {
     // `cd=27` doubles as the grid recharge command, the same way `cd=18` does on
-    // the Venus and Jupiter. The device does not report the current value in any
-    // response hm2mqtt polls, so this entity shows the last value that was set
-    // rather than the device's own state.
+    // the Venus and Jupiter. The device reports the current value in the
+    // `cd=28` diagnosis as `dchrg_t`.
     command('recharge-mode', {
       handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
         if (!isValidB2500RechargeMode(message)) {
@@ -922,9 +1093,24 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         );
       },
     });
-    advertise(
-      ['rechargeMode'],
-      selectComponent<NonNullable<B2500V2DeviceData['rechargeMode']>>({
+    field({
+      key: 'dchrg_t',
+      path: ['rechargeMode'],
+      transform: map({ '0': 'singlePhase', '1': 'threePhase' }),
+    });
+    // Set only by a reply, never by the command above, so it tells whether the
+    // device reports the setting at all.
+    field({
+      key: 'dchrg_t',
+      path: ['rechargeModeReported'],
+      transform: map({}, true),
+    });
+    // Until the device has reported the setting, the select stays optimistic
+    // and shows the last value set: firmware that does not answer `cd=28`
+    // would otherwise leave it unknown after every restart. The two
+    // advertisements never apply together.
+    const rechargeModeSelect = (optimistic: boolean) =>
+      selectComponent<NonNullable<B2500V2CtDiagnosisData['rechargeMode']>>({
         id: 'recharge_mode',
         name: 'Recharge Mode',
         icon: 'mdi:flash',
@@ -933,15 +1119,19 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
           singlePhase: 'Single Phase',
           threePhase: 'Three Phase',
         },
-        // Write-only: the device never reports the recharge mode back.
-        optimistic: true,
+        optimistic,
         enabled_by_default: false,
-      }),
-    );
+      });
+    advertise(['rechargeMode'], rechargeModeSelect(false), {
+      enabled: state => (state.rechargeModeReported ? true : undefined),
+    });
+    advertise(['rechargeMode'], rechargeModeSelect(true), {
+      enabled: state => (state.rechargeModeReported ? undefined : true),
+    });
 
     // Starts the grid-phase detection routine. The device clears the phase and
     // moves the CT status to "Preparing to diagnose CT001 (Step 1)", so progress
-    // can be followed on the CT Status sensor.
+    // can be followed on the CT Status and Phase Detection sensors.
     command('phase-diagnosis', {
       handler: ({ message, publishCallback }) => {
         if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
@@ -960,6 +1150,31 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         payload_press: 'PRESS',
         enabled_by_default: false,
       }),
+    );
+
+    field({
+      key: 'seq_s',
+      path: ['phaseDetection'],
+      transform: map({ '0': 'idle', '1': 'detecting', '2': 'failed', '3': 'done' }),
+    });
+    advertise(
+      ['phaseDetection'],
+      sensorComponent<NonNullable<B2500V2CtDiagnosisData['phaseDetection']>>({
+        id: 'phase_detection',
+        name: 'Phase Detection',
+        icon: 'mdi:sine-wave',
+        valueMappings: {
+          idle: 'Idle',
+          detecting: 'Detecting',
+          failed: 'Failed',
+          done: 'Done',
+        },
+        enabled_by_default: false,
+      }),
+      {
+        enabled: (state: B2500V2CtDiagnosisData) =>
+          state.phaseDetection != null ? true : undefined,
+      },
     );
   });
 }

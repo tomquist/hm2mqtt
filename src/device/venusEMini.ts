@@ -965,8 +965,8 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
 
     // The Mini app's reboot flow adds `rst=1` to its `cd=61` MQTT command.
     // This differs from the BLE command and must not be sent without that
-    // parameter. The first-generation Venus has no reboot command; `cd=10`
-    // there is a WiFi-module version query.
+    // parameter. First-generation Venus uses `cd=28`; `cd=10` there is a
+    // WiFi-module version query.
     advertise(
       [],
       buttonComponent({

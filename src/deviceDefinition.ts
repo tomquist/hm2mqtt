@@ -90,6 +90,14 @@ export type FieldDefinition<
    */
   monotonic?: boolean;
   /**
+   * Only meaningful together with `monotonic`. A drop no larger than this is
+   * held: the previous value is kept until the counter catches up, however
+   * long the lower readings last. A larger drop goes through the usual reset
+   * confirmation. For counters that can briefly read too high by a known
+   * amount.
+   */
+  monotonicHoldDropsUpTo?: number;
+  /**
    * Only meaningful for multi-key (aggregate) fields. When set, the field is
    * computed from whichever keys are present instead of requiring all of them:
    * if none of the keys are present the field is skipped silently, and a partial
@@ -98,6 +106,12 @@ export type FieldDefinition<
    * of PV strings.
    */
   allowPartial?: boolean;
+  /**
+   * Skips the field for a message when this returns true, so the state keeps
+   * the value it had, e.g. one set by a command. Use where a key stops meaning
+   * the field's value on some firmware.
+   */
+  skip?: (values: Record<string, string>) => boolean;
 } & (TypeAtPath<T, KP> extends number | undefined
   ? {}
   : {
@@ -183,6 +197,12 @@ export interface MessageDefinition<T extends BaseDeviceData> {
    * dynamically poll per-pack BMS details only for packs that are present.
    */
   shouldPoll?: (state: BaseDeviceData) => boolean;
+  /**
+   * Extra delay, in ms, before this message's request is sent in a poll cycle,
+   * on top of the usual 100 ms spacing per message. For devices that only answer
+   * the last of several requests arriving close together.
+   */
+  pollOffsetMs?: number;
 }
 
 export type BaseDeviceData = {
@@ -236,6 +256,7 @@ export type BuildMessageFn = <T extends BaseDeviceData>(
     polled?: boolean;
     derive?: DeriveFn<T>;
     shouldPoll?: (state: BaseDeviceData) => boolean;
+    pollOffsetMs?: number;
   },
   args: BuildMessageDefinitionFn<T>,
 ) => void;
@@ -321,23 +342,35 @@ export function extractBaseType(deviceType: string): string {
   return match != null ? match[1] : deviceType;
 }
 
+/**
+ * Look up the definition for a configured device type such as `HMA-1`.
+ *
+ * Most definitions are registered under the base type (`HMA`) and cover every
+ * variant of it. A few variants speak a different protocol than the rest of
+ * their base type (`HME-3` is a CT003, `HME-4` a CT002), so they are registered
+ * under the full type, which takes precedence. Each is tried exactly first and
+ * then case-insensitively.
+ */
 export function getDeviceDefinition(
   deviceType: string,
 ): DeviceDefinition<BaseDeviceData> | undefined {
   const baseType = extractBaseType(deviceType);
+  const candidates = baseType === deviceType ? [deviceType] : [deviceType, baseType];
 
-  // Exact match
-  const exact = deviceDefinitionRegistry.get(baseType);
-  if (exact) {
-    return exact;
-  }
+  for (const candidate of candidates) {
+    // Exact match
+    const exact = deviceDefinitionRegistry.get(candidate);
+    if (exact) {
+      return exact;
+    }
 
-  // Case-insensitive match
-  const upperBase = baseType.toUpperCase();
-  for (const [key, definition] of deviceDefinitionRegistry) {
-    if (key.toUpperCase() === upperBase) {
-      logger.info(`Device type "${deviceType}" matched as "${key}" (case-insensitive)`);
-      return definition;
+    // Case-insensitive match
+    const upperCandidate = candidate.toUpperCase();
+    for (const [key, definition] of deviceDefinitionRegistry) {
+      if (key.toUpperCase() === upperCandidate) {
+        logger.info(`Device type "${deviceType}" matched as "${key}" (case-insensitive)`);
+        return definition;
+      }
     }
   }
 

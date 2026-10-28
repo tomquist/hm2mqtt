@@ -9,15 +9,21 @@ import { chain, divide, notEqualsBoolean, number, round } from '../transforms.js
 import { extractMeterDeviceInfo, registerMeterBaseFields } from './meterBase.js';
 
 /**
- * Marstek smart meter reader, device type `SMR-X`:
+ * Marstek CT003 smart meter reader. It reads the attached utility meter over
+ * its P1 port or an infrared head and is sold under these device types:
  *
+ * - `HME-3` — CT003
+ * - `HME-5` — CT003
  * - `SMR-0` — Marstek P1 Meter
  * - `SMR-1` — Marstek Infrared Meter
  * - `SMR-2` — Marstek TIC Meter
  *
- * They are sold as the Marstek CT003 Smart Meter Reader, and report the same
- * runtime payload as the CT002 smart meter (see `meterBase.ts`) plus a handful
- * of reader specific keys.
+ * They report the same runtime payload as the CT002 smart meter (see
+ * `meterBase.ts`), without its measurement-direction bitmask, plus a handful of
+ * reader specific keys.
+ *
+ * `HME-3` and `HME-5` are registered under their full type because `HME-2` and
+ * `HME-4` share the `HME` base type but are CT002s (see `ct002.ts`).
  */
 
 const requiredRuntimeInfoKeys = ['pwr_t', 'ver_v'];
@@ -28,7 +34,7 @@ function isSmrRuntimeInfoMessage(values: Record<string, string>): boolean {
 
 registerDeviceDefinition(
   {
-    deviceTypes: ['SMR'],
+    deviceTypes: ['SMR', 'HME-3', 'HME-5'],
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message);
@@ -50,9 +56,11 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
     const { field, advertise } = args;
 
-    // Reported in 0.1 Wh. The value is a net meter reading (grid import minus
-    // export), so it can go down as well as up — hence `total` rather than
-    // `total_increasing`.
+    // Reported in 0.1 Wh. What it counts depends on the meter protocol: on SML
+    // meters (`ptl_t=0`) it is the import register only, on DSMR/P1 meters
+    // (`ptl_t=1`) it is the net reading (import minus export, both tariffs), so
+    // it can go down as well as up — hence `total` rather than
+    // `total_increasing`, which suits both.
     field({ key: 'eng_t', path: ['totalEnergy'], transform: chain(divide(10), round(1)) });
     advertise(
       ['totalEnergy'],

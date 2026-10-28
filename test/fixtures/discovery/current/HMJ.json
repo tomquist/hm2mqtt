@@ -521,38 +521,7 @@
       "unique_id": "0123456789ab_input1_charging",
       "value_template": "{{ value_json.solarInputStatus.input1Charging }}"
     },
-    "homeassistant/binary_sensor/HMJ_0123456789ab/input1_pass_through/config": {
-      "availability": [
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/availability"
-        },
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/HMJ/availability/0123456789ab"
-        }
-      ],
-      "device": {
-        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
-        "ids": ["hame_energy_0123456789ab"],
-        "manufacturer": "HAME Energy",
-        "model_id": "HMJ",
-        "name": "HAME Energy HMJ 0123456789ab"
-      },
-      "device_class": "power",
-      "name": "Input 1 Pass Through",
-      "origin": {
-        "name": "hm2mqtt",
-        "url": "https://github.com/tomquist/hm2mqtt"
-      },
-      "payload_off": false,
-      "payload_on": true,
-      "state_topic": "hm2mqtt/HMJ/device/0123456789ab/data",
-      "unique_id": "0123456789ab_input1_pass_through",
-      "value_template": "{{ value_json.solarInputStatus.input1PassThrough }}"
-    },
+    "homeassistant/binary_sensor/HMJ_0123456789ab/input1_pass_through/config": null,
     "homeassistant/binary_sensor/HMJ_0123456789ab/input2_charging/config": {
       "availability": [
         {
@@ -585,38 +554,7 @@
       "unique_id": "0123456789ab_input2_charging",
       "value_template": "{{ value_json.solarInputStatus.input2Charging }}"
     },
-    "homeassistant/binary_sensor/HMJ_0123456789ab/input2_pass_through/config": {
-      "availability": [
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/availability"
-        },
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/HMJ/availability/0123456789ab"
-        }
-      ],
-      "device": {
-        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
-        "ids": ["hame_energy_0123456789ab"],
-        "manufacturer": "HAME Energy",
-        "model_id": "HMJ",
-        "name": "HAME Energy HMJ 0123456789ab"
-      },
-      "device_class": "power",
-      "name": "Input 2 Pass Through",
-      "origin": {
-        "name": "hm2mqtt",
-        "url": "https://github.com/tomquist/hm2mqtt"
-      },
-      "payload_off": false,
-      "payload_on": true,
-      "state_topic": "hm2mqtt/HMJ/device/0123456789ab/data",
-      "unique_id": "0123456789ab_input2_pass_through",
-      "value_template": "{{ value_json.solarInputStatus.input2PassThrough }}"
-    },
+    "homeassistant/binary_sensor/HMJ_0123456789ab/input2_pass_through/config": null,
     "homeassistant/binary_sensor/HMJ_0123456789ab/output1_active_state/config": {
       "availability": [
         {
@@ -1176,7 +1114,7 @@
           "topic": "hm2mqtt/HMJ/availability/0123456789ab"
         }
       ],
-      "command_template": "{% set mapping = {\"Phase 1\":\"0\",\"Phase 2\":\"1\",\"Phase 3\":\"2\",\"Searching\":\"searching\",\"None\":\"unknown\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
+      "command_template": "{% set mapping = {\"Phase 1\":\"0\",\"Phase 2\":\"1\",\"Phase 3\":\"2\",\"All Phases\":\"searching\",\"Auto-detect\":\"unknown\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
       "command_topic": "hm2mqtt/HMJ/control/0123456789ab/connected-phase",
       "device": {
         "connections": [["bluetooth", "01:23:45:67:89:AB"]],
@@ -1186,14 +1124,14 @@
         "name": "HAME Energy HMJ 0123456789ab"
       },
       "name": "CT Connected Phase",
-      "options": ["Phase 1", "Phase 2", "Phase 3", "Searching", "None"],
+      "options": ["Phase 1", "Phase 2", "Phase 3", "All Phases", "Auto-detect"],
       "origin": {
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
       "state_topic": "hm2mqtt/HMJ/device/0123456789ab/data",
       "unique_id": "0123456789ab_ct_connected_phase",
-      "value_template": "{% set mapping = {\"0\":\"Phase 1\",\"1\":\"Phase 2\",\"2\":\"Phase 3\",\"searching\":\"Searching\",\"unknown\":\"None\"} %}{% set stringifiedValue = value_json.ctInfo.connectedPhase | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
+      "value_template": "{% set mapping = {\"0\":\"Phase 1\",\"1\":\"Phase 2\",\"2\":\"Phase 3\",\"searching\":\"All Phases\",\"unknown\":\"Auto-detect\"} %}{% set stringifiedValue = value_json.ctInfo.connectedPhase | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
     },
     "homeassistant/select/HMJ_0123456789ab/meter_type/config": {
       "availability": [
@@ -1652,7 +1590,7 @@
       },
       "state_topic": "hm2mqtt/HMJ/device/0123456789ab/data",
       "unique_id": "0123456789ab_ct_status",
-      "value_template": "{% set mapping = {\"preparing1\":\"Preparing to diagnose CT001 (Step 1)\",\"preparing2\":\"Preparing to diagnose CT001 (Step 2)\",\"diagnosingEquipment\":\"Diagnosing CT001 equipment\",\"diagnosingChannel\":\"Diagnosing CT001 channel\",\"diagnosisTimeout\":\"Diagnosis timeout\",\"chargingInProgress\":\"Charging in progress\",\"unableToFindChannel\":\"Unable to find channel\",\"notInDiagnosis\":\"Not in diagnosis\"} %}{% set stringifiedValue = value_json.ctInfo.status | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
+      "value_template": "{% set mapping = {\"preparing1\":\"Preparing to diagnose CT001 (Step 1)\",\"preparing2\":\"Preparing to diagnose CT001 (Step 2)\",\"diagnosingEquipment\":\"Diagnosing CT001 equipment\",\"diagnosingChannel\":\"Diagnosing CT001 channel\",\"diagnosisTimeout\":\"Diagnosis timeout\",\"chargingInProgress\":\"Charging in progress\",\"unableToFindChannel\":\"Unable to find channel\",\"fullBatteryPassThrough\":\"Full battery: PV pass-through\",\"notInDiagnosis\":\"Not in diagnosis\"} %}{% set stringifiedValue = value_json.ctInfo.status | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
     },
     "homeassistant/sensor/HMJ_0123456789ab/ct_transmitted_power/config": {
       "availability": [
@@ -2653,7 +2591,7 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$",
       "state_topic": "hm2mqtt/HMJ/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_1_end_time",
       "value_template": "{{ value_json.timePeriods[0].endTime }}"
@@ -2684,7 +2622,7 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$",
       "state_topic": "hm2mqtt/HMJ/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_1_start_time",
       "value_template": "{{ value_json.timePeriods[0].startTime }}"
@@ -2715,7 +2653,7 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$",
       "state_topic": "hm2mqtt/HMJ/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_2_end_time",
       "value_template": "{{ value_json.timePeriods[1].endTime }}"
@@ -2746,7 +2684,7 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$",
       "state_topic": "hm2mqtt/HMJ/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_2_start_time",
       "value_template": "{{ value_json.timePeriods[1].startTime }}"
@@ -2777,7 +2715,7 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$",
       "state_topic": "hm2mqtt/HMJ/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_3_end_time",
       "value_template": "{{ value_json.timePeriods[2].endTime }}"
@@ -2808,7 +2746,7 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$",
       "state_topic": "hm2mqtt/HMJ/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_3_start_time",
       "value_template": "{{ value_json.timePeriods[2].startTime }}"
@@ -2839,7 +2777,7 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$",
       "state_topic": "hm2mqtt/HMJ/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_4_end_time",
       "value_template": "{{ value_json.timePeriods[3].endTime }}"
@@ -2870,7 +2808,7 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$",
       "state_topic": "hm2mqtt/HMJ/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_4_start_time",
       "value_template": "{{ value_json.timePeriods[3].startTime }}"
@@ -2901,7 +2839,7 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$",
       "state_topic": "hm2mqtt/HMJ/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_5_end_time",
       "value_template": "{{ value_json.timePeriods[4].endTime }}"
@@ -2932,7 +2870,7 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-2]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([01]?[0-9]|2[0-3]):[0-5][0-9]|24:00)$",
       "state_topic": "hm2mqtt/HMJ/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_5_start_time",
       "value_template": "{{ value_json.timePeriods[4].startTime }}"

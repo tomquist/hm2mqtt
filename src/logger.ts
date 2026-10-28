@@ -1,4 +1,5 @@
 import pino, { type Logger } from 'pino';
+import { prettyFactory } from 'pino-pretty';
 import { inspect } from 'util';
 import { redactDeep } from './utils/redact.js';
 
@@ -89,23 +90,36 @@ export function logMethodHook(
   consoleStyleLogMethod.call(this, inputArgs, redactingMethod);
 }
 
-const logger: LooseLogger = pino({
-  level: resolvedLevel,
-  hooks: {
-    logMethod: logMethodHook,
-  },
-  transport: {
-    targets: [
-      {
-        target: 'pino-pretty',
-        options: {
-          colorize: false,
-          translateTime: 'HH:MM:ss',
-          ignore: 'pid,hostname',
-        },
-      },
-    ],
-  },
+/**
+ * Log lines are pretty-printed on the main thread and written to stdout
+ * synchronously.
+ *
+ * pino's `transport` option runs the same formatter in a worker thread instead,
+ * and a worker thread is a second V8 instance: about 17 MB of extra memory, for
+ * a bridge that logs a handful of lines a minute. Writing synchronously also
+ * means nothing is left in a buffer when `process.exit()` runs right after a
+ * log call, which is how fatal startup errors end.
+ */
+const prettify = prettyFactory({
+  colorize: false,
+  translateTime: 'HH:MM:ss',
+  ignore: 'pid,hostname',
 });
+const stdout = pino.destination({ dest: 1, sync: true });
+const prettyStdout = {
+  write(line: string) {
+    stdout.write(prettify(line));
+  },
+};
+
+const logger: LooseLogger = pino(
+  {
+    level: resolvedLevel,
+    hooks: {
+      logMethod: logMethodHook,
+    },
+  },
+  prettyStdout,
+);
 
 export default logger;

@@ -57,3 +57,42 @@ export const transformNumber = (value: string) => {
 export const transformTemperature = (value: string) => {
   return executeTransform(temperature(), value) as number;
 };
+
+/** The Venus models that share the gen-1 Venus device definitions. */
+export type VenusModel = 'HMG' | 'VNSE3' | 'VNSA' | 'VNSD';
+
+/**
+ * Normalise a Venus control firmware build reported as `dev_n`.
+ *
+ * Most builds report three digits (`156`), but point builds report four, with
+ * the last digit after the point: firmware 158.1 reports `dev_n=1581`.
+ *
+ * @returns The build as a number (`156`, `158.1`), or `undefined` when unknown
+ */
+export function venusBuild(deviceVersion: number | undefined): number | undefined {
+  if (deviceVersion == null || !Number.isFinite(deviceVersion) || deviceVersion <= 0) {
+    return undefined;
+  }
+  return deviceVersion >= 1000 ? deviceVersion / 10 : deviceVersion;
+}
+
+/**
+ * Whether a Venus model and build support a feature.
+ *
+ * `thresholds` gives the first build of each model with the feature. A model
+ * missing from it never has the feature (`false`), and a threshold of `0` means
+ * every build has it (`true`), so neither needs any device data. Otherwise the
+ * build decides, and an unknown build gives `undefined`. Every threshold is
+ * open-ended: newer builds keep the feature.
+ */
+export function venusSupports(
+  model: VenusModel,
+  deviceVersion: number | undefined,
+  thresholds: Partial<Record<VenusModel, number>>,
+): boolean | undefined {
+  const threshold = thresholds[model];
+  if (threshold === undefined) return false;
+  if (threshold === 0) return true;
+  const build = venusBuild(deviceVersion);
+  return build === undefined ? undefined : build >= threshold;
+}
