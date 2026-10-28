@@ -804,6 +804,12 @@ confirmed. Complete schedules must not overlap on any selected weekday, even
 when one or both schedules are disabled. Adjacent schedules are allowed. End
 time must be later than start time; split an overnight schedule into two slots.
 
+This is deliberately stricter than the Marstek app, which checks conflicts
+against enabled schedules. In hm2mqtt, a complete disabled schedule still
+reserves its time. Disabling it does not bypass the overlap check. If overlapping
+slots already exist from another interface, adjust their times or weekdays so
+they no longer overlap before applying changes through hm2mqtt.
+
 Home Assistant shows the battery's reported values separately from *Draft*
 controls. Draft controls, Apply buttons and the *Experimental Schedule Controls*
 switch are disabled by default in discovery. Enable the desired entities, then
