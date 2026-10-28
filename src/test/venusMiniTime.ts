@@ -7,8 +7,13 @@ const time = process.argv[2];
 if (!time) {
   throw new Error('A device-local time is required');
 }
+const receivedAt = process.argv[3] ? Date.parse(process.argv[3]) : Date.now();
+if (!Number.isFinite(receivedAt)) {
+  throw new Error('A valid reception timestamp is required');
+}
+Date.now = () => receivedAt;
 const data = parseMessage(
-  miniRuntimePayload([], new Date(), { time }),
+  miniRuntimePayload([], new Date(receivedAt), { time }),
   'VNSEMINI-0',
   'timezone-test',
 ).data as VenusMiniDeviceData;

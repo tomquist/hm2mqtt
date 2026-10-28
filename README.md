@@ -838,8 +838,12 @@ hm2mqtt process timezone to match the battery. For Docker or Kubernetes, set the
 container environment variable `TZ` to an IANA timezone such as `Europe/Rome`
 or `Europe/Berlin`; use your actual location, not a fixed UTC offset. A UTC
 container interpreting a summer-time clock can display *Device Time* hours in
-the future. Clock changes, including daylight-saving transitions, can pause or
-lock schedule controls until advancing readings are trustworthy again.
+the future. During the repeated hour when daylight saving ends, hm2mqtt chooses
+the matching UTC occurrence nearest the telemetry reception time. This also
+handles half-hour transitions; invalid calendar values and nonexistent
+spring-forward times are not normalized into valid readings. Delayed telemetry
+and actual device-clock errors can still pause or lock controls until advancing
+readings are trustworthy again.
 
 hm2mqtt must not briefly enable a new schedule just to make it appear in the
 Marstek app. The battery could start charging or discharging before the second

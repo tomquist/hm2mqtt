@@ -11,6 +11,7 @@
 
 ### Fixed
 
+- Venus E Mini: Device time now distinguishes both occurrences of the repeated local hour when daylight saving ends, avoiding a false clock regression that could block schedule controls.
 - Venus: The *CT Type* sensor showed the wrong meter on the Venus E 3.0, Venus A and Venus D. A CT003, for example, showed up as "Shelly Pro". The sensor now reads the meter type correctly on every Venus model and names the meter by its model, e.g. "CT003" or "Shelly Pro 3EM" (fixes #354, PR #448)
 - The MQTT broker password no longer shows up in the log. On startup, the broker URL was written to the log with its credentials in plaintext, which meant sharing a log for troubleshooting could hand out the broker password. In the Home Assistant add-on this affected the password of Home Assistant's own MQTT broker. Broker URLs now appear as `mqtt://user:***@host:1883` (fixes #424, PR #435)
 

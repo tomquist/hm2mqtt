@@ -154,7 +154,31 @@ function parseVenusMiniDeviceTime(value: string): string {
   ) {
     return value;
   }
-  return date.toISOString();
+  // A repeated local hour has two valid UTC instants. Choose the occurrence
+  // nearest reception, but never normalize an invalid or nonexistent local time.
+  const receivedAt = Date.now();
+  const candidates = [date];
+  const offsets = new Set(
+    [-36, 36].map(hours => new Date(date.getTime() + hours * 60 * 60 * 1000).getTimezoneOffset()),
+  );
+  for (const offset of offsets) {
+    const candidate = new Date(date.getTime() + (offset - date.getTimezoneOffset()) * 60_000);
+    if (
+      candidate.getFullYear() === year &&
+      candidate.getMonth() === month - 1 &&
+      candidate.getDate() === day &&
+      candidate.getHours() === hour &&
+      candidate.getMinutes() === minute &&
+      candidate.getSeconds() === second
+    ) {
+      candidates.push(candidate);
+    }
+  }
+  candidates.sort(
+    (first, second) =>
+      Math.abs(first.getTime() - receivedAt) - Math.abs(second.getTime() - receivedAt),
+  );
+  return candidates[0].toISOString();
 }
 
 // Fields the vendor app does parse, named after what it parses them into.
