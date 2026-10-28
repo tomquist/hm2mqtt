@@ -874,14 +874,17 @@ change.
   MAC. Shows the last value set. Disabled by default.
 - `refresh`: Refreshes the device data. Disabled by default.
 - `get-ct-power`: Gets current transformer power readings. Disabled by default.
-- `restart`: Sends the app-derived MQTT reboot request once on the latest live
-  namespace. The request format is app-confirmed; device-side reboot behavior
-  is not yet hardware-confirmed. Schedule controls are disabled until healthy
-  telemetry returns. Disabled by default.
+- `restart`: Requests a battery reboot, confirmed working on a real Venus E
+  Mini. Sends once on the latest live MQTT namespace without automatic retries;
+  no request is sent if no live namespace has been observed. Cancels any pending
+  schedule Apply and locks experimental schedule controls. After three fresh,
+  advancing runtime readings, explicitly turn *Experimental Schedule Controls*
+  back on. hm2mqtt does not verify reboot completion or automatically unlock
+  controls. This does not restart hm2mqtt or clear schedules. Disabled by default.
 - `factory-reset`: Resets the device to factory settings. Disabled by default.
 
-**Beta.** Runtime polling and manual schedule command formats have been confirmed
-on a real device. Limited 100 W tests confirmed editing an existing charging
+**Beta.** Runtime polling, restart and manual schedule command formats have been
+confirmed on a real device. Limited 100 W tests confirmed editing an existing charging
 slot and creating a new slot visible in Home Assistant and the Marstek app.
 Other directions, all slot combinations and recovery from every failure have
 not been hardware-verified.
