@@ -27,8 +27,8 @@
   },
   "dependencies": {
     "aedes": "^1.2.0",
-    "dotenv": "^18.0.7",
-    "mqtt": "^5.16.0",
+    "dotenv": "^18.0.9",
+    "mqtt": "^5.16.1",
     "pino": "^10.4.0",
     "pino-pretty": "^13.2.0"
   },
@@ -39,9 +39,9 @@
     "jest": "^30.5.2",
     "jest-junit": "^17.0.0",
     "jest-util": "^30.4.1",
-    "oxfmt": "^0.72.0",
-    "oxlint": "^1.87.0",
-    "ts-jest": "^29.4.14",
+    "oxfmt": "^0.74.0",
+    "oxlint": "^1.89.0",
+    "ts-jest": "^29.4.15",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vite-node": "^6.0.0"
   }
