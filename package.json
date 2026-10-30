@@ -7,7 +7,7 @@
     "node": "^20.19.0 || >=22.12.0"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsrs",
     "start": "node dist/index.js",
     "dev": "vite-node src/index.ts",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
@@ -35,14 +35,13 @@
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/node": "^26.6.5",
-    "@typescript/native": "npm:typescript@^7.0.2",
     "jest": "^30.5.2",
     "jest-junit": "^17.0.0",
     "jest-util": "^30.4.1",
+    "oxc-transform": "^0.156.0",
     "oxfmt": "^0.74.0",
     "oxlint": "^1.89.0",
-    "ts-jest": "^29.4.15",
-    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "tsrs": "0.20.1-ts7.1.0-beta",
     "vite-node": "^6.0.0"
   }
 }
