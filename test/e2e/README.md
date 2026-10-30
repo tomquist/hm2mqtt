@@ -34,9 +34,9 @@ Home Assistant is observed **over MQTT**: a generated automation mirrors entity
 state changes to `e2e/state/<entity_id>`, so assertions read entity states
 without authenticating against the HTTP API.
 
-## The two scenarios
+## The scenarios
 
-- **`smoke.e2e.ts`** — a fresh installation. Three devices from different
+- **`smoke.e2e.ts`** — a fresh installation. Devices from different
   families announce their entities; the entities must reach real states and
   Home Assistant must log no complaint.
 - **`upgrade.e2e.ts`** — an existing installation. The previous release's
@@ -45,6 +45,16 @@ without authenticating against the HTTP API.
   the top. Applying a changed discovery message to an entity that already
   exists is a different code path in Home Assistant than creating one, and it
   is the one that has broken before.
+- **`venusMini.e2e.ts`** — existing Mini reported sensors plus user-enabled draft
+  controls. Checks padded polling, subscriptions, Home Assistant number/switch/
+  button actions, staged changes and acknowledged read-back without changing
+  reported entity identity or statistics metadata. The simulator accepts writes
+  only on the isolated scenario broker; no physical battery is contacted.
+
+The Mini scenario bootstraps the selected experimental entities as enabled in
+the test registry, then checks that production discovery still advertises them
+disabled by default. Its optional MQTT action automation exercises real Home
+Assistant services without adding authentication to the harness.
 
 ## Discovery baselines
 

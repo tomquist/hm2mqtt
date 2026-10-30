@@ -112,7 +112,7 @@ Declared in `modules/devices/entity/dev_data.dart` (the `VxCmd` mixin).
 | Access power | `cd=46,cv=<n>` | `CMD_SET_ACCESS_POWER` |
 | Anti-reverse-flow | `cd=54,am=<n>` | `CMD_SET_ANTL_REVERSE` |
 | Bluetooth advertising | `cd=55,adv=<0\|1>` | `CMD_SET_BLUETOOTH_STATE` |
-| Reboot | `cd=61` | `CMD_SET_REBOOT` |
+| Reboot | MQTT request `cd=61,rst=1` (derived from the app's model reboot method and MQTT command descriptor) | `CMD_SET_REBOOT` descriptor |
 | Configure WiFi | *(Bluetooth only — no MQTT form)* | `CMD_SET_WIFI` |
 | Manual mode config | `cd=` *(built at the call site)* | `CMD_SET_MODE_MANUAL_INFO` |
 
@@ -149,11 +149,91 @@ either — always read the model's own table.
 | ------- | ------- | -------- |
 | Get NOW power | `cd=59` | `CMD_GET_NOW_POWER` |
 | Bluetooth advertising | `cd=55,adv=<0\|1>` | `CMD_SET_BLUETOOTH_STATE` |
+| Schedule slot 1–6 | `cd=<47–52>,mN=<0\|1>,mpN=<W>,msN=<1\|2\|3>,stN=<HH:mm>,etN=<HH:mm>,reN=<mask>` | `CMD_SET_MODE_MANUAL_INFO` |
 | Configure server | `cd=60,ser=<n>` | `CMD_SET_SERVER` |
 | Recharge type | `cd=63,ct_chg_type=<n>` | `CMD_SET_CT_CHARGE_TYPE` |
 | Configure WiFi | *(Bluetooth only)* | `CMD_SET_WIFI` |
 
 The Mini has no `cd=19`, which is why hm2mqtt polls it for power with `cd=59`.
+Its schedule slots are configured consecutively as a precaution. Out-of-sequence
+writes were suspected of causing a hang on earlier firmware; causation and the
+exact firmware failure conditions remain unconfirmed.
+
+### Venus E Mini schedule slot behavior
+
+Live tests established that the six MQTT slots and the schedules shown by the
+Marstek app are not the same thing:
+
+- The battery always reports all six slots.
+- Setting `mN=0` disables a slot but does not erase its other values.
+- Removing a schedule in the app leaves the old power, direction, times and
+  repeat mask in the battery. The app hides that slot and may reuse it later.
+- Creating a complete slot over MQTT with `mN=0` does not make it appear in the
+  app.
+- Creating it with `mN=1` makes it appear. Setting `mN=0` afterward disables it
+  but leaves it visible in the app.
+
+This means MQTT telemetry cannot tell whether the app will show a disabled slot.
+The app keeps additional state that is not present in the device response.
+Home Assistant should continue to show the values reported by the battery.
+
+Schedule edits are staged independently from telemetry, then all slot fields are
+sent in one command when the user selects *Apply*. hm2mqtt must not
+automatically enable and then disable a schedule to make it visible in the app.
+That two-command workaround could briefly start charging or discharging when
+the configured time range includes the current time.
+
+The app also rejects schedules whose time ranges overlap on a selected weekday.
+hm2mqtt applies the same guard to all complete slots, including disabled slots.
+Intervals that meet at one boundary do not overlap. Only same-day intervals are
+accepted; an overnight schedule needs two slots.
+
+Schedule writes require an explicit, non-persistent opt-in and three complete
+runtime readings with advancing device time. Apply refreshes before writing,
+uses only the latest live namespace, waits for `cdNN=ok`, then requests another
+runtime response. Confirmation requires an advancing device clock, exact target
+slot read-back, unchanged other slots, and Manual mode. Pending writes block
+additional Apply requests and other normal device writes. No commands are queued.
+
+Preflight refresh and read-back time out after 150 seconds to accommodate
+60-second relay synchronization and one skipped cycle. Acknowledgements still time out after
+15 seconds. Confirmed writes have a ten-second cooldown. Runtime receipt and
+device-clock progress must remain within the polling interval plus 15 seconds,
+with a minimum allowance of 90 seconds. Temporary staleness pauses writes while
+preserving opt-in; an advancing valid snapshot restores readiness without
+retrying a command. Prolonged staleness (two polling intervals plus 30 seconds,
+at least 150 seconds), faults, command failures and disconnects lock controls.
+Recovery from a lockout needs three new healthy readings and explicit
+re-enablement.
+
+Cached packets do not count as device-clock progress and older snapshots are
+ignored for schedule decisions. A mismatched target read-back remains
+unconfirmed until a matching newer snapshot arrives or the original deadline
+expires. Changes to other slots or Manual mode still abort immediately.
+The clock-jump check
+compares elapsed time since the last clock advancement, not the latest packet.
+It allows up to 150 seconds of additional forward progress for a delayed
+snapshot catching up; larger discontinuities still lock controls.
+Retained control and response messages cannot authorize a transaction. Guarded
+publishes use QoS 0, are not retained, and are rejected while the broker is
+disconnected to avoid queued or retransmitted device writes.
+
+These checks do not establish firmware safety. Acknowledgements contain no
+transaction identifier, so a delayed acknowledgement for the same slot cannot
+be distinguished from the current one. Post-write telemetry reduces that risk
+but cannot prove actual power-control behavior or exclude concurrent app writes.
+Limited tests on one Mini confirmed editing an existing slot and
+creating a new slot. Its reported firmware identifiers were PMU 301,
+inverter 270 and DC-DC 269. The transport was hame-relay 1.5.0 through Marstek's
+cloud, with roughly 60-second telemetry synchronization. This is not a
+compatibility guarantee for other firmware, direct MQTT, all directions or all
+failure-recovery paths.
+
+The `time` field has no timezone offset. Its parser uses the hm2mqtt process
+timezone, so a container's `TZ` must match the battery's local timezone. Use an
+IANA name so daylight-saving rules are applied. Clock jumps or ambiguous
+fall-back readings can pause or lock writes; do not bypass that guard or
+automatically resynchronize the device clock.
 
 ## A `cd=60` ambiguity worth knowing about
 
@@ -187,9 +267,10 @@ Of the second generation, only the Venus E Mini is supported, and only partly:
 - `cd=55,adv=` bluetooth advertising — implemented
 - `cd=44,do=` depth of discharge — implemented
 - `cd=02,md=` working mode — implemented
+- `cd=47` through `cd=52` manual-mode schedule slots — implemented
 - `cd=18,meter=,mac=` meter type — implemented
 - `cd=05` factory reset — implemented
-- `cd=61` reboot — implemented
+- `cd=61,rst=1` reboot request — app-derived; device-side result remains unconfirmed
 - `cd=01` refresh and `cd=59` get CT power — also exposed as buttons, so a poll
   can be triggered on demand
 
@@ -208,8 +289,8 @@ doubt; the exception is the grid-connection power limit, which has no device
 command to implement (see below):
 `cd=60,ser=`, `cd=63,ct_chg_type=` and `cd=54,am=,aw=,ap=` have no documented
 value set; `cd=3` and `cd=4` are reads whose reply shape is unknown; `cd=33`
-has known parameters but an undetermined local-vs-UTC convention (see below);
-and manual-mode scheduling is assembled per call. Venus X and Venus G have no
+has known parameters but an undetermined local-vs-UTC convention (see below).
+Venus X and Venus G have no
 device definitions at all.
 
 ### `cd=33` and the local-vs-UTC question

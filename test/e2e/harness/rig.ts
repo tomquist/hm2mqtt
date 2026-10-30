@@ -55,6 +55,7 @@ export interface RigOptions {
   /** Used for the scratch directory name, so a failed run can be inspected. */
   name: string;
   fixtures: DeviceFixture[];
+  enableActionBridge?: boolean;
 }
 
 /**
@@ -94,6 +95,7 @@ export async function startRig(options: RigOptions): Promise<Rig> {
         configDir: join(TMP_ROOT, options.name),
         brokerPort: broker.port,
         discoveryPrefix: DEFAULT_AUTODISCOVERY_TOPIC_PREFIX,
+        enableActionBridge: options.enableActionBridge,
       }),
     );
 

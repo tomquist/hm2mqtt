@@ -5,8 +5,9 @@ import {
 } from '../deviceDefinition.js';
 import {
   VenusMiniDeviceData,
-  VenusMiniTimePeriod,
+  VenusMiniScheduleDirection,
   VenusMiniWorkingMode,
+  WeekdaySet,
   isValidMeterType,
   isValidVenusMiniWorkingMode,
   meterTypeCommandCodes,
@@ -24,7 +25,17 @@ import {
   textComponent,
 } from '../homeAssistantDiscovery.js';
 import logger from '../logger.js';
-import { divide, equalsBoolean, identity, map, negateIfPositive, number } from '../transforms.js';
+import {
+  bitMaskToWeekday,
+  divide,
+  equalsBoolean,
+  identity,
+  map,
+  negateIfPositive,
+  number,
+} from '../transforms.js';
+import { MINI_SCHEDULE_POWER_MAX, VenusMiniScheduleSession } from './venusMiniSchedule.js';
+import type { VenusMiniScheduleData } from '../types.js';
 
 /**
  * Marstek Venus E Mini, device type `VNSEMINI-X` (e.g. `VNSEMINI-0`).
@@ -34,12 +45,13 @@ import { divide, equalsBoolean, identity, map, negateIfPositive, number } from '
  * HMG/VNSE3/VNSA/VNSD family, so it gets its own definition here rather than
  * reusing anything in `venus.ts`.
  *
- * Only the runtime response to `cd=01` has been captured from a real device.
- * The other command formats here are read out of the Marstek app's own command
- * table for this model rather than observed on hardware, so they are the app's
- * ground truth but not yet confirmed end to end. Fields whose meaning is not
- * confirmed are exposed verbatim as disabled-by-default sensors under
- * `raw`/`ctRaw` rather than being given a name that asserts a meaning.
+ * The runtime response to `cd=01` and the manual schedule commands `cd=47`
+ * through `cd=52` have been confirmed on a real device. The other command
+ * formats here are read out of the Marstek app's own command table for this
+ * model rather than observed on hardware, so they are the app's ground truth
+ * but not yet confirmed end to end. Fields whose meaning is not confirmed are
+ * exposed verbatim as disabled-by-default sensors under `raw`/`ctRaw` rather
+ * than being given a name that asserts a meaning.
  *
  * This model runs Marstek's second-generation Venus firmware, along with the
  * Venus X and Venus G. That generation numbers its commands differently from
@@ -80,13 +92,10 @@ import { divide, equalsBoolean, identity, map, negateIfPositive, number } from '
  *   first-generation Venus `cd=4`, which has no `wy` at all, takes local time.
  *   The app calls timeZoneOffset once either way, so it does not settle which
  *   convention this command follows. Getting it wrong sets the device clock off
- *   by the offset, which is the bug the B2500 shipped once already; and since
- *   nothing here drives the Mini's schedules yet, a sync button would carry
- *   that risk without buying anything. Pressing it in the app with a device
- *   whose reported `time` is watched would settle it in one go.
- * - Manual-mode scheduling. The app builds the `cd=` number at the call site,
- *   and the device reports no schedule state at all, so there is nothing to
- *   check an implementation against.
+ *   by the offset, which is the bug the B2500 shipped once already. Since the
+ *   Mini's schedules depend on that clock, a sync button must not be added until
+ *   the convention is known. Pressing it in the app with a device whose
+ *   reported `time` is watched would settle it in one go.
  * - `CMD_SET_WIFI` (configure device WiFi) carries network credentials, and is
  *   Bluetooth-only anyway - it has no MQTT form.
  */
@@ -145,7 +154,31 @@ function parseVenusMiniDeviceTime(value: string): string {
   ) {
     return value;
   }
-  return date.toISOString();
+  // A repeated local hour has two valid UTC instants. Choose the occurrence
+  // nearest reception, but never normalize an invalid or nonexistent local time.
+  const receivedAt = Date.now();
+  const candidates = [date];
+  const offsets = new Set(
+    [-36, 36].map(hours => new Date(date.getTime() + hours * 60 * 60 * 1000).getTimezoneOffset()),
+  );
+  for (const offset of offsets) {
+    const candidate = new Date(date.getTime() + (offset - date.getTimezoneOffset()) * 60_000);
+    if (
+      candidate.getFullYear() === year &&
+      candidate.getMonth() === month - 1 &&
+      candidate.getDate() === day &&
+      candidate.getHours() === hour &&
+      candidate.getMinutes() === minute &&
+      candidate.getSeconds() === second
+    ) {
+      candidates.push(candidate);
+    }
+  }
+  candidates.sort(
+    (first, second) =>
+      Math.abs(first.getTime() - receivedAt) - Math.abs(second.getTime() - receivedAt),
+  );
+  return candidates[0].toISOString();
 }
 
 // Fields the vendor app does parse, named after what it parses them into.
@@ -724,8 +757,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     // Six charge/discharge schedule slots - the same concept as the other
     // Venus variants' tim_0..tim_9 periods, but with a flatter per-slot
     // encoding (m{n}/mp{n}/ms{n}/st{n}/et{n}/re{n} instead of one
-    // pipe-separated field). The mode and repeat values are captured but
-    // their meaning is unconfirmed (see VENUS_MINI_NOTES.md).
+    // pipe-separated field). Draft controls are published separately.
     for (let i = 1; i <= 6; i++) {
       const idx = i - 1;
 
@@ -793,7 +825,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       });
       advertise(
         ['timePeriods', idx, 'direction'],
-        sensorComponent<NonNullable<VenusMiniTimePeriod['direction']>>({
+        sensorComponent<VenusMiniScheduleDirection>({
           id: `schedule_${i}_direction`,
           name: `Schedule Slot ${i} Direction`,
           icon: 'mdi:swap-vertical',
@@ -817,9 +849,21 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         }),
       );
 
-      // re{n} (127 seen on every active-looking slot, possibly a bitmask or
-      // "always" sentinel) - meaning unconfirmed.
+      // re{n} is a weekday bitmask with Monday in bit 0 and Sunday in bit 6.
       field({ key: `re${i}`, path: ['timePeriods', idx, 'repeatRaw'], transform: number() });
+      field({
+        key: `re${i}`,
+        path: ['timePeriods', idx, 'weekday'],
+        transform: bitMaskToWeekday(),
+      });
+      advertise(
+        ['timePeriods', idx, 'weekday'],
+        sensorComponent<WeekdaySet>({
+          id: `schedule_${i}_weekday`,
+          name: `Schedule Slot ${i} Weekday`,
+          icon: 'mdi:calendar-week',
+        }),
+      );
       advertise(
         ['timePeriods', idx, 'repeatRaw'],
         sensorComponent<number>({
@@ -919,11 +963,10 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       },
     });
 
-    // Reboot, `cd=61`. The first generation reboots with `cd=28` instead, and
-    // `cd=10` on those models is the WiFi-module version query, not a restart.
-    // No parameters, so there is nothing here to get wrong beyond the number
-    // itself. Disabled by default, matching the reset buttons on the other
-    // families.
+    // The Mini app's reboot flow adds `rst=1` to its `cd=61` MQTT command.
+    // This differs from the BLE command and must not be sent without that
+    // parameter. First-generation Venus uses `cd=28`; `cd=10` there is a
+    // WiFi-module version query.
     advertise(
       [],
       buttonComponent({
@@ -938,7 +981,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     command('restart', {
       handler: ({ message, publishCallback }) => {
         if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
-          publishCallback('cd=61');
+          publishCallback('cd=61,rst=1');
         }
       },
     });
@@ -1086,6 +1129,113 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
  * external meter is configured, so it answers no power request at all. The
  * entities only appear once a device actually reports the keys.
  */
+function registerVenusMiniScheduleMessage(message: BuildMessageFn) {
+  message<VenusMiniScheduleData>(
+    {
+      refreshDataPayload: '',
+      isMessage: () => false,
+      publishPath: 'schedule',
+      defaultState: {
+        drafts: [],
+        controlsEnabled: false,
+        status: 'Controls disabled',
+        lastError: '',
+      },
+      getAdditionalDeviceInfo: () => ({}),
+      pollInterval: globalPollInterval,
+      controlsDeviceAvailability: false,
+      polled: false,
+    },
+    ({ advertise }) => {
+      advertise(
+        ['controlsEnabled'],
+        switchComponent({
+          id: 'schedule_controls_enabled',
+          name: 'Experimental Schedule Controls',
+          command: 'schedule/controls-enabled',
+          enabled_by_default: false,
+        }),
+      );
+      advertise(
+        ['status'],
+        sensorComponent<string>({ id: 'schedule_status', name: 'Schedule Control Status' }),
+      );
+      advertise(
+        ['lastError'],
+        sensorComponent<string>({ id: 'schedule_error', name: 'Schedule Control Error' }),
+      );
+      for (let slot = 1; slot <= 6; slot++) {
+        const index = slot - 1;
+        const base = { name: `Schedule Slot ${slot} Draft`, enabled_by_default: false };
+        advertise(
+          ['drafts', index, 'enabled'],
+          switchComponent({
+            ...base,
+            id: `schedule_${slot}_draft_enabled`,
+            name: `${base.name} Enabled`,
+            command: `schedule/${slot}/enabled`,
+          }),
+        );
+        advertise(
+          ['drafts', index, 'power'],
+          numberComponent({
+            ...base,
+            id: `schedule_${slot}_draft_power`,
+            name: `${base.name} Power`,
+            command: `schedule/${slot}/power`,
+            unit_of_measurement: 'W',
+            min: 0,
+            max: MINI_SCHEDULE_POWER_MAX,
+            step: 1,
+          }),
+        );
+        advertise(
+          ['drafts', index, 'direction'],
+          selectComponent({
+            ...base,
+            id: `schedule_${slot}_draft_direction`,
+            name: `${base.name} Direction`,
+            command: `schedule/${slot}/direction`,
+            valueMappings: {
+              charge: 'Charge',
+              discharge: 'Discharge',
+              selfConsumption: 'Self Consumption',
+            },
+          }),
+        );
+        for (const [key, suffix, command] of [
+          ['startTime', 'start_time', 'start-time'],
+          ['endTime', 'end_time', 'end-time'],
+          ['weekday', 'weekday', 'weekday'],
+        ] as const) {
+          advertise(
+            ['drafts', index, key],
+            textComponent({
+              ...base,
+              id: `schedule_${slot}_draft_${suffix}`,
+              name: `${base.name} ${key === 'weekday' ? 'Weekdays' : key === 'startTime' ? 'Start Time' : 'End Time'}`,
+              command: `schedule/${slot}/${command}`,
+              pattern: key === 'weekday' ? '^0?1?2?3?4?5?6?$' : '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
+            }),
+          );
+        }
+        for (const action of ['apply', 'reset'] as const) {
+          advertise(
+            [],
+            buttonComponent({
+              id: `schedule_${slot}_${action}`,
+              name: `Schedule Slot ${slot} ${action === 'apply' ? 'Apply' : 'Reset Draft'}`,
+              command: `schedule/${slot}/${action}`,
+              payload_press: 'PRESS',
+              enabled_by_default: false,
+            }),
+          );
+        }
+      }
+    },
+  );
+}
+
 function registerVenusMiniCtPowerMessage(message: BuildMessageFn) {
   const options = {
     refreshDataPayload: 'cd=59',
@@ -1146,9 +1296,12 @@ registerDeviceDefinition(
   {
     deviceTypes: ['VNSEMINI'],
     beta: true,
+    createControlSession: context => new VenusMiniScheduleSession(context),
+    controlSubscriptions: ['schedule/#'],
   },
   ({ message }) => {
     registerVenusMiniRuntimeInfoMessage(message);
     registerVenusMiniCtPowerMessage(message);
+    registerVenusMiniScheduleMessage(message);
   },
 );

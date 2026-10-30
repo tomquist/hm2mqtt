@@ -21,6 +21,8 @@ export interface DeviceFixture {
   source: string;
   /** Response payload per requested command, e.g. `{ 1: 'cd=1,...' }`. */
   responses: Record<number, string>;
+  /** Optional per-device responder for scenarios that exercise writes. */
+  createResponder?: () => (request: string) => string | undefined;
 }
 
 const b2500V2: DeviceFixture = {
@@ -119,6 +121,61 @@ const jupiterPlus: DeviceFixture = {
   },
 };
 
+export const venusMiniFixture: DeviceFixture = {
+  deviceType: 'VNSEMINI-0',
+  source: 'Venus E Mini observed runtime fields with synthetic 100 W schedule values',
+  responses: {
+    1:
+      'gp=0,lp=0,ls=1,eg=0,ig=0,gs=5,cv=0,cm=2,ct=1,' +
+      'm1=0,mp1=100,ms1=1,st1=10:00,et1=11:00,re1=127,' +
+      'm2=0,mp2=0,ms2=0,st2=00:00,et2=00:00,re2=0,' +
+      'm3=0,mp3=0,ms3=0,st3=00:00,et3=00:00,re3=0,' +
+      'm4=0,mp4=0,ms4=0,st4=00:00,et4=00:00,re4=0,' +
+      'm5=0,mp5=0,ms5=0,st5=00:00,et5=00:00,re5=0,' +
+      'm6=0,mp6=0,ms6=0,st6=00:00,et6=00:00,re6=0,' +
+      'soc=500,be=1000,dpt=0,do=90,gn=0,ar=1,aw=2,apt=0,' +
+      'e1=0,e2=0,e3=0,e4=0,e5=0,e6=0,e7=0,' +
+      'dgb=54,dgs=90,dgp=615,dbc=0,dbd=945,tgb=2223,tgs=18634,tgp=25654,tbc=43687,tbd=42239,' +
+      'pmu=301,inv=270,dcdc=269,wif_s=1,mq_s=1,wifi_a=44,ct_type=1,dev_sta=0,bbs=2,' +
+      'leds=0,gps=0,inv_p=0,ct_ph=1,ser=0,rechg_type=0,time=2026-10-4 10:00:00,' +
+      'ups_p=800,lapi_en=0,self_port=50000,rem_port=50000,pv_eg=0,ogpc=0',
+  },
+  createResponder() {
+    const values: Record<string, string> = Object.fromEntries(
+      venusMiniFixture.responses[1].split(',').map(pair => pair.split('=')),
+    );
+    return request => {
+      const command = /(?:^|,)cd=(\d+)/.exec(request);
+      if (!command) {
+        return undefined;
+      }
+      const code = Number(command[1]);
+      if (code === 1) {
+        const date = new Date();
+        values.time = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()} ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
+        return Object.entries(values)
+          .map(([key, value]) => `${key}=${value}`)
+          .join(',');
+      }
+      if (code >= 47 && code <= 52) {
+        const slot = code - 46;
+        const update: Record<string, string> = Object.fromEntries(
+          request.split(',').map(pair => pair.split('=')),
+        );
+        const keys = ['m', 'mp', 'ms', 'st', 'et', 're'].map(key => `${key}${slot}`);
+        if (keys.some(key => update[key] == null)) {
+          return `cd${code}=error`;
+        }
+        for (const key of keys) {
+          values[key] = update[key];
+        }
+        return `cd${code}=ok`;
+      }
+      return undefined;
+    };
+  },
+};
+
 const ct003: DeviceFixture = {
   deviceType: 'HME-3',
   source: 'CT003 firmware 117 runtime reading, from a user report (#202)',
@@ -141,7 +198,14 @@ export const e2eFixtures: DeviceFixture[] = [b2500V2, venus, jupiterPlus];
  * Every fixture. The discovery baseline of a device type is generated from its
  * fixture here, or from empty state when there is none.
  */
-export const deviceFixtures: DeviceFixture[] = [...e2eFixtures, venusHmg, venusA, venusD, ct003];
+export const deviceFixtures: DeviceFixture[] = [
+  ...e2eFixtures,
+  venusHmg,
+  venusA,
+  venusD,
+  ct003,
+  venusMiniFixture,
+];
 
 /**
  * Look a fixture up by concrete type (`HMA-1`) or by the registered base type

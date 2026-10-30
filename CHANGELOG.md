@@ -3,6 +3,7 @@
 
 ### Added
 
+- Venus E Mini: Experimental manual schedules can be prepared as drafts and applied with safety checks and device confirmation (discussion #425).
 - B2500 (HMJ firmware 116 and later): *CT Status* now recognises the full-battery PV pass-through state, and a new *Full Battery Pass-Through* sensor shows whether that option is enabled (PR #462)
 - Smart meters: The CT002 (`HME-4`, firmware 124 and later) now also reports voltage, current and energy per phase (PR #462)
 - Venus C/E (HMG): *Depth of Discharge* now goes up to 90 %, which the firmware allows (PR #462)
@@ -19,6 +20,7 @@
 
 ### Fixed
 
+- Venus E Mini: Restart now sends the complete request used by the Marstek app. Device time also handles the repeated hour when daylight saving ends (discussion #425).
 - B2500 V2/V3: *CT Connected Phase* labelled the all-phases setting *Searching* and the setting that starts phase detection *None*. They are now called *All Phases* and *Auto-detect* (PR #462)
 - B2500 V2/V3: The `time-zone` command refuses offsets the device would ignore, and logs a warning instead (PR #462)
 - B2500 V2/V3: Changing a timer period also switches the device out of adaptive mode. *Adaptive Mode* now shows this straight away (PR #462)

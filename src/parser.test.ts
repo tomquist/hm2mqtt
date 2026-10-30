@@ -1891,6 +1891,7 @@ describe('MQTT Message Parser', () => {
       endTime: '23:59',
       direction: 'charge',
       modeRaw: 1,
+      weekday: '0123456',
       repeatRaw: 127,
     });
     // Schedule slot 2: the only enabled slot in this capture (m2=1).
@@ -1901,6 +1902,7 @@ describe('MQTT Message Parser', () => {
       endTime: '23:59',
       direction: 'charge',
       modeRaw: 1,
+      weekday: '0123456',
       repeatRaw: 127,
     });
     // Schedule slot 3: direction = discharge (ms3=2).
@@ -1913,6 +1915,7 @@ describe('MQTT Message Parser', () => {
       endTime: '00:00',
       direction: 'unknown',
       modeRaw: 0,
+      weekday: '',
       repeatRaw: 0,
     });
 
