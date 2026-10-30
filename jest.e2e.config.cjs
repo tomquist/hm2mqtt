@@ -5,7 +5,7 @@
  * Python. Run it with `npm run test:e2e` (which builds first) or in the `e2e`
  * CI job.
  *
- * @type {import('ts-jest').JestConfigWithTsJest}
+ * @type {import('jest').Config}
  */
 module.exports = {
   extensionsToTreatAsEsm: ['.ts'],
@@ -13,7 +13,7 @@ module.exports = {
   testMatch: ['**/test/e2e/scenarios/*.e2e.ts'],
   injectGlobals: true,
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', { useESM: true }],
+    '^.+\\.tsx?$': '<rootDir>/test/oxcTransform.cjs',
   },
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
