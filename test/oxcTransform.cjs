@@ -20,13 +20,19 @@ module.exports = {
     return { code, map };
   },
 
-  getCacheKey(sourceText, sourcePath) {
+  // Jest uses this key as is, so it has to cover everything that changes the
+  // cached output, including whether coverage instrumentation was applied.
+  getCacheKey(sourceText, sourcePath, { configString, instrument }) {
     return createHash('sha256')
       .update(version)
       .update('\0')
       .update(sourcePath)
       .update('\0')
       .update(sourceText)
+      .update('\0')
+      .update(configString)
+      .update('\0')
+      .update(instrument ? 'instrument' : '')
       .digest('hex');
   },
 };
