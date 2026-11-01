@@ -38,7 +38,7 @@
 - Venus: *Maximum Charging Power* stayed empty on Venus C/E (HMG) firmware 153 and later, which does not report it, and now shows the last value set there. Values the model's firmware rejects are now refused (PR #462)
 - Venus C/E (HMG) and Venus E 3.0: *Enable Cell Data* no longer requests per-pack battery details these models do not provide (PR #462)
 - Venus C/E (HMG): The network sensors, such as the IP address, never appeared because this model answers in a slightly different format (PR #462)
-- HMI inverters: *Total Energy Generated* no longer drops at every month change, a firmware bug, and now includes the energy already lost. It jumps up once after updating, so fix its statistics in Home Assistant if the Energy dashboard counts that jump (fixes #473)
+- HMI inverters: *Total Energy Generated* no longer drops at every month change, a firmware bug, and now includes the energy already lost. It jumps up once after updating, so fix its statistics in Home Assistant if the Energy dashboard counts that jump (fixes #473, PR #474)
 
 ## [1.10.2] - 2026-10-13
 
