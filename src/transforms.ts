@@ -52,6 +52,7 @@ export type Transform =
   | PipeArrayTransform
   | BitMaskToWeekdayTransform
   | Ct002EnergyTransform
+  | HmiTotalEnergyTransform
   | ChainTransform;
 
 /**
@@ -63,7 +64,8 @@ export type MultiKeyTransform =
   | MaxTransform
   | DiffTransform
   | AverageTransform
-  | PickTransform;
+  | PickTransform
+  | HmiTotalEnergyTransform;
 
 // =============================================================================
 // Single-Value Transforms
@@ -288,6 +290,25 @@ export interface PickTransform {
   transform: Exclude<Transform, MultiKeyTransform>;
 }
 
+/**
+ * Lifetime energy of an HMI inverter in kWh, from its `ele_s`, `ele_m` and
+ * `ver_s` keys.
+ *
+ * The firmware reports `ele_s` as a stored base plus the running month
+ * (`ele_m`, both in 0.01 kWh), and only changes the base when the month rolls
+ * over. On the affected firmware it adds just half of the finished month there,
+ * so the base is half of all finished months and the true total is
+ * `ele_m + 2 * (ele_s - ele_m)`. The base also wraps negative once it passes
+ * 1310.72 kWh, which is undone first.
+ *
+ * Only firmware up to `maxBuggyFirmware` is corrected. Newer firmware, or a
+ * message without `ver_s` or `ele_m`, reports `ele_s` as it is.
+ */
+export interface HmiTotalEnergyTransform {
+  type: 'hmiTotalEnergy';
+  maxBuggyFirmware: number;
+}
+
 // =============================================================================
 // Transform Factory Functions
 // =============================================================================
@@ -358,6 +379,12 @@ export const highByte = (): HighByteTransform => ({ type: 'highByte' });
 
 /** Create a low byte transform */
 export const lowByte = (): LowByteTransform => ({ type: 'lowByte' });
+
+/** Create an HMI lifetime energy transform (see {@link HmiTotalEnergyTransform}) */
+export const hmiTotalEnergy = (maxBuggyFirmware: number): HmiTotalEnergyTransform => ({
+  type: 'hmiTotalEnergy',
+  maxBuggyFirmware,
+});
 
 /** Return the numeric value if it is within range, otherwise undefined */
 export interface InRangeTransform {
@@ -623,6 +650,9 @@ export function executeMultiKeyTransform(
   if (transform.type === 'pick') {
     return executeTransform(transform.transform, values[transform.key]);
   }
+  if (transform.type === 'hmiTotalEnergy') {
+    return executeHmiTotalEnergy(transform, values);
+  }
   const numericValues = Object.values(values).map(v =>
     transform.type === 'sum' && transform.each
       ? Number(executeTransform(transform.each, v))
@@ -749,6 +779,32 @@ function executeCt002Energy(value: string): number {
   }
   const kwh = parseFloat(value);
   return Number.isNaN(kwh) ? 0 : Math.round(kwh * 1000);
+}
+
+/** The stored base wraps at 2^32 / 2^14 hundredths of a kWh (2621.44 kWh). */
+const HMI_BASE_WRAP = 262144;
+/**
+ * A base below this (in 0.01 kWh) is a wrapped one. The month can tick between
+ * the two reads the firmware makes for one message, so a base just below zero
+ * is read as zero instead.
+ */
+const HMI_BASE_WRAPPED_BELOW = -100;
+
+function executeHmiTotalEnergy(
+  transform: HmiTotalEnergyTransform,
+  values: Record<string, string>,
+): number {
+  const total = parseFloat(values['ele_s']);
+  const month = parseFloat(values['ele_m']);
+  const firmware = parseFloat(values['ver_s']);
+  if (Number.isNaN(total)) return 0;
+  if (Number.isNaN(month) || Number.isNaN(firmware) || firmware > transform.maxBuggyFirmware) {
+    return total / 100;
+  }
+  let base = total - month;
+  if (base < HMI_BASE_WRAPPED_BELOW) base += HMI_BASE_WRAP;
+  else if (base < 0) base = 0;
+  return (month + 2 * base) / 100;
 }
 
 function executeVenusPvField(
@@ -922,6 +978,18 @@ export function multiKeyTransformToJinja2(
   if (transform.type === 'pick') {
     return transformToJinja2(transform.transform, `${valuePrefix}.${transform.key}`);
   }
+  if (transform.type === 'hmiTotalEnergy') {
+    const v = (key: string) => `${valuePrefix}.${key}`;
+    return (
+      `{% set s = ${v('ele_s')} | float(0) %}{% set m = ${v('ele_m')} | float(none) %}` +
+      `{% set fw = ${v('ver_s')} | float(none) %}` +
+      `{% if m is none or fw is none or fw > ${transform.maxBuggyFirmware} %}{{ s / 100 }}` +
+      `{% else %}{% set b = s - m %}` +
+      `{% if b < ${HMI_BASE_WRAPPED_BELOW} %}{% set b = b + ${HMI_BASE_WRAP} %}` +
+      `{% elif b < 0 %}{% set b = 0 %}{% endif %}` +
+      `{{ (m + 2 * b) / 100 }}{% endif %}`
+    );
+  }
   // Use float(none) so invalid values become None instead of 0
   const values = keys.map(k => `${valuePrefix}.${k} | float(none)`);
   const rawListExpr = `[${values.join(', ')}]`;
@@ -1024,7 +1092,9 @@ function generateVenusPvFieldJinja2(
 
 /** Check if a transform is a multi-key transform */
 export function isMultiKeyTransform(transform: Transform): transform is MultiKeyTransform {
-  return ['sum', 'min', 'max', 'diff', 'average', 'pick'].includes(transform.type);
+  return ['sum', 'min', 'max', 'diff', 'average', 'pick', 'hmiTotalEnergy'].includes(
+    transform.type,
+  );
 }
 
 // =============================================================================

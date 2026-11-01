@@ -25,6 +25,7 @@ import {
   pipeArray,
   bitMaskToWeekday,
   ct002Energy,
+  hmiTotalEnergy,
   sum,
   min,
   max,
@@ -511,6 +512,52 @@ describe('transforms', () => {
       const template = transformToJinja2(ct002Energy(), 'value');
       expect(template).toContain('regex_findall');
       expect(template).toContain('* 1000 + (m[0][1] | int) * 10');
+    });
+  });
+
+  describe('hmiTotalEnergy transform', () => {
+    const total = (values: Record<string, string>, maxBuggyFirmware = 202) =>
+      executeMultiKeyTransform(hmiTotalEnergy(maxBuggyFirmware), values) as number;
+
+    it('doubles the stored base on affected firmware', () => {
+      // Readings from #473: the base after September was 20.01 instead of 40.02.
+      expect(total({ ele_s: '7888', ele_m: '5887', ver_s: '118' })).toBeCloseTo(98.89, 2);
+      // After the November rollover the base is 49.44 instead of 98.89.
+      expect(total({ ele_s: '4944', ele_m: '0', ver_s: '118' })).toBeCloseTo(98.88, 2);
+    });
+
+    it('leaves the first month unchanged', () => {
+      expect(total({ ele_s: '1433', ele_m: '1433', ver_s: '120' })).toBeCloseTo(14.33, 2);
+    });
+
+    it('corrects the highest affected firmware but not the next one', () => {
+      expect(total({ ele_s: '7888', ele_m: '5887', ver_s: '202' })).toBeCloseTo(98.89, 2);
+      expect(total({ ele_s: '7888', ele_m: '5887', ver_s: '203' })).toBeCloseTo(78.88, 2);
+    });
+
+    it('reports ele_s as it is without a firmware version or month', () => {
+      expect(total({ ele_s: '7888', ele_m: '5887' })).toBeCloseTo(78.88, 2);
+      expect(total({ ele_s: '7888', ver_s: '118' })).toBeCloseTo(78.88, 2);
+    });
+
+    it('undoes the wrap of a base above 1310.72 kWh', () => {
+      // Stored base 1400.00 kWh is printed as 1400.00 - 2621.44.
+      const wrapped = 140000 - 262144;
+      expect(total({ ele_s: String(1000 + wrapped), ele_m: '1000', ver_s: '118' })).toBeCloseTo(
+        2810.0,
+        2,
+      );
+    });
+
+    it('reads a base just below zero as zero', () => {
+      expect(total({ ele_s: '1432', ele_m: '1433', ver_s: '118' })).toBeCloseTo(14.33, 2);
+    });
+
+    it('generates a Jinja2 template', () => {
+      const template = multiKeyTransformToJinja2(hmiTotalEnergy(202), ['ele_s', 'ele_m', 'ver_s']);
+      expect(template).toContain('fw > 202');
+      expect(template).toContain('(m + 2 * b) / 100');
+      expect(template).toContain('b + 262144');
     });
   });
 

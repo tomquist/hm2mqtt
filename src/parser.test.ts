@@ -642,6 +642,21 @@ describe('MQTT Message Parser', () => {
     expect(data as SmrMeterDeviceData).toHaveProperty('p1DeviceConnected', false);
   });
 
+  test('corrects the HMI lifetime energy on firmware that halves it at rollover', () => {
+    const message =
+      'ele_d=212,ele_s=7888,ele_m=5887,pv1_v=334,pv1_i=0,pv1_p=16,pv1_s=1,pv2_v=335,pv2_i=0,pv2_p=15,pv2_s=1,pe1_v=17,fb1_v=847,fb2_v=826,grd_f=4999,grd_v=2455,grd_s=1,grd_o=29,chp_t=33,rel_s=1,err_t=0,err_c=0,err_d=0,ver_s=118,mpt_m=1,ble_s=1';
+    const result = parseMessage(message, 'HMI-1', '24197287XXXX')['data'] as HmiInverterDeviceData;
+    expect(result.monthlyEnergyGenerated).toBe(58.87);
+    expect(result.totalEnergyGenerated).toBeCloseTo(98.89, 2);
+  });
+
+  test('reports the HMI lifetime energy unchanged on newer firmware', () => {
+    const message =
+      'ele_d=212,ele_s=7888,ele_m=5887,pv1_v=334,pv1_i=0,pv1_p=16,pv1_s=1,grd_f=4999,grd_v=2455,chp_t=33,ver_s=203';
+    const result = parseMessage(message, 'HMI-1', '24197287XXXX')['data'] as HmiInverterDeviceData;
+    expect(result.totalEnergyGenerated).toBe(78.88);
+  });
+
   test('should parse HMI inverter (2-PV) message correctly', () => {
     // Sample message from an HMI inverter (2-PV variant, formerly MI800)
     const message =

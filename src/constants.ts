@@ -40,6 +40,17 @@ export const CT002_ENERGY_POLL_OFFSET_MS = 4000;
 export const CT002_ENERGY_HOLD_DROPS_UP_TO_WH = 1050;
 
 /**
+ * Highest HMI firmware (`ver_s`) known to add only half of the finished month
+ * to its lifetime total at each month rollover. Total Energy Generated is
+ * corrected for this version and all lower ones; raise it when a newer firmware
+ * is confirmed to still have the bug.
+ */
+export const HMI_TOTAL_ENERGY_HALVING_MAX_FIRMWARE = 202;
+
+/** Rounding dip in the corrected HMI total at a month rollover, in kWh. */
+export const HMI_TOTAL_ENERGY_HOLD_DROPS_UP_TO_KWH = 0.02;
+
+/**
  * How much earlier than its poll interval a message still counts as due.
  *
  * The polling timer fires once per interval, but the clock it reads when it
