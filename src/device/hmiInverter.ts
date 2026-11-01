@@ -131,13 +131,15 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
 
     // The firmware under-counts the lifetime total at each month rollover (see
     // hmiTotalEnergy). Doubling the stored base can round 0.01 kWh short of the
-    // previous reading at a rollover, so such a dip is held.
+    // previous reading at a rollover, so such a dip is held. A message missing
+    // any of the three keys keeps the last total: on its own, `ele_s` would read
+    // as the uncorrected value. Firmware without `ele_s` skips the field
+    // silently.
     field({
       key: ['ele_s', 'ele_m', 'ver_s'],
       path: ['totalEnergyGenerated'],
       transform: hmiTotalEnergy(HMI_TOTAL_ENERGY_HALVING_MAX_FIRMWARE),
-      allowPartial: true,
-      skip: values => values['ele_s'] === undefined,
+      skip: values => ['ele_s', 'ele_m', 'ver_s'].some(key => values[key] === undefined),
       monotonic: true,
       monotonicHoldDropsUpTo: HMI_TOTAL_ENERGY_HOLD_DROPS_UP_TO_KWH,
     });

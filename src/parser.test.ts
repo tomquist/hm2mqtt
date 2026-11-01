@@ -650,6 +650,17 @@ describe('MQTT Message Parser', () => {
     expect(result.totalEnergyGenerated).toBeCloseTo(98.89, 2);
   });
 
+  test('leaves the HMI lifetime energy unset when ele_m or ver_s is missing', () => {
+    const base =
+      'ele_d=212,ele_s=7888,pv1_v=334,pv1_i=0,pv1_p=16,pv1_s=1,grd_f=4999,grd_v=2455,chp_t=33';
+    for (const message of [`${base},ver_s=118`, `${base},ele_m=5887`]) {
+      const result = parseMessage(message, 'HMI-1', '24197287XXXX')[
+        'data'
+      ] as HmiInverterDeviceData;
+      expect(result.totalEnergyGenerated).toBeUndefined();
+    }
+  });
+
   test('reports the HMI lifetime energy unchanged on newer firmware', () => {
     const message =
       'ele_d=212,ele_s=7888,ele_m=5887,pv1_v=334,pv1_i=0,pv1_p=16,pv1_s=1,grd_f=4999,grd_v=2455,chp_t=33,ver_s=203';
