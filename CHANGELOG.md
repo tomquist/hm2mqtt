@@ -19,7 +19,7 @@
 
 ### Fixed
 
-- B2500: *Calibration Charge* and *Calibration Discharge* now show the learned battery capacity in mAh. They showed a value 3.6 times too large before
+- B2500: *Calibration Charge* and *Calibration Discharge* now show the learned battery capacity in mAh. They showed a value 3.6 times too large before (PR #475)
 - B2500 V2/V3: *CT Connected Phase* labelled the all-phases setting *Searching* and the setting that starts phase detection *None*. They are now called *All Phases* and *Auto-detect* (PR #462)
 - B2500 V2/V3: The `time-zone` command refuses offsets the device would ignore, and logs a warning instead (PR #462)
 - B2500 V2/V3: Changing a timer period also switches the device out of adaptive mode. *Adaptive Mode* now shows this straight away (PR #462)
