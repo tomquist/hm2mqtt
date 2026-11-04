@@ -162,6 +162,21 @@ export class VenusMiniScheduleSession implements DeviceControlSession {
     this.warn(message);
   }
 
+  private invalidTelemetry(): void {
+    const message = 'Incomplete or invalid runtime telemetry';
+    if (this.state.controlsEnabled || this.pending) {
+      this.fail(message);
+      return;
+    }
+
+    this.samples = 0;
+    if (!this.locked) {
+      this.state.status = 'Waiting for healthy telemetry';
+    }
+    this.state.lastError = message;
+    this.emit();
+  }
+
   private healthy(): boolean {
     return (
       this.samples >= HEALTH_SAMPLES &&
@@ -247,7 +262,7 @@ export class VenusMiniScheduleSession implements DeviceControlSession {
       .data as VenusMiniDeviceData | undefined;
     if (!data) {
       if (/(^|,)(gp|soc|m1|time)=/.test(message)) {
-        this.fail('Incomplete or invalid runtime telemetry');
+        this.invalidTelemetry();
       }
       return;
     }
@@ -311,7 +326,7 @@ export class VenusMiniScheduleSession implements DeviceControlSession {
           (!period.enabled || buildMiniScheduleCommand(index + 1, period) != null),
       )
     ) {
-      this.fail('Incomplete or invalid runtime telemetry');
+      this.invalidTelemetry();
       return;
     }
 

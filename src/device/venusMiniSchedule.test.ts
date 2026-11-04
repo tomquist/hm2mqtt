@@ -4,6 +4,7 @@ import { ControlHandler, type ControlPublishOptions } from '../controlHandler.js
 import { DataHandler } from '../dataHandler.js';
 import { DeviceManager } from '../deviceManager.js';
 import { generateDiscoveryConfigs } from '../generateDiscoveryConfigs.js';
+import logger from '../logger.js';
 import type {
   Device,
   VenusMiniDeviceData,
@@ -119,6 +120,7 @@ describe('Venus E Mini guarded schedules', () => {
   afterEach(() => {
     controls.disconnect();
     jest.useRealTimers();
+    jest.restoreAllMocks();
   });
 
   test('stages all fields without publishing or replacing device-reported values', () => {
@@ -543,6 +545,19 @@ describe('Venus E Mini guarded schedules', () => {
     advanceRuntime(overrides);
     expect(state().controlsEnabled).toBe(false);
     expect(state().lastError).toMatch(/invalid/);
+  });
+
+  test('invalid telemetry while controls are disabled does not warn or lock healthy status', () => {
+    const warn = jest.spyOn(logger, 'warn');
+    advanceRuntime({ mq_s: '0' });
+    expect(state().controlsEnabled).toBe(false);
+    expect(state().status).toBe('Waiting for healthy telemetry');
+    expect(state().lastError).toMatch(/invalid/);
+    expect(warn).not.toHaveBeenCalled();
+
+    healthy();
+    expect(state().status).toBe('Healthy; controls disabled');
+    expect(warn).not.toHaveBeenCalled();
   });
 
   test('implausibly advancing device clock locks writes', () => {
