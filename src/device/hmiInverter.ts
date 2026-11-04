@@ -11,7 +11,11 @@ import {
   selectComponent,
   switchComponent,
 } from '../homeAssistantDiscovery.js';
-import { number, divide, identity, equalsBoolean, map } from '../transforms.js';
+import { number, divide, identity, equalsBoolean, map, hmiTotalEnergy } from '../transforms.js';
+import {
+  HMI_TOTAL_ENERGY_HALVING_MAX_FIRMWARE,
+  HMI_TOTAL_ENERGY_HOLD_DROPS_UP_TO_KWH,
+} from '../constants.js';
 
 /**
  * Command types supported by the HMI inverter (Marstek HMI family)
@@ -125,11 +129,19 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
+    // The firmware under-counts the lifetime total at each month rollover (see
+    // hmiTotalEnergy). Doubling the stored base can round 0.01 kWh short of the
+    // previous reading at a rollover, so such a dip is held. A message missing
+    // any of the three keys keeps the last total: on its own, `ele_s` would read
+    // as the uncorrected value. Firmware without `ele_s` skips the field
+    // silently.
     field({
-      key: 'ele_s',
+      key: ['ele_s', 'ele_m', 'ver_s'],
       path: ['totalEnergyGenerated'],
-      transform: divide(100),
+      transform: hmiTotalEnergy(HMI_TOTAL_ENERGY_HALVING_MAX_FIRMWARE),
+      skip: values => ['ele_s', 'ele_m', 'ver_s'].some(key => values[key] === undefined),
       monotonic: true,
+      monotonicHoldDropsUpTo: HMI_TOTAL_ENERGY_HOLD_DROPS_UP_TO_KWH,
     });
     advertise(
       ['totalEnergyGenerated'],

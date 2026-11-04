@@ -33,6 +33,7 @@ import {
   divide,
   inRange,
   chain,
+  round,
 } from '../transforms.js';
 
 export function extractAdditionalDeviceInfo(state: B2500BaseDeviceData): AdditionalDeviceInfo {
@@ -981,7 +982,9 @@ export function registerCalibrationDataMessage(message: BuildMessageFn) {
     field({
       key: 'cf',
       path: ['charge'],
-      transform: divide(1000),
+      // The firmware counts the learned capacity in mA·s (mA added up once per
+      // ~1 s tick), so the factory value 160000000 is 44444 mAh.
+      transform: chain(divide(3600), round()),
     });
     advertise(
       ['charge'],
@@ -994,7 +997,7 @@ export function registerCalibrationDataMessage(message: BuildMessageFn) {
     field({
       key: 'df',
       path: ['discharge'],
-      transform: divide(1000),
+      transform: chain(divide(3600), round()),
     });
     advertise(
       ['discharge'],

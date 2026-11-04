@@ -21,6 +21,7 @@
 ### Fixed
 
 - Venus E Mini: Restart now sends the complete request used by the Marstek app. Device time also handles the repeated hour when daylight saving ends (discussion #425, PR #469).
+- B2500: *Calibration Charge* and *Calibration Discharge* now show the learned battery capacity in mAh. They showed a value 3.6 times too large before (PR #475)
 - B2500 V2/V3: *CT Connected Phase* labelled the all-phases setting *Searching* and the setting that starts phase detection *None*. They are now called *All Phases* and *Auto-detect* (PR #462)
 - B2500 V2/V3: The `time-zone` command refuses offsets the device would ignore, and logs a warning instead (PR #462)
 - B2500 V2/V3: Changing a timer period also switches the device out of adaptive mode. *Adaptive Mode* now shows this straight away (PR #462)
@@ -40,6 +41,7 @@
 - Venus: *Maximum Charging Power* stayed empty on Venus C/E (HMG) firmware 153 and later, which does not report it, and now shows the last value set there. Values the model's firmware rejects are now refused (PR #462)
 - Venus C/E (HMG) and Venus E 3.0: *Enable Cell Data* no longer requests per-pack battery details these models do not provide (PR #462)
 - Venus C/E (HMG): The network sensors, such as the IP address, never appeared because this model answers in a slightly different format (PR #462)
+- HMI inverters: *Total Energy Generated* no longer drops at every month change, a firmware bug, and now includes the energy already lost. It jumps up once after updating, so fix its statistics in Home Assistant if the Energy dashboard counts that jump (fixes #473, PR #474)
 
 ## [1.10.2] - 2026-10-13
 

@@ -1,4 +1,4 @@
-/** @type {import('ts-jest').JestConfigWithTsJest} */
+/** @type {import('jest').Config} */
 module.exports = {
   extensionsToTreatAsEsm: ['.ts'],
   testEnvironment: 'node',
@@ -6,7 +6,7 @@ module.exports = {
   testPathIgnorePatterns: ['/node_modules/', '/.claude/'],
   injectGlobals: true,
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', { useESM: true }],
+    '^.+\\.tsx?$': '<rootDir>/test/oxcTransform.cjs',
   },
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',

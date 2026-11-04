@@ -282,6 +282,21 @@ describe('DeviceManager', () => {
       expect(month()).toBe(40);
     });
 
+    it('holds the rounding dip of the corrected HMI total at a month rollover', () => {
+      const hmi = { deviceType: 'HMI-1', deviceId: 'hmi123' };
+      const inverter = new DeviceManager({ ...venusConfig, devices: [hmi] }, jest.fn());
+      const setTotal = (totalEnergyGenerated: number) =>
+        inverter.updateDeviceState(hmi, 'data', () => ({ totalEnergyGenerated }));
+      const total = () => (inverter.getDeviceState(hmi) as any).totalEnergyGenerated;
+      setTotal(98.89);
+      setTotal(98.88); // first reading of the new month
+      expect(total()).toBe(98.89);
+      setTotal(98.88);
+      expect(total()).toBe(98.89);
+      setTotal(98.95);
+      expect(total()).toBe(98.95);
+    });
+
     describe('CT002 cd=32 energy counters', () => {
       const hme = { deviceType: 'HME-4', deviceId: 'meter123' };
       let meter: DeviceManager;
