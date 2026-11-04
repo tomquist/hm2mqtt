@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
 import logger from './logger.js';
 import { DEFAULT_TOPIC_PREFIX } from './constants.js';
+import { miniRuntimePayload } from './test/venusMiniSchedule.js';
 
 beforeAll(() => {
   jest.clearAllMocks();
@@ -274,6 +275,82 @@ describe('MQTT Client', () => {
 
     // Restore real timers
     jest.useRealTimers();
+  });
+
+  test('routes guarded Mini Apply once and forwards retained and disconnect metadata', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-10-04T10:00:00Z'));
+    process.env.DEVICE_2 = 'VNSEMINI-0:mini';
+    process.env.MQTT_POLLING_INTERVAL = '60';
+    try {
+      await import('./index.js');
+      const mqttMock = (await import('mqtt')) as typeof import('mqtt') & {
+        __mockClient: {
+          triggerEvent: (event: string, ...args: unknown[]) => void;
+          publish: jest.Mock;
+          subscribe: jest.Mock;
+        };
+      };
+      const client = mqttMock.__mockClient;
+      client.triggerEvent('connect');
+      expect(client.subscribe).toHaveBeenCalledWith(
+        expect.arrayContaining([`${DEFAULT_TOPIC_PREFIX}/VNSEMINI-0/control/mini/schedule/#`]),
+        expect.any(Function),
+      );
+      const response = 'hame_energy/VNSEMINI-0/device/mini/ctrl';
+      const base = `${DEFAULT_TOPIC_PREFIX}/VNSEMINI-0/control/mini`;
+      const periods = [
+        {
+          enabled: false,
+          power: 100,
+          direction: 'charge' as const,
+          startTime: '10:00',
+          endTime: '11:00',
+          repeatRaw: 127,
+        },
+      ];
+      const send = (command: string, message = 'PRESS', retain = false) =>
+        client.triggerEvent('message', `${base}/${command}`, Buffer.from(message), { retain });
+      const telemetry = () =>
+        client.triggerEvent('message', response, Buffer.from(miniRuntimePayload(periods)), {
+          retain: false,
+        });
+      for (let sample = 0; sample < 3; sample++) {
+        jest.advanceTimersByTime(1000);
+        telemetry();
+      }
+      send('schedule/controls-enabled', 'true');
+      client.publish.mockClear();
+      send('schedule/1/power', '90');
+      send('schedule/1/apply', 'PRESS', true);
+      expect(
+        client.publish.mock.calls.filter(([topic]) => String(topic).includes('/App/')),
+      ).toHaveLength(0);
+      send('schedule/1/apply');
+      jest.advanceTimersByTime(1000);
+      telemetry();
+      const commands = client.publish.mock.calls.filter(([topic]) =>
+        String(topic).includes('/App/'),
+      );
+      expect(commands.map(([topic, payload, options]) => [topic, payload, options])).toEqual([
+        ['hame_energy/VNSEMINI-0/App/mini/ctrl', 'cd=01', { qos: 0, retain: false }],
+        [
+          'hame_energy/VNSEMINI-0/App/mini/ctrl',
+          'cd=47,m1=0,mp1=90,ms1=1,st1=10:00,et1=11:00,re1=127',
+          { qos: 0, retain: false },
+        ],
+      ]);
+      client.triggerEvent('close');
+      client.publish.mockClear();
+      send('schedule/1/apply');
+      expect(
+        client.publish.mock.calls.filter(([topic]) => String(topic).includes('/App/')),
+      ).toHaveLength(0);
+    } finally {
+      delete process.env.DEVICE_2;
+      jest.clearAllTimers();
+      jest.useRealTimers();
+    }
   });
 });
 

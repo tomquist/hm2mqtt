@@ -7,6 +7,7 @@ import { DEFAULT_AUTODISCOVERY_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX } from './cons
 import { DeviceManager, DeviceStateData } from './deviceManager.js';
 import { MqttClient } from './mqttClient.js';
 import { ControlHandler } from './controlHandler.js';
+import type { IPublishPacket } from 'mqtt';
 import logger from './logger.js';
 import { DataHandler } from './dataHandler.js';
 import type { MqttProxy, MqttProxyConfig } from './mqttProxy.js';
@@ -189,7 +190,7 @@ async function main() {
     let mqttClient: MqttClient;
 
     // Create message handler function
-    const messageHandler = (topic: string, message: Buffer) => {
+    const messageHandler = (topic: string, message: Buffer, packet?: IPublishPacket) => {
       try {
         logger.debug(`Received message on topic ${topic}: ${message.toString()}`);
 
@@ -218,12 +219,13 @@ async function main() {
 
             deviceManager.clearResponseTimeout(device);
             const updatedPaths = dataHandler.handleDeviceData(device, message.toString());
+            controlHandler.handleDeviceMessage(device, topic, message.toString(), packet?.retain);
             // Re-publish discovery configs for each message path that received data for the first time
             updatedPaths.forEach(path => mqttClient.onDeviceDataReceived(device, path));
             break;
 
           case 'control':
-            controlHandler.handleControlTopic(device, topic, message.toString());
+            controlHandler.handleControlTopic(device, topic, message.toString(), packet?.retain);
             break;
         }
       } catch (error) {
@@ -231,40 +233,52 @@ async function main() {
       }
     };
 
-    // Create MQTT client
-    mqttClient = new MqttClient(config, deviceManager, messageHandler);
-
     // Create control handler
-    const controlHandler = new ControlHandler(deviceManager, (device, payload, messageIndex) => {
-      const topics = deviceManager.getDeviceTopics(device);
+    const controlHandler = new ControlHandler(
+      deviceManager,
+      (device, payload, messageIndex, options) => {
+        const topics = deviceManager.getDeviceTopics(device);
 
-      if (!topics) {
-        logger.warn(`No topics found for device ${device.deviceId}`);
-        return;
-      }
+        if (!topics) {
+          logger.warn(`No topics found for device ${device.deviceId}`);
+          throw new Error(`No topics found for device ${device.deviceId}`);
+        }
 
-      Promise.all([
-        mqttClient.publish(topics.deviceControlTopicOld, payload, { qos: 1 }),
-        mqttClient.publish(topics.deviceControlTopicNew, payload, { qos: 1 }),
-      ])
-        .then(() => {
-          // Request updated device data after sending a command
-          // Wait a short delay to allow the device to process the command
-          setTimeout(() => {
-            logger.debug(`Requesting updated device data for ${device.deviceId} after command`);
-            // Force the message the command belongs to: without this the read-back
-            // is dropped whenever that message was polled less than one polling
-            // interval ago, which is most of the time.
-            mqttClient.requestDeviceData(device, { forceMessageIndices: [messageIndex] });
-          }, 500);
-        })
-        .catch(err => {
-          logger.error(`Error sending command to ${device.deviceId}:`, err);
-        });
-    });
+        if (options) {
+          const topic =
+            options.namespace === 'hame_energy'
+              ? topics.deviceControlTopicOld
+              : topics.deviceControlTopicNew;
+          return mqttClient.publishOnce(topic, payload);
+        }
+
+        return Promise.all([
+          mqttClient.publish(topics.deviceControlTopicOld, payload, { qos: 1 }),
+          mqttClient.publish(topics.deviceControlTopicNew, payload, { qos: 1 }),
+        ])
+          .then(() => {
+            // Request updated device data after sending a command
+            // Wait a short delay to allow the device to process the command
+            setTimeout(() => {
+              logger.debug(`Requesting updated device data for ${device.deviceId} after command`);
+              // Force the message the command belongs to: without this the read-back
+              // is dropped whenever that message was polled less than one polling
+              // interval ago, which is most of the time.
+              mqttClient.requestDeviceData(device, { forceMessageIndices: [messageIndex] });
+            }, 500);
+          })
+          .catch(err => {
+            logger.error(`Error sending command to ${device.deviceId}:`, err);
+          });
+      },
+    );
 
     // Create data handler
     const dataHandler = new DataHandler(deviceManager);
+
+    mqttClient = new MqttClient(config, deviceManager, messageHandler, () =>
+      controlHandler.disconnect(),
+    );
 
     // Initialize MQTT Proxy if enabled
     let mqttProxy: MqttProxy | null = null;
@@ -309,6 +323,7 @@ async function main() {
       }
       shuttingDown = true;
       logger.info(`Received ${signal}, shutting down...`);
+      controlHandler.disconnect();
 
       // Each step is independent and time-bounded, because neither failing nor
       // hanging may keep the process alive. MqttProxy.stop() waits for its TCP

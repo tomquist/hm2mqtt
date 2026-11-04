@@ -31,6 +31,7 @@ export async function startSimulatedDevice(
   const responseTopic = `hame_energy/${deviceType}/device/${deviceId}/ctrl`;
   const requests: string[] = [];
   const failures: unknown[] = [];
+  const responder = fixture.createResponder?.();
 
   // The device id is unique within a scenario, so it alone keeps client ids
   // apart — truncating a type-plus-id string could collide for two devices of
@@ -39,8 +40,13 @@ export async function startSimulatedDevice(
     clientId: `e2e-device-${deviceId}`,
   });
 
-  const respond = async (command: number) => {
-    const response = fixture.responses[command];
+  const respond = async (request: string) => {
+    const command = /(?:^|,)cd=(\d+)/.exec(request);
+    const response = responder
+      ? responder(request)
+      : command
+        ? fixture.responses[Number(command[1])]
+        : undefined;
     if (response !== undefined) {
       await client.publishAsync(responseTopic, response, { qos: 1 });
     }
@@ -53,7 +59,7 @@ export async function startSimulatedDevice(
     if (command) {
       // The client can be closing while a response is in flight during
       // teardown; an unhandled rejection there would fail an unrelated test.
-      respond(Number(command[1])).catch(error => failures.push(error));
+      respond(request).catch(error => failures.push(error));
     }
   });
   await client.subscribeAsync(requestTopic, { qos: 1 });
@@ -64,7 +70,7 @@ export async function startSimulatedDevice(
     requests,
     failures,
     async pushReading(command = 1) {
-      await respond(command);
+      await respond(`cd=${command}`);
     },
     async stop() {
       await client.endAsync(true);

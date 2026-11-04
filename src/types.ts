@@ -767,7 +767,15 @@ export interface VenusMiniTimePeriod {
   endTime?: string; // et{n}
   direction?: VenusMiniScheduleDirection; // ms{n}, mapped
   modeRaw?: number; // ms{n} (raw, kept alongside direction for any future unmapped value)
-  repeatRaw?: number; // re{n} (raw; meaning unconfirmed, possibly a weekday bitmask)
+  weekday?: WeekdaySet; // re{n}, 0 = Monday through 6 = Sunday
+  repeatRaw?: number; // re{n}, raw weekday bitmask
+}
+
+export interface VenusMiniScheduleData extends BaseDeviceData {
+  drafts: VenusMiniTimePeriod[];
+  controlsEnabled: boolean;
+  status: string;
+  lastError: string;
 }
 
 // Working mode of a Venus E Mini, reported in cm and set with cd=2. Only 0

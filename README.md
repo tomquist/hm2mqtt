@@ -771,6 +771,105 @@ Venus commands above.
   same option names as the Venus command above, though this model sends
   different codes for them and has no `trading` mode. The device reports its
   mode back, so the *Working Mode* entity shows its real state.
+- `schedule/controls-enabled`: Opts into experimental schedule writes (`true`
+  or `false`). Off after every bridge restart or MQTT disconnect.
+- `schedule/[1-6]/enabled`: Prepares the slot enabled state.
+- `schedule/[1-6]/start-time`: Prepares the slot start time in `HH:MM` format.
+- `schedule/[1-6]/end-time`: Prepares the slot end time in `HH:MM` format.
+- `schedule/[1-6]/power`: Prepares the slot power, 0-1500 W.
+- `schedule/[1-6]/direction`: Prepares `charge`, `discharge` or `selfConsumption`.
+- `schedule/[1-6]/weekday`: Prepares active weekdays using digits 0-6, where 0
+  is Monday and 6 is Sunday.
+- `schedule/[1-6]/apply`: Sends a complete draft after validation (`PRESS`).
+- `schedule/[1-6]/reset`: Discards a draft and copies the last device values
+  (`PRESS`). This does not clear the slot on the battery.
+
+#### Venus E Mini schedule behavior
+
+The battery always reports all six schedule slots. Home Assistant therefore
+shows old values even after a schedule is removed in the Marstek app.
+
+- Disabling a schedule sets its enabled value to off but keeps its power, times,
+  direction and weekdays.
+- Removing a schedule in the app also leaves those old values in the battery.
+  The app hides the slot and may overwrite it when a new schedule is added.
+- A disabled slot created directly through MQTT is shown in Home Assistant but
+  not in the Marstek app.
+- A slot created as enabled appears in the app. If it is then disabled, it stays
+  visible in the app.
+
+Schedule slots must be configured in order as a precaution: out-of-order writes
+were suspected of causing a firmware hang, but the exact trigger is not
+confirmed. Complete schedules must not overlap on any selected weekday, even
+when one or both schedules are disabled. Adjacent schedules are allowed. End
+time must be later than start time; split an overnight schedule into two slots.
+
+This is deliberately stricter than the Marstek app, which checks conflicts
+against enabled schedules. In hm2mqtt, a complete disabled schedule still
+reserves its time. Disabling it does not bypass the overlap check. If overlapping
+slots already exist from another interface, adjust their times or weekdays so
+they no longer overlap before applying changes through hm2mqtt.
+
+Home Assistant shows the battery's reported values separately from *Draft*
+controls. Draft controls, Apply buttons and the *Experimental Schedule Controls*
+switch are disabled by default in discovery. Enable the desired entities, then
+turn on that switch to allow writes. Editing a draft sends nothing to the
+battery. Periodic updates do not overwrite edited drafts. Drafts are held in
+memory and are lost when hm2mqtt restarts.
+
+Apply requires Manual mode and three valid runtime readings with advancing
+device time. Startup readiness depends on the reporting cadence; a relay that
+synchronizes once a minute can take about three minutes. It requests a fresh
+reading before writing and sends one complete
+command on the topic namespace of the latest live reading. It waits up to
+150 seconds for each telemetry step (pre-write refresh and read-back), allowing
+for a relay that synchronizes once a minute and skips a cycle. Cached or older
+responses cannot confirm a write; differing target values remain unconfirmed
+until a matching newer response arrives or the deadline expires. The matching
+acknowledgement has a 15-second timeout. Other slots must remain
+unchanged. Only one Apply is allowed at a time; additional commands are rejected,
+not queued. After confirmation there is a ten-second cooldown.
+
+Readings and clock progress must be newer than the polling interval plus
+15 seconds, with a minimum allowance of 90 seconds. If readings become overdue,
+*Waiting for fresh telemetry* pauses writes without turning off the opt-in
+switch. A valid advancing reading restores readiness, but does not retry or
+resend a command. Apply pressed while paused is rejected; press it again when
+Ready.
+
+If telemetry or clock progress remains overdue for two polling intervals plus
+30 seconds (at least 150 seconds), controls lock. Invalid readings, device
+faults, command failures, changed other slots or operating mode, and lost MQTT
+connections also lock controls. After a lockout, obtain three new advancing
+readings and explicitly re-enable controls. There are no automatic
+retries, offline command queues, or retained schedule commands. *Schedule Control
+Status* and *Schedule Control Error* explain blocked operations.
+
+Use only one editor: do not change schedules in the Marstek app while editing or
+applying a Home Assistant draft. If the slot changes on the battery, reset the
+draft before editing it again. These precautions cannot prevent unknown firmware
+faults or prove that actual charging power follows the saved settings.
+
+The Mini reports its clock as local time without a timezone. Configure the
+hm2mqtt process timezone to match the battery. For Docker or Kubernetes, set the
+container environment variable `TZ` to an IANA timezone such as `Europe/Rome`
+or `Europe/Berlin`; use your actual location, not a fixed UTC offset. A UTC
+container interpreting a summer-time clock can display *Device Time* hours in
+the future. During the repeated hour when daylight saving ends, hm2mqtt chooses
+the matching UTC occurrence nearest the telemetry reception time. This also
+handles half-hour transitions; invalid calendar values and nonexistent
+spring-forward times are not normalized into valid readings. Delayed telemetry
+and actual device-clock errors can still pause or lock controls until advancing
+readings are trustworthy again.
+
+hm2mqtt must not briefly enable a new schedule just to make it appear in the
+Marstek app. The battery could start charging or discharging before the second
+command disables it. New schedules are prepared as a complete draft and sent
+once with an explicit *Apply* action. A new disabled schedule may
+remain hidden in the Marstek app. Users who need it to appear there must create
+it as enabled and disable it separately after the battery confirms the first
+change.
+
 - `meter-mac`: Sets the MAC address used when configuring an external meter
   (12 hex digits, no separators). Shows the last value set. Disabled by default.
 - `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`,
@@ -781,12 +880,25 @@ Venus commands above.
   MAC. Shows the last value set. Disabled by default.
 - `refresh`: Refreshes the device data. Disabled by default.
 - `get-ct-power`: Gets current transformer power readings. Disabled by default.
-- `restart`: Reboots the device. Disabled by default.
+- `restart`: Requests a battery reboot, confirmed working on a real Venus E
+  Mini. Sends once on the latest live MQTT namespace without automatic retries;
+  no request is sent if no live namespace has been observed. Cancels any pending
+  schedule Apply and locks experimental schedule controls. After three fresh,
+  advancing runtime readings, explicitly turn *Experimental Schedule Controls*
+  back on. hm2mqtt does not verify reboot completion or automatically unlock
+  controls. This does not restart hm2mqtt or clear schedules. Disabled by default.
 - `factory-reset`: Resets the device to factory settings. Disabled by default.
 
-**Beta.** The read-only refresh command has been confirmed on a real device.
-The other commands were read out of the Marstek app rather than captured from
-a real device, so they have not been confirmed end to end.
+**Beta.** Runtime polling, restart and manual schedule command formats have been
+confirmed on a real device. Limited 100 W tests confirmed editing an existing charging
+slot and creating a new slot visible in Home Assistant and the Marstek app.
+Other directions, all slot combinations and recovery from every failure have
+not been hardware-verified.
+Keep charging tests at **100 W or less**, use one editor, and stop testing if
+the clock, state of charge or actual power becomes inconsistent. The supported
+1500 W setting is not a recommended test rate.
+The other command formats were read out of the Marstek app rather
+than captured end to end, so those writes remain experimental.
 
 The Venus E Mini runs a second generation of Marstek's Venus firmware, together
 with the Venus X and Venus G. It numbers its commands differently from the
@@ -813,8 +925,6 @@ power limit is a different case, and is called out below:
   by your timezone offset.
 - Reading the network info and error code, whose replies have a shape nothing
   here can parse yet.
-- Manual-mode scheduling, which the app assembles per call and the device
-  reports nothing back about.
 - Configuring WiFi, which carries network credentials and has no MQTT form.
 
 ### Jupiter Device Commands
