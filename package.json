@@ -34,13 +34,13 @@
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "jest": "^30.5.2",
     "jest-junit": "^17.0.0",
     "jest-util": "^30.4.1",
     "oxc-transform": "^0.156.0",
-    "oxfmt": "^0.74.0",
-    "oxlint": "^1.89.0",
+    "oxfmt": "^0.75.0",
+    "oxlint": "^1.90.0",
     "tsrs": "0.20.1-ts7.1.0-beta",
     "vite-node": "^6.0.0"
   }
