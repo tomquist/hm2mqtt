@@ -4,16 +4,24 @@ import {
   registerDeviceDefinition,
 } from '../deviceDefinition.js';
 import {
+  MeterType,
   VenusMiniDeviceData,
   VenusMiniTimePeriod,
   VenusMiniWorkingMode,
+  WeekdaySet,
   isValidMeterType,
+  isValidVenusMiniFeedInPowerLimit,
+  isValidVenusMiniGridChargePowerLimit,
+  isValidVenusMiniPhaseMode,
+  isValidVenusMiniScheduleDirection,
   isValidVenusMiniWorkingMode,
   meterTypeCommandCodes,
   meterTypeLabels,
   resolveMeterMac,
+  venusMiniScheduleDirectionCodes,
   venusMiniWorkingModeCommandCodes,
 } from '../types.js';
+import { registerNetworkInfoMessage } from './networkInfoBase.js';
 import {
   binarySensorComponent,
   buttonComponent,
@@ -35,11 +43,20 @@ import { divide, equalsBoolean, identity, map, negateIfPositive, number } from '
  * reusing anything in `venus.ts`.
  *
  * Only the runtime response to `cd=01` has been captured from a real device.
- * The other command formats here are read out of the Marstek app's own command
- * table for this model rather than observed on hardware, so they are the app's
- * ground truth but not yet confirmed end to end. Fields whose meaning is not
- * confirmed are exposed verbatim as disabled-by-default sensors under
+ * The commands were first read out of the Marstek app's command table for this
+ * model, then checked against the control firmware itself (PMU 309 / V135,
+ * with inverter firmware 270), run in marsemu (github.com/tomquist/marsemu):
+ * what each handler parses, where it stores the values and what reads them.
+ * They have not all been confirmed on hardware. Fields whose meaning is not
+ * known are exposed verbatim as disabled-by-default sensors under
  * `raw`/`ctRaw` rather than being given a name that asserts a meaning.
+ *
+ * How the firmware reads a command: it splits the message at `,`, takes what
+ * follows each `=` and splits that again at `:`, and stores the numbers in
+ * order - so `st=08:15` is two values, the key names are ignored, values are
+ * 16-bit unsigned, and a value that is left out is whatever was on the stack.
+ * Every command below therefore sends all of its values. Each handler is
+ * found by searching the whole message for `cd=NN`.
  *
  * This model runs Marstek's second-generation Venus firmware, along with the
  * Venus X and Venus G. That generation numbers its commands differently from
@@ -54,39 +71,27 @@ import { divide, equalsBoolean, identity, map, negateIfPositive, number } from '
  * matches the string rather than parsing the number, so every command below is
  * padded the way the app sends it.
  *
- * Not implemented, and why. Each of these is a real command in the app's
- * tables; what is missing in every case is the set of values it accepts, which
- * the app encodes at the call site rather than in the table:
+ * Commands the firmware has that are deliberately not exposed:
  *
- * - `cd=60,ser=<n>` (configure server). No value domain, and pointing a device
- *   at a different server can take it off the network. Reported back as `ser`,
- *   of which only 0 has been seen.
- * - `cd=63,ct_chg_type=<n>` (configure recharge type). No value domain;
- *   reported back as `rechg_type`, only ever 0.
- * - `cd=46,cv=<n>` (access power). This is the grid-connection power
- *   entitlement - the app does not set it over MQTT at all, but through
- *   Marstek's cloud, which then provisions the device; the 800/1500 W pair
- *   lives in the app's HTTP API. The device reports the result as `gps`. Since
- *   an export limit carries regulatory weight, guessing the units is not worth
- *   the risk.
- * - `cd=54,am=<n>,aw=<n>,ap=<n>` (anti-reverse-flow). Three parameters, only
- *   the first of which has a guessable meaning.
- * - `cd=03` / `cd=04` (network info, error code). These are reads, and the shape
- *   of what comes back is not known, so there would be nothing to parse.
- * - `cd=33` (set device time), whose parameters are known - d, m, y, h, min, s
- *   and `wy` - but not whether the clock fields are local or UTC. `wy` is the
- *   timezone offset in minutes, the same key the B2500 uses on its own
- *   set-time command, and there the clock fields go as UTC while the
- *   first-generation Venus `cd=4`, which has no `wy` at all, takes local time.
- *   The app calls timeZoneOffset once either way, so it does not settle which
- *   convention this command follows. Getting it wrong sets the device clock off
- *   by the offset, which is the bug the B2500 shipped once already; and since
- *   nothing here drives the Mini's schedules yet, a sync button would carry
- *   that risk without buying anything. Pressing it in the app with a device
- *   whose reported `time` is watched would settle it in one go.
- * - Manual-mode scheduling. The app builds the `cd=` number at the call site,
- *   and the device reports no schedule state at all, so there is nothing to
- *   check an implementation against.
+ * - `cd=A0`..`cd=A3`: the firmware update of the control, inverter and DC/DC
+ *   boards (`A1,cnt=` the number of images, `A2,num=` one image's `type`,
+ *   `url`, `mod`, `size`, `crc`, `ver`, `A3` starts it, `A0` reports its state).
+ * - `cd=60,ser=<n>`: the cloud region for the device's own HTTP requests
+ *   (0 eu, 1 us, 2 dev, 3 staging), reported as `ser`.
+ * - `cd=62,port=<n>`: a custom UDP port for the Shelly meters (default 1010
+ *   for the Pro 3EM, 2222 for the EM gen3, 2223 for the Pro EM 50). Once set,
+ *   there is no way back to the default.
+ * - `cd=54` (anti-reverse flow, `am`/`aw`/`ap`): three values the control
+ *   passes to the inverter; firmware 270 ignores the first two and uses the
+ *   third in its output ramp. Reported as `ar`/`aw`/`apt`.
+ * - `cd=53`: all six schedule slots in one message (48 values); the per-slot
+ *   commands below do the same one slot at a time.
+ * - `cd=32`, `cd=35`, `cd=38` and `cd=45` are accepted but change nothing in
+ *   this firmware (`cd=38` is reported back as `gn`); `cd=46`, which the app's
+ *   table lists for the grid-connection power, does not exist.
+ * - `cd=59` answers with the last 15 samples of the device's power and SOC
+ *   (`gn_pwr1`.., `bat_pwr1`.., `bat_soc1`.., `dev_sta1`..), nothing that is
+ *   not in `cd=01` already.
  * - `CMD_SET_WIFI` (configure device WiFi) carries network credentials, and is
  *   Bluetooth-only anyway - it has no MQTT form.
  */
@@ -94,6 +99,79 @@ import { divide, equalsBoolean, identity, map, negateIfPositive, number } from '
 // The app's own setting screen enforces this range.
 const MINI_DOD_MIN = 30;
 const MINI_DOD_MAX = 90;
+
+// The range the control firmware clamps the UPS charge power (cd=64) to.
+const MINI_UPS_POWER_MIN = 100;
+const MINI_UPS_POWER_MAX = 1500;
+
+// The schedule slots' power: the firmware caps it at 1500 W.
+const MINI_SCHEDULE_POWER_MAX = 1500;
+
+const IPV4_PATTERN =
+  '^((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])$';
+
+/**
+ * The MAC sent with `cd=18` for a meter type. The P1 Meter and the EcoTracker
+ * are found by IP (`cd=66`) instead, but the firmware's `ct_t=%d,mac=%12s`
+ * still expects a MAC, so they get the configured one or zeros.
+ */
+function miniMeterMac(meterType: MeterType, configuredMac?: string): string | null {
+  if (meterType === 'p1Meter' || meterType === 'ecoTracker') {
+    return configuredMac ?? '000000000000';
+  }
+  return resolveMeterMac(meterType, configuredMac);
+}
+
+const isOn = (message: string) => ['true', 'on', '1'].includes(message.toLowerCase());
+
+const SCHEDULE_TIME_PATTERN = '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$';
+
+/** `H:MM` or `HH:MM` as the zero-padded `HH:MM` the device reports, or null. */
+function normalizeScheduleTime(value: string): string | null {
+  const match = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/.exec(value.trim());
+  return match ? `${match[1].padStart(2, '0')}:${match[2]}` : null;
+}
+
+/** re{n}, a weekday bitmask with bit 0 = Monday, as the digits of its set bits. */
+function weekdayMaskToSet(value: string): WeekdaySet {
+  const mask = parseInt(value, 10);
+  let days = '';
+  for (let day = 0; day < 7; day++) {
+    if (mask & (1 << day)) days += day;
+  }
+  return days as WeekdaySet;
+}
+
+function weekdaySetToMask(days: WeekdaySet): number {
+  return days.split('').reduce((mask, day) => mask | (1 << Number(day)), 0);
+}
+
+/**
+ * The `cd=47`..`cd=52` command that sets schedule slot n (1-6) to `slot`, or
+ * null while any of its values is unknown - the firmware stores all eight
+ * values in order, so none can be left out.
+ */
+function scheduleSlotCommand(n: number, slot: VenusMiniTimePeriod): string | null {
+  const { enabled, power, direction, startTime, endTime, weekday } = slot;
+  if (
+    enabled == null ||
+    power == null ||
+    direction == null ||
+    direction === 'unknown' ||
+    startTime == null ||
+    endTime == null ||
+    weekday == null
+  ) {
+    return null;
+  }
+  const start = normalizeScheduleTime(startTime);
+  const end = normalizeScheduleTime(endTime);
+  if (start === null || end === null) return null;
+  return (
+    `cd=${46 + n},m=${enabled ? 1 : 0},mp=${power},ms=${venusMiniScheduleDirectionCodes[direction]},` +
+    `st=${start},et=${end},re=${weekdaySetToMask(weekday)}`
+  );
+}
 
 const requiredMiniRuntimeInfoKeys = ['gp', 'lp', 'soc', 'be', 'pmu', 'wif_s', 'mq_s', 'm1', 'time'];
 function isVenusMiniRuntimeInfoMessage(values: Record<string, string>): boolean {
@@ -149,15 +227,15 @@ function parseVenusMiniDeviceTime(value: string): string {
 }
 
 // Fields the vendor app does parse, named after what it parses them into.
-// That says what each one is about, but none of the individual codes is
-// known - only ls=1, gs=5 and ser=0/rechg_type=0 have been seen at all - so
-// they are reported as plain numbers rather than mapped to labels, and stay
-// disabled by default until someone works out what the codes mean.
+// That says what each one is about, but the codes of ls and gs are not known
+// (only ls=1 and gs=5 have been seen), so they are reported as plain numbers
+// and stay disabled by default. ser is the cloud region the device's own HTTP
+// requests go to (0 eu, 1 us, 2 dev, 3 staging; set with cd=60, which is not
+// exposed).
 const venusMiniNamedRawFields = [
   { key: 'ls', path: 'loadState', id: 'load_state', name: 'Load State' },
   { key: 'gs', path: 'gridMode', id: 'grid_mode', name: 'Grid Mode' },
   { key: 'ser', path: 'serverState', id: 'server_state', name: 'Server State' },
-  { key: 'rechg_type', path: 'rechargeType', id: 'recharge_type', name: 'Recharge Type' },
 ] as const;
 
 // Fields observed in the Venus E Mini's cd=1 payload with no confirmed
@@ -457,22 +535,22 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    // Working mode, `cd=02`. Backed by cm rather than write-only, matching the
-    // Working Mode select on the other Venus models: the device reports its
-    // mode, so there is no reason for the entity to show only what was last
-    // written. Unrecognised codes fall back to `automatic`, as they do there.
-    //
-    // Only 0 (self-consumption) and 2 (manual) have been observed; a 3rd "AI
-    // optimization" mode exists in the app UI but is greyed out as "coming
-    // soon" - 3 is the code it will report, from the app's own work-mode
-    // enum. In manual mode, actual charge/discharge behavior is driven by
-    // which schedule rule is enabled, not by this field itself.
+    // Working mode, `cd=02,md=<n>`, reported as cm. What the control firmware
+    // does in each (V135):
+    //   0 self-consumption: the inverter follows the meter;
+    //   1 UPS: charges from the grid at the UPS charge power (cd=64);
+    //   2 manual: the six schedule slots (cd=47..52);
+    //   3 AI: the same evaluation over a plan the device fetches from the
+    //     Marstek cloud - with no plan it idles.
+    // Every other value behaves like 0, so unrecognised codes fall back to
+    // `automatic`, as they do on the other Venus models.
     field({
       key: 'cm',
       path: ['workingMode'],
       transform: map(
         {
           '0': 'automatic',
+          '1': 'ups',
           '2': 'manual',
           '3': 'ai',
         },
@@ -493,6 +571,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         // could not treat the models alike, for no functional gain.
         valueMappings: {
           automatic: 'Automatic',
+          ups: 'UPS',
           manual: 'Manual',
           ai: 'AI',
         },
@@ -546,17 +625,26 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    // leds is inverted: 0 means the LED is on, 1 means it's off. Confirmed
-    // via a clean single-variable toggle test.
+    // Status LED, `cd=56,led=<n>`, reported as leds. Inverted: 0 means the LED
+    // is on, 1 that it is off (a real device's toggle test, and the firmware,
+    // which runs its LED logic only while the value is 0).
     field({ key: 'leds', path: ['ledEnabled'], transform: equalsBoolean('0') });
     advertise(
       ['ledEnabled'],
-      binarySensorComponent({
+      switchComponent({
         id: 'led_enabled',
         name: 'Status LED',
         icon: 'mdi:led-on',
+        command: 'led-enabled',
       }),
     );
+    command('led-enabled', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const enabled = isOn(message);
+        updateDeviceState(() => ({ ledEnabled: enabled }));
+        publishCallback(`cd=56,led=${enabled ? 0 : 1}`);
+      },
+    });
 
     // Bluetooth lock (Bluetooth-Sperre in the app): the value last set with
     // cd=55, which also drives the Bluetooth Advertising switch (see there).
@@ -571,9 +659,12 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    // A preset selector, not a literal wattage: 0 = Germany's 800W
-    // simplified-registration cap, 1 = the 1500W alternative. Confirmed both
-    // directions via a real settings change in the app.
+    // The two power limits, both set with `cd=57,gps=<n>,ogpc=<n>`: the
+    // control passes them to the inverter, which derives its clamps from
+    // them. gps is the feed-in limit, 0 = 800 W and 1 = the app's "1500 W"
+    // (confirmed both ways on a real device; inverter firmware 270 caps it at
+    // 1250 W). ogpc is the grid-charge limit, 0 = 1250 W and 1 = 800 W; builds
+    // that do not report it get 0, the default.
     field({
       key: 'gps',
       path: ['feedInPowerLimit'],
@@ -587,10 +678,11 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     });
     advertise(
       ['feedInPowerLimit'],
-      sensorComponent<NonNullable<VenusMiniDeviceData['feedInPowerLimit']>>({
+      selectComponent<NonNullable<VenusMiniDeviceData['feedInPowerLimit']>>({
         id: 'feed_in_power_limit',
         name: 'Feed-in Power Limit',
         icon: 'mdi:transmission-tower-export',
+        command: 'feed-in-power-limit',
         valueMappings: {
           '800W': '800 W',
           '1500W': '1500 W',
@@ -598,6 +690,212 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         },
       }),
     );
+    field({
+      key: 'ogpc',
+      path: ['gridChargePowerLimit'],
+      transform: map({ '0': '1250W', '1': '800W' }, 'unknown'),
+    });
+    advertise(
+      ['gridChargePowerLimit'],
+      selectComponent<NonNullable<VenusMiniDeviceData['gridChargePowerLimit']>>({
+        id: 'grid_charge_power_limit',
+        name: 'Grid Charge Power Limit',
+        icon: 'mdi:transmission-tower-import',
+        command: 'grid-charge-power-limit',
+        valueMappings: {
+          '1250W': '1250 W',
+          '800W': '800 W',
+          unknown: 'Unknown',
+        },
+      }),
+      { enabled: state => (state.gridChargePowerLimit != null ? true : undefined) },
+    );
+    const sendPowerLimits = (
+      state: Pick<VenusMiniDeviceData, 'feedInPowerLimit' | 'gridChargePowerLimit'>,
+      publishCallback: (payload: string) => void,
+    ): boolean => {
+      if (state.feedInPowerLimit !== '800W' && state.feedInPowerLimit !== '1500W') {
+        logger.warn('The power limits cannot be set until the device reports its feed-in limit');
+        return false;
+      }
+      const gps = state.feedInPowerLimit === '1500W' ? 1 : 0;
+      const ogpc = state.gridChargePowerLimit === '800W' ? 1 : 0;
+      publishCallback(`cd=57,gps=${gps},ogpc=${ogpc}`);
+      return true;
+    };
+    command('feed-in-power-limit', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        if (!isValidVenusMiniFeedInPowerLimit(message)) {
+          logger.warn('Invalid feed-in power limit:', message);
+          return;
+        }
+        updateDeviceState(state =>
+          sendPowerLimits({ ...state, feedInPowerLimit: message }, publishCallback)
+            ? { feedInPowerLimit: message }
+            : undefined,
+        );
+      },
+    });
+    command('grid-charge-power-limit', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        if (!isValidVenusMiniGridChargePowerLimit(message)) {
+          logger.warn('Invalid grid charge power limit:', message);
+          return;
+        }
+        updateDeviceState(state =>
+          sendPowerLimits({ ...state, gridChargePowerLimit: message }, publishCallback)
+            ? { gridChargePowerLimit: message }
+            : undefined,
+        );
+      },
+    });
+
+    // UPS charge power, `cd=64,ups_p=<W>`, reported as ups_p: what the device
+    // charges with from the grid in UPS mode. The firmware clamps it to
+    // 100-1500 W. Not reported by older builds, which are left without it.
+    field({ key: 'ups_p', path: ['upsChargePower'], transform: number() });
+    advertise(
+      ['upsChargePower'],
+      numberComponent({
+        id: 'ups_charge_power',
+        name: 'UPS Charge Power',
+        icon: 'mdi:battery-charging',
+        unit_of_measurement: 'W',
+        device_class: 'power',
+        command: 'ups-charge-power',
+        min: MINI_UPS_POWER_MIN,
+        max: MINI_UPS_POWER_MAX,
+        step: 1,
+      }),
+      { enabled: state => (state.upsChargePower != null ? true : undefined) },
+    );
+    command('ups-charge-power', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const power = Number(message);
+        if (!Number.isInteger(power) || power < MINI_UPS_POWER_MIN || power > MINI_UPS_POWER_MAX) {
+          logger.warn(
+            `Invalid UPS charge power (expected ${MINI_UPS_POWER_MIN}-${MINI_UPS_POWER_MAX} W):`,
+            message,
+          );
+          return;
+        }
+        updateDeviceState(() => ({ upsChargePower: power }));
+        publishCallback(`cd=64,ups_p=${power}`);
+      },
+    });
+
+    // Which phases the device balances, `cd=63,ct_chg_type=<n>` (the app's
+    // CMD_SET_CT_CHARGE_TYPE), reported as rechg_type. With 0 it asks the meter
+    // for its own phase and covers that one; with 1 it asks for the sum of all
+    // three phases and covers the total - what a meter that nets the phases
+    // bills. Checked in marsemu: 300 W on phase A and 500 W on B, battery on
+    // A, covered 300 W with 0 and 800 W with 1.
+    field({
+      key: 'rechg_type',
+      path: ['phaseMode'],
+      transform: map({ '1': 'allPhases' }, 'ownPhase'),
+    });
+    advertise(
+      ['phaseMode'],
+      selectComponent<NonNullable<VenusMiniDeviceData['phaseMode']>>({
+        id: 'phase_mode',
+        name: 'Phase Mode',
+        icon: 'mdi:sine-wave',
+        command: 'phase-mode',
+        valueMappings: {
+          ownPhase: 'Own Phase',
+          allPhases: 'All Phases',
+        },
+      }),
+    );
+    command('phase-mode', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        if (!isValidVenusMiniPhaseMode(message)) {
+          logger.warn('Invalid phase mode:', message);
+          return;
+        }
+        updateDeviceState(() => ({ phaseMode: message }));
+        publishCallback(`cd=63,ct_chg_type=${message === 'allPhases' ? 1 : 0}`);
+      },
+    });
+
+    // Local API (the Marstek Open API, JSON over UDP), `cd=65,en=<0|1>,
+    // sp=<port>,rp=<port>`, reported as lapi_en, self_port and rem_port.
+    // self_port is the port it listens on; rem_port is sent back as it is.
+    // All three go in every command, so both entities wait for the report.
+    field({ key: 'lapi_en', path: ['localApiEnabled'], transform: equalsBoolean('1') });
+    field({ key: 'self_port', path: ['localApiPort'], transform: number() });
+    field({ key: 'rem_port', path: ['localApiRemotePort'], transform: number() });
+    type LocalApiState = Pick<
+      VenusMiniDeviceData,
+      'localApiEnabled' | 'localApiPort' | 'localApiRemotePort'
+    >;
+    const localApiReported = (state: LocalApiState) =>
+      state.localApiEnabled != null &&
+      state.localApiPort != null &&
+      state.localApiRemotePort != null
+        ? true
+        : undefined;
+    advertise(
+      ['localApiEnabled'],
+      switchComponent({
+        id: 'local_api_enabled',
+        name: 'Local API Enabled',
+        icon: 'mdi:lan',
+        command: 'local-api-enabled',
+      }),
+      { enabled: localApiReported },
+    );
+    advertise(
+      ['localApiPort'],
+      numberComponent({
+        id: 'local_api_port',
+        name: 'Local API Port',
+        icon: 'mdi:numeric',
+        command: 'local-api-port',
+        min: 1,
+        max: 65535,
+        step: 1,
+      }),
+      { enabled: localApiReported },
+    );
+    const sendLocalApi = (
+      state: LocalApiState,
+      publishCallback: (payload: string) => void,
+    ): boolean => {
+      if (!localApiReported(state)) {
+        logger.warn('Local API control is not available until the device reports its local API');
+        return false;
+      }
+      publishCallback(
+        `cd=65,en=${state.localApiEnabled ? 1 : 0},sp=${state.localApiPort},rp=${state.localApiRemotePort}`,
+      );
+      return true;
+    };
+    command('local-api-enabled', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const enabled = isOn(message);
+        updateDeviceState(state =>
+          sendLocalApi({ ...state, localApiEnabled: enabled }, publishCallback)
+            ? { localApiEnabled: enabled }
+            : undefined,
+        );
+      },
+    });
+    command('local-api-port', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const port = Number(message);
+        if (!Number.isInteger(port) || port < 1 || port > 65535) {
+          logger.warn('Invalid local API port value:', message);
+          return;
+        }
+        updateDeviceState(state =>
+          sendLocalApi({ ...state, localApiPort: port }, publishCallback)
+            ? { localApiPort: port }
+            : undefined,
+        );
+      },
+    });
 
     // Confirmed incrementing during active discharge/charge and exactly when
     // the device started net-exporting to the grid, matching the app.
@@ -783,11 +1081,22 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    // Six charge/discharge schedule slots - the same concept as the other
-    // Venus variants' tim_0..tim_9 periods, but with a flatter per-slot
-    // encoding (m{n}/mp{n}/ms{n}/st{n}/et{n}/re{n} instead of one
-    // pipe-separated field). The mode and repeat values are captured but
-    // their meaning is unconfirmed (see VENUS_MINI_NOTES.md).
+    // Six schedule slots, used in manual mode (`cd=02,md=2`). Slot n is reported
+    // as m{n} (enabled), mp{n} (W), ms{n} (what it does), st{n}/et{n} (HH:MM)
+    // and re{n} (weekdays), and set with `cd=4{6+n}` - 47 for slot 1, 52 for
+    // slot 6 - whose eight values are the same in that order, the times as h:m:
+    //
+    //   cd=47,m=1,mp=300,ms=1,st=08:15,et=17:45,re=127
+    //
+    // From the control firmware's evaluator (V135): a slot applies while
+    // start <= now < end on a day in its mask (bit 0 = Monday .. bit 6 =
+    // Sunday, 127 every day); an end of 23:59 runs to midnight, and a slot
+    // cannot cross midnight. ms 0 idles, 1 charges and 2 discharges at the
+    // slot's power (capped at 1500 W), 3 follows the meter as in
+    // self-consumption. Outside every slot the device follows the meter while
+    // the enabled slots only idle or charge, and idles once any of them
+    // discharges or follows the meter. Every command sends the whole slot, so
+    // a slot can only be changed once the device has reported it.
     for (let i = 1; i <= 6; i++) {
       const idx = i - 1;
 
@@ -798,54 +1107,60 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       });
       advertise(
         ['timePeriods', idx, 'enabled'],
-        binarySensorComponent({
+        switchComponent({
           id: `schedule_${i}_enabled`,
           name: `Schedule Slot ${i} Enabled`,
           icon: 'mdi:clock-time-four-outline',
+          command: `schedule/${i}/enabled`,
         }),
       );
 
       field({ key: `mp${i}`, path: ['timePeriods', idx, 'power'], transform: number() });
       advertise(
         ['timePeriods', idx, 'power'],
-        sensorComponent<number>({
+        numberComponent({
           id: `schedule_${i}_power`,
           name: `Schedule Slot ${i} Power`,
+          icon: 'mdi:flash',
           device_class: 'power',
           unit_of_measurement: 'W',
-          state_class: 'measurement',
+          command: `schedule/${i}/power`,
+          min: 0,
+          max: MINI_SCHEDULE_POWER_MAX,
+          step: 1,
         }),
       );
 
       field({ key: `st${i}`, path: ['timePeriods', idx, 'startTime'], transform: identity() });
       advertise(
         ['timePeriods', idx, 'startTime'],
-        sensorComponent<string>({
+        textComponent({
           id: `schedule_${i}_start_time`,
           name: `Schedule Slot ${i} Start Time`,
           icon: 'mdi:clock-time-four-outline',
+          command: `schedule/${i}/start-time`,
+          pattern: SCHEDULE_TIME_PATTERN,
         }),
       );
 
       field({ key: `et${i}`, path: ['timePeriods', idx, 'endTime'], transform: identity() });
       advertise(
         ['timePeriods', idx, 'endTime'],
-        sensorComponent<string>({
+        textComponent({
           id: `schedule_${i}_end_time`,
           name: `Schedule Slot ${i} End Time`,
           icon: 'mdi:clock-time-four-outline',
+          command: `schedule/${i}/end-time`,
+          pattern: SCHEDULE_TIME_PATTERN,
         }),
       );
 
-      // ms{n} is the slot's charge/discharge direction: 1 = charge, 2 =
-      // discharge (fixed power), 3 = self-consumption (per-rule, distinct
-      // from the top-level operatingMode). modeRaw is kept alongside the
-      // mapped value for any future value outside this range.
       field({
         key: `ms${i}`,
         path: ['timePeriods', idx, 'direction'],
         transform: map(
           {
+            '0': 'idle',
             '1': 'charge',
             '2': 'discharge',
             '3': 'selfConsumption',
@@ -855,11 +1170,13 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       });
       advertise(
         ['timePeriods', idx, 'direction'],
-        sensorComponent<NonNullable<VenusMiniTimePeriod['direction']>>({
+        selectComponent<NonNullable<VenusMiniTimePeriod['direction']>>({
           id: `schedule_${i}_direction`,
           name: `Schedule Slot ${i} Direction`,
           icon: 'mdi:swap-vertical',
+          command: `schedule/${i}/direction`,
           valueMappings: {
+            idle: 'Idle',
             charge: 'Charge',
             discharge: 'Discharge',
             selfConsumption: 'Self Consumption',
@@ -868,29 +1185,143 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         }),
       );
 
-      field({ key: `ms${i}`, path: ['timePeriods', idx, 'modeRaw'], transform: number() });
+      field({
+        key: `re${i}`,
+        path: ['timePeriods', idx, 'weekday'],
+        transform: weekdayMaskToSet,
+      });
       advertise(
-        ['timePeriods', idx, 'modeRaw'],
-        sensorComponent<number>({
-          id: `schedule_${i}_mode_raw`,
-          name: `Schedule Slot ${i} Mode (Raw)`,
-          icon: 'mdi:help-circle-outline',
-          enabled_by_default: false,
+        ['timePeriods', idx, 'weekday'],
+        textComponent<WeekdaySet>({
+          id: `schedule_${i}_weekday`,
+          name: `Schedule Slot ${i} Weekday`,
+          icon: 'mdi:calendar-week',
+          command: `schedule/${i}/weekday`,
+          pattern: '^0?1?2?3?4?5?6?$',
         }),
       );
 
-      // re{n} (127 seen on every active-looking slot, possibly a bitmask or
-      // "always" sentinel) - meaning unconfirmed.
-      field({ key: `re${i}`, path: ['timePeriods', idx, 'repeatRaw'], transform: number() });
+      const setSlot = (
+        patch: Partial<VenusMiniTimePeriod>,
+        updateDeviceState: Parameters<
+          Parameters<typeof command>[1]['handler']
+        >[0]['updateDeviceState'],
+        publishCallback: (payload: string) => void,
+      ) => {
+        updateDeviceState(state => {
+          const slot = { ...state.timePeriods?.[idx], ...patch };
+          const payload = scheduleSlotCommand(i, slot);
+          if (payload === null) {
+            logger.warn(`Schedule slot ${i} cannot be set until the device has reported it`);
+            return;
+          }
+          const timePeriods = [...(state.timePeriods ?? [])];
+          timePeriods[idx] = slot;
+          publishCallback(payload);
+          return { timePeriods };
+        });
+      };
+
+      command(`schedule/${i}/enabled`, {
+        handler: ({ message, publishCallback, updateDeviceState }) =>
+          setSlot({ enabled: isOn(message) }, updateDeviceState, publishCallback),
+      });
+      command(`schedule/${i}/power`, {
+        handler: ({ message, publishCallback, updateDeviceState }) => {
+          const power = Number(message);
+          if (!Number.isInteger(power) || power < 0 || power > MINI_SCHEDULE_POWER_MAX) {
+            logger.warn(
+              `Invalid schedule power (expected 0-${MINI_SCHEDULE_POWER_MAX} W):`,
+              message,
+            );
+            return;
+          }
+          setSlot({ power }, updateDeviceState, publishCallback);
+        },
+      });
+      for (const [suffix, key] of [
+        ['start-time', 'startTime'],
+        ['end-time', 'endTime'],
+      ] as const) {
+        command(`schedule/${i}/${suffix}`, {
+          handler: ({ message, publishCallback, updateDeviceState }) => {
+            const time = normalizeScheduleTime(message);
+            if (time === null) {
+              logger.warn('Invalid schedule time (expected HH:MM):', message);
+              return;
+            }
+            setSlot({ [key]: time }, updateDeviceState, publishCallback);
+          },
+        });
+      }
+      command(`schedule/${i}/direction`, {
+        handler: ({ message, publishCallback, updateDeviceState }) => {
+          if (!isValidVenusMiniScheduleDirection(message)) {
+            logger.warn('Invalid schedule direction:', message);
+            return;
+          }
+          setSlot({ direction: message }, updateDeviceState, publishCallback);
+        },
+      });
+      command(`schedule/${i}/weekday`, {
+        handler: ({ message, publishCallback, updateDeviceState }) => {
+          if (!/^0?1?2?3?4?5?6?$/.test(message)) {
+            logger.warn('Invalid schedule weekdays (expected digits 0-6, 0 = Monday):', message);
+            return;
+          }
+          setSlot({ weekday: message as WeekdaySet }, updateDeviceState, publishCallback);
+        },
+      });
+    }
+
+    // Remove what earlier versions advertised read-only, under the same ids in
+    // another domain, or as raw fields that now have a meaning.
+    const retired = { enabled: () => false as const };
+    advertise(
+      ['ledEnabled'],
+      binarySensorComponent({ id: 'led_enabled', name: 'Status LED' }),
+      retired,
+    );
+    advertise(
+      ['feedInPowerLimit'],
+      sensorComponent<NonNullable<VenusMiniDeviceData['feedInPowerLimit']>>({
+        id: 'feed_in_power_limit',
+        name: 'Feed-in Power Limit',
+      }),
+      retired,
+    );
+    advertise(
+      ['phaseMode'],
+      sensorComponent<NonNullable<VenusMiniDeviceData['phaseMode']>>({
+        id: 'recharge_type',
+        name: 'Recharge Type',
+      }),
+      retired,
+    );
+    for (let i = 1; i <= 6; i++) {
+      const idx = i - 1;
       advertise(
-        ['timePeriods', idx, 'repeatRaw'],
-        sensorComponent<number>({
-          id: `schedule_${i}_repeat_raw`,
-          name: `Schedule Slot ${i} Repeat (Raw)`,
-          icon: 'mdi:help-circle-outline',
-          enabled_by_default: false,
-        }),
+        ['timePeriods', idx, 'enabled'],
+        binarySensorComponent({ id: `schedule_${i}_enabled`, name: `Schedule Slot ${i} Enabled` }),
+        retired,
       );
+      for (const [suffix, name, path] of [
+        ['power', 'Power', 'power'],
+        ['start_time', 'Start Time', 'startTime'],
+        ['end_time', 'End Time', 'endTime'],
+        ['direction', 'Direction', 'direction'],
+        ['mode_raw', 'Mode (Raw)', 'direction'],
+        ['repeat_raw', 'Repeat (Raw)', 'weekday'],
+      ] as const) {
+        advertise(
+          ['timePeriods', idx, path],
+          sensorComponent<string>({
+            id: `schedule_${i}_${suffix}`,
+            name: `Schedule Slot ${i} ${name}`,
+          }),
+          retired,
+        );
+      }
     }
 
     for (const raw of venusMiniNamedRawFields) {
@@ -1025,6 +1456,33 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       },
     });
 
+    // Set the clock, `cd=33,d=,m=,y=,h=,mi=,s=` - day, month, year, hour,
+    // minute, second, in that order. There is no time zone: the schedule
+    // slots run on this clock, and Device Time is read as local time, so the
+    // host's local time is sent.
+    advertise(
+      [],
+      buttonComponent({
+        id: 'sync_time',
+        name: 'Sync Time',
+        icon: 'mdi:clock-sync',
+        command: 'sync-time',
+        payload_press: 'PRESS',
+        enabled_by_default: false,
+      }),
+    );
+    command('sync-time', {
+      handler: ({ message, publishCallback }) => {
+        if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
+          const now = new Date();
+          publishCallback(
+            `cd=33,d=${now.getDate()},m=${now.getMonth() + 1},y=${now.getFullYear()},` +
+              `h=${now.getHours()},mi=${now.getMinutes()},s=${now.getSeconds()}`,
+          );
+        }
+      },
+    });
+
     // Factory reset, `cd=05`. Unlike the first generation's reset, which selects
     // between clearing all/part/certificates with an `rs` parameter, this one
     // takes none.
@@ -1072,7 +1530,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
           return;
         }
         updateDeviceState(state => {
-          const mac = resolveMeterMac(message, state.meterMac);
+          const mac = miniMeterMac(message, state.meterMac);
           if (mac === null) {
             logger.warn(
               `Meter type ${message} requires a MAC; set the "Meter MAC" entity before selecting it`,
@@ -1105,6 +1563,35 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
           return;
         }
         updateDeviceState(() => ({ meterMac: mac.toUpperCase() }));
+      },
+    });
+
+    // Meter IP, `cd=66,meter_ip=<ip>`: where the device polls a network meter -
+    // the P1 Meter (HomeWizard, `http://<ip>/api/v1/data`) and the EcoTracker
+    // (`http://<ip>/v1/json`). The firmware reads it up to the end of the line,
+    // so it has to be the last thing in the message. Not reported back, so
+    // the entity shows the last value set.
+    advertise(
+      ['meterIp'],
+      textComponent({
+        id: 'meter_ip',
+        name: 'Meter IP',
+        icon: 'mdi:ip-network',
+        command: 'meter-ip',
+        optimistic: true,
+        enabled_by_default: false,
+        pattern: IPV4_PATTERN,
+      }),
+    );
+    command('meter-ip', {
+      handler: ({ message, publishCallback, updateDeviceState }) => {
+        const ip = message.trim();
+        if (!new RegExp(IPV4_PATTERN).test(ip)) {
+          logger.warn('Invalid meter IP (expected an IPv4 address):', message);
+          return;
+        }
+        updateDeviceState(() => ({ meterIp: ip }));
+        publishCallback(`cd=66,meter_ip=${ip}`);
       },
     });
 
@@ -1213,5 +1700,13 @@ registerDeviceDefinition(
   ({ message }) => {
     registerVenusMiniRuntimeInfoMessage(message);
     registerVenusMiniCtPowerMessage(message);
+    // `cd=03` answers `net_info=ip:…,gate:…,mask:…,dns:…`, which the message
+    // parser normalizes like the other Venus models' cd=26 reply.
+    registerNetworkInfoMessage(message, {
+      commandCode: 3,
+      refreshDataPayload: 'cd=03',
+      isMessage: values => 'ip' in values && 'gate' in values && 'mask' in values,
+      ipEnabledByDefault: true,
+    });
   },
 );

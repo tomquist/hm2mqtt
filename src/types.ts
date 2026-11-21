@@ -752,7 +752,37 @@ export interface VenusDeviceData extends BaseDeviceData {
 // via live app testing (VENUS_MINI_IMPLEMENTATION_PROMPT.md). A 4th value
 // exists in the app UI for an "AI optimization" mode but is greyed out as
 // "coming soon" and not yet observed on the wire.
-export type VenusMiniScheduleDirection = 'charge' | 'discharge' | 'selfConsumption' | 'unknown';
+// What a Venus E Mini schedule slot does while it is active (ms{n}, set with
+// cd=47..52): idle, charge or discharge at the slot's power, or follow the
+// meter as in self-consumption.
+const validVenusMiniScheduleDirections = [
+  'idle',
+  'charge',
+  'discharge',
+  'selfConsumption',
+] as const;
+export type VenusMiniScheduleDirection =
+  | (typeof validVenusMiniScheduleDirections)[number]
+  | 'unknown';
+
+export function isValidVenusMiniScheduleDirection(
+  direction: string,
+): direction is Exclude<VenusMiniScheduleDirection, 'unknown'> {
+  return validVenusMiniScheduleDirections.includes(
+    direction as (typeof validVenusMiniScheduleDirections)[number],
+  );
+}
+
+// The ms{n} code each direction is sent and reported as.
+export const venusMiniScheduleDirectionCodes: Record<
+  Exclude<VenusMiniScheduleDirection, 'unknown'>,
+  number
+> = {
+  idle: 0,
+  charge: 1,
+  discharge: 2,
+  selfConsumption: 3,
+};
 
 /**
  * A single charge/discharge schedule slot reported by a Venus E Mini. Unlike
@@ -762,20 +792,19 @@ export type VenusMiniScheduleDirection = 'charge' | 'discharge' | 'selfConsumpti
  */
 export interface VenusMiniTimePeriod {
   enabled?: boolean; // m{n}
-  power?: number; // mp{n}
-  startTime?: string; // st{n}
-  endTime?: string; // et{n}
-  direction?: VenusMiniScheduleDirection; // ms{n}, mapped
-  modeRaw?: number; // ms{n} (raw, kept alongside direction for any future unmapped value)
-  repeatRaw?: number; // re{n} (raw; meaning unconfirmed, possibly a weekday bitmask)
+  power?: number; // mp{n} (W)
+  startTime?: string; // st{n} (HH:MM)
+  endTime?: string; // et{n} (HH:MM; 23:59 runs to midnight)
+  direction?: VenusMiniScheduleDirection; // ms{n}
+  weekday?: WeekdaySet; // re{n}, a bitmask with bit 0 = Monday .. bit 6 = Sunday
 }
 
-// Working mode of a Venus E Mini, reported in cm and set with cd=2. Only 0
-// (self-consumption, named `automatic` to match the same mode on the other
-// Venus models) and 2 (manual) have been observed; the "AI optimization" mode
-// is greyed out as "coming soon" in the app UI, and 3 is the code it will
-// report.
-const validVenusMiniWorkingModes = ['automatic', 'manual', 'ai'] as const;
+// Working mode of a Venus E Mini, reported in cm and set with cd=02:
+// 0 self-consumption (named `automatic` to match the same mode on the other
+// Venus models), 1 UPS (charges from the grid at the UPS charge power),
+// 2 manual (the schedule slots), 3 AI (a plan the device fetches from the
+// Marstek cloud). The control firmware treats every other value like 0.
+const validVenusMiniWorkingModes = ['automatic', 'ups', 'manual', 'ai'] as const;
 export type VenusMiniWorkingMode = (typeof validVenusMiniWorkingModes)[number];
 
 export function isValidVenusMiniWorkingMode(mode: string): mode is VenusMiniWorkingMode {
@@ -787,6 +816,7 @@ export function isValidVenusMiniWorkingMode(mode: string): mode is VenusMiniWork
 // that file would set the wrong mode.
 export const venusMiniWorkingModeCommandCodes: Record<VenusMiniWorkingMode, number> = {
   automatic: 0,
+  ups: 1,
   manual: 2,
   ai: 3,
 };
@@ -802,10 +832,42 @@ export type VenusMiniDeviceState =
   | 'fault'
   | 'unknown';
 
-// Feed-in power limit preset reported by a Venus E Mini in gps. Not a literal
-// wattage value - it selects between Germany's simplified-registration cap
-// and the alternative limit.
-export type VenusMiniFeedInPowerLimit = '800W' | '1500W' | 'unknown';
+// Feed-in power limit preset reported by a Venus E Mini in gps and set with
+// cd=57's first value. The app calls the higher one 1500 W; inverter firmware
+// 270 caps the output at 1250 W with it.
+const validVenusMiniFeedInPowerLimits = ['800W', '1500W'] as const;
+export type VenusMiniFeedInPowerLimit =
+  | (typeof validVenusMiniFeedInPowerLimits)[number]
+  | 'unknown';
+export function isValidVenusMiniFeedInPowerLimit(
+  value: string,
+): value is (typeof validVenusMiniFeedInPowerLimits)[number] {
+  return validVenusMiniFeedInPowerLimits.includes(
+    value as (typeof validVenusMiniFeedInPowerLimits)[number],
+  );
+}
+
+// Grid-charge power limit of a Venus E Mini, reported in ogpc and set with
+// cd=57's second value: 0 = 1250 W, 1 = 800 W (inverter firmware 270).
+const validVenusMiniGridChargePowerLimits = ['1250W', '800W'] as const;
+export type VenusMiniGridChargePowerLimit =
+  | (typeof validVenusMiniGridChargePowerLimits)[number]
+  | 'unknown';
+export function isValidVenusMiniGridChargePowerLimit(
+  value: string,
+): value is (typeof validVenusMiniGridChargePowerLimits)[number] {
+  return validVenusMiniGridChargePowerLimits.includes(
+    value as (typeof validVenusMiniGridChargePowerLimits)[number],
+  );
+}
+
+// Which phases a Venus E Mini balances (rechg_type, set with cd=63): only the
+// phase it is connected to, or the sum of all three.
+const validVenusMiniPhaseModes = ['ownPhase', 'allPhases'] as const;
+export type VenusMiniPhaseMode = (typeof validVenusMiniPhaseModes)[number];
+export function isValidVenusMiniPhaseMode(value: string): value is VenusMiniPhaseMode {
+  return validVenusMiniPhaseModes.includes(value as VenusMiniPhaseMode);
+}
 
 /**
  * Venus E Mini (VNSEMINI) device data. This model reports a `cd=1` payload
@@ -842,6 +904,12 @@ export interface VenusMiniDeviceData extends BaseDeviceData {
   ledEnabled?: boolean; // leds, inverted: leds=0 means the LED is on
   bluetoothLockRaw?: number; // bbs: the value last set with cd=55 (1/3 = Bluetooth off after ten minutes, 2/4 = on, 0 = default)
   feedInPowerLimit?: VenusMiniFeedInPowerLimit; // gps
+  gridChargePowerLimit?: VenusMiniGridChargePowerLimit; // ogpc
+  upsChargePower?: number; // ups_p (W), the grid-charge power in UPS mode
+  localApiEnabled?: boolean; // lapi_en
+  localApiPort?: number; // self_port, the UDP port the local API listens on
+  localApiRemotePort?: number; // rem_port, sent back unchanged with cd=65
+  meterIp?: string; // last value set with cd=66 (not reported back)
   workingMode?: VenusMiniWorkingMode; // cm
   deviceState?: VenusMiniDeviceState; // dev_sta
   batteryDischargedEnergyToday?: number; // dbd (Wh)
@@ -857,7 +925,7 @@ export interface VenusMiniDeviceData extends BaseDeviceData {
   loadState?: number; // ls (raw; the app treats it as a load state, individual codes unknown)
   gridMode?: number; // gs (raw; grid mode, individual codes unknown)
   serverState?: number; // ser (raw; server state, individual codes unknown)
-  rechargeType?: number; // rechg_type (raw; recharge type, individual codes unknown)
+  phaseMode?: VenusMiniPhaseMode; // rechg_type: 0 = own phase, 1 = all phases
   bluetoothAdvertisingEnabled?: boolean; // from bbs: false once the Bluetooth lock (cd=55,adv=1) is set - see venusEMini.ts
   meterType?: MeterType; // last configured via cd=18,ct_t=. The device reports the code back in ct_type, but that reads 0 both with no meter and with a CT001, so this holds what was written rather than what was read
   meterMac?: string; // MAC used when configuring the meter type

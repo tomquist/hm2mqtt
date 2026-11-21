@@ -153,19 +153,61 @@ either — always read the model's own table.
 | Recharge type | `cd=63,ct_chg_type=<n>` | `CMD_SET_CT_CHARGE_TYPE` |
 | Configure WiFi | *(Bluetooth only)* | `CMD_SET_WIFI` |
 
-The Mini's control firmware (V135, run in marsemu) differs from these tables:
+### What the Mini's firmware accepts
 
-- It sets the meter with `cd=18,ct_t=<n>,mac=<mac>` (it acknowledges `meter=`
-  with `cd18=ok` and ignores it), and reports the code back as `ct_type`.
-- It answers `cd=19` with the meter's readings,
-  `power_a=…,power_b=…,power_c=…,power_s=…,d_p=…,ct_ph=…,ct_type=…,ct_st=…,ct_mac=…`.
-  `cd=59` returns the last 15 samples of its own power and SOC instead
-  (`gn_pwr1`…`gn_pwr15`, `gf_pwr1`…, `bat_pwr1`…, `bat_soc1`…, `dev_sta1`…).
-- It answers `cd=58` (CT phase auto-check, listed for the Venus X) and reports
-  the phase it finds as `ct_ph`, 1-3 for phase A-C.
-- `cd=55,adv=` is the Bluetooth lock: 1 turns advertising off about ten minutes
-  later, 2 turns it back on at once (both saved; 3 and 4 do the same unsaved),
-  and 0 does nothing. The value is reported back as `bbs`.
+The tables above are the app's. The Mini's control firmware (PMU 309, V135;
+inverter firmware 270) was read and run in
+[marsemu](https://github.com/tomquist/marsemu) to see what each `cd=` handler
+parses, where it stores the values and what uses them. Not everything below has
+been confirmed on hardware.
+
+The firmware parses every command the same way: it splits the message at `,`,
+takes what follows each `=` and splits that at `:` too, and stores the numbers
+in order. Key names are ignored, `08:15` is two values, values are 16-bit
+unsigned, and a value left out is whatever was on the stack — so a command has
+to carry all of its values. Each handler is found by searching the message for
+`cd=NN`.
+
+| Command | Values, in order | What it does | Reported as |
+| ------- | ---------------- | ------------ | ----------- |
+| `cd=01` | – | status report | – |
+| `cd=02` | mode | 0 self-consumption, 1 UPS (charges from the grid at `ups_p`), 2 manual (the schedule slots), 3 AI (a plan fetched from the Marstek cloud; idle without one); any other value acts as 0 | `cm` |
+| `cd=03` | – | `net_info=ip:…,gate:…,mask:…,dns:…` | – |
+| `cd=05` | – | factory reset | – |
+| `cd=18` | meter code, MAC | the meter (`ct_t=%d,mac=%12s`); it acknowledges `meter=` and ignores it | `ct_type` |
+| `cd=19` | – | `power_a=…,power_b=…,power_c=…,power_s=…,d_p=…,ct_ph=…,ct_type=…,ct_st=…,ct_mac=…` | – |
+| `cd=33` | day, month, year, hour, minute, second | sets the clock; no time zone, and the schedule slots run on it | `time` |
+| `cd=44` | % | depth of discharge | `do` |
+| `cd=47`..`cd=52` | enabled, power, mode, start h, start min, end h, end min, weekdays | schedule slot 1..6, see below | `m1`.., `mp1`.., `ms1`.., `st1`.., `et1`.., `re1`.. |
+| `cd=53` | 48 values | all six slots at once, 8 per slot | as above |
+| `cd=54` | three | anti-reverse flow; passed to the inverter (block `0x40` words 4-6), whose firmware 270 ignores the first two and uses the third in its output ramp | `ar`, `aw`, `apt` |
+| `cd=55` | 0-4 | Bluetooth lock: 1 stops advertising about ten minutes later, 2 starts it at once (both saved; 3 and 4 do the same unsaved), 0 does nothing | `bbs` |
+| `cd=56` | 0/1 | status LED, 0 on, 1 off | `leds` |
+| `cd=57` | `gps`, `ogpc` | the inverter's limits: `gps` 0 feed-in 800 W, 1 the app's "1500 W" (1250 W with inverter firmware 270); `ogpc` 0 grid charging 1250 W, 1 800 W | `gps`, `ogpc` |
+| `cd=58` | 1 | phase detection: an 800 W probe, the phase found is stored | `ct_ph` (1-3 = A-C) |
+| `cd=59` | – | the last 15 samples of the device's own power and SOC (`gn_pwr1`..`gn_pwr15`, `gf_pwr1`.., `bat_pwr1`.., `bat_soc1`.., `dev_sta1`..) | – |
+| `cd=60` | region | the cloud region of its own HTTP requests: 0 eu, 1 us, 2 dev, 3 staging | `ser` |
+| `cd=61` | 1 | restart, but only with a value of 1; a bare `cd=61` is acknowledged and does nothing | – |
+| `cd=62` | port | a custom UDP port for the Shelly meters (defaults 1010 Pro 3EM, 2222 EM gen3, 2223 Pro EM 50); there is no way back to the default | – |
+| `cd=63` | 0/1 | phase mode: 0 covers its own phase, 1 the sum of all three (the meter poll asks for phase `D`) | `rechg_type` |
+| `cd=64` | W | the UPS-mode charge power, clamped to 100-1500 W | `ups_p` |
+| `cd=65` | enabled, own port, remote port | the local API (Open API, JSON over UDP); it listens on the own port | `lapi_en`, `self_port`, `rem_port` |
+| `cd=66` | IP | the IP of a P1 Meter (`http://<ip>/api/v1/data`) or an EcoTracker (`http://<ip>/v1/json`); read to the end of the line, so it goes last | – |
+| `cd=A0`..`cd=A3` | | firmware update of the control, inverter and DC/DC boards: `A1,cnt=` images, `A2,num=` one image (`type`, `url`, `mod`, `size`, `crc`, `ver`), `A3` starts it, `A0` reports its state | – |
+| `cd=32`, `cd=35`, `cd=38`, `cd=45` | one | accepted, but change nothing in this build (`cd=38` is reported back as `gn`) | – |
+
+There is no `cd=46`. The meter codes match the polls the firmware makes: Shelly
+Pro 3EM 1 (UDP 1010), P1 Meter 2 (HTTP), CT002 3, CT003 4, Shelly EM gen3 5
+(UDP 2222), Shelly Pro EM 50 6 (UDP 2223), EcoTracker 7 (HTTP), SMR-P1 8 and
+TPM2-100CT 11 (both on the CT002 protocol, UDP 12345).
+
+**The schedule slots.** A slot applies while start ≤ now < end on a day in its
+mask (bit 0 = Monday .. bit 6 = Sunday, 127 every day); an end of 23:59 runs
+to midnight, and a slot cannot cross midnight. Its mode 0 idles, 1 charges and
+2 discharges at its power (capped at 1500 W), 3 follows the meter. Outside every
+slot the device follows the meter while the enabled slots only idle or charge,
+and idles once any of them discharges or follows the meter. In AI mode the
+same evaluation runs over a second table that the cloud plan fills.
 
 ## A `cd=60` ambiguity worth knowing about
 
@@ -192,17 +234,23 @@ none of the Shelly flow is implemented.
 
 ## What hm2mqtt implements
 
-Of the second generation, only the Venus E Mini is supported, and only partly:
+Of the second generation, only the Venus E Mini is supported:
 
 - `cd=01` runtime request and payload — parsed
-- `cd=19` meter power readings — polled
-- `cd=55,adv=` Bluetooth lock — implemented, read back from `bbs`
-- `cd=44,do=` depth of discharge — implemented
-- `cd=02,md=` working mode — implemented
-- `cd=18,ct_t=,mac=` meter type — implemented
-- `cd=58` phase detection — implemented
-- `cd=05` factory reset — implemented
-- `cd=61,rst=1` reboot — implemented (the value must be 1; a bare `cd=61` does nothing)
+- `cd=19` meter power readings and `cd=03` network info — polled
+- `cd=02,md=` working mode, with UPS (`md=1`), and `cd=64,ups_p=` its charge power
+- `cd=47`..`cd=52` the six schedule slots, each change sending the whole slot
+- `cd=44,do=` depth of discharge
+- `cd=57,gps=,ogpc=` the feed-in and grid-charge limits, each sending the other's
+  current value
+- `cd=63,ct_chg_type=` the phase mode
+- `cd=56,led=` the status LED
+- `cd=55,adv=` Bluetooth lock, read back from `bbs`
+- `cd=65,en=,sp=,rp=` the local API
+- `cd=18,ct_t=,mac=` meter type, `cd=66,meter_ip=` the meter IP and `cd=58` phase
+  detection
+- `cd=33` clock sync, with hm2mqtt's local time
+- `cd=05` factory reset and `cd=61,rst=1` reboot
 - `cd=01` refresh and `cd=19` get CT power — also exposed as buttons, so a poll
   can be triggered on demand
 
@@ -211,41 +259,15 @@ first-generation Venus models, and the same option names where the two models
 have the same option, so an automation can treat them alike; only the numbers on
 the wire differ. The ranges are still each model's own — the Mini has no
 `trading` working mode, and takes a depth of discharge of 30-90%, like the Venus
-C/E (HMG), against 30-88% on the Venus E 3.0, Venus A and Venus D. Where this model has no counterpart at all — the LED, backup
-power, peak shaving, surplus feed-in, the local API, the power limits — no
-entity is invented for it.
+C/E (HMG), against 30-88% on the Venus E 3.0, Venus A and Venus D. Where this
+model has no counterpart at all — backup power, peak shaving, surplus feed-in —
+no entity is invented for it.
 
-Everything else in the tables above is unimplemented. For all but one the reason
-is that the values it accepts are unknown rather than that the command is in
-doubt; the exception is the grid-connection power limit, which has no device
-command to implement (see below):
-`cd=60,ser=`, `cd=63,ct_chg_type=` and `cd=54,am=,aw=,ap=` have no documented
-value set; `cd=3` and `cd=4` are reads whose reply shape is unknown; `cd=33`
-has known parameters but an undetermined local-vs-UTC convention (see below);
-and manual-mode scheduling is assembled per call. Venus X and Venus G have no
-device definitions at all.
-
-### `cd=33` and the local-vs-UTC question
-
-`cd=33` takes `d`, `m`, `y`, `h`, `min`, `s` and `wy`. `wy` is the timezone
-offset in minutes — the same key, with the same meaning, that the B2500 uses on
-its own set-time command. On the B2500 the clock fields that accompany `wy` are
-UTC. The first-generation Venus `cd=4` has no `wy` at all and takes local time.
-The app calls `timeZoneOffset` once either way, which does not settle which
-convention `cd=33` follows, and choosing wrong sets the device clock off by the
-offset. Pressing the setting in the app while watching the device's reported
-`time` would resolve it in one go.
-
-### The 800 W / 1500 W limit is not a device command
-
-The Mini reports its grid-connection power limit as `gps` (0 = 800 W,
-1 = 1500 W), but there is no `cd=` that writes it. The app changes it through
-Marstek's cloud — the setter resolves to an HTTP call, the two wattages live in
-the app's HTTP API module, and the surrounding flow is an application-and-
-approval one (submit, "VIP power", upgrade status) that then provisions the
-device. `cd=46,cv=` (access power, literally "permission power") is the nearest
-device command and has no callers anywhere in the app. This is why the limit
-appears as a read-only sensor here.
+Not exposed on purpose: the board firmware update (`cd=A0`..`cd=A3`), the cloud
+region (`cd=60`), the Shelly port (`cd=62`, which cannot be reset), the
+anti-reverse flow (`cd=54`, mostly ignored by the inverter) and `cd=53`, which
+the per-slot commands cover. Venus X and Venus G have no device definitions at
+all.
 
 ## Cross-checked against firmware
 
