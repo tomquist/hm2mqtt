@@ -421,9 +421,10 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    // Only ct_type=0 ("no external meter configured") has been observed so
-    // far; the full enum is unconfirmed, so this is reported as a raw number
-    // rather than mapped to labels.
+    // The meter code last set with `cd=18,ct_t=<n>` (the Meter Type codes),
+    // read back unchanged by the control firmware. It is 0 until a meter is
+    // set, which is also CT001's code, so it stays a raw number rather than
+    // being mapped to labels.
     field({ key: 'ct_type', path: ['ctType'], transform: number() });
     advertise(
       ['ctType'],
@@ -434,7 +435,8 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    // Only ct_ph=0 has been observed so far; meaning unconfirmed.
+    // The phase that phase detection (`cd=58`) found: 0 until it has run, then
+    // 1-3 for phase A-C (control firmware V135, run in marsemu).
     field({ key: 'ct_ph', path: ['ctPhase'], transform: number() });
     advertise(
       ['ctPhase'],
@@ -1006,11 +1008,12 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       },
     });
 
-    // Meter type, `cd=18,meter=<n>,mac=<mac>` - the same command and the same
-    // meter codes as the other families, which is one of the few places the two
-    // generations agree. The device reports a meter code back in ct_type, but
-    // nothing establishes that it is the same numbering as `meter`, so this
-    // stays write-only rather than reading that field back.
+    // Meter type, `cd=18,ct_t=<n>,mac=<mac>` with the same meter codes as the
+    // other families. The key is `ct_t`, not the `meter` of the app's base
+    // command table: the control firmware (V135) parses
+    // `cd=18,ct_t=%d,mac=%12s`, and acknowledges `meter=` with `cd18=ok` but
+    // ignores it. It reports the code back in ct_type, but that reads 0 both
+    // with no meter and with a CT001, so this stays write-only.
     advertise(
       ['meterType'],
       selectComponent<NonNullable<VenusMiniDeviceData['meterType']>>({
@@ -1037,7 +1040,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
             );
             return;
           }
-          publishCallback(`cd=18,meter=${meterTypeCommandCodes[message]},mac=${mac}`);
+          publishCallback(`cd=18,ct_t=${meterTypeCommandCodes[message]},mac=${mac}`);
           return { meterType: message };
         });
       },
@@ -1063,6 +1066,30 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
           return;
         }
         updateDeviceState(() => ({ meterMac: mac.toUpperCase() }));
+      },
+    });
+
+    // Phase detection, `cd=58,dt=1` (`CMD_SET_CT_PHASE_AUTO_CHECK` in the app,
+    // which sends it after setting the meter). The device probes with 800 W
+    // and stores the phase whose meter reading follows as ct_ph. Until it has
+    // a phase, it does not regulate on the meter. The firmware reads only the
+    // value after `=`, so the key name `dt` is arbitrary.
+    advertise(
+      [],
+      buttonComponent({
+        id: 'phase_detection',
+        name: 'Phase Detection',
+        icon: 'mdi:sine-wave',
+        command: 'phase-detection',
+        payload_press: 'PRESS',
+        enabled_by_default: false,
+      }),
+    );
+    command('phase-detection', {
+      handler: ({ message, publishCallback }) => {
+        if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
+          publishCallback('cd=58,dt=1');
+        }
       },
     });
   });

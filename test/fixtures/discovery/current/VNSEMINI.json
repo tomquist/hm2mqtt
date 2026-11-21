@@ -354,6 +354,37 @@
       "payload_press": "PRESS",
       "unique_id": "0123456789ab_get_ct_power"
     },
+    "homeassistant/button/VNSEMINI_0123456789ab/phase_detection/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/VNSEMINI/availability/0123456789ab"
+        }
+      ],
+      "command_topic": "hm2mqtt/VNSEMINI/control/0123456789ab/phase-detection",
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "VNSEMINI",
+        "name": "HAME Energy VNSEMINI 0123456789ab"
+      },
+      "enabled_by_default": false,
+      "icon": "mdi:sine-wave",
+      "name": "Phase Detection",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_press": "PRESS",
+      "unique_id": "0123456789ab_phase_detection"
+    },
     "homeassistant/button/VNSEMINI_0123456789ab/refresh/config": {
       "availability": [
         {

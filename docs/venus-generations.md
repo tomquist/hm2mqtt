@@ -155,6 +155,12 @@ either — always read the model's own table.
 
 The Mini has no `cd=19`, which is why hm2mqtt polls it for power with `cd=59`.
 
+The Mini's control firmware (V135) disagrees with the base table in one place:
+it sets the meter with `cd=18,ct_t=<n>,mac=<mac>` (it acknowledges `meter=`
+with `cd18=ok` and ignores it), and reports the code back as `ct_type`. It also
+answers `cd=58` (CT phase auto-check, listed for the Venus X) and reports the
+phase it finds as `ct_ph`, 1-3 for phase A-C.
+
 ## A `cd=60` ambiguity worth knowing about
 
 `cd=60` carries two different meanings depending on which parameter it takes.

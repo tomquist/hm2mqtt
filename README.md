@@ -557,7 +557,7 @@ The device type can be one of the following:
 - **VNSE3-X**: (e.g. VNSE3-0) Venus E 3.0
 - **VNSA-X**: (e.g. VNSA-1) Venus A
 - **VNSD-X**: (e.g. VNSD-1) Venus D
-- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini — **beta**; sensors plus *Depth of Discharge*, *Working Mode*, *Bluetooth Advertising*, *Meter Type*, *Meter MAC*, *Refresh*, *Get CT Power*, *Restart* and *Factory Reset* controls. These share their names with the Venus ones and their options where the two overlap, but the ranges are the model's own: this one has no *Trading* working mode, and takes a depth of discharge of 30-90% against 30-88% on the Venus E 3.0, Venus A and Venus D. The remaining Venus write commands do not apply to it.
+- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini — **beta**; sensors plus *Depth of Discharge*, *Working Mode*, *Bluetooth Advertising*, *Meter Type*, *Meter MAC*, *Phase Detection*, *Refresh*, *Get CT Power*, *Restart* and *Factory Reset* controls. These share their names with the Venus ones and their options where the two overlap, but the ranges are the model's own: this one has no *Trading* working mode, and takes a depth of discharge of 30-90% against 30-88% on the Venus E 3.0, Venus A and Venus D. The remaining Venus write commands do not apply to it.
 - **HMN-X**: (e.g. HMN-1) Marstek Jupiter E
 - **HMM-X**: (e.g. HMM-1) Marstek Jupiter C
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus
@@ -775,10 +775,15 @@ Venus commands above.
   (12 hex digits, no separators). Shows the last value set. Disabled by default.
 - `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`,
   `p1Meter`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50`, `ecoTracker`,
-  `smrP1`, `smrIr`, `smrTic` or `tpm2100ct`) — the same command and the same
-  meter codes as the other families. For every meter except the CT001 and the
-  Shelly Pro 3EM, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero
-  MAC. Shows the last value set. Disabled by default.
+  `smrP1`, `smrIr`, `smrTic` or `tpm2100ct`) — the same meter codes as the
+  other families. For every meter except the CT001 and the Shelly Pro 3EM, set
+  `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC. Run
+  `phase-detection` afterwards if the device has not found its phase yet. Shows
+  the last value set. Disabled by default.
+- `phase-detection`: Starts the grid-phase detection, as the app does after
+  setting the meter. The device briefly charges or discharges 800 W and reports
+  the phase it finds in *CT Phase* (1-3 for phase A-C). Until it has a phase, it
+  does not follow the meter. Disabled by default.
 - `refresh`: Refreshes the device data. Disabled by default.
 - `get-ct-power`: Gets current transformer power readings. Disabled by default.
 - `restart`: Reboots the device. Disabled by default.

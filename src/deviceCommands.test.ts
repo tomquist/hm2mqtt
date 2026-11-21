@@ -2783,7 +2783,7 @@ const commandTestCases: CommandTestCase[] = [
     initialState: { meterMac: 'aabbccddeeff' },
     command: 'meter-type',
     input: 'ct002',
-    expectedOutput: 'cd=18,meter=3,mac=aabbccddeeff',
+    expectedOutput: 'cd=18,ct_t=3,mac=aabbccddeeff',
     expectedStateChanges: { meterType: 'ct002' },
   },
   {
@@ -2791,7 +2791,7 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'VNSEMINI-0',
     command: 'meter-type',
     input: 'shellyPro3em',
-    expectedOutput: 'cd=18,meter=1,mac=000000000000',
+    expectedOutput: 'cd=18,ct_t=1,mac=000000000000',
   },
   {
     description: 'Venus E Mini meter-type CT002 without a MAC is rejected',
@@ -2805,6 +2805,20 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'VNSEMINI-0',
     command: 'meter-type',
     input: 'notameter',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini phase-detection with PRESS',
+    deviceType: 'VNSEMINI-0',
+    command: 'phase-detection',
+    input: 'PRESS',
+    expectedOutput: 'cd=58,dt=1',
+  },
+  {
+    description: 'Venus E Mini phase-detection ignores an unrelated payload',
+    deviceType: 'VNSEMINI-0',
+    command: 'phase-detection',
+    input: 'nope',
     expectedOutput: null,
   },
   {
