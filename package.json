@@ -38,9 +38,9 @@
     "jest": "^30.5.2",
     "jest-junit": "^17.0.0",
     "jest-util": "^30.4.1",
-    "oxc-transform": "^0.158.0",
-    "oxfmt": "^0.78.0",
-    "oxlint": "^1.93.0",
+    "oxc-transform": "^0.159.0",
+    "oxfmt": "^0.79.0",
+    "oxlint": "^1.94.0",
     "tsrs": "0.20.1-ts7.1.0-beta",
     "vite-node": "^6.0.0"
   }
