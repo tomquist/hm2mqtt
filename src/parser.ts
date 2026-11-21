@@ -39,13 +39,17 @@ export function parseMessage(
     // format instead of key=value pairs, e.g.:
     //   cd=26,dev_net_info:ip:1.2.3.4,gate:1.2.3.1,mask:255.255.255.0,dns:1.2.3.1,ct_connect_ip:1.2.3.255
     // The Venus C/E (HMG) sends it without the `cd=26,` prefix, so the reply
-    // starts with `dev_net_info:`. Normalize it to standard key=value pairs
-    // (ip=…, gate=…, …) so the generic parser below can handle it like any
-    // other message.
+    // starts with `dev_net_info:`, and the Venus E Mini answers its cd=03 with
+    // `net_info=ip:…,gate:…,mask:…,dns:…`. Normalize them to standard
+    // key=value pairs (ip=…, gate=…, …) so the generic parser below can handle
+    // them like any other message.
     const normalizedMessage =
-      message.startsWith('cd=26,') || message.startsWith('dev_net_info:')
+      message.startsWith('cd=26,') ||
+      message.startsWith('dev_net_info:') ||
+      message.startsWith('net_info=')
         ? message
             .replace('dev_net_info:', '')
+            .replace(/^net_info=/, '')
             .split(',')
             .map(pair => (pair.includes('=') ? pair : pair.replace(':', '=')))
             .join(',')

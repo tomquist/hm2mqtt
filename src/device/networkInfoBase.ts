@@ -27,6 +27,8 @@ const networkFields = [
 export interface NetworkInfoMessageOptions {
   /** Device-specific `cd` code for requesting the network information. */
   commandCode: number;
+  /** The request as sent, where it is not `cd=<commandCode>` (e.g. `cd=03`). */
+  refreshDataPayload?: string;
   /** Recognizes the normalized `cd=26` response for this device family. */
   isMessage: (values: Record<string, string>) => boolean;
   /**
@@ -38,11 +40,11 @@ export interface NetworkInfoMessageOptions {
 
 export function registerNetworkInfoMessage(
   message: BuildMessageFn,
-  { commandCode, isMessage, ipEnabledByDefault }: NetworkInfoMessageOptions,
+  { commandCode, refreshDataPayload, isMessage, ipEnabledByDefault }: NetworkInfoMessageOptions,
 ): void {
   message<NetworkInfo>(
     {
-      refreshDataPayload: `cd=${commandCode}`,
+      refreshDataPayload: refreshDataPayload ?? `cd=${commandCode}`,
       isMessage,
       publishPath: 'network',
       defaultState: {},

@@ -10,6 +10,7 @@
 - Venus: *Meter Type* accepts the P1 Meter and EcoTracker without a *Meter MAC*, and offers the Stromleser on the Venus E 3.0, Venus A and Venus D (PR #462)
 - Venus: *Auto Switch Working Mode* can now be turned on and off from Home Assistant. It is now a switch instead of a binary sensor, so automations using the old entity need updating (PR #462)
 - Venus: New diagnostic sensors (disabled by default) for the Bluetooth state, the external meter's error code and, on the Venus A/D, the PV charger's error code (PR #462)
+- Venus E Mini: The schedules and most settings, including UPS mode and the power limits, can now be changed from Home Assistant. The read-only entities they replace are removed, so automations using them need updating (PR #483)
 
 ### Changed
 
@@ -40,6 +41,8 @@
 - Venus C/E (HMG) and Venus E 3.0: *Enable Cell Data* no longer requests per-pack battery details these models do not provide (PR #462)
 - Venus C/E (HMG): The network sensors, such as the IP address, never appeared because this model answers in a slightly different format (PR #462)
 - HMI inverters: *Total Energy Generated* no longer drops at every month change, a firmware bug, and now includes the energy already lost. It jumps up once after updating, so fix its statistics in Home Assistant if the Energy dashboard counts that jump (fixes #473, PR #474)
+- Venus E Mini: *Meter Type* had no effect, because the device ignored the command it sent. A new *Phase Detection* button starts the phase detection the device needs before it follows the meter (PR #483)
+- Venus E Mini: The per-phase meter power sensors never appeared, *Restart* did nothing, and *Bluetooth Advertising* switched Bluetooth off ten minutes after it was turned on. All three work now, and new sensors show the lifetime grid export and load consumption, the cell temperatures and whether the meter answers (PR #483)
 
 ## [1.10.2] - 2026-10-13
 

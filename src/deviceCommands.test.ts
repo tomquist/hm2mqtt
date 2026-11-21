@@ -2626,28 +2626,28 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'VNSEMINI-0',
     command: 'bluetooth-advertising',
     input: 'true',
-    expectedOutput: 'cd=55,adv=1',
+    expectedOutput: 'cd=55,adv=2',
   },
   {
     description: 'Venus E Mini bluetooth-advertising disable',
     deviceType: 'VNSEMINI-0',
     command: 'bluetooth-advertising',
     input: 'false',
-    expectedOutput: 'cd=55,adv=0',
+    expectedOutput: 'cd=55,adv=1',
   },
   {
     description: 'Venus E Mini bluetooth-advertising with on',
     deviceType: 'VNSEMINI-0',
     command: 'bluetooth-advertising',
     input: 'on',
-    expectedOutput: 'cd=55,adv=1',
+    expectedOutput: 'cd=55,adv=2',
   },
   {
     description: 'Venus E Mini bluetooth-advertising with 1',
     deviceType: 'VNSEMINI-0',
     command: 'bluetooth-advertising',
     input: '1',
-    expectedOutput: 'cd=55,adv=1',
+    expectedOutput: 'cd=55,adv=2',
   },
 
   // Depth of discharge is cd=44 on this generation, where the Venus C/D/E use
@@ -2709,7 +2709,7 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'VNSEMINI-0',
     command: 'restart',
     input: 'PRESS',
-    expectedOutput: 'cd=61',
+    expectedOutput: 'cd=61,rst=1',
   },
   {
     description: 'Venus E Mini restart ignores an unrelated payload',
@@ -2783,7 +2783,7 @@ const commandTestCases: CommandTestCase[] = [
     initialState: { meterMac: 'aabbccddeeff' },
     command: 'meter-type',
     input: 'ct002',
-    expectedOutput: 'cd=18,meter=3,mac=aabbccddeeff',
+    expectedOutput: 'cd=18,ct_t=3,mac=aabbccddeeff',
     expectedStateChanges: { meterType: 'ct002' },
   },
   {
@@ -2791,7 +2791,7 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'VNSEMINI-0',
     command: 'meter-type',
     input: 'shellyPro3em',
-    expectedOutput: 'cd=18,meter=1,mac=000000000000',
+    expectedOutput: 'cd=18,ct_t=1,mac=000000000000',
   },
   {
     description: 'Venus E Mini meter-type CT002 without a MAC is rejected',
@@ -2805,6 +2805,333 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'VNSEMINI-0',
     command: 'meter-type',
     input: 'notameter',
+    expectedOutput: null,
+  },
+  // Status LED: cd=56, inverted (led=0 is on).
+  {
+    description: 'Venus E Mini led-enabled on',
+    deviceType: 'VNSEMINI-0',
+    command: 'led-enabled',
+    input: 'ON',
+    expectedOutput: 'cd=56,led=0',
+    expectedStateChanges: { ledEnabled: true },
+  },
+  {
+    description: 'Venus E Mini led-enabled off',
+    deviceType: 'VNSEMINI-0',
+    command: 'led-enabled',
+    input: 'OFF',
+    expectedOutput: 'cd=56,led=1',
+    expectedStateChanges: { ledEnabled: false },
+  },
+  {
+    description: 'Venus E Mini working-mode UPS',
+    deviceType: 'VNSEMINI-0',
+    command: 'working-mode',
+    input: 'ups',
+    expectedOutput: 'cd=02,md=1',
+    expectedStateChanges: { workingMode: 'ups' },
+  },
+  {
+    description: 'Venus E Mini ups-charge-power',
+    deviceType: 'VNSEMINI-0',
+    command: 'ups-charge-power',
+    input: '300',
+    expectedOutput: 'cd=64,ups_p=300',
+    expectedStateChanges: { upsChargePower: 300 },
+  },
+  {
+    description: 'Venus E Mini ups-charge-power below the firmware minimum',
+    deviceType: 'VNSEMINI-0',
+    command: 'ups-charge-power',
+    input: '99',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini ups-charge-power above the firmware maximum',
+    deviceType: 'VNSEMINI-0',
+    command: 'ups-charge-power',
+    input: '1501',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini phase-mode all phases',
+    deviceType: 'VNSEMINI-0',
+    command: 'phase-mode',
+    input: 'allPhases',
+    expectedOutput: 'cd=63,ct_chg_type=1',
+    expectedStateChanges: { phaseMode: 'allPhases' },
+  },
+  {
+    description: 'Venus E Mini phase-mode own phase',
+    deviceType: 'VNSEMINI-0',
+    command: 'phase-mode',
+    input: 'ownPhase',
+    expectedOutput: 'cd=63,ct_chg_type=0',
+  },
+  {
+    description: 'Venus E Mini phase-mode rejects junk',
+    deviceType: 'VNSEMINI-0',
+    command: 'phase-mode',
+    input: 'both',
+    expectedOutput: null,
+  },
+  // cd=57 carries both limits, so each command sends the other's current value.
+  {
+    description: 'Venus E Mini feed-in-power-limit keeps the grid charge limit',
+    deviceType: 'VNSEMINI-0',
+    initialState: { feedInPowerLimit: '800W', gridChargePowerLimit: '800W' },
+    command: 'feed-in-power-limit',
+    input: '1500W',
+    expectedOutput: 'cd=57,gps=1,ogpc=1',
+    expectedStateChanges: { feedInPowerLimit: '1500W' },
+  },
+  {
+    description: 'Venus E Mini feed-in-power-limit on a build without ogpc sends the default',
+    deviceType: 'VNSEMINI-0',
+    initialState: { feedInPowerLimit: '1500W' },
+    command: 'feed-in-power-limit',
+    input: '800W',
+    expectedOutput: 'cd=57,gps=0,ogpc=0',
+  },
+  {
+    description: 'Venus E Mini grid-charge-power-limit keeps the feed-in limit',
+    deviceType: 'VNSEMINI-0',
+    initialState: { feedInPowerLimit: '1500W', gridChargePowerLimit: '1250W' },
+    command: 'grid-charge-power-limit',
+    input: '800W',
+    expectedOutput: 'cd=57,gps=1,ogpc=1',
+    expectedStateChanges: { gridChargePowerLimit: '800W' },
+  },
+  {
+    description: 'Venus E Mini grid-charge-power-limit waits for the feed-in limit',
+    deviceType: 'VNSEMINI-0',
+    command: 'grid-charge-power-limit',
+    input: '800W',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini feed-in-power-limit rejects junk',
+    deviceType: 'VNSEMINI-0',
+    initialState: { feedInPowerLimit: '800W' },
+    command: 'feed-in-power-limit',
+    input: '1250W',
+    expectedOutput: null,
+  },
+  // Local API: cd=65 always carries enable, own port and remote port.
+  {
+    description: 'Venus E Mini local-api-enabled on',
+    deviceType: 'VNSEMINI-0',
+    initialState: { localApiEnabled: false, localApiPort: 30000, localApiRemotePort: 30000 },
+    command: 'local-api-enabled',
+    input: 'ON',
+    expectedOutput: 'cd=65,en=1,sp=30000,rp=30000',
+    expectedStateChanges: { localApiEnabled: true },
+  },
+  {
+    description: 'Venus E Mini local-api-port keeps the enable flag and remote port',
+    deviceType: 'VNSEMINI-0',
+    initialState: { localApiEnabled: true, localApiPort: 30000, localApiRemotePort: 30002 },
+    command: 'local-api-port',
+    input: '30005',
+    expectedOutput: 'cd=65,en=1,sp=30005,rp=30002',
+    expectedStateChanges: { localApiPort: 30005 },
+  },
+  {
+    description: 'Venus E Mini local-api-enabled waits for the device to report the local API',
+    deviceType: 'VNSEMINI-0',
+    command: 'local-api-enabled',
+    input: 'ON',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini local-api-port rejects an invalid port',
+    deviceType: 'VNSEMINI-0',
+    initialState: { localApiEnabled: true, localApiPort: 30000, localApiRemotePort: 30000 },
+    command: 'local-api-port',
+    input: '70000',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini meter-ip',
+    deviceType: 'VNSEMINI-0',
+    command: 'meter-ip',
+    input: '192.168.1.20',
+    expectedOutput: 'cd=66,meter_ip=192.168.1.20',
+    expectedStateChanges: { meterIp: '192.168.1.20' },
+  },
+  {
+    description: 'Venus E Mini meter-ip rejects a host name',
+    deviceType: 'VNSEMINI-0',
+    command: 'meter-ip',
+    input: 'p1meter.local',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini meter-type P1 Meter without a MAC sends zeros',
+    deviceType: 'VNSEMINI-0',
+    command: 'meter-type',
+    input: 'p1Meter',
+    expectedOutput: 'cd=18,ct_t=2,mac=000000000000',
+  },
+  // Schedule slots: every command sends all eight values of the slot.
+  {
+    description: 'Venus E Mini schedule enable sends the whole slot',
+    deviceType: 'VNSEMINI-0',
+    initialState: {
+      timePeriods: [
+        {
+          enabled: false,
+          power: 300,
+          direction: 'charge',
+          startTime: '08:15',
+          endTime: '17:45',
+          weekday: '0123456',
+        },
+      ],
+    },
+    command: 'schedule/1/enabled',
+    input: 'ON',
+    expectedOutput: 'cd=47,m=1,mp=300,ms=1,st=08:15,et=17:45,re=127',
+  },
+  {
+    description: 'Venus E Mini schedule power on slot 6',
+    deviceType: 'VNSEMINI-0',
+    initialState: {
+      timePeriods: [
+        {},
+        {},
+        {},
+        {},
+        {},
+        {
+          enabled: false,
+          power: 300,
+          direction: 'charge',
+          startTime: '08:15',
+          endTime: '17:45',
+          weekday: '0123456',
+        },
+      ],
+    },
+    command: 'schedule/6/power',
+    input: '1500',
+    expectedOutput: 'cd=52,m=0,mp=1500,ms=1,st=08:15,et=17:45,re=127',
+  },
+  {
+    description: 'Venus E Mini schedule power above the firmware cap',
+    deviceType: 'VNSEMINI-0',
+    initialState: {
+      timePeriods: [
+        {
+          enabled: false,
+          power: 300,
+          direction: 'charge',
+          startTime: '08:15',
+          endTime: '17:45',
+          weekday: '0123456',
+        },
+      ],
+    },
+    command: 'schedule/1/power',
+    input: '1501',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini schedule start time is zero-padded',
+    deviceType: 'VNSEMINI-0',
+    initialState: {
+      timePeriods: [
+        {
+          enabled: false,
+          power: 300,
+          direction: 'charge',
+          startTime: '08:15',
+          endTime: '17:45',
+          weekday: '0123456',
+        },
+      ],
+    },
+    command: 'schedule/1/start-time',
+    input: '7:05',
+    expectedOutput: 'cd=47,m=0,mp=300,ms=1,st=07:05,et=17:45,re=127',
+  },
+  {
+    description: 'Venus E Mini schedule end time rejects an invalid time',
+    deviceType: 'VNSEMINI-0',
+    initialState: {
+      timePeriods: [
+        {
+          enabled: false,
+          power: 300,
+          direction: 'charge',
+          startTime: '08:15',
+          endTime: '17:45',
+          weekday: '0123456',
+        },
+      ],
+    },
+    command: 'schedule/1/end-time',
+    input: '24:00',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini schedule direction self-consumption',
+    deviceType: 'VNSEMINI-0',
+    initialState: {
+      timePeriods: [
+        {
+          enabled: false,
+          power: 300,
+          direction: 'charge',
+          startTime: '08:15',
+          endTime: '17:45',
+          weekday: '0123456',
+        },
+      ],
+    },
+    command: 'schedule/1/direction',
+    input: 'selfConsumption',
+    expectedOutput: 'cd=47,m=0,mp=300,ms=3,st=08:15,et=17:45,re=127',
+  },
+  {
+    description: 'Venus E Mini schedule weekdays Monday to Friday',
+    deviceType: 'VNSEMINI-0',
+    initialState: {
+      timePeriods: [
+        {
+          enabled: false,
+          power: 300,
+          direction: 'charge',
+          startTime: '08:15',
+          endTime: '17:45',
+          weekday: '0123456',
+        },
+      ],
+    },
+    command: 'schedule/1/weekday',
+    input: '01234',
+    expectedOutput: 'cd=47,m=0,mp=300,ms=1,st=08:15,et=17:45,re=31',
+  },
+  {
+    description: 'Venus E Mini schedule waits for the device to report the slot',
+    deviceType: 'VNSEMINI-0',
+    command: 'schedule/2/enabled',
+    input: 'ON',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini phase-detection with PRESS',
+    deviceType: 'VNSEMINI-0',
+    command: 'phase-detection',
+    input: 'PRESS',
+    expectedOutput: 'cd=58,dt=1',
+  },
+  {
+    description: 'Venus E Mini phase-detection ignores an unrelated payload',
+    deviceType: 'VNSEMINI-0',
+    command: 'phase-detection',
+    input: 'nope',
     expectedOutput: null,
   },
   {
@@ -2917,6 +3244,16 @@ describe('Device Commands', () => {
   );
 
   // Test for unknown command
+  describe('Venus E Mini sync-time', () => {
+    afterEach(() => jest.useRealTimers());
+    test('sends the host local time as day, month, year, hour, minute, second', () => {
+      jest.useFakeTimers({ now: new Date(2026, 10, 21, 7, 5, 9) });
+      const device = setupTest('VNSEMINI-0');
+      handleControlTopic(device, 'sync-time', 'PRESS');
+      expect(publishCallback).toHaveBeenCalledWith(device, 'cd=33,d=21,m=11,y=2026,h=7,mi=5,s=9');
+    });
+  });
+
   describe('Unknown commands', () => {
     test('should not call publish callback for unknown command', () => {
       const device = setupTest('HMA-1');
