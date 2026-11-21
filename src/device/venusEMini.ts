@@ -959,11 +959,12 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       },
     });
 
-    // Reboot, `cd=61`. The first generation reboots with `cd=28` instead, and
+    // Reboot, `cd=61,rst=1`: the control firmware (V135) restarts about 50 ticks
+    // later only when the value is 1 (the key name is ignored), so a bare
+    // `cd=61` - which hm2mqtt used to send - is acknowledged and does nothing.
+    // The first generation reboots with `cd=28` instead, and
     // `cd=10` on those models is the WiFi-module version query, not a restart.
-    // No parameters, so there is nothing here to get wrong beyond the number
-    // itself. Disabled by default, matching the reset buttons on the other
-    // families.
+    // Disabled by default, matching the reset buttons on the other families.
     advertise(
       [],
       buttonComponent({
@@ -978,7 +979,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     command('restart', {
       handler: ({ message, publishCallback }) => {
         if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
-          publishCallback('cd=61');
+          publishCallback('cd=61,rst=1');
         }
       },
     });

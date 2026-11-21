@@ -2709,7 +2709,7 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'VNSEMINI-0',
     command: 'restart',
     input: 'PRESS',
-    expectedOutput: 'cd=61',
+    expectedOutput: 'cd=61,rst=1',
   },
   {
     description: 'Venus E Mini restart ignores an unrelated payload',

@@ -41,7 +41,7 @@
 - Venus C/E (HMG): The network sensors, such as the IP address, never appeared because this model answers in a slightly different format (PR #462)
 - HMI inverters: *Total Energy Generated* no longer drops at every month change, a firmware bug, and now includes the energy already lost. It jumps up once after updating, so fix its statistics in Home Assistant if the Energy dashboard counts that jump (fixes #473, PR #474)
 - Venus E Mini: *Meter Type* had no effect, because the device ignored the command it sent. A new *Phase Detection* button starts the phase detection the device needs before it follows the meter
-- Venus E Mini: The per-phase meter power sensors never appeared, and *Bluetooth Advertising* switched Bluetooth off ten minutes after it was turned on. Both work now, and new sensors show the lifetime grid export and load consumption, the cell temperatures and whether the meter answers
+- Venus E Mini: The per-phase meter power sensors never appeared, *Restart* did nothing, and *Bluetooth Advertising* switched Bluetooth off ten minutes after it was turned on. All three work now, and new sensors show the lifetime grid export and load consumption, the cell temperatures and whether the meter answers
 
 ## [1.10.2] - 2026-10-13
 

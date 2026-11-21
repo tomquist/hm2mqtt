@@ -202,7 +202,7 @@ Of the second generation, only the Venus E Mini is supported, and only partly:
 - `cd=18,ct_t=,mac=` meter type — implemented
 - `cd=58` phase detection — implemented
 - `cd=05` factory reset — implemented
-- `cd=61` reboot — implemented
+- `cd=61,rst=1` reboot — implemented (the value must be 1; a bare `cd=61` does nothing)
 - `cd=01` refresh and `cd=19` get CT power — also exposed as buttons, so a poll
   can be triggered on demand
 
