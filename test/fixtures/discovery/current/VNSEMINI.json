@@ -1836,6 +1836,13 @@
       "unique_id": "0123456789ab_pmu_firmware_version",
       "value_template": "{{ value_json.pmuFirmwareVersion }}"
     },
+    "homeassistant/sensor/VNSEMINI_0123456789ab/raw_bat_pwr/config": null,
+    "homeassistant/sensor/VNSEMINI_0123456789ab/raw_ct/config": null,
+    "homeassistant/sensor/VNSEMINI_0123456789ab/raw_gf_pwr/config": null,
+    "homeassistant/sensor/VNSEMINI_0123456789ab/raw_gn_pwr/config": null,
+    "homeassistant/sensor/VNSEMINI_0123456789ab/raw_gn_pwr1/config": null,
+    "homeassistant/sensor/VNSEMINI_0123456789ab/raw_tgb/config": null,
+    "homeassistant/sensor/VNSEMINI_0123456789ab/raw_tgp/config": null,
     "homeassistant/sensor/VNSEMINI_0123456789ab/recharge_type/config": null,
     "homeassistant/sensor/VNSEMINI_0123456789ab/schedule_1_direction/config": null,
     "homeassistant/sensor/VNSEMINI_0123456789ab/schedule_1_end_time/config": null,

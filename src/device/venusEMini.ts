@@ -1298,6 +1298,14 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       }),
       retired,
     );
+    // tgb, tgp and ct are named sensors now (lifetime totals, Meter Connected).
+    for (const [key, path] of [
+      ['tgb', 'loadConsumedEnergyTotal'],
+      ['tgp', 'gridExportedEnergyTotal'],
+    ] as const) {
+      advertise([path], sensorComponent<number>({ id: `raw_${key}`, name: `Raw ${key}` }), retired);
+    }
+    advertise(['ctType'], sensorComponent<number>({ id: 'raw_ct', name: 'Raw ct' }), retired);
     for (let i = 1; i <= 6; i++) {
       const idx = i - 1;
       advertise(
@@ -1685,6 +1693,16 @@ function registerVenusMiniCtPowerMessage(message: BuildMessageFn) {
           enabled_by_default: false,
         }),
         { enabled: state => (state.ctRaw?.[key] != null ? true : undefined) },
+      );
+    }
+    // Keys earlier versions expected here, which come with cd=59 instead.
+    for (const key of ['gn_pwr', 'gn_pwr1', 'gf_pwr', 'bat_pwr'] as const) {
+      advertise(
+        ['totalPhasePower'],
+        sensorComponent<number>({ id: `raw_${key}`, name: `Raw ${key}` }),
+        {
+          enabled: () => false,
+        },
       );
     }
   });
