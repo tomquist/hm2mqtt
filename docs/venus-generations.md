@@ -67,7 +67,7 @@ And these agree, which is why the split is easy to miss:
 | Set working mode    | `cd=2,md=` / `cd=02,md=` |
 | Factory reset       | `cd=5` / `cd=05` |
 | Set CT / meter type | `cd=18,meter=` |
-| Get CT power        | `cd=19` — but not on the Venus E Mini, which has no `cd=19` and uses `cd=59` |
+| Get CT power        | `cd=19` (the Mini's app table leaves it out, but its firmware answers it) |
 | Bluetooth advertising | `cd=55,adv=` |
 
 The first generation reboots with `cd=28`: every Venus E 3.0, Venus A and Venus D
@@ -153,13 +153,19 @@ either — always read the model's own table.
 | Recharge type | `cd=63,ct_chg_type=<n>` | `CMD_SET_CT_CHARGE_TYPE` |
 | Configure WiFi | *(Bluetooth only)* | `CMD_SET_WIFI` |
 
-The Mini has no `cd=19`, which is why hm2mqtt polls it for power with `cd=59`.
+The Mini's control firmware (V135, run in marsemu) differs from these tables:
 
-The Mini's control firmware (V135) disagrees with the base table in one place:
-it sets the meter with `cd=18,ct_t=<n>,mac=<mac>` (it acknowledges `meter=`
-with `cd18=ok` and ignores it), and reports the code back as `ct_type`. It also
-answers `cd=58` (CT phase auto-check, listed for the Venus X) and reports the
-phase it finds as `ct_ph`, 1-3 for phase A-C.
+- It sets the meter with `cd=18,ct_t=<n>,mac=<mac>` (it acknowledges `meter=`
+  with `cd18=ok` and ignores it), and reports the code back as `ct_type`.
+- It answers `cd=19` with the meter's readings,
+  `power_a=…,power_b=…,power_c=…,power_s=…,d_p=…,ct_ph=…,ct_type=…,ct_st=…,ct_mac=…`.
+  `cd=59` returns the last 15 samples of its own power and SOC instead
+  (`gn_pwr1`…`gn_pwr15`, `gf_pwr1`…, `bat_pwr1`…, `bat_soc1`…, `dev_sta1`…).
+- It answers `cd=58` (CT phase auto-check, listed for the Venus X) and reports
+  the phase it finds as `ct_ph`, 1-3 for phase A-C.
+- `cd=55,adv=` is the Bluetooth lock: 1 turns advertising off about ten minutes
+  later, 2 turns it back on at once (both saved; 3 and 4 do the same unsaved),
+  and 0 does nothing. The value is reported back as `bbs`.
 
 ## A `cd=60` ambiguity worth knowing about
 
@@ -189,14 +195,15 @@ none of the Shelly flow is implemented.
 Of the second generation, only the Venus E Mini is supported, and only partly:
 
 - `cd=01` runtime request and payload — parsed
-- `cd=59` power readings — polled
-- `cd=55,adv=` bluetooth advertising — implemented
+- `cd=19` meter power readings — polled
+- `cd=55,adv=` Bluetooth lock — implemented, read back from `bbs`
 - `cd=44,do=` depth of discharge — implemented
 - `cd=02,md=` working mode — implemented
-- `cd=18,meter=,mac=` meter type — implemented
+- `cd=18,ct_t=,mac=` meter type — implemented
+- `cd=58` phase detection — implemented
 - `cd=05` factory reset — implemented
 - `cd=61` reboot — implemented
-- `cd=01` refresh and `cd=59` get CT power — also exposed as buttons, so a poll
+- `cd=01` refresh and `cd=19` get CT power — also exposed as buttons, so a poll
   can be triggered on demand
 
 The entities carry the same ids and names as their counterparts on the

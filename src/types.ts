@@ -833,11 +833,14 @@ export interface VenusMiniDeviceData extends BaseDeviceData {
   wifiStatus?: boolean; // wif_s (1 = ok)
   mqttStatus?: boolean; // mq_s (1 = ok)
   wifiSignal?: number; // wifi_a (dBm), reported as the magnitude and negated on the way in
-  ctType?: number; // ct_type (only 0 = "no external meter" observed so far, full enum unconfirmed)
-  ctPhase?: number; // ct_ph (only 0 observed so far, meaning unconfirmed)
+  ctType?: number; // ct_type: the meter code last set with cd=18,ct_t= (0 until one is set, also CT001's code)
+  ctPhase?: number; // ct_ph: the phase found by phase detection, 0 until it has run, 1-3 = phase A-C
+  meterConnected?: boolean; // ct (1 while the configured meter answers)
+  cell1Temperature?: number; // cell1_t (degC, reported x10)
+  cell2Temperature?: number; // cell2_t (degC, reported x10)
   deviceTime?: string; // time, device-local timestamp, parsed to ISO-8601 assuming the device clock is in the host's local timezone (the same assumption the sync-time command makes)
   ledEnabled?: boolean; // leds, inverted: leds=0 means the LED is on
-  bluetoothLockRaw?: number; // bbs, direction confirmed (higher = more locked) but the absolute mapping across every LED x Bluetooth-lock combination is not, so kept as a raw diagnostic rather than a binary sensor
+  bluetoothLockRaw?: number; // bbs: the value last set with cd=55 (1/3 = Bluetooth off after ten minutes, 2/4 = on, 0 = default)
   feedInPowerLimit?: VenusMiniFeedInPowerLimit; // gps
   workingMode?: VenusMiniWorkingMode; // cm
   deviceState?: VenusMiniDeviceState; // dev_sta
@@ -849,28 +852,27 @@ export interface VenusMiniDeviceData extends BaseDeviceData {
   gridImportedEnergyTotal?: number; // tgs (Wh) - lifetime counterpart, named by symmetry
   loadConsumedEnergyToday?: number; // dgb (Wh)
   gridExportedEnergyToday?: number; // dgp (Wh)
+  loadConsumedEnergyTotal?: number; // tgb (Wh), lifetime counterpart of dgb
+  gridExportedEnergyTotal?: number; // tgp (Wh), lifetime counterpart of dgp
   loadState?: number; // ls (raw; the app treats it as a load state, individual codes unknown)
   gridMode?: number; // gs (raw; grid mode, individual codes unknown)
   serverState?: number; // ser (raw; server state, individual codes unknown)
   rechargeType?: number; // rechg_type (raw; recharge type, individual codes unknown)
-  bluetoothAdvertisingEnabled?: boolean; // last value written with the bluetooth-advertising command. `bbs` is the likely readback but its polarity is unconfirmed, so nothing parses it into this field yet - see venusEMini.ts
-  meterType?: MeterType; // last configured via cd=18. The device reports a meter code back in ct_type, but nothing establishes that it uses the same numbering as the `meter` the command takes, so this holds what was written rather than what was read
+  bluetoothAdvertisingEnabled?: boolean; // from bbs: false once the Bluetooth lock (cd=55,adv=1) is set - see venusEMini.ts
+  meterType?: MeterType; // last configured via cd=18,ct_t=. The device reports the code back in ct_type, but that reads 0 both with no meter and with a CT001, so this holds what was written rather than what was read
   meterMac?: string; // MAC used when configuring the meter type
   timePeriods?: VenusMiniTimePeriod[];
-  // cd=59 per-phase CT readings, in W. Only reported by a unit with an external
-  // meter configured, so these stay unset on a device with ct_type=0.
+  // cd=19 per-phase CT readings, in W (all zero while no meter is set).
   phaseAPower?: number; // power_a
   phaseBPower?: number; // power_b
   phaseCPower?: number; // power_c
   totalPhasePower?: number; // power_s
-  // Further cd=59 keys the vendor app reads next to power_a..power_s, with no
-  // confirmed meaning. Kept in their own record rather than in `raw` below:
+  // Further cd=19 keys next to power_a..power_s, with no confirmed meaning. Kept in their own record rather than in `raw` below:
   // device state is merged per publish path, so one shared record would let
   // whichever of the two messages arrived last erase the other's keys.
   ctRaw?: Record<string, number>;
   // Fields observed in the payload with no confirmed meaning, keyed by their
-  // raw MQTT field name (eg, cv, ct (bare, distinct from ct_type), gn, ar,
-  // aw, apt, e1-e7, tgb/tgp). Exposed as disabled-by-default sensors so the
+  // raw MQTT field name (eg, cv, gn, ar, aw, apt, e1-e7). Exposed as disabled-by-default sensors so the
   // data is available for correlation without asserting semantics.
   raw?: Record<string, number>;
 }

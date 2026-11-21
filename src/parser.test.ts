@@ -1943,9 +1943,12 @@ describe('MQTT Message Parser', () => {
     });
 
     // Fields with no confirmed meaning are preserved verbatim under `raw`.
+    expect(result).toHaveProperty('loadConsumedEnergyTotal', 38); // tgb
+    expect(result).toHaveProperty('gridExportedEnergyTotal', 125); // tgp
+    expect(result).toHaveProperty('meterConnected', false); // ct=0
+    // Firmware 295 does not report the cell temperatures yet.
+    expect(result).not.toHaveProperty('cell1Temperature');
     expect(result.raw).toMatchObject({
-      tgb: 38,
-      tgp: 125,
       e1: 0,
       e2: 0,
       e3: 0,
@@ -1975,6 +1978,38 @@ describe('MQTT Message Parser', () => {
     expect(result.raw).not.toHaveProperty('gs');
     expect(result.raw).not.toHaveProperty('ser');
     expect(result.raw).not.toHaveProperty('rechg_type');
+    expect(result.raw).not.toHaveProperty('tgb');
+    expect(result.raw).not.toHaveProperty('tgp');
+    expect(result.raw).not.toHaveProperty('ct');
+  });
+
+  test('parses the Venus E Mini cell temperatures and meter state (control firmware 309)', () => {
+    // Keys the PMU 309 build adds at the end of its cd=1 report, as printed by
+    // the control firmware in marsemu.
+    const message =
+      'gp=596,lp=0,ls=0,eg=0,ig=596,gs=5,cv=0,cm=0,ct=1,m1=0,mp1=0,ms1=0,st1=00:00,et1=00:00,re1=0,soc=607,be=1220,dpt=-567,do=90,dgb=0,dgs=0,dgp=4,dbc=0,dbd=5,tgb=0,tgs=0,tgp=4,tbc=0,tbd=5,pmu=309,inv=270,dcdc=268,wif_s=1,mq_s=1,wifi_a=48,ct_type=3,dev_sta=2,bbs=0,leds=0,gps=0,inv_p=596,ct_ph=1,time=2026-1-1 0:1:6,ups_p=800,bat_s=2,cell1_t=270,cell2_t=265';
+    const result = parseMessage(message, 'VNSEMINI-0', 'venusMini123')[
+      'data'
+    ] as VenusMiniDeviceData;
+    expect(result).toHaveProperty('cell1Temperature', 27);
+    expect(result).toHaveProperty('cell2Temperature', 26.5);
+    expect(result).toHaveProperty('meterConnected', true);
+    expect(result).toHaveProperty('ctType', 3);
+    expect(result).toHaveProperty('ctPhase', 1);
+    expect(result).toHaveProperty('bluetoothAdvertisingEnabled', true); // bbs=0: never locked
+    for (const [bbs, on] of [
+      ['1', false],
+      ['2', true],
+      ['3', false],
+      ['4', true],
+    ] as const) {
+      const locked = parseMessage(
+        message.replace('bbs=0', `bbs=${bbs}`),
+        'VNSEMINI-0',
+        'venusMini123',
+      );
+      expect((locked['data'] as VenusMiniDeviceData).bluetoothAdvertisingEnabled).toBe(on);
+    }
   });
 
   test('leaves an out-of-range Venus E Mini device time alone', () => {
@@ -1996,12 +2031,12 @@ describe('MQTT Message Parser', () => {
     );
   });
 
-  test('parses the Venus E Mini per-phase CT payload (cd=59)', () => {
-    // Not from a real capture: the unit the cd=1 mappings were checked against
-    // reports ct_type=0, so it never answers a power request at all.
-    // power_a/power_b/power_c are phases A/B/C and power_s the three-phase
-    // total, in watts.
-    const message = 'power_a=230,power_b=0,power_c=-45,power_s=185,d_p=0';
+  test('parses the Venus E Mini per-phase CT payload (cd=19)', () => {
+    // The shape the control firmware (V135) answers cd=19 with, run in
+    // marsemu; not a capture from a real device. power_a/power_b/power_c are
+    // phases A/B/C and power_s the three-phase total, in watts.
+    const message =
+      'power_a=230,power_b=0,power_c=-45,power_s=185,d_p=0,ct_ph=1,ct_type=3,ct_st=1,ct_mac=112233445566';
     const parsed = parseMessage(message, 'VNSEMINI-0', 'venusMini123');
 
     const result = parsed['ct'] as VenusMiniDeviceData;
@@ -2009,24 +2044,17 @@ describe('MQTT Message Parser', () => {
     expect(result.phaseBPower).toBe(0);
     expect(result.phaseCPower).toBe(-45);
     expect(result.totalPhasePower).toBe(185);
-    // The cd=59 reply must not be mistaken for the cd=1 runtime message.
+    // The cd=19 reply must not be mistaken for the cd=1 runtime message.
     expect(parsed['data']).toBeUndefined();
   });
 
   test('publishes the unnamed Venus E Mini CT keys without touching cd=1 raw', () => {
     const message =
-      'power_a=230,power_b=0,power_c=-45,power_s=185,d_p=0,ct_st=1,gn_pwr=-13,gn_pwr1=-13,gf_pwr=0,bat_pwr=-7';
+      'power_a=230,power_b=0,power_c=-45,power_s=185,d_p=0,ct_ph=1,ct_type=3,ct_st=1,ct_mac=112233445566';
     const parsed = parseMessage(message, 'VNSEMINI-0', 'venusMini123');
 
     const result = parsed['ct'] as VenusMiniDeviceData;
-    expect(result.ctRaw).toEqual({
-      d_p: 0,
-      ct_st: 1,
-      gn_pwr: -13,
-      gn_pwr1: -13,
-      gf_pwr: 0,
-      bat_pwr: -7,
-    });
+    expect(result.ctRaw).toEqual({ d_p: 0, ct_st: 1 });
     // These live in their own record so the cd=1 message's `raw` survives the
     // per-path state merge.
     expect(result.raw).toBeUndefined();

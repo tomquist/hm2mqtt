@@ -34,6 +34,39 @@
       "unique_id": "0123456789ab_led_enabled",
       "value_template": "{{ value_json.ledEnabled }}"
     },
+    "homeassistant/binary_sensor/VNSEMINI_0123456789ab/meter_connected/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/VNSEMINI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "VNSEMINI",
+        "name": "HAME Energy VNSEMINI 0123456789ab"
+      },
+      "device_class": "connectivity",
+      "icon": "mdi:meter-electric",
+      "name": "Meter Connected",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "payload_off": false,
+      "payload_on": true,
+      "state_topic": "hm2mqtt/VNSEMINI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_meter_connected",
+      "value_template": "{{ value_json.meterConnected }}"
+    },
     "homeassistant/binary_sensor/VNSEMINI_0123456789ab/mqtt_status/config": {
       "availability": [
         {
@@ -1061,6 +1094,38 @@
       "unit_of_measurement": "Wh",
       "value_template": "{{ value_json.gridExportedEnergyToday }}"
     },
+    "homeassistant/sensor/VNSEMINI_0123456789ab/grid_exported_energy_total/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/VNSEMINI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "VNSEMINI",
+        "name": "HAME Energy VNSEMINI 0123456789ab"
+      },
+      "device_class": "energy",
+      "name": "Grid Exported Energy Total",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "total_increasing",
+      "state_topic": "hm2mqtt/VNSEMINI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_grid_exported_energy_total",
+      "unit_of_measurement": "Wh",
+      "value_template": "{{ value_json.gridExportedEnergyTotal }}"
+    },
     "homeassistant/sensor/VNSEMINI_0123456789ab/grid_imported_energy_today/config": {
       "availability": [
         {
@@ -1316,6 +1381,38 @@
       "unique_id": "0123456789ab_load_consumed_energy_today",
       "unit_of_measurement": "Wh",
       "value_template": "{{ value_json.loadConsumedEnergyToday }}"
+    },
+    "homeassistant/sensor/VNSEMINI_0123456789ab/load_consumed_energy_total/config": {
+      "availability": [
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/availability"
+        },
+        {
+          "payload_available": "online",
+          "payload_not_available": "offline",
+          "topic": "hm2mqtt/VNSEMINI/availability/0123456789ab"
+        }
+      ],
+      "device": {
+        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
+        "ids": ["hame_energy_0123456789ab"],
+        "manufacturer": "HAME Energy",
+        "model_id": "VNSEMINI",
+        "name": "HAME Energy VNSEMINI 0123456789ab"
+      },
+      "device_class": "energy",
+      "name": "Load Consumed Energy Total",
+      "origin": {
+        "name": "hm2mqtt",
+        "url": "https://github.com/tomquist/hm2mqtt"
+      },
+      "state_class": "total_increasing",
+      "state_topic": "hm2mqtt/VNSEMINI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_load_consumed_energy_total",
+      "unit_of_measurement": "Wh",
+      "value_template": "{{ value_json.loadConsumedEnergyTotal }}"
     },
     "homeassistant/sensor/VNSEMINI_0123456789ab/load_state/config": {
       "availability": [
@@ -2767,7 +2864,9 @@
       "payload_on": "true",
       "state_off": false,
       "state_on": true,
-      "unique_id": "0123456789ab_bluetooth_advertising"
+      "state_topic": "hm2mqtt/VNSEMINI/device/0123456789ab/data",
+      "unique_id": "0123456789ab_bluetooth_advertising",
+      "value_template": "{{ value_json.bluetoothAdvertisingEnabled }}"
     },
     "homeassistant/text/VNSEMINI_0123456789ab/meter_mac/config": {
       "availability": [

@@ -105,9 +105,9 @@ function isVenusMiniCtPowerMessage(values: Record<string, string>): boolean {
   return requiredCtPowerKeys.every(key => key in values);
 }
 
-// Keys the vendor app parses alongside power_a..power_s, with no confirmed
-// meaning. See registerVenusMiniCtPowerMessage.
-const venusMiniCtRawFields = ['d_p', 'ct_st', 'gn_pwr', 'gn_pwr1', 'gf_pwr', 'bat_pwr'] as const;
+// Keys the control firmware sends alongside power_a..power_s, with no
+// confirmed meaning. See registerVenusMiniCtPowerMessage.
+const venusMiniCtRawFields = ['d_p', 'ct_st'] as const;
 
 function extractMiniAdditionalDeviceInfo(state: VenusMiniDeviceData) {
   return {
@@ -164,13 +164,10 @@ const venusMiniNamedRawFields = [
 // meaning (see VENUS_MINI_NOTES.md and VENUS_MINI_IMPLEMENTATION_PROMPT.md).
 // Exposed verbatim as disabled-by-default sensors, keyed by their raw MQTT
 // field name, so the values are available for correlation without asserting
-// semantics. tgb/tgp look like the lifetime totals of the named dgb/dgp
-// counters, but no t* key is read by the vendor app at all, so that reading
-// is still a hypothesis and they stay here.
+// semantics.
 const venusMiniRawFields = [
   'eg',
   'cv',
-  'ct',
   'gn',
   'ar',
   'aw',
@@ -182,8 +179,6 @@ const venusMiniRawFields = [
   'e5',
   'e6',
   'e7',
-  'tgb',
-  'tgp',
 ];
 
 function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
@@ -435,6 +430,21 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
+    // 1 while the configured meter answers, 0 when none is set or it does not
+    // answer (control firmware V135, in marsemu: a CT002 set with ct_t=3 and
+    // answering reads 1; a Shelly Pro 3EM set with no Shelly on the network
+    // reads 0).
+    field({ key: 'ct', path: ['meterConnected'], transform: equalsBoolean('1') });
+    advertise(
+      ['meterConnected'],
+      binarySensorComponent({
+        id: 'meter_connected',
+        name: 'Meter Connected',
+        device_class: 'connectivity',
+        icon: 'mdi:meter-electric',
+      }),
+    );
+
     // The phase that phase detection (`cd=58`) found: 0 until it has run, then
     // 1-3 for phase A-C (control firmware V135, run in marsemu).
     field({ key: 'ct_ph', path: ['ctPhase'], transform: number() });
@@ -548,10 +558,8 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       }),
     );
 
-    // Bluetooth lock (Bluetooth-Sperre in the app). The direction is
-    // confirmed - enabling the lock increases the value - but the absolute
-    // mapping across every LED x lock combination isn't, so this stays a raw
-    // diagnostic rather than a binary sensor.
+    // Bluetooth lock (Bluetooth-Sperre in the app): the value last set with
+    // cd=55, which also drives the Bluetooth Advertising switch (see there).
     field({ key: 'bbs', path: ['bluetoothLockRaw'], transform: number() });
     advertise(
       ['bluetoothLockRaw'],
@@ -684,10 +692,10 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     );
 
     // dgb and dgp are the daily load-consumption and daily exported-to-grid
-    // counters from the same group, on the same evidence. Their tgb/tgp
-    // siblings look like the lifetime totals of the two, but with no t* key
-    // read by the app and no second confirmed pair to lean on, they stay
-    // unnamed under `raw`.
+    // counters from the same group, on the same evidence. tgb and tgp are
+    // their lifetime totals: the control firmware (V135) prints the ten
+    // counters as dgb,dgs,dgp,dbc,dbd,tgb,tgs,tgp,tbc,tbd, and in marsemu tgp
+    // rose with dgp, watt-hour for watt-hour.
     field({ key: 'dgb', path: ['loadConsumedEnergyToday'], transform: number() });
     advertise(
       ['loadConsumedEnergyToday'],
@@ -711,6 +719,58 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         state_class: 'total_increasing',
       }),
     );
+
+    field({ key: 'tgb', path: ['loadConsumedEnergyTotal'], transform: number() });
+    advertise(
+      ['loadConsumedEnergyTotal'],
+      sensorComponent<number>({
+        id: 'load_consumed_energy_total',
+        name: 'Load Consumed Energy Total',
+        device_class: 'energy',
+        unit_of_measurement: 'Wh',
+        state_class: 'total_increasing',
+      }),
+    );
+
+    field({ key: 'tgp', path: ['gridExportedEnergyTotal'], transform: number() });
+    advertise(
+      ['gridExportedEnergyTotal'],
+      sensorComponent<number>({
+        id: 'grid_exported_energy_total',
+        name: 'Grid Exported Energy Total',
+        device_class: 'energy',
+        unit_of_measurement: 'Wh',
+        state_class: 'total_increasing',
+      }),
+    );
+
+    // The two cells' temperatures in 0.1 degC, as the control converts them
+    // from the DC/DC board's readings (control firmware V135, in marsemu).
+    for (const cell of [1, 2] as const) {
+      field({
+        key: `cell${cell}_t`,
+        path: [cell === 1 ? 'cell1Temperature' : 'cell2Temperature'],
+        transform: divide(10),
+      });
+      advertise(
+        [cell === 1 ? 'cell1Temperature' : 'cell2Temperature'],
+        sensorComponent<number>({
+          id: `cell_${cell}_temperature`,
+          name: `Cell ${cell} Temperature`,
+          device_class: 'temperature',
+          unit_of_measurement: '°C',
+          state_class: 'measurement',
+        }),
+        // Not in older builds' reports (PMU 295 has none), so only announced
+        // once a device sends them.
+        {
+          enabled: state =>
+            (cell === 1 ? state.cell1Temperature : state.cell2Temperature) != null
+              ? true
+              : undefined,
+        },
+      );
+    }
 
     field({ key: 'time', path: ['deviceTime'], transform: parseVenusMiniDeviceTime });
     advertise(
@@ -860,45 +920,27 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
       );
     }
 
-    // Bluetooth advertising, `cd=55,adv=1` to enable and `cd=55,adv=0` to
-    // disable.
+    // Bluetooth, `cd=55,adv=<n>` (CMD_SET_BLUETOOTH_STATE in the app). What the
+    // values do, from the control firmware (V135) in marsemu: it keeps the
+    // value (reported back as `bbs`) and, whenever it differs from the one
+    // last applied,
     //
-    // `cd=55` is solid: the Mini's own command table names it
-    // CMD_SET_BLUETOOTH_STATE, and CommonCommand.handleBleSwitch reaches the
-    // same number for a Mini through its fallback arm (Venus 55, Jupiter 57,
-    // everything else 55).
+    //   0: does nothing;
+    //   1: stops BLE advertising about ten minutes later (AT+QBLEADVSTOP),
+    //      saved across restarts;
+    //   2: starts advertising at once (AT+QBLEADVSTART), saved;
+    //   3: as 1 and 4: as 2, but not saved.
     //
-    // The `adv=` parameter is NOT solid, and the reason matters. The app has
-    // two generations of Venus code. The first - Venus C/D/E, the HMG/VNSE3/
-    // VNSA/VNSD this repo already supports - lives in pages/Ac_Coupler with
-    // CommonCommand and talks over `hame_energy/…`. The second - Venus X,
-    // Venus G and this model - lives in modules/devices with its own
-    // DataVenus* command tables and talks over `marstek_energy/…` via
-    // VNXMqttStrategy. The two disagree on numbering wherever they both
-    // implement something: depth of discharge is 56 then 44, the LED 59 then
-    // 56, set-time 4 then 33, network info 26 then 03.
-    //
-    // `adv=` comes from handleBleSwitch, which is first-generation. The
-    // Mini's own second-generation descriptor is a bare `cd=55` whose
-    // parameter is filled in at the call site, and that call site has not been
-    // read. So the number is confirmed for this model and the parameter name
-    // is borrowed from the older line - worth confirming on a device before
-    // trusting it.
-    //
-    // Kept optimistic, but not because nothing reports the state back: `bbs`
-    // in the cd=1 payload is the likely readback. The app's own label for
-    // cd=55 is "设置蓝牙广播状态" - set Bluetooth *broadcast state* - which is
-    // what bbs reads like, and it has only ever been seen as 0 or 1. What is
-    // missing is the polarity. The one hardware note on bbs (see
-    // bluetoothLockRaw above) says enabling the Bluetooth *lock* raises it,
-    // which would make it the inverse of advertising, and that the mapping
-    // across LED x lock combinations did not come out cleanly - so bbs may not
-    // be tracking this setting alone.
-    //
-    // A switch wired to the wrong polarity shows the opposite of reality,
-    // which is worse than showing nothing, so this stays optimistic until
-    // someone toggles it on a device and reports which way bbs moves. The
-    // other Venus models do report advertising back, in `ble` bit 2.
+    // The device advertises after every boot. So this is the app's "Bluetooth
+    // lock" (Bluetooth-Sperre), which a real device was seen to report as a
+    // rising bbs: the lock is 1, and turning Bluetooth back on takes 2 - 0
+    // leaves it off. hm2mqtt used to send 1 for on and 0 for off, which
+    // switched Bluetooth off ten minutes after it was "enabled".
+    field({
+      key: 'bbs',
+      path: ['bluetoothAdvertisingEnabled'],
+      transform: map({ '0': true, '1': false, '2': true, '3': false, '4': true }),
+    });
     advertise(
       ['bluetoothAdvertisingEnabled'],
       switchComponent({
@@ -906,10 +948,6 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         name: 'Bluetooth Advertising',
         icon: 'mdi:bluetooth',
         command: 'bluetooth-advertising',
-        // Optimistic: the readback is probably `bbs`, but its polarity is
-        // unconfirmed, so the switch shows the last value set instead of a
-        // state that might be inverted. See the note above.
-        optimistic: true,
       }),
     );
     command('bluetooth-advertising', {
@@ -917,7 +955,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
         const enable =
           message.toLowerCase() === 'true' || message.toLowerCase() === 'on' || message === '1';
         updateDeviceState(() => ({ bluetoothAdvertisingEnabled: enable }));
-        publishCallback(`cd=55,adv=${enable ? 1 : 0}`);
+        publishCallback(`cd=55,adv=${enable ? 2 : 1}`);
       },
     });
 
@@ -981,7 +1019,7 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
     command('get-ct-power', {
       handler: ({ message, publishCallback }) => {
         if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
-          publishCallback('cd=59');
+          publishCallback('cd=19');
         }
       },
     });
@@ -1104,18 +1142,17 @@ function registerVenusMiniRuntimeInfoMessage(message: BuildMessageFn) {
  * total; the phase order is established rather than inferred from the key
  * names.
  *
- * Requested with `cd=59`. The Marstek app asks this model for power with
- * `cd=59` ("get NOW statistics power") and never sends it `cd=19` at all —
- * `cd=19` belongs to the other Venus variants, which declare both commands
- * separately. hm2mqtt used to send `cd=19` here, which was a guess carried over
- * from those variants. Neither number has been confirmed against a real Mini:
- * the unit these mappings were checked against reports `ct_type=0`, meaning no
- * external meter is configured, so it answers no power request at all. The
- * entities only appear once a device actually reports the keys.
+ * Requested with `cd=19`. The control firmware (V135) answers `cd=19` with
+ * `power_a=…,power_b=…,power_c=…,power_s=…,d_p=…,ct_ph=…,ct_type=…,ct_st=…,ct_mac=…`,
+ * all zero while no meter is set. `cd=59`, which the app's table for this
+ * model lists as "get NOW power", answers with something else: the last 15
+ * samples of the device's own power and SOC (`gn_pwr1`..`gn_pwr15`,
+ * `bat_pwr1`.., `bat_soc1`.., `dev_sta1`..), which nothing here parses. Both
+ * were checked by running the firmware in marsemu, not on a real device.
  */
 function registerVenusMiniCtPowerMessage(message: BuildMessageFn) {
   const options = {
-    refreshDataPayload: 'cd=59',
+    refreshDataPayload: 'cd=19',
     isMessage: isVenusMiniCtPowerMessage,
     publishPath: 'ct',
     defaultState: {},
@@ -1145,12 +1182,10 @@ function registerVenusMiniCtPowerMessage(message: BuildMessageFn) {
       );
     }
 
-    // The vendor app reads six more keys immediately after power_a..power_s in
-    // the same parser. The names suggest power readings — battery, grid, grid
-    // feed-in — but nothing in the app confirms a unit, a sign convention or
-    // what distinguishes gn_pwr from gn_pwr1, so they follow the same rule as
-    // the unconfirmed cd=1 fields above: published verbatim, disabled by
-    // default, no device_class that would assert a meaning.
+    // The firmware sends two more keys with no confirmed meaning (`ct_st` reads
+    // 1 while the meter answers, `d_p` has only been seen as 0), so they follow
+    // the same rule as the unconfirmed cd=1 fields above: published verbatim,
+    // disabled by default, no device_class that would assert a meaning.
     for (const key of venusMiniCtRawFields) {
       field({ key, path: ['ctRaw', key], transform: number() });
       advertise(

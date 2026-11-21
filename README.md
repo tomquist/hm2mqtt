@@ -757,13 +757,9 @@ Code* diagnostic sensors are disabled by default as well.
 Applies to VNSEMINI. Despite the name this model shares almost nothing with the
 Venus commands above.
 
-- `bluetooth-advertising`: Turns the device's Bluetooth advertising on or off.
-  The *Bluetooth Advertising* switch shows the last value that was set rather
-  than the device's own state. The Mini most likely does report the setting back
-  in the field behind the *Bluetooth Lock (Raw)* sensor, but which value means
-  "advertising on" is not established, and a switch wired the wrong way round
-  would show the opposite of reality — so it stays on the last value set until
-  someone confirms the direction on a device.
+- `bluetooth-advertising`: Turns Bluetooth on at once, or off — the app's
+  Bluetooth lock, which the device applies about ten minutes later. The
+  *Bluetooth Advertising* switch shows the device's setting.
 - `discharge-depth`: Sets the usable-discharge percentage, 30-90%. The device
   reports the setting back, so the *Discharge Depth* entity shows its real
   state.
@@ -785,7 +781,8 @@ Venus commands above.
   the phase it finds in *CT Phase* (1-3 for phase A-C). Until it has a phase, it
   does not follow the meter. Disabled by default.
 - `refresh`: Refreshes the device data. Disabled by default.
-- `get-ct-power`: Gets current transformer power readings. Disabled by default.
+- `get-ct-power`: Gets the meter's per-phase power readings (`cd=19`), which
+  hm2mqtt also polls on its own. Disabled by default.
 - `restart`: Reboots the device. Disabled by default.
 - `factory-reset`: Resets the device to factory settings. Disabled by default.
 
