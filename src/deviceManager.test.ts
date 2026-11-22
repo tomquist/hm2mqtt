@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
 import './device/registry.js';
 import { DeviceManager } from './deviceManager.js';
+import { parseMessage } from './parser.js';
 import { registerDeviceDefinition } from './deviceDefinition.js';
 import { MqttConfig } from './types.js';
 import { DEFAULT_TOPIC_PREFIX } from './constants.js';
@@ -355,6 +356,26 @@ describe('DeviceManager', () => {
         setEnergy(25);
         expect(energy()).toBe(25);
       });
+    });
+
+    it('keeps the CT003 total energy while the meter is unplugged', () => {
+      const hme3 = { deviceType: 'HME-3', deviceId: 'meter123' };
+      const meter = new DeviceManager({ ...venusConfig, devices: [hme3] }, jest.fn());
+      const receive = (engT: number, harF: number) =>
+        meter.updateDeviceState(
+          hme3,
+          'data',
+          () =>
+            parseMessage(`pwr_t=0,ver_v=122,eng_t=${engT},har_f=${harF}`, 'HME-3', 'meter123').data,
+        );
+      const totalEnergy = () => (meter.getDeviceState(hme3) as any).totalEnergy;
+
+      receive(4553480, 1);
+      expect(totalEnergy()).toBe(455348);
+      receive(0, 0); // unplugged: the reader reports 0
+      expect(totalEnergy()).toBe(455348);
+      receive(4553490, 1);
+      expect(totalEnergy()).toBe(455349);
     });
 
     it('guards nested cumulative paths without dropping sibling fields', () => {

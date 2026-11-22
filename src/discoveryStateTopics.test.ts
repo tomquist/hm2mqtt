@@ -118,7 +118,10 @@ describe('discovery state topics', () => {
           ['meter_type', 'meter_mac'].includes(advertisement.id),
       );
 
-      expect(meterControls).toHaveLength(2);
+      // The B2500 has one Meter Type per set of meters its firmware offers.
+      expect(new Set(meterControls.map(control => control.id))).toEqual(
+        new Set(['meter_type', 'meter_mac']),
+      );
       for (const control of meterControls) {
         expect(control.hasStateTopic).toBe(false);
       }

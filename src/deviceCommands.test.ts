@@ -813,6 +813,31 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
   {
+    // HMJ firmware 110 and 116 never act on cd=27 without `meter=`.
+    description: 'B2500V2 recharge-mode is refused on HMJ firmware 116',
+    deviceType: 'HMJ-2',
+    initialState: { deviceType: 'HMJ-2', deviceInfo: { deviceVersion: 116 } },
+    command: 'recharge-mode',
+    input: 'singlePhase',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 phase-diagnosis is refused on HMJ firmware 110',
+    deviceType: 'HMJ-2',
+    initialState: { deviceType: 'HMJ-2', deviceInfo: { deviceVersion: 110 } },
+    command: 'phase-diagnosis',
+    input: 'PRESS',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 phase-diagnosis is sent on newer HMJ firmware',
+    deviceType: 'HMJ-2',
+    initialState: { deviceType: 'HMJ-2', deviceInfo: { deviceVersion: 117 } },
+    command: 'phase-diagnosis',
+    input: 'PRESS',
+    expectedOutput: 'cd=27,seq_check',
+  },
+  {
     description: 'B2500V2 meter-type invalid',
     deviceType: 'HMA-1',
     command: 'meter-type',
@@ -940,6 +965,60 @@ const commandTestCases: CommandTestCase[] = [
     description: 'B2500V2 time-period/1/end-time before the start time is still sent',
     deviceType: 'HMA-1',
     initialState: {
+      timePeriods: [{ enabled: true, startTime: '22:00', endTime: '23:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/end-time',
+    input: '06:00',
+    expectedOutput: 'cd=7,md=0,a1=1,b1=22:0,e1=6:0,v1=500',
+  },
+  {
+    // HMJ 110 and 116 refuse it and keep the previous times, so neither
+    // sent nor shown.
+    description: 'B2500V2 time-period/1/end-time before the start time is refused on HMJ 116',
+    deviceType: 'HMJ-2',
+    initialState: {
+      deviceType: 'HMJ-2',
+      deviceInfo: { deviceVersion: 116 },
+      timePeriods: [{ enabled: true, startTime: '22:00', endTime: '23:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/end-time',
+    input: '06:00',
+    expectedOutput: null,
+    expectedStateChanges: {
+      timePeriods: [{ enabled: true, startTime: '22:00', endTime: '23:00', outputValue: 500 }],
+    },
+  },
+  {
+    description: 'B2500V2 time-period/1/start-time after the end time is refused on HMJ 110',
+    deviceType: 'HMJ-2',
+    initialState: {
+      deviceType: 'HMJ-2',
+      deviceInfo: { deviceVersion: 110 },
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '09:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/start-time',
+    input: '22:00',
+    expectedOutput: null,
+  },
+  {
+    // The HMJ takes a period that starts and ends at the same time.
+    description: 'B2500V2 time-period/1/end-time equal to the start time is sent on HMJ 116',
+    deviceType: 'HMJ-2',
+    initialState: {
+      deviceType: 'HMJ-2',
+      deviceInfo: { deviceVersion: 116 },
+      timePeriods: [{ enabled: true, startTime: '12:00', endTime: '13:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/end-time',
+    input: '12:00',
+    expectedOutput: 'cd=7,md=0,a1=1,b1=12:0,e1=12:0,v1=500',
+  },
+  {
+    description: 'B2500V2 time-period/1/end-time before the start time is sent on newer HMJ',
+    deviceType: 'HMJ-2',
+    initialState: {
+      deviceType: 'HMJ-2',
+      deviceInfo: { deviceVersion: 117 },
       timePeriods: [{ enabled: true, startTime: '22:00', endTime: '23:00', outputValue: 500 }],
     },
     command: 'time-period/1/end-time',
