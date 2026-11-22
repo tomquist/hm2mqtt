@@ -197,6 +197,14 @@ export interface MessageDefinition<T extends BaseDeviceData> {
    * the last of several requests arriving close together.
    */
   pollOffsetMs?: number;
+  /**
+   * Top-level state keys kept across hm2mqtt restarts, for settings the device
+   * does not report back, so that hm2mqtt only knows them from the command
+   * that set them. Stored under HM2MQTT_DATA_DIR where that persists, and
+   * restored into the message's initial state; a value the device reports
+   * replaces it as usual.
+   */
+  rememberedKeys?: readonly string[];
 }
 
 export type BaseDeviceData = {
@@ -233,6 +241,12 @@ export type BuildMessageDefinitionFn<T extends BaseDeviceData> = (
 
 export interface AdditionalDeviceInfo {
   firmwareVersion?: string;
+  /**
+   * Reported state that discovery depends on beyond the firmware version, such
+   * as a setting that decides which options a select offers. Discovery is
+   * re-published when it changes; it is not shown anywhere.
+   */
+  discoveryState?: string;
 }
 
 const deviceDefinitionRegistry: Map<string, DeviceDefinition<any>> = new Map();
@@ -251,6 +265,7 @@ export type BuildMessageFn = <T extends BaseDeviceData>(
     derive?: DeriveFn<T>;
     shouldPoll?: (state: BaseDeviceData) => boolean;
     pollOffsetMs?: number;
+    rememberedKeys?: readonly (keyof T & string)[];
   },
   args: BuildMessageDefinitionFn<T>,
 ) => void;

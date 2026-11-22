@@ -12,10 +12,15 @@ import { PERSIST_THROTTLE_MS, PERSIST_SCHEMA_VERSION } from './constants.js';
  * top of charge from one day to the next is the whole point, and an add-on
  * update must not reset it. Everything else the diagnostics publish is
  * recomputed from the next poll and needs no storage.
+ *
+ * The other thing kept here is the few settings a device does not report back
+ * (see `rememberedKeys` on a message definition), which hm2mqtt otherwise only
+ * knows from the command that set them.
  */
 
 const DEFAULT_DATA_DIR = '/data';
 const SUBDIRECTORY = 'cell-balancing';
+const SETTINGS_SUBDIRECTORY = 'settings';
 
 export interface PersistenceProbe {
   available: boolean;
@@ -54,6 +59,7 @@ export interface PersistedRecord {
 export function probeDataDir(
   env: NodeJS.ProcessEnv = process.env,
   defaultDir: string = DEFAULT_DATA_DIR,
+  subdirectory: string = SUBDIRECTORY,
 ): PersistenceProbe {
   const configured = env.HM2MQTT_DATA_DIR;
   const base = configured ?? defaultDir;
@@ -62,12 +68,12 @@ export function probeDataDir(
     return {
       available: false,
       reason:
-        `${base} does not exist. Cell balancing history needs somewhere durable to live: ` +
+        `${base} does not exist. Keeping it across restarts needs somewhere durable: ` +
         `mount a volume at ${base}, or set HM2MQTT_DATA_DIR to a directory that persists.`,
     };
   }
 
-  const dir = path.join(base, SUBDIRECTORY);
+  const dir = path.join(base, subdirectory);
   try {
     fs.mkdirSync(dir, { recursive: true });
     const probeFile = path.join(dir, '.write-test');
@@ -114,8 +120,11 @@ export function resetPersistenceProbe(override?: PersistenceProbe): void {
   lastWritten.clear();
 }
 
-function fileFor(deviceType: string, deviceId: string): string | undefined {
-  const { available, dir } = getPersistence();
+function fileFor(
+  deviceType: string,
+  deviceId: string,
+  { available, dir }: PersistenceProbe = getPersistence(),
+): string | undefined {
   if (!available || dir == null) {
     return undefined;
   }
@@ -163,31 +172,44 @@ const pending = new Map<string, PersistedRecord>();
 const lastWriteAt = new Map<string, number>();
 const lastWritten = new Map<string, PersistedRecord>();
 
-function writeNow(file: string, record: PersistedRecord): void {
+/** Replace `file` with `content` so that a crash leaves either the old or the new file. */
+function writeAtomically(file: string, content: string): void {
   const tmp = `${file}.tmp`;
   try {
     const fd = fs.openSync(tmp, 'w');
     try {
-      fs.writeFileSync(fd, JSON.stringify(record));
+      fs.writeFileSync(fd, content);
       fs.fsyncSync(fd);
     } finally {
       fs.closeSync(fd);
     }
     fs.renameSync(tmp, file);
-
-    // Without this the rename itself can be lost after a power cut even though
-    // the file contents were flushed.
+  } catch (error) {
     try {
-      const dirFd = fs.openSync(path.dirname(file), 'r');
-      try {
-        fs.fsyncSync(dirFd);
-      } finally {
-        fs.closeSync(dirFd);
-      }
+      fs.unlinkSync(tmp);
     } catch {
-      // Directory fsync is not supported everywhere; the rename is still atomic.
+      // Nothing useful to do; the next write overwrites it anyway.
     }
+    throw error;
+  }
 
+  // Without this the rename itself can be lost after a power cut even though
+  // the file contents were flushed.
+  try {
+    const dirFd = fs.openSync(path.dirname(file), 'r');
+    try {
+      fs.fsyncSync(dirFd);
+    } finally {
+      fs.closeSync(dirFd);
+    }
+  } catch {
+    // Directory fsync is not supported everywhere; the rename is still atomic.
+  }
+}
+
+function writeNow(file: string, record: PersistedRecord): void {
+  try {
+    writeAtomically(file, JSON.stringify(record));
     lastWriteAt.set(file, Date.now());
     lastWritten.set(file, record);
     pending.delete(file);
@@ -197,11 +219,6 @@ function writeNow(file: string, record: PersistedRecord): void {
     // — retries on the throttle interval rather than on every single poll, with
     // a warning each time.
     lastWriteAt.set(file, Date.now());
-    try {
-      fs.unlinkSync(tmp);
-    } catch {
-      // Nothing useful to do; the next write overwrites it anyway.
-    }
     logger.warn(`Could not write cell balancing history to ${file}:`, error);
   }
 }
@@ -250,5 +267,87 @@ export function flushPersistence(): void {
   // Map iteration is well defined, so this needs no snapshot.
   for (const [file, record] of pending) {
     writeNow(file, record);
+  }
+}
+
+/**
+ * Settings a device does not report back, per device: what hm2mqtt last
+ * set, so it can still show it after a restart.
+ */
+export type RememberedSettings = Record<string, unknown>;
+
+let settingsProbed: PersistenceProbe | undefined;
+const rememberedSettings = new Map<string, RememberedSettings>();
+
+function getSettingsPersistence(): PersistenceProbe {
+  if (settingsProbed == null) {
+    settingsProbed = probeDataDir(process.env, DEFAULT_DATA_DIR, SETTINGS_SUBDIRECTORY);
+    if (settingsProbed.available) {
+      logger.info(`Settings the devices do not report will be kept in ${settingsProbed.dir}`);
+    } else {
+      logger.info(
+        `Settings the devices do not report are not kept across restarts: ${settingsProbed.reason}`,
+      );
+    }
+  }
+  return settingsProbed;
+}
+
+/** Test seam. */
+export function resetSettingsProbe(override?: PersistenceProbe): void {
+  settingsProbed = override;
+  rememberedSettings.clear();
+}
+
+/** The settings remembered for a device; empty when there are none or no storage. */
+export function loadSettings(deviceType: string, deviceId: string): RememberedSettings {
+  const file = fileFor(deviceType, deviceId, getSettingsPersistence());
+  if (file == null) {
+    return {};
+  }
+  let settings = rememberedSettings.get(file);
+  if (settings == null) {
+    settings = {};
+    try {
+      if (fs.existsSync(file)) {
+        const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+        if (parsed != null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          settings = parsed as RememberedSettings;
+        }
+      }
+    } catch (error) {
+      logger.warn(`Could not read the remembered settings in ${file}:`, error);
+    }
+    rememberedSettings.set(file, settings);
+  }
+  return settings;
+}
+
+/**
+ * Remember settings for a device, merged into what it already has. Written at
+ * once, and only when something changed: these change when a command sets
+ * them, not on every poll.
+ */
+export function saveSettings(
+  deviceType: string,
+  deviceId: string,
+  settings: RememberedSettings,
+): void {
+  const file = fileFor(deviceType, deviceId, getSettingsPersistence());
+  if (file == null) {
+    return;
+  }
+  const previous = loadSettings(deviceType, deviceId);
+  const next = { ...previous, ...settings };
+  if (JSON.stringify(next) === JSON.stringify(previous)) {
+    return;
+  }
+  // Taken as written even if the write fails, so that an unwritable directory
+  // costs one warning per change rather than one per poll.
+  rememberedSettings.set(file, next);
+  try {
+    writeAtomically(file, JSON.stringify(next));
+  } catch (error) {
+    logger.warn(`Could not write the remembered settings to ${file}:`, error);
   }
 }

@@ -333,11 +333,19 @@ export const textComponent =
         max?: number;
         min?: number;
         pattern?: string;
+        /**
+         * The value can be absent from the state. The entity then shows an
+         * empty value, so `pattern` must accept the empty string: Home
+         * Assistant checks a reported state against it.
+         */
+        optional?: boolean;
       },
   ): HaStatefulAdvertiseBuilder<T> =>
   args => ({
     ...baseSensor(definition)(args),
-    ...stateSource(definition, args, () => valueTemplate(args)),
+    ...stateSource(definition, args, () =>
+      valueTemplate({ ...args, optional: definition.optional }),
+    ),
     type: 'text',
     command_topic: commandTopic({ ...args, ...definition }),
     max: definition.max,

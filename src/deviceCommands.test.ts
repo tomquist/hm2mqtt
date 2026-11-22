@@ -1241,27 +1241,9 @@ const commandTestCases: CommandTestCase[] = [
     expectedStateChanges: { meterMac: 'aabbccddeeff' },
   },
   {
-    description: 'Venus meter-mac re-applies the meter type set from Home Assistant with new MAC',
-    deviceType: 'HMG-1',
-    initialState: { meterType: 'ct002', lastSetMeterType: 'ct002' },
-    command: 'meter-mac',
-    input: 'aabbccddeeff',
-    expectedOutput: 'cd=18,meter=3,mac=aabbccddeeff',
-    expectedStateChanges: { meterMac: 'aabbccddeeff' },
-  },
-  {
     description: 'Venus meter-mac does not re-apply a meter type read back from the device',
     deviceType: 'VNSA-0',
     initialState: { meterType: 'ct002' },
-    command: 'meter-mac',
-    input: 'aabbccddeeff',
-    expectedOutput: null,
-    expectedStateChanges: { meterMac: 'aabbccddeeff' },
-  },
-  {
-    description: 'Venus meter-mac does not re-apply a meter type the device has since left',
-    deviceType: 'VNSA-0',
-    initialState: { meterType: 'p1Meter', lastSetMeterType: 'ct002' },
     command: 'meter-mac',
     input: 'aabbccddeeff',
     expectedOutput: null,
@@ -1281,7 +1263,7 @@ const commandTestCases: CommandTestCase[] = [
     command: 'meter-type',
     input: 'ct002',
     expectedOutput: 'cd=18,meter=3,mac=aabbccddeeff',
-    expectedStateChanges: { meterType: 'ct002', lastSetMeterType: 'ct002' },
+    expectedStateChanges: { meterType: 'ct002' },
   },
   {
     description: 'Venus meter-type CT003 with configured MAC',
@@ -1431,18 +1413,55 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: 'cd=18,meter=12',
   },
   {
-    description: 'Venus meter-mac re-applies a Stromleser with the new MAC',
-    deviceType: 'VNSD-0',
-    initialState: { meterType: 'stromleser', lastSetMeterType: 'stromleser' },
-    command: 'meter-mac',
-    input: 'aabbccddeeff',
-    expectedOutput: 'cd=18,meter=12,mac=aabbccddeeff',
-  },
-  {
     description: 'Venus meter-type invalid',
     deviceType: 'HMG-1',
     command: 'meter-type',
     input: 'invalid',
+    expectedOutput: null,
+  },
+
+  // time-period commands store the whole slot
+  {
+    description: 'Venus time-period power keeps the rest of the slot',
+    deviceType: 'VNSE3-0',
+    initialState: {
+      timePeriods: [
+        { startTime: '8:05', endTime: '17:30', weekday: '01234', power: 350, enabled: true },
+      ],
+    },
+    command: 'time-period/0/power',
+    input: '-800',
+    expectedOutput: 'cd=3,md=1,nm=0,bt=08:05,et=17:30,wk=31,vv=-800,as=1',
+  },
+  {
+    description: 'Venus time-period start time on a slot the device reports no times for',
+    deviceType: 'VNSE3-0',
+    initialState: {
+      // tim_0=255|255|255|255|255|-1|255, a slot the device never stored
+      timePeriods: [{ weekday: '0123456', power: -1, enabled: false }],
+    },
+    command: 'time-period/0/start-time',
+    input: '8:00',
+    expectedOutput: 'cd=3,md=1,nm=0,bt=08:00,et=00:00,wk=127,vv=-1,as=0',
+  },
+  {
+    description: 'Venus time-period enabled on a slot without a valid power',
+    deviceType: 'VNSE3-0',
+    initialState: {
+      timePeriods: [{ startTime: '1:00', endTime: '2:00', weekday: '', enabled: false }],
+    },
+    command: 'time-period/0/enabled',
+    input: 'true',
+    expectedOutput: 'cd=3,md=1,nm=0,bt=01:00,et=02:00,wk=0,vv=0,as=1',
+  },
+  {
+    description: 'Venus time-period start time refuses an empty value',
+    deviceType: 'VNSE3-0',
+    initialState: {
+      timePeriods: [{ weekday: '0123456', enabled: false }],
+    },
+    command: 'time-period/0/start-time',
+    input: '',
     expectedOutput: null,
   },
 
@@ -3330,6 +3349,40 @@ describe('Device Commands', () => {
       const device = setupTest('VNSEMINI-0');
       handleControlTopic(device, 'sync-time', 'PRESS');
       expect(publishCallback).toHaveBeenCalledWith(device, 'cd=33,d=21,m=11,y=2026,h=7,mi=5,s=9');
+    });
+  });
+
+  describe('Venus meter-mac after a meter type set from Home Assistant', () => {
+    function setMeterType(deviceType: string, meterType: string) {
+      const device = setupTest(deviceType, { meterMac: '112233445566' });
+      handleControlTopic(device, 'meter-type', meterType);
+      expect(publishCallback).toHaveBeenCalledTimes(1);
+      publishCallback.mockClear();
+      return device;
+    }
+
+    test.each([
+      ['HMG-1', 'ct002', 'cd=18,meter=3,mac=aabbccddeeff'],
+      ['VNSD-0', 'stromleser', 'cd=18,meter=12,mac=aabbccddeeff'],
+    ])('%s re-applies %s with the new MAC', (deviceType, meterType, expected) => {
+      const device = setMeterType(deviceType, meterType);
+      handleControlTopic(device, 'meter-mac', 'aabbccddeeff');
+      expect(publishCallback.mock.calls).toEqual([[device, expected]]);
+    });
+
+    test('does not re-apply a meter type the device has since left', () => {
+      const device = setMeterType('VNSA-0', 'ct002');
+      deviceManager.updateDeviceState(device, 'data', () => ({ meterType: 'p1Meter' }));
+      handleControlTopic(device, 'meter-mac', 'aabbccddeeff');
+      expect(publishCallback).not.toHaveBeenCalled();
+    });
+
+    test('keeps the meter type set from Home Assistant out of the published state', () => {
+      const device = setMeterType('VNSE3-0', 'ct002');
+      handleControlTopic(device, 'meter-mac', 'aabbccddeeff');
+      expect(deviceState).toHaveProperty('meterType', 'ct002');
+      expect(Object.keys(deviceState)).not.toContain('lastSetMeterType');
+      expect(JSON.stringify(deviceState)).not.toMatch(/lastSet/);
     });
   });
 

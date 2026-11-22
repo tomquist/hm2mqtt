@@ -24,16 +24,8 @@ const specs = setup?.devices ?? DEFAULT_EMULATED_DEVICES;
 /**
  * Known findings, not noise; delete an entry with its fix. Anything new still
  * fails the assertion below.
- *
- * - The Venus time periods after a restart: the firmware reports the slots it
- *   has not initialised as times like `0:100` and `255:255`, hm2mqtt publishes
- *   them as they are, and Home Assistant rejects them against the time text
- *   entities' pattern on every message. hm2mqtt should drop a time outside
- *   0:00–23:59 (`parseTimePeriod` in `src/device/venus.ts`).
  */
-const KNOWN_FINDINGS = [
-  /Value error while updating state of text\.\S+_time_period_\d+_time_(from|to)\b/,
-];
+const KNOWN_FINDINGS: RegExp[] = [];
 
 /**
  * Devices whose Restart marsemu has been seen to carry out end to end: the
