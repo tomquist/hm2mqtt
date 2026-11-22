@@ -8,6 +8,7 @@ import { DeviceFixture } from '../../fixtures/devices.js';
 import { BASELINE_DEVICE_ID, DiscoveryBaseline } from '../../discovery/baseline.js';
 import { Broker, startBroker } from './broker.js';
 import { SimulatedDevice, startSimulatedDevice } from './device.js';
+import { EmulatedDevice, EmulatorSetup, startEmulatedDevice } from './emulator.js';
 import { TMP_ROOT } from './env.js';
 import { HomeAssistant, STATE_MIRROR_PREFIX, startHomeAssistant } from './homeAssistant.js';
 import { Hm2mqttProcess, startHm2mqtt } from './hm2mqtt.js';
@@ -29,6 +30,10 @@ export interface Rig {
   readonly probe: MqttProbe;
   readonly homeAssistant: HomeAssistant;
   readonly devices: SimulatedDevice[];
+  /** Devices running their real firmware in marsemu (see `emulator.ts`). */
+  readonly emulated: EmulatedDevice[];
+  /** Wait for every emulated device to reach MQTT; their `DEVICE_n` identities, in order. */
+  emulatedIdentities(): Promise<Array<{ deviceType: string; deviceId: string }>>;
   startHm2mqtt(): Promise<Hm2mqttProcess>;
   /** Publish a previous release's discovery messages as retained, as its broker would still hold them. */
   seedRetainedDiscovery(baselines: DiscoveryBaseline[]): Promise<void>;
@@ -55,6 +60,10 @@ export interface RigOptions {
   /** Used for the scratch directory name, so a failed run can be inspected. */
   name: string;
   fixtures: DeviceFixture[];
+  /** Real firmware to run as well, and how (see `emulatorSetup`). */
+  emulator?: EmulatorSetup;
+  /** Seconds between hm2mqtt's polls (default 2). */
+  pollingIntervalSeconds?: number;
 }
 
 /**
@@ -86,6 +95,16 @@ export async function startRig(options: RigOptions): Promise<Rig> {
         ),
       );
     }
+
+    // Started before Home Assistant: firmware takes a while to reach MQTT, and
+    // both can boot at once.
+    const emulated: EmulatedDevice[] = (options.emulator?.devices ?? []).map((spec, index) =>
+      stack.add(
+        `emulated ${spec.command}`,
+        startEmulatedDevice(options.emulator!, spec, index, broker.port),
+      ),
+    );
+    const emulatedIdentities = () => Promise.all(emulated.map(device => device.identity));
 
     mkdirSync(TMP_ROOT, { recursive: true });
     const homeAssistant = stack.add(
@@ -126,16 +145,23 @@ export async function startRig(options: RigOptions): Promise<Rig> {
       probe,
       homeAssistant,
       devices,
+      emulated,
+      emulatedIdentities,
       async startHm2mqtt() {
+        const emulatedDevices = await emulatedIdentities();
         hm2mqtt = stack.add(
           'hm2mqtt',
           await startHm2mqtt({
             brokerUrl: broker.url,
             topicPrefix: DEFAULT_TOPIC_PREFIX,
-            devices: devices.map(device => ({
-              deviceType: device.deviceType,
-              deviceId: device.deviceId,
-            })),
+            pollingIntervalSeconds: options.pollingIntervalSeconds,
+            devices: [
+              ...devices.map(device => ({
+                deviceType: device.deviceType,
+                deviceId: device.deviceId,
+              })),
+              ...emulatedDevices,
+            ],
           }),
         );
         return hm2mqtt;
