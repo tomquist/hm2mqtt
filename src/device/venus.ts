@@ -5,6 +5,7 @@ import {
 } from '../deviceDefinition.js';
 import {
   CommandParams,
+  Device,
   isValidVenusParallelMode,
   isValidVenusRechargeMode,
   isValidVenusVersionSet,
@@ -473,6 +474,13 @@ function venusMeterMac(meterType: VenusMeterType, configuredMac?: string) {
   }
   return resolveMeterMac(meterType, configuredMac);
 }
+
+/**
+ * The meter type last set from Home Assistant since hm2mqtt started, per
+ * device; `meter-mac` re-applies it. Kept out of the device state, which is
+ * published as it is.
+ */
+const lastSetMeterTypes = new WeakMap<Device, VenusMeterType>();
 
 /** The `cd=18` parameters that configure a meter. */
 function venusMeterParams(meterType: VenusMeterType, mac: string | undefined): CommandParams {
@@ -2501,7 +2509,7 @@ function registerRuntimeInfoMessage(
 
     // MAC address used when configuring an external meter (CT002/CT003/Shelly).
     command('meter-mac', {
-      handler: ({ message, publishCallback, updateDeviceState }) => {
+      handler: ({ device, message, publishCallback, updateDeviceState }) => {
         const mac = normalizeMeterMac(message);
         if (!mac) {
           logger.warn('Invalid meter MAC (expected 12 hex digits):', message);
@@ -2514,7 +2522,7 @@ function registerRuntimeInfoMessage(
           // read back from the device does not count: during a meter swap the
           // MAC is set before the new type, and re-applying the old type would
           // point the old meter at the new MAC.
-          const meterType = state.lastSetMeterType;
+          const meterType = lastSetMeterTypes.get(device);
           if (meterType && (state.meterType == null || state.meterType === meterType)) {
             const resolved = venusMeterMac(meterType, mac);
             if (resolved !== null) {
@@ -2544,7 +2552,7 @@ function registerRuntimeInfoMessage(
 
     // Configure the external meter type (cd=18,meter=...,mac=...).
     command('meter-type', {
-      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
+      handler: ({ device, message, publishCallback, updateDeviceState, deviceState }) => {
         if (!isValidVenusMeterType(message)) {
           logger.warn('Invalid meter type value:', message);
           return;
@@ -2568,7 +2576,8 @@ function registerRuntimeInfoMessage(
           publishCallback(
             processCommand(CommandType.SET_METER_TYPE, venusMeterParams(message, mac)),
           );
-          return { meterType: message, lastSetMeterType: message };
+          lastSetMeterTypes.set(device, message);
+          return { meterType: message };
         });
       },
     });
