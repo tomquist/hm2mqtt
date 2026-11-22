@@ -13,6 +13,10 @@ import { WaitAbandoned, tail, waitFor } from './waitFor.js';
  * applies the commands hm2mqtt sends. Firmware images are not redistributable,
  * so this is opt-in: it needs a marsemu install and a folder of images.
  *
+ * The marsemu needs what tomquist/marsemu#6 added: the whole-device `venusce`
+ * command, `--ble-mac` on whole-device commands, the `for hm2mqtt: DEVICE_0=…`
+ * identity line (parsed below), a clean stop on SIGTERM, and `--meter-power`.
+ *
  * - `MARSEMU`: how to run marsemu, e.g. `marsemu` or
  *   `/path/to/marsemu/.venv/bin/python -m marsemu`.
  * - `MARSEMU_FIRMWARE`: the folder the image paths below are relative to, laid

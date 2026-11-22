@@ -108,16 +108,24 @@ describeFirmware('hm2mqtt against real firmware', () => {
         if (!restartsCleanly(deviceType)) {
           continue;
         }
-        const button = rig.probe.latestJson<{ command_topic: string; payload_press?: string }>(
-          `homeassistant/button/${deviceType}_${deviceId}/restart/config`,
-        );
-        if (!button) {
-          continue;
+        const dataTopic = `hm2mqtt/${deviceType}/device/${deviceId}/data`;
+        const version = rig.probe.latestJson<{ deviceVersion?: number }>(dataTopic)?.deviceVersion;
+        if (deviceType.startsWith('HMG-') && version !== undefined && version < 151) {
+          continue; // hm2mqtt offers Restart on the Venus C/E from control firmware 151
         }
+        // Discovery can trail the first data message; a supported device
+        // without its button is a failure, not a reason to skip it.
+        const button = await waitFor(
+          `${deviceType} to announce its Restart button`,
+          () =>
+            rig.probe.latestJson<{ command_topic: string; payload_press?: string }>(
+              `homeassistant/button/${deviceType}_${deviceId}/restart/config`,
+            ),
+          { timeoutMs: 60_000 },
+        );
         const commandTopic = `/App/${deviceId}/ctrl`;
         const subscriptions = () =>
           rig.broker.subscribed.filter(filter => filter.includes(commandTopic)).length;
-        const dataTopic = `hm2mqtt/${deviceType}/device/${deviceId}/data`;
         const before = subscriptions();
         await rig.probe.publish(button.command_topic, button.payload_press ?? 'PRESS');
         const diagnose = () =>

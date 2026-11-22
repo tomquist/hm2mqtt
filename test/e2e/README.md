@@ -55,7 +55,14 @@ fixtures. Each device runs its own firmware in
 firmware actually reports, such as a fresh device's unset timers or fields only
 some versions send. It also applies the commands hm2mqtt sends. Firmware images
 are not redistributable, so the scenario skips unless told where marsemu and
-the images are:
+the images are.
+
+It needs a marsemu with the whole-device `venusce` command, `--ble-mac` on the
+whole-device commands, the `for hm2mqtt: DEVICE_0=…` line it prints once a
+device subscribes, a clean stop on SIGTERM and `--meter-power` for the
+CT002/CT003, all added in
+[marsemu#6](https://github.com/tomquist/marsemu/pull/6). An older marsemu
+fails at the first device instead of skipping.
 
 ```bash
 MARSEMU="/path/to/marsemu/.venv/bin/python -m marsemu" \
