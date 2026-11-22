@@ -1367,6 +1367,51 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
 
+  // time-period commands store the whole slot
+  {
+    description: 'Venus time-period power keeps the rest of the slot',
+    deviceType: 'VNSE3-0',
+    initialState: {
+      timePeriods: [
+        { startTime: '8:05', endTime: '17:30', weekday: '01234', power: 350, enabled: true },
+      ],
+    },
+    command: 'time-period/0/power',
+    input: '-800',
+    expectedOutput: 'cd=3,md=1,nm=0,bt=08:05,et=17:30,wk=31,vv=-800,as=1',
+  },
+  {
+    description: 'Venus time-period start time on a slot the device reports no times for',
+    deviceType: 'VNSE3-0',
+    initialState: {
+      // tim_0=255|255|255|255|255|-1|255, a slot the device never stored
+      timePeriods: [{ weekday: '0123456', power: -1, enabled: false }],
+    },
+    command: 'time-period/0/start-time',
+    input: '8:00',
+    expectedOutput: 'cd=3,md=1,nm=0,bt=08:00,et=00:00,wk=127,vv=-1,as=0',
+  },
+  {
+    description: 'Venus time-period enabled on a slot without a valid power',
+    deviceType: 'VNSE3-0',
+    initialState: {
+      timePeriods: [{ startTime: '1:00', endTime: '2:00', weekday: '', enabled: false }],
+    },
+    command: 'time-period/0/enabled',
+    input: 'true',
+    expectedOutput: 'cd=3,md=1,nm=0,bt=01:00,et=02:00,wk=0,vv=0,as=1',
+  },
+  {
+    description: 'Venus time-period start time refuses an empty value',
+    deviceType: 'VNSE3-0',
+    initialState: {
+      timePeriods: [{ weekday: '0123456', enabled: false }],
+    },
+    command: 'time-period/0/start-time',
+    input: '',
+    expectedOutput: null,
+  },
+
   // version-set command: only the power versions the model and build accept
   {
     description: 'Venus version-set 800W',

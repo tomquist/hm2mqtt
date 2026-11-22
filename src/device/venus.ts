@@ -255,8 +255,33 @@ function bitMaskToWeekdaySet(weekdayBitMask: number) {
     .join('') as WeekdaySet;
 }
 
+// Time period power (`vv`), in watts: negative charges, positive discharges.
+const TIME_PERIOD_POWER_LIMIT = 2500;
+
+// Home Assistant checks reported states against the text pattern too, so the
+// time entities also accept the empty value they show while the device reports
+// no valid time for the slot. The commands still require a time.
+const TIME_PERIOD_STATE_PATTERN = '^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$';
+
+/**
+ * A reported start or end time as `H:MM`, or undefined when the hour and minute
+ * are no time of day. A slot the device has never stored reads back 255 for
+ * them, and other leftovers such as `0|100` turn up after a restart.
+ */
+function reportedTimeOfDay(hourPart: string, minutePart: string): string | undefined {
+  const hours = Number(hourPart);
+  const minutes = Number(minutePart);
+  if (!Number.isInteger(hours) || hours < 0 || hours > 23) return undefined;
+  if (!Number.isInteger(minutes) || minutes < 0 || minutes > 59) return undefined;
+  return `${hours}:${minutes.toString().padStart(2, '0')}`;
+}
+
 /**
  * Parse a time period string from the device
+ *
+ * A time or power the device reports outside its range (a slot it has never
+ * stored) is left out, so Home Assistant shows it as empty or unknown rather
+ * than rejecting it on every update.
  *
  * @param value - Time period string (format: "HH|MM|HH|MM|CYCLE|POWER|ENABLED")
  * @returns Parsed time period object
@@ -275,11 +300,13 @@ function parseTimePeriod(value: string): NonNullable<VenusDeviceData['timePeriod
 
   let weekdayBitMask = parseInt(parts[4], 10);
   const weekday = bitMaskToWeekdaySet(weekdayBitMask);
+  const power = Number(parts[5]);
   return {
-    startTime: `${parseInt(parts[0], 10)}:${parseInt(parts[1], 10).toString().padStart(2, '0')}`,
-    endTime: `${parseInt(parts[2], 10)}:${parseInt(parts[3], 10).toString().padStart(2, '0')}`,
+    startTime: reportedTimeOfDay(parts[0], parts[1]),
+    endTime: reportedTimeOfDay(parts[2], parts[3]),
     weekday: weekday,
-    power: parseInt(parts[5], 10),
+    power:
+      Number.isInteger(power) && Math.abs(power) <= TIME_PERIOD_POWER_LIMIT ? power : undefined,
     enabled: parts[6] === '1',
   };
 }
@@ -310,6 +337,23 @@ function formatTimePeriodTime(time: string): string {
   if (Number.isNaN(hours) || Number.isNaN(minutes)) return time;
 
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+}
+
+/**
+ * The `cd=3,md=1` parameters that store a whole time period. A time or power
+ * the device reported out of range is sent as an empty slot holds it (00:00,
+ * 0 W), so a slot the device never stored can be filled in one field at a time.
+ */
+function timePeriodParams(periodIndex: number, period: VenusTimePeriod): CommandParams {
+  return {
+    md: 1,
+    nm: periodIndex,
+    bt: formatTimePeriodTime(period.startTime ?? '00:00'),
+    et: formatTimePeriodTime(period.endTime ?? '00:00'),
+    wk: weekdaySetToBitMask(period.weekday),
+    vv: period.power ?? 0,
+    as: period.enabled ? 1 : 0,
+  };
 }
 
 /**
@@ -1909,7 +1953,8 @@ function registerRuntimeInfoMessage(
           id: `time_period_${i}_start_time`,
           name: `Time Period ${i} Time From`,
           command: `time-period/${i}/start-time`,
-          pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
+          pattern: TIME_PERIOD_STATE_PATTERN,
+          optional: true,
         }),
       );
 
@@ -1924,7 +1969,8 @@ function registerRuntimeInfoMessage(
           id: `time_period_${i}_end_time`,
           name: `Time Period ${i} Time To`,
           command: `time-period/${i}/end-time`,
-          pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
+          pattern: TIME_PERIOD_STATE_PATTERN,
+          optional: true,
         }),
       );
 
@@ -1956,9 +2002,10 @@ function registerRuntimeInfoMessage(
           icon: 'mdi:flash',
           unit_of_measurement: 'W',
           command: `time-period/${i}/power`,
-          min: -2500,
-          max: 2500,
+          min: -TIME_PERIOD_POWER_LIMIT,
+          max: TIME_PERIOD_POWER_LIMIT,
           step: 1,
+          unknownWhenAbsent: true,
         }),
       );
 
@@ -2210,17 +2257,12 @@ function registerRuntimeInfoMessage(
               enabled,
             };
 
-            // Build the command parameters
-            const params: CommandParams = { md: 1, nm: periodIndex };
-            const period = timePeriods[periodIndex];
-
-            params.bt = formatTimePeriodTime(period.startTime);
-            params.et = formatTimePeriodTime(period.endTime);
-            params.wk = weekdaySetToBitMask(period.weekday);
-            params.vv = period.power;
-            params.as = enabled ? 1 : 0;
-
-            publishCallback(processCommand(CommandType.SET_TIME_PERIOD, params));
+            publishCallback(
+              processCommand(
+                CommandType.SET_TIME_PERIOD,
+                timePeriodParams(periodIndex, timePeriods[periodIndex]),
+              ),
+            );
 
             return { timePeriods };
           });
@@ -2249,17 +2291,12 @@ function registerRuntimeInfoMessage(
               startTime: `${hours}:${minutes.toString().padStart(2, '0')}`,
             };
 
-            // Build the command parameters
-            const params: CommandParams = { md: 1, nm: periodIndex };
-            const period = timePeriods[periodIndex];
-
-            params.bt = formatTimePeriodTime(period.startTime);
-            params.et = formatTimePeriodTime(period.endTime);
-            params.wk = weekdaySetToBitMask(period.weekday);
-            params.vv = period.power;
-            params.as = period.enabled ? 1 : 0;
-
-            publishCallback(processCommand(CommandType.SET_TIME_PERIOD, params));
+            publishCallback(
+              processCommand(
+                CommandType.SET_TIME_PERIOD,
+                timePeriodParams(periodIndex, timePeriods[periodIndex]),
+              ),
+            );
 
             return { timePeriods };
           });
@@ -2288,17 +2325,12 @@ function registerRuntimeInfoMessage(
               endTime: `${hours}:${minutes.toString().padStart(2, '0')}`,
             };
 
-            // Build the command parameters
-            const params: CommandParams = { md: 1, nm: periodIndex };
-            const period = timePeriods[periodIndex];
-
-            params.bt = formatTimePeriodTime(period.startTime);
-            params.et = formatTimePeriodTime(period.endTime);
-            params.wk = weekdaySetToBitMask(period.weekday);
-            params.vv = period.power;
-            params.as = period.enabled ? 1 : 0;
-
-            publishCallback(processCommand(CommandType.SET_TIME_PERIOD, params));
+            publishCallback(
+              processCommand(
+                CommandType.SET_TIME_PERIOD,
+                timePeriodParams(periodIndex, timePeriods[periodIndex]),
+              ),
+            );
 
             return { timePeriods };
           });
@@ -2325,17 +2357,12 @@ function registerRuntimeInfoMessage(
               power,
             };
 
-            // Build the command parameters
-            const params: CommandParams = { md: 1, nm: periodIndex };
-            const period = timePeriods[periodIndex];
-
-            params.bt = formatTimePeriodTime(period.startTime);
-            params.et = formatTimePeriodTime(period.endTime);
-            params.wk = weekdaySetToBitMask(period.weekday);
-            params.vv = period.power;
-            params.as = period.enabled ? 1 : 0;
-
-            publishCallback(processCommand(CommandType.SET_TIME_PERIOD, params));
+            publishCallback(
+              processCommand(
+                CommandType.SET_TIME_PERIOD,
+                timePeriodParams(periodIndex, timePeriods[periodIndex]),
+              ),
+            );
 
             return { timePeriods };
           });
@@ -2365,17 +2392,12 @@ function registerRuntimeInfoMessage(
               weekday: bitMaskToWeekdaySet(weekday),
             };
 
-            // Build the command parameters
-            const params: CommandParams = { md: 1, nm: periodIndex };
-            const period = timePeriods[periodIndex];
-
-            params.bt = formatTimePeriodTime(period.startTime);
-            params.et = formatTimePeriodTime(period.endTime);
-            params.wk = weekdaySetToBitMask(period.weekday);
-            params.vv = period.power;
-            params.as = period.enabled ? 1 : 0;
-
-            publishCallback(processCommand(CommandType.SET_TIME_PERIOD, params));
+            publishCallback(
+              processCommand(
+                CommandType.SET_TIME_PERIOD,
+                timePeriodParams(periodIndex, timePeriods[periodIndex]),
+              ),
+            );
 
             return { timePeriods };
           });

@@ -782,6 +782,39 @@ describe('Home Assistant Discovery', () => {
     expect(versionSet).toMatch(/\{% else %\}None\{% endif %\}$/);
   });
 
+  test('should show a Venus time period the device reports out of range as empty', () => {
+    const config = (id: string) =>
+      generateDiscoveryConfigs(
+        { deviceType: 'VNSE3-0', deviceId: 'venus123' },
+        jupiterTopics('VNSE3-0', 'venus123'),
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        {},
+      ).find(c => c.topic.includes(`/${id}/`))?.config as Record<string, unknown>;
+
+    for (const id of ['time_period_6_start_time', 'time_period_6_end_time']) {
+      const text = config(id);
+      const key = id.endsWith('start_time') ? 'startTime' : 'endTime';
+      // An absent time renders empty, which the pattern has to accept: Home
+      // Assistant checks a text entity's state against it.
+      expect(text).toHaveProperty(
+        'value_template',
+        `{% if value_json.timePeriods[6].${key} is defined %}{{ value_json.timePeriods[6].${key} }}{% endif %}`,
+      );
+      const pattern = new RegExp(text.pattern as string);
+      expect(pattern.test('')).toBe(true);
+      expect(pattern.test('23:59')).toBe(true);
+      expect(pattern.test('0:100')).toBe(false);
+      expect(pattern.test('255:255')).toBe(false);
+    }
+    // An absent power is unknown.
+    expect(config('time_period_6_power')).toHaveProperty(
+      'value_template',
+      '{% if value_json.timePeriods[6].power is defined %}{{ value_json.timePeriods[6].power }}{% else %}None{% endif %}',
+    );
+  });
+
   test('should remove the Venus price, income, error and grid type sensors where unfilled', () => {
     const ids = [
       'charging_price',

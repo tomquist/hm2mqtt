@@ -633,10 +633,11 @@ export function isValidVenusVersionSet(set: string): set is VenusVersionSet {
  * Venus time period configuration
  */
 export interface VenusTimePeriod {
-  startTime: string;
-  endTime: string;
+  // absent while the device reports no valid time or power for the slot
+  startTime?: string;
+  endTime?: string;
   weekday: WeekdaySet;
-  power: number;
+  power?: number;
   enabled: boolean;
 }
 

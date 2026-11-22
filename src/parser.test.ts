@@ -1606,6 +1606,45 @@ describe('MQTT Message Parser', () => {
     expect((unknown['data'] as VenusDeviceData).versionSet).toBeUndefined();
   });
 
+  test('leaves out Venus time period times and power the device reports out of range', () => {
+    // A Venus E 3.0 151 after a restart reports slots it has never stored with
+    // 255 for the hour and minute, and other leftovers such as 0:100.
+    const base =
+      'cd=1,tot_i=1,tot_o=212,ele_d=0,ele_m=1,grd_d=212,grd_m=212,inc_d=0,inc_m=0,grd_f=0,grd_o=423,grd_t=3,gct_s=1,cel_s=2,cel_p=483,cel_c=94,err_t=0,err_a=0,dev_n=151,grd_y=0,wor_m=0,inc_a=0';
+    const slots = [
+      'tim_0=8|5|17|30|127|350|1',
+      'tim_1=0|0|23|59|127|-250|0',
+      'tim_2=0|0|0|0|0|0|0',
+      'tim_4=0|0|0|100|0|0|0',
+      'tim_6=255|0|255|255|0|13878|0',
+      'tim_7=255|255|255|255|255|-1|255',
+    ].join(',');
+    const parsed = parseMessage(`${base},${slots}`, 'VNSE3-0', 'venus123');
+    const periods = (parsed['data'] as VenusDeviceData).timePeriods!;
+
+    expect(periods[0]).toEqual({
+      startTime: '8:05',
+      endTime: '17:30',
+      weekday: '0123456',
+      power: 350,
+      enabled: true,
+    });
+    expect(periods[1]).toMatchObject({ startTime: '0:00', endTime: '23:59', power: -250 });
+    expect(periods[2]).toMatchObject({ startTime: '0:00', endTime: '0:00', power: 0 });
+    // A minute of 100 is no time of day; the valid start time stays.
+    expect(periods[4]).toMatchObject({ startTime: '0:00', power: 0 });
+    expect(periods[4].endTime).toBeUndefined();
+    // 255:00 and 255:255, and a power beyond the ±2500 W the entity allows.
+    expect(periods[6].startTime).toBeUndefined();
+    expect(periods[6].endTime).toBeUndefined();
+    expect(periods[6].power).toBeUndefined();
+    expect(periods[7]).toMatchObject({ weekday: '0123456', power: -1, enabled: false });
+    expect(periods[7].startTime).toBeUndefined();
+    expect(periods[7].endTime).toBeUndefined();
+    // Published without the missing keys.
+    expect(JSON.parse(JSON.stringify(periods[6]))).toEqual({ weekday: '', enabled: false });
+  });
+
   test('parses Venus v147 LED, backup, inverter/MPPT version and phase-diagnosis fields', () => {
     // Real Venus D v147 dump including the newer led/inv_v/mppt/seq_s fields.
     const message =
