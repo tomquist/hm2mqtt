@@ -178,17 +178,25 @@ export const timePeriodSettingHandler = (
 
       logger.debug(`Current period ${periodNumber} settings:`, newTimePeriodSettings[periodIndex]);
 
-      // The device never runs a period that ends before it starts, because it
-      // does not wrap a period past midnight, and replaces it with 00:00-23:59
-      // at its next restart, so it then runs all day. Editing the start and
-      // end one at a time passes through such states, so warn but still send.
+      // The device does not wrap a period past midnight. HMJ firmware 110 and
+      // 116 refuse a period that ends before it starts and keep its previous
+      // times (the rest of the command still applies), so it is not sent there
+      // and not shown either. What the other models do with one is not known:
+      // editing the start and end one at a time passes through such states, so
+      // there it is only warned about.
       const { startTime, endTime } = newTimePeriodSettings[periodIndex];
       if (
         (setting === 'start-time' || setting === 'end-time') &&
         minutesOfDay(startTime) > minutesOfDay(endTime)
       ) {
+        if (isHmjAtMost(state, HMJ_REFUSES_OVERNIGHT_PERIODS_UP_TO)) {
+          logger.warn(
+            `Time period ${periodNumber} would end before it starts (${startTime}-${endTime}). This firmware refuses that and keeps the previous times, so it is not sent; change the end time first, or split a period that crosses midnight into two.`,
+          );
+          return;
+        }
         logger.warn(
-          `Time period ${periodNumber} ends before it starts (${startTime}-${endTime}). The device never runs such a period, and runs it all day after its next restart; split it at midnight instead.`,
+          `Time period ${periodNumber} ends before it starts (${startTime}-${endTime}). The device does not run a period past midnight; split it at midnight instead.`,
         );
       }
 
@@ -213,6 +221,9 @@ export const timePeriodSettingHandler = (
     });
   },
 });
+
+/** Newest HMJ firmware known to refuse a period that ends before it starts. */
+const HMJ_REFUSES_OVERNIGHT_PERIODS_UP_TO = 116;
 
 // Home Assistant checks reported states against the text pattern too. Devices
 // report `24:0` for a period ending at midnight, so the entity accepts 24:00
