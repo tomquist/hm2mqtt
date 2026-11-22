@@ -145,6 +145,10 @@ The CT003 additionally reports:
 | `com_b` | Serial settings code, not a baud rate. See [section 6](#6-configure-the-connected-smart-meter) |
 | `ptl_t` | Protocol: `0` SML, `1` DSMR |
 
+While the reader reads no meter, for example with the P1 cable unplugged, the
+`HME-3` (firmware 122) reports `har_f=0`, `sof_f=0`, `pwr_f=0`, the powers as
+`0` and `eng_t=0`. hm2mqtt keeps the last total energy instead of that `0`.
+
 The CT002 does not report `eng_t`. The `HME-4` reports its energy with `cd=32`
 (see [section 13](#13-read-the-per-phase-energy)); for `TPM-CN` and `TPM2-*`
 see [section 4](#4-read-the-per-phase-charge-and-discharge-counters).
@@ -231,6 +235,11 @@ For example, `cd=5,p1=5` reverses phases A and C and leaves phase B as measured.
 
 The `HME-4` only uses the low byte of `p1` (`p1=256` is taken as `0`) and
 rejects values above `7`. It does not recognise `dir`.
+
+A meter whose setting was never written reports `cur_d=255`. The `HME-4`
+(firmware 120 and 124) measures with it exactly as with `7`, all phases
+reversed, so hm2mqtt shows all three as reversed, and turning one of them off
+sends the other two bits.
 
 > **Note:** On the CT003 family, `cd=5` configures the connected smart meter
 > instead — see [section 6](#6-configure-the-connected-smart-meter). Do not send

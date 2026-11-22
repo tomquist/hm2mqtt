@@ -61,7 +61,18 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
     // (`ptl_t=1`) it is the net reading (import minus export, both tariffs), so
     // it can go down as well as up — hence `total` rather than
     // `total_increasing`, which suits both.
-    field({ key: 'eng_t', path: ['totalEnergy'], transform: chain(divide(10), round(1)) });
+    //
+    // While the reader has no meter reading, e.g. with the P1 cable unplugged,
+    // it reports `eng_t=0` (with `har_f=0`). A meter's lifetime register never
+    // reads exactly 0, and taking it would make Home Assistant count the whole
+    // total as returned, so the last reading is kept instead. The flag is not
+    // used: what `har_f` reports on the infrared and TIC readers is not known.
+    field({
+      key: 'eng_t',
+      path: ['totalEnergy'],
+      transform: chain(divide(10), round(1)),
+      skip: values => values.eng_t === '0',
+    });
     advertise(
       ['totalEnergy'],
       sensorComponent<number>({
@@ -70,6 +81,8 @@ function registerRuntimeInfoMessage(message: BuildMessageFn) {
         device_class: 'energy',
         unit_of_measurement: 'Wh',
         state_class: 'total',
+        // Absent until the first reading, e.g. after a restart while unplugged.
+        unknownWhenAbsent: true,
       }),
     );
 

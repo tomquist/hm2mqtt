@@ -8,6 +8,7 @@ import {
   MessageDefinition,
 } from './deviceDefinition.js';
 import { calculateNewVersionTopicId } from './utils/crypt.js';
+import { loadSettings, saveSettings } from './persistence.js';
 import logger from './logger.js';
 
 /**
@@ -17,6 +18,15 @@ import logger from './logger.js';
  * period reset persists and is accepted once confirmed.
  */
 const MONOTONIC_RESET_CONFIRMATIONS = 1;
+
+function pickDefined(
+  source: Record<string, unknown>,
+  keys: readonly string[],
+): Record<string, unknown> {
+  return Object.fromEntries(
+    keys.filter(key => source[key] !== undefined).map(key => [key, source[key]]),
+  );
+}
 
 /**
  * Interface for device state data
@@ -171,11 +181,29 @@ export class DeviceManager {
     device: Device,
     publishPath: string,
   ): DeviceStateData & T {
-    const deviceDefinition = getDeviceDefinition(device.deviceType);
-    const defaultState = deviceDefinition?.messages.find(
+    const message = this.getMessageDefinition(device, publishPath);
+    const remembered = message?.rememberedKeys?.length
+      ? pickDefined(loadSettings(device.deviceType, device.deviceId), message.rememberedKeys)
+      : {};
+    return { ...message?.defaultState, ...remembered } as DeviceStateData & T;
+  }
+
+  private getMessageDefinition(device: Device, publishPath: string) {
+    return getDeviceDefinition(device.deviceType)?.messages.find(
       msg => msg.publishPath === publishPath,
-    )?.defaultState;
-    return (defaultState ?? {}) as DeviceStateData & T;
+    );
+  }
+
+  /** Keep the message's `rememberedKeys` across restarts. */
+  private rememberSettings(device: Device, publishPath: string, state: DeviceStateData): void {
+    const keys = this.getMessageDefinition(device, publishPath)?.rememberedKeys;
+    if (keys?.length) {
+      saveSettings(
+        device.deviceType,
+        device.deviceId,
+        pickDefined(state as Record<string, unknown>, keys),
+      );
+    }
   }
 
   /**
@@ -201,6 +229,7 @@ export class DeviceManager {
       ...this.deviceStates[deviceKey],
       [path]: newDeviceState,
     };
+    this.rememberSettings(device, path, newDeviceState as DeviceStateData);
     this.onUpdateState(device, path, newDeviceState);
     this.runDerivations(device, path);
     return newDeviceState as DeviceStateData & T;

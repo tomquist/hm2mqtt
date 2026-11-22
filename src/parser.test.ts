@@ -642,6 +642,18 @@ describe('MQTT Message Parser', () => {
     expect(data as SmrMeterDeviceData).toHaveProperty('p1DeviceConnected', false);
   });
 
+  test('should not take the 0 total energy a CT003 reports without a meter', () => {
+    // HME-3 firmware 122 (in marsemu) with the P1 meter unplugged.
+    const message =
+      'pwr_a=0,pwr_b=0,pwr_c=0,pwr_t=0,ble_s=2,wif_r=-48,fc4_v=202409090159,ver_v=122,eng_t=0,' +
+      'wif_s=2,slv_n=0,com_t=1,com_b=0,ptl_t=1,smt_n=255,har_f=0,sof_f=0,irs_f=0,pwr_f=0,' +
+      'frm_c=56,upd_t=0,udp_v=4';
+    const { data } = parseMessage(message, 'HME-3', '0123456789ab');
+
+    expect(data as SmrMeterDeviceData).toHaveProperty('p1DeviceConnected', false);
+    expect(data as SmrMeterDeviceData).not.toHaveProperty('totalEnergy');
+  });
+
   test('corrects the HMI lifetime energy on firmware that halves it at rollover', () => {
     const message =
       'ele_d=212,ele_s=7888,ele_m=5887,pv1_v=334,pv1_i=0,pv1_p=16,pv1_s=1,pv2_v=335,pv2_i=0,pv2_p=15,pv2_s=1,pe1_v=17,fb1_v=847,fb2_v=826,grd_f=4999,grd_v=2455,grd_s=1,grd_o=29,chp_t=33,rel_s=1,err_t=0,err_c=0,err_d=0,ver_s=118,mpt_m=1,ble_s=1';
@@ -1606,6 +1618,45 @@ describe('MQTT Message Parser', () => {
     expect((unknown['data'] as VenusDeviceData).versionSet).toBeUndefined();
   });
 
+  test('leaves out Venus time period times and power the device reports out of range', () => {
+    // A Venus E 3.0 151 after a restart reports slots it has never stored with
+    // 255 for the hour and minute, and other leftovers such as 0:100.
+    const base =
+      'cd=1,tot_i=1,tot_o=212,ele_d=0,ele_m=1,grd_d=212,grd_m=212,inc_d=0,inc_m=0,grd_f=0,grd_o=423,grd_t=3,gct_s=1,cel_s=2,cel_p=483,cel_c=94,err_t=0,err_a=0,dev_n=151,grd_y=0,wor_m=0,inc_a=0';
+    const slots = [
+      'tim_0=8|5|17|30|127|350|1',
+      'tim_1=0|0|23|59|127|-250|0',
+      'tim_2=0|0|0|0|0|0|0',
+      'tim_4=0|0|0|100|0|0|0',
+      'tim_6=255|0|255|255|0|13878|0',
+      'tim_7=255|255|255|255|255|-1|255',
+    ].join(',');
+    const parsed = parseMessage(`${base},${slots}`, 'VNSE3-0', 'venus123');
+    const periods = (parsed['data'] as VenusDeviceData).timePeriods!;
+
+    expect(periods[0]).toEqual({
+      startTime: '8:05',
+      endTime: '17:30',
+      weekday: '0123456',
+      power: 350,
+      enabled: true,
+    });
+    expect(periods[1]).toMatchObject({ startTime: '0:00', endTime: '23:59', power: -250 });
+    expect(periods[2]).toMatchObject({ startTime: '0:00', endTime: '0:00', power: 0 });
+    // A minute of 100 is no time of day; the valid start time stays.
+    expect(periods[4]).toMatchObject({ startTime: '0:00', power: 0 });
+    expect(periods[4].endTime).toBeUndefined();
+    // 255:00 and 255:255, and a power beyond the ±2500 W the entity allows.
+    expect(periods[6].startTime).toBeUndefined();
+    expect(periods[6].endTime).toBeUndefined();
+    expect(periods[6].power).toBeUndefined();
+    expect(periods[7]).toMatchObject({ weekday: '0123456', power: -1, enabled: false });
+    expect(periods[7].startTime).toBeUndefined();
+    expect(periods[7].endTime).toBeUndefined();
+    // Published without the missing keys.
+    expect(JSON.parse(JSON.stringify(periods[6]))).toEqual({ weekday: '', enabled: false });
+  });
+
   test('parses Venus v147 LED, backup, inverter/MPPT version and phase-diagnosis fields', () => {
     // Real Venus D v147 dump including the newer led/inv_v/mppt/seq_s fields.
     const message =
@@ -2197,10 +2248,10 @@ describe('MQTT Message Parser', () => {
     expect(result.bms?.temperature).toBe(16);
   });
 
-  test('Venus E (VNSE3) BMS scales voltages but keeps raw temperatures', () => {
+  test('Venus C/E (HMG) BMS scales voltages but keeps raw temperatures', () => {
     const message =
       'cd=14,b_ver=212,b_chv=571,b_soc=65,b_soh=100,b_cap=5120,b_vol=5223,b_cur=-94,b_tem=25,b_chf=192,b_cpc=332,b_err=0,b_war=0,b_ret=0,b_ent=0,b_mot=23,b_tp1=18,b_tp2=19,b_tp3=18,b_tp4=19,b_vo1=3265,b_vo2=3265,b_vo3=3265,b_vo4=3265,b_vo5=3264,b_vo6=3264,b_vo7=3265,b_vo8=3265,b_vo9=3264,b_vo10=3265,b_vo11=3264,b_vo12=3265,b_vo13=3265,b_vo14=3265,b_vo15=3264,b_vo16=3262';
-    const parsed = parseMessage(message, 'VNSE3-0', 'venus123');
+    const parsed = parseMessage(message, 'HMG-50', 'venus123');
 
     const result = parsed['bms'] as VenusBMSInfo;
     expect(result.bms?.voltage).toBeCloseTo(52.23);
@@ -2209,7 +2260,9 @@ describe('MQTT Message Parser', () => {
     // 490 W. Read as the milliamps this used to claim it would have been 4.9 W,
     // which is not a pack under load at all.
     expect(result.bms?.current).toBeCloseTo(-9.4);
-    // Other Venus variants already report temperatures in whole degrees.
+    // The HMG (BMS 212) reports temperatures in whole degrees, and the state
+    // of health in percent.
+    expect(result.bms?.soh).toBe(100);
     expect(result.bms?.mosfetTemp).toBe(23);
     expect(result.cells?.temperatures?.[0]).toBe(18);
     // Aggregate cell voltage statistics across all 16 cells.
@@ -2217,5 +2270,29 @@ describe('MQTT Message Parser', () => {
     expect(result.cells?.maxVoltage).toBe(3265);
     expect(result.cells?.voltageDiff).toBe(3);
     expect(result.cells?.voltageAvg).toBe(3265);
+  });
+
+  test('scales the Venus E 3.0 (VNSE3) BMS temperatures and state of health', () => {
+    // Venus E 3.0 BMS 115, from marsemu running the firmware at 25 °C.
+    const message =
+      'cd=14,b_ver=115,b_chv=576,b_rci=1000,b_rdi=1000,b_soc=53,b_soh=1000,b_cap=5120,b_vol=5262,b_cur=-79,b_tem=25,b_chf=3,b_slf=0,b_cpc=273,b_err=0,b_war=0,b_ret=0,b_ent=250,b_mot=250,b_tp1=250,b_tp2=251,b_tp3=250,b_tp4=250,b_vo1=3289,b_vo2=3289,b_vo3=3289,b_vo4=3289,b_vo5=3289,b_vo6=3289,b_vo7=3289,b_vo8=3289,b_vo9=3289,b_vo10=3289,b_vo11=3289,b_vo12=3289,b_vo13=3289,b_vo14=3289,b_vo15=3289,b_vo16=3289,self_check=0,mos=3';
+    const result = parseMessage(message, 'VNSE3-0', 'venus123')['bms'] as VenusBMSInfo;
+
+    expect(result.bms?.temperature).toBe(25);
+    expect(result.bms?.mosfetTemp).toBeCloseTo(25);
+    expect(result.cells?.temperatures).toEqual([25, 25.1, 25, 25]);
+    expect(result.bms?.soh).toBe(100);
+  });
+
+  test('reads the Venus E 3.0 (VNSE3) state of health in tenths of a percent', () => {
+    const base =
+      'cd=1,tot_i=1,tot_o=212,ele_d=0,ele_m=1,grd_d=212,grd_m=212,inc_d=0,inc_m=0,grd_f=0,grd_o=423,grd_t=3,gct_s=1,cel_s=2,cel_p=483,cel_c=94,err_t=0,err_a=0,dev_n=151,grd_y=0,wor_m=0,inc_a=0';
+    const health = (deviceType: string, soh: string) =>
+      (parseMessage(`${base},soh=${soh}`, deviceType, 'venus123')['data'] as VenusDeviceData)
+        .batteryHealth;
+    expect(health('VNSE3-0', '1000')).toBe(100);
+    expect(health('VNSE3-0', '987')).toBeCloseTo(98.7);
+    // No evidence of the scale on the Venus A and Venus D yet.
+    expect(health('VNSD-0', '98')).toBe(98);
   });
 });

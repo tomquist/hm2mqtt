@@ -1,10 +1,12 @@
 import {
+  AdditionalDeviceInfo,
   BuildMessageFn,
   globalPollInterval,
   registerDeviceDefinition,
 } from '../deviceDefinition.js';
 import {
   CommandParams,
+  Device,
   isValidVenusParallelMode,
   isValidVenusRechargeMode,
   isValidVenusVersionSet,
@@ -217,6 +219,30 @@ function venusVersionSetOptions(model: VenusModel): VenusVersionSet[] {
   );
 }
 
+/**
+ * The power versions the Version Set select offers: those the build accepts,
+ * and the one the device reports, which Home Assistant would otherwise reject
+ * as a state that is not among the options.
+ */
+function offeredVenusVersionSets(
+  model: VenusModel,
+  { deviceVersion, versionSet }: Pick<VenusDeviceData, 'deviceVersion' | 'versionSet'>,
+): VenusVersionSet[] {
+  if (versionSet === '600W' && venusLocksOn600W(model, deviceVersion)) return ['600W'];
+  const accepted = acceptedVenusVersionSets(model, deviceVersion);
+  return venusVersionSetOptions(model).filter(
+    version => accepted.includes(version) || version === versionSet,
+  );
+}
+
+/**
+ * Every value a function of the build can take: a build unknown, and every
+ * build up to 300. The per-build gates in this file are all below that.
+ */
+function overEveryBuild<T>(perBuild: (deviceVersion: number | undefined) => T): T[] {
+  return [undefined, ...Array.from({ length: 300 }, (_, i) => i + 1)].map(perBuild);
+}
+
 // Peak shaving caps the power drawn from the grid. The Marstek app defaults the
 // cap to 2000 W and does not enforce an upper bound of its own, so the limit
 // below only exists to give the Home Assistant number entity a sane range.
@@ -255,8 +281,33 @@ function bitMaskToWeekdaySet(weekdayBitMask: number) {
     .join('') as WeekdaySet;
 }
 
+// Time period power (`vv`), in watts: negative charges, positive discharges.
+const TIME_PERIOD_POWER_LIMIT = 2500;
+
+// Home Assistant checks reported states against the text pattern too, so the
+// time entities also accept the empty value they show while the device reports
+// no valid time for the slot. The commands still require a time.
+const TIME_PERIOD_STATE_PATTERN = '^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$';
+
+/**
+ * A reported start or end time as `H:MM`, or undefined when the hour and minute
+ * are no time of day. A slot the device has never stored reads back 255 for
+ * them, and other leftovers such as `0|100` turn up after a restart.
+ */
+function reportedTimeOfDay(hourPart: string, minutePart: string): string | undefined {
+  const hours = Number(hourPart);
+  const minutes = Number(minutePart);
+  if (!Number.isInteger(hours) || hours < 0 || hours > 23) return undefined;
+  if (!Number.isInteger(minutes) || minutes < 0 || minutes > 59) return undefined;
+  return `${hours}:${minutes.toString().padStart(2, '0')}`;
+}
+
 /**
  * Parse a time period string from the device
+ *
+ * A time or power the device reports outside its range (a slot it has never
+ * stored) is left out, so Home Assistant shows it as empty or unknown rather
+ * than rejecting it on every update.
  *
  * @param value - Time period string (format: "HH|MM|HH|MM|CYCLE|POWER|ENABLED")
  * @returns Parsed time period object
@@ -275,11 +326,13 @@ function parseTimePeriod(value: string): NonNullable<VenusDeviceData['timePeriod
 
   let weekdayBitMask = parseInt(parts[4], 10);
   const weekday = bitMaskToWeekdaySet(weekdayBitMask);
+  const power = Number(parts[5]);
   return {
-    startTime: `${parseInt(parts[0], 10)}:${parseInt(parts[1], 10).toString().padStart(2, '0')}`,
-    endTime: `${parseInt(parts[2], 10)}:${parseInt(parts[3], 10).toString().padStart(2, '0')}`,
+    startTime: reportedTimeOfDay(parts[0], parts[1]),
+    endTime: reportedTimeOfDay(parts[2], parts[3]),
     weekday: weekday,
-    power: parseInt(parts[5], 10),
+    power:
+      Number.isInteger(power) && Math.abs(power) <= TIME_PERIOD_POWER_LIMIT ? power : undefined,
     enabled: parts[6] === '1',
   };
 }
@@ -313,15 +366,34 @@ function formatTimePeriodTime(time: string): string {
 }
 
 /**
+ * The `cd=3,md=1` parameters that store a whole time period. A time or power
+ * the device reported out of range is sent as an empty slot holds it (00:00,
+ * 0 W), so a slot the device never stored can be filled in one field at a time.
+ */
+function timePeriodParams(periodIndex: number, period: VenusTimePeriod): CommandParams {
+  return {
+    md: 1,
+    nm: periodIndex,
+    bt: formatTimePeriodTime(period.startTime ?? '00:00'),
+    et: formatTimePeriodTime(period.endTime ?? '00:00'),
+    wk: weekdaySetToBitMask(period.weekday),
+    vv: period.power ?? 0,
+    as: period.enabled ? 1 : 0,
+  };
+}
+
+/**
  * Extract additional device info for Home Assistant discovery
  *
- * @param state - Device state
- * @returns Additional device info
+ * @param model - The model the data message is for
+ * @returns The additional device info for a device state
  */
-function extractAdditionalDeviceInfo(state: VenusDeviceData) {
-  return {
+function extractAdditionalDeviceInfo(model: VenusModel) {
+  return (state: VenusDeviceData): AdditionalDeviceInfo => ({
     firmwareVersion: state.deviceVersion?.toString(),
-  };
+    // the Version Set options include the version the device reports
+    discoveryState: offeredVenusVersionSets(model, state).join(),
+  });
 }
 
 // Max number of additional packs polled via cd=42,bms_idx=N. A Venus A supports
@@ -430,6 +502,13 @@ function venusMeterMac(meterType: VenusMeterType, configuredMac?: string) {
   return resolveMeterMac(meterType, configuredMac);
 }
 
+/**
+ * The meter type last set from Home Assistant since hm2mqtt started, per
+ * device; `meter-mac` re-applies it. Kept out of the device state, which is
+ * published as it is.
+ */
+const lastSetMeterTypes = new WeakMap<Device, VenusMeterType>();
+
 /** The `cd=18` parameters that configure a meter. */
 function venusMeterParams(meterType: VenusMeterType, mac: string | undefined): CommandParams {
   const params: CommandParams = { meter: venusMeterTypeCommandCodes[meterType] };
@@ -453,20 +532,24 @@ registerDeviceDefinition(
   },
 );
 
+// The Venus E 3.0 reports the BMS cell and MOSFET temperatures in tenths of a
+// degree, like the Venus A and Venus D, and the state of health in tenths of a
+// percent: BMS 115 sends `b_tem=25` beside `b_tp1=250` and `b_mot=250`, and
+// `b_soh=1000` (as does `soh` in cd=1).
 registerDeviceDefinition(
   {
     deviceTypes: ['VNSE3'],
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message, { model: 'VNSE3' });
-    registerBMSInfoMessage(message);
+    registerBMSInfoMessage(message, { scaleTemperatures: true, scaleStateOfHealth: true });
     registerVenusCellBalancingMessage(message);
     registerVenusNetworkInfoMessage(message);
   },
 );
 
-// Venus A (VNSA) and Venus D (VNSD) use a different scaling for the BMS
-// cell/MOSFET temperatures (factor of 10) compared to the other Venus variants.
+// Venus A (VNSA) and Venus D (VNSD) report the BMS cell/MOSFET temperatures in
+// tenths of a degree, like the Venus E 3.0; the Venus C/E (HMG) in degrees.
 // Only these two have the per-pack BMS commands (cd=40 to cd=45); the Venus
 // C/E (HMG) and Venus E 3.0 do not answer them.
 // They are registered separately so options and limits can differ per model.
@@ -510,9 +593,11 @@ function registerRuntimeInfoMessage(
     isMessage: isVenusRuntimeInfoMessage,
     publishPath: 'data',
     defaultState: {},
-    getAdditionalDeviceInfo: extractAdditionalDeviceInfo,
+    getAdditionalDeviceInfo: extractAdditionalDeviceInfo(model),
     pollInterval: globalPollInterval,
     controlsDeviceAvailability: true,
+    // HMG from 153 does not report the maximum charging power (see below).
+    rememberedKeys: model === 'HMG' ? (['maxChargingPower'] as const) : undefined,
   };
   message<VenusDeviceData>(options, ({ field, command, advertise }) => {
     advertise(
@@ -1542,16 +1627,19 @@ function registerRuntimeInfoMessage(
 
     // State of health. Added to the cd=1 response in control firmware 150 on
     // the Venus E 3.0 and Venus A and 149.2 on the Venus D, so it only appears
-    // on units new enough to send it. The same quantity is
-    // reported as `b_soh` in the cd=14 BMS response, where a real capture read
-    // 100 on a healthy pack - hence the percentage. That capture is the whole
-    // basis for the unit: no cd=1 payload carrying `soh` has been seen, so if
-    // a device ever reports something like 1000 here, the scale is wrong and
-    // this wants dividing by 10.
+    // on units new enough to send it. The same quantity is reported as `b_soh`
+    // in the cd=14 BMS response. The Venus E 3.0 (151, BMS 115) reports a new
+    // pack as 1000 in both, so there it is in tenths of a percent. The Venus A
+    // and Venus D have only been seen reporting 0, which says nothing about the
+    // scale, so they stay in percent, as the HMG reports `b_soh` (100).
     //
     // Deliberately not device_class 'battery': that is the charge level, and
     // Home Assistant would render state of health as if it were one.
-    field({ key: 'soh', path: ['batteryHealth'], transform: number() });
+    field({
+      key: 'soh',
+      path: ['batteryHealth'],
+      transform: model === 'VNSE3' ? divide(10) : number(),
+    });
     advertise(
       ['batteryHealth'],
       sensorComponent<number>({
@@ -1909,7 +1997,8 @@ function registerRuntimeInfoMessage(
           id: `time_period_${i}_start_time`,
           name: `Time Period ${i} Time From`,
           command: `time-period/${i}/start-time`,
-          pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
+          pattern: TIME_PERIOD_STATE_PATTERN,
+          optional: true,
         }),
       );
 
@@ -1924,7 +2013,8 @@ function registerRuntimeInfoMessage(
           id: `time_period_${i}_end_time`,
           name: `Time Period ${i} Time To`,
           command: `time-period/${i}/end-time`,
-          pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
+          pattern: TIME_PERIOD_STATE_PATTERN,
+          optional: true,
         }),
       );
 
@@ -1956,9 +2046,10 @@ function registerRuntimeInfoMessage(
           icon: 'mdi:flash',
           unit_of_measurement: 'W',
           command: `time-period/${i}/power`,
-          min: -2500,
-          max: 2500,
+          min: -TIME_PERIOD_POWER_LIMIT,
+          max: TIME_PERIOD_POWER_LIMIT,
           step: 1,
+          unknownWhenAbsent: true,
         }),
       );
 
@@ -2021,8 +2112,11 @@ function registerRuntimeInfoMessage(
       path: ['versionSet'],
       transform: map(venusPowerVersions[model]),
     });
-    advertise(
-      ['versionSet'],
+    // Only the versions the build accepts are offered, plus the one reported.
+    // One advertisement per list of options the model can offer, of which at
+    // most one applies; a change of the reported version re-publishes
+    // discovery (see the data message's getAdditionalDeviceInfo).
+    const versionSetSelect = (versions: VenusVersionSet[]) =>
       selectComponent<NonNullable<VenusDeviceData['versionSet']>>({
         id: 'version_set',
         name: 'Version Set',
@@ -2031,11 +2125,26 @@ function registerRuntimeInfoMessage(
         // a code this model has no version for clears the value
         unknownWhenAbsent: true,
         valueMappings: Object.fromEntries(
-          venusVersionSetOptions(model).map(version => [version, venusVersionSetLabels[version]]),
+          versions.map(version => [version, venusVersionSetLabels[version]]),
         ) as Record<VenusVersionSet, string>,
-      }),
-      { enabled: state => (state.versionSet != null ? true : undefined) },
+      });
+    const versionSetOfferings = new Map(
+      overEveryBuild(deviceVersion =>
+        venusVersionSetOptions(model).map(versionSet =>
+          offeredVenusVersionSets(model, { deviceVersion, versionSet }),
+        ),
+      )
+        .flat()
+        .map(versions => [versions.join(), versions]),
     );
+    for (const [key, versions] of versionSetOfferings) {
+      advertise(['versionSet'], versionSetSelect(versions), {
+        enabled: state =>
+          state.versionSet != null && offeredVenusVersionSets(model, state).join() === key
+            ? true
+            : undefined,
+      });
+    }
 
     command('version-set', {
       handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
@@ -2210,17 +2319,12 @@ function registerRuntimeInfoMessage(
               enabled,
             };
 
-            // Build the command parameters
-            const params: CommandParams = { md: 1, nm: periodIndex };
-            const period = timePeriods[periodIndex];
-
-            params.bt = formatTimePeriodTime(period.startTime);
-            params.et = formatTimePeriodTime(period.endTime);
-            params.wk = weekdaySetToBitMask(period.weekday);
-            params.vv = period.power;
-            params.as = enabled ? 1 : 0;
-
-            publishCallback(processCommand(CommandType.SET_TIME_PERIOD, params));
+            publishCallback(
+              processCommand(
+                CommandType.SET_TIME_PERIOD,
+                timePeriodParams(periodIndex, timePeriods[periodIndex]),
+              ),
+            );
 
             return { timePeriods };
           });
@@ -2249,17 +2353,12 @@ function registerRuntimeInfoMessage(
               startTime: `${hours}:${minutes.toString().padStart(2, '0')}`,
             };
 
-            // Build the command parameters
-            const params: CommandParams = { md: 1, nm: periodIndex };
-            const period = timePeriods[periodIndex];
-
-            params.bt = formatTimePeriodTime(period.startTime);
-            params.et = formatTimePeriodTime(period.endTime);
-            params.wk = weekdaySetToBitMask(period.weekday);
-            params.vv = period.power;
-            params.as = period.enabled ? 1 : 0;
-
-            publishCallback(processCommand(CommandType.SET_TIME_PERIOD, params));
+            publishCallback(
+              processCommand(
+                CommandType.SET_TIME_PERIOD,
+                timePeriodParams(periodIndex, timePeriods[periodIndex]),
+              ),
+            );
 
             return { timePeriods };
           });
@@ -2288,17 +2387,12 @@ function registerRuntimeInfoMessage(
               endTime: `${hours}:${minutes.toString().padStart(2, '0')}`,
             };
 
-            // Build the command parameters
-            const params: CommandParams = { md: 1, nm: periodIndex };
-            const period = timePeriods[periodIndex];
-
-            params.bt = formatTimePeriodTime(period.startTime);
-            params.et = formatTimePeriodTime(period.endTime);
-            params.wk = weekdaySetToBitMask(period.weekday);
-            params.vv = period.power;
-            params.as = period.enabled ? 1 : 0;
-
-            publishCallback(processCommand(CommandType.SET_TIME_PERIOD, params));
+            publishCallback(
+              processCommand(
+                CommandType.SET_TIME_PERIOD,
+                timePeriodParams(periodIndex, timePeriods[periodIndex]),
+              ),
+            );
 
             return { timePeriods };
           });
@@ -2325,17 +2419,12 @@ function registerRuntimeInfoMessage(
               power,
             };
 
-            // Build the command parameters
-            const params: CommandParams = { md: 1, nm: periodIndex };
-            const period = timePeriods[periodIndex];
-
-            params.bt = formatTimePeriodTime(period.startTime);
-            params.et = formatTimePeriodTime(period.endTime);
-            params.wk = weekdaySetToBitMask(period.weekday);
-            params.vv = period.power;
-            params.as = period.enabled ? 1 : 0;
-
-            publishCallback(processCommand(CommandType.SET_TIME_PERIOD, params));
+            publishCallback(
+              processCommand(
+                CommandType.SET_TIME_PERIOD,
+                timePeriodParams(periodIndex, timePeriods[periodIndex]),
+              ),
+            );
 
             return { timePeriods };
           });
@@ -2365,17 +2454,12 @@ function registerRuntimeInfoMessage(
               weekday: bitMaskToWeekdaySet(weekday),
             };
 
-            // Build the command parameters
-            const params: CommandParams = { md: 1, nm: periodIndex };
-            const period = timePeriods[periodIndex];
-
-            params.bt = formatTimePeriodTime(period.startTime);
-            params.et = formatTimePeriodTime(period.endTime);
-            params.wk = weekdaySetToBitMask(period.weekday);
-            params.vv = period.power;
-            params.as = period.enabled ? 1 : 0;
-
-            publishCallback(processCommand(CommandType.SET_TIME_PERIOD, params));
+            publishCallback(
+              processCommand(
+                CommandType.SET_TIME_PERIOD,
+                timePeriodParams(periodIndex, timePeriods[periodIndex]),
+              ),
+            );
 
             return { timePeriods };
           });
@@ -2479,7 +2563,7 @@ function registerRuntimeInfoMessage(
 
     // MAC address used when configuring an external meter (CT002/CT003/Shelly).
     command('meter-mac', {
-      handler: ({ message, publishCallback, updateDeviceState }) => {
+      handler: ({ device, message, publishCallback, updateDeviceState }) => {
         const mac = normalizeMeterMac(message);
         if (!mac) {
           logger.warn('Invalid meter MAC (expected 12 hex digits):', message);
@@ -2492,7 +2576,7 @@ function registerRuntimeInfoMessage(
           // read back from the device does not count: during a meter swap the
           // MAC is set before the new type, and re-applying the old type would
           // point the old meter at the new MAC.
-          const meterType = state.lastSetMeterType;
+          const meterType = lastSetMeterTypes.get(device);
           if (meterType && (state.meterType == null || state.meterType === meterType)) {
             const resolved = venusMeterMac(meterType, mac);
             if (resolved !== null) {
@@ -2522,7 +2606,7 @@ function registerRuntimeInfoMessage(
 
     // Configure the external meter type (cd=18,meter=...,mac=...).
     command('meter-type', {
-      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
+      handler: ({ device, message, publishCallback, updateDeviceState, deviceState }) => {
         if (!isValidVenusMeterType(message)) {
           logger.warn('Invalid meter type value:', message);
           return;
@@ -2546,7 +2630,8 @@ function registerRuntimeInfoMessage(
           publishCallback(
             processCommand(CommandType.SET_METER_TYPE, venusMeterParams(message, mac)),
           );
-          return { meterType: message, lastSetMeterType: message };
+          lastSetMeterTypes.set(device, message);
+          return { meterType: message };
         });
       },
     });
@@ -2563,31 +2648,47 @@ function registerRuntimeInfoMessage(
     });
     const reportsMeterType = (deviceVersion: number | undefined) =>
       venusSupports(model, deviceVersion, { HMG: 149, VNSE3: 0, VNSA: 0, VNSD: 0 });
-    const meterTypeSelect = (optimistic: boolean) =>
+    // Only the meter types the build accepts are offered (see
+    // venusMaxMeterCode); `meter-type` refuses the others. One advertisement
+    // per highest code the model has, of which at most one applies.
+    const meterTypeLabelsByCode = Object.entries(
+      model === 'HMG'
+        ? meterTypeLabels
+        : { ...meterTypeLabels, stromleser: reportedMeterTypeLabels.stromleser },
+    ) as [VenusMeterType, string][];
+    const meterTypeSelect = (optimistic: boolean, maxCode: number) =>
       selectComponent<NonNullable<VenusDeviceData['meterType']>>({
         id: 'meter_type',
         name: 'Meter Type',
         icon: 'mdi:meter-electric',
         command: 'meter-type',
-        // The Stromleser is only offered where `meter=12` exists.
-        valueMappings: (model === 'HMG'
-          ? meterTypeLabels
-          : { ...meterTypeLabels, stromleser: reportedMeterTypeLabels.stromleser }) as Record<
-          VenusMeterType,
-          string
-        >,
+        valueMappings: Object.fromEntries(
+          meterTypeLabelsByCode.filter(
+            ([meterType]) => venusMeterTypeCommandCodes[meterType] <= maxCode,
+          ),
+        ) as Record<VenusMeterType, string>,
         optimistic,
         enabled_by_default: false,
       });
-    advertise(['meterType'], meterTypeSelect(false), {
-      enabled: state =>
-        reportsMeterType(state.deviceVersion) === true && state.meterType != null
-          ? true
-          : undefined,
-    });
-    advertise(['meterType'], meterTypeSelect(true), {
-      enabled: state => (reportsMeterType(state.deviceVersion) === false ? true : undefined),
-    });
+    const maxMeterCodes = new Set(
+      overEveryBuild(deviceVersion => venusMaxMeterCode(model, deviceVersion)),
+    );
+    for (const maxCode of maxMeterCodes) {
+      const acceptsUpTo = (state: VenusDeviceData) =>
+        venusMaxMeterCode(model, state.deviceVersion) === maxCode;
+      advertise(['meterType'], meterTypeSelect(false, maxCode), {
+        enabled: state =>
+          reportsMeterType(state.deviceVersion) === true &&
+          state.meterType != null &&
+          acceptsUpTo(state)
+            ? true
+            : undefined,
+      });
+      advertise(['meterType'], meterTypeSelect(true, maxCode), {
+        enabled: state =>
+          reportsMeterType(state.deviceVersion) === false && acceptsUpTo(state) ? true : undefined,
+      });
+    }
 
     // Maximum discharge power (`cd=17,dp=<W>`). The device rejects a limit
     // above the model's maximum, or above 800 W while on the 800 W power
@@ -2656,7 +2757,8 @@ function registerRuntimeInfoMessage(
     // set but the charge limit in effect at that moment: 153 and 154 report 0,
     // 155 and later the limit as a negative number (`mcp_w=-1000` after
     // `cp=1000`). Neither says what was set, so there `mcp_w` is ignored and
-    // the control shows the last value set from Home Assistant.
+    // the control shows the last value set from Home Assistant, which is kept
+    // across restarts where HM2MQTT_DATA_DIR persists (`rememberedKeys`).
     field({
       key: 'mcp_w',
       path: ['maxChargingPower'],
@@ -2768,7 +2870,15 @@ function isVenusBmsInfoMessage(values: Record<string, string>): boolean {
 }
 function registerBMSInfoMessage(
   message: BuildMessageFn,
-  { scaleTemperatures = false }: { scaleTemperatures?: boolean } = {},
+  {
+    scaleTemperatures = false,
+    scaleStateOfHealth = false,
+  }: {
+    /** `b_tp1`-`b_tp4` and `b_mot` are in tenths of a degree. `b_tem` never is. */
+    scaleTemperatures?: boolean;
+    /** `b_soh` is in tenths of a percent. */
+    scaleStateOfHealth?: boolean;
+  } = {},
 ) {
   message<VenusBMSInfo>(
     {
@@ -2889,7 +2999,7 @@ function registerBMSInfoMessage(
       const bmsFields = [
         ['b_ver', { id: 'version' }],
         ['b_soc', { id: 'soc' }],
-        ['b_soh', { id: 'soh' }],
+        ['b_soh', { id: 'soh', transform: scaleStateOfHealth ? divide(10) : undefined }],
         ['b_cap', { id: 'capacity' }],
         // Battery pack voltage is reported in centivolts (e.g. 4328 -> 43.28 V)
         [

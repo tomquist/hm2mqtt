@@ -4,7 +4,7 @@ import { generateDiscoveryConfigs, publishDiscoveryConfigs } from './generateDis
 import { parseMessage } from './parser.js';
 import { Device } from './types.js';
 import { DeviceTopics } from './deviceManager.js';
-import { AdditionalDeviceInfo } from './deviceDefinition.js';
+import { AdditionalDeviceInfo, getDeviceDefinition } from './deviceDefinition.js';
 import { DEFAULT_TOPIC_PREFIX } from './constants.js';
 
 describe('Home Assistant Discovery', () => {
@@ -245,6 +245,85 @@ describe('Home Assistant Discovery', () => {
     expect(
       configsFor('HMJ-2').find(c => c.topic.endsWith('/input1_charging/config'))?.config,
     ).not.toBeNull();
+  });
+
+  test('should offer only the meters the B2500 firmware has drivers for', () => {
+    const meterTypeOptions = (deviceType: string, deviceInfo: object) => {
+      const configs = generateDiscoveryConfigs(
+        { deviceType, deviceId: 'test123' },
+        {
+          deviceTopicOld: `hame_energy/${deviceType}/device/test123/ctrl`,
+          deviceTopicNew: `marstek_energy/${deviceType}/device/test123/ctrl`,
+          publishTopic: `hame_energy/${deviceType}/device/test123/data`,
+          deviceControlTopicOld: `hame_energy/${deviceType}/App/test123/ctrl`,
+          deviceControlTopicNew: `marstek_energy/${deviceType}/App/test123/ctrl`,
+          controlSubscriptionTopic: `hame_energy/${deviceType}/control/test123/control`,
+          availabilityTopic: `hame_energy/${deviceType}/availability/test123`,
+        },
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        { deviceType, deviceInfo },
+      ).filter(c => c.topic.endsWith('/meter_type/config'));
+      expect(configs).toHaveLength(1);
+      return (configs[0].config as unknown as { options: string[] }).options;
+    };
+    const newerMeters = ['SMR-P1', 'SMR-IR', 'SMR-TIC', 'TPM2-100CT'];
+
+    const hmj116 = meterTypeOptions('HMJ-2', { deviceVersion: 116 });
+    expect(hmj116).toContain('CT003');
+    for (const meter of newerMeters) {
+      expect(hmj116).not.toContain(meter);
+    }
+    expect(meterTypeOptions('HMJ-2', { deviceVersion: 117 })).toEqual(
+      expect.arrayContaining(newerMeters),
+    );
+    expect(meterTypeOptions('HMA-1', {})).toEqual(expect.arrayContaining(newerMeters));
+    // Only the meters every HMJ firmware has while its firmware is unknown.
+    expect(meterTypeOptions('HMJ-2', {})).toEqual(hmj116);
+  });
+
+  test('should not offer the B2500 recharge and phase diagnosis controls the HMJ ignores', () => {
+    const controls = (deviceType: string, state: object) =>
+      generateDiscoveryConfigs(
+        { deviceType, deviceId: 'test123' },
+        {
+          deviceTopicOld: `hame_energy/${deviceType}/device/test123/ctrl`,
+          deviceTopicNew: `marstek_energy/${deviceType}/device/test123/ctrl`,
+          publishTopic: `hame_energy/${deviceType}/device/test123/data`,
+          deviceControlTopicOld: `hame_energy/${deviceType}/App/test123/ctrl`,
+          deviceControlTopicNew: `marstek_energy/${deviceType}/App/test123/ctrl`,
+          controlSubscriptionTopic: `hame_energy/${deviceType}/control/test123/control`,
+          availabilityTopic: `hame_energy/${deviceType}/availability/test123`,
+        },
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        { deviceType, ...state },
+      ).filter(c => /\/(recharge_mode|phase_diagnosis)\/config$/.test(c.topic));
+    const reported = { rechargeMode: 'threePhase', rechargeModeReported: true };
+
+    // Removed, including the retained configs of earlier versions.
+    for (const version of [110, 116]) {
+      const hmj = controls('HMJ-2', { deviceInfo: { deviceVersion: version }, ...reported });
+      expect(hmj.map(c => c.topic.split('/').at(-2)).sort()).toEqual([
+        'phase_diagnosis',
+        'recharge_mode',
+        'recharge_mode',
+      ]);
+      expect(hmj.every(c => c.config === null)).toBe(true);
+    }
+    // Deferred while the HMJ's firmware is unknown.
+    expect(controls('HMJ-2', {})).toHaveLength(0);
+    // Offered on newer HMJ firmware and the other models.
+    for (const [deviceType, version] of [
+      ['HMJ-2', 117],
+      ['HMA-1', 224],
+    ] as const) {
+      const offered = controls(deviceType, { deviceInfo: { deviceVersion: version }, ...reported });
+      expect(offered).toHaveLength(2);
+      expect(offered.every(c => c.config !== null)).toBe(true);
+    }
   });
 
   test('should keep the B2500 Recharge Mode optimistic until the device reports it', () => {
@@ -734,6 +813,109 @@ describe('Home Assistant Discovery', () => {
     expect(hmg[0]!.options).not.toContain('Stromleser');
   });
 
+  test('should offer only the Venus power versions the build accepts, and the one reported', () => {
+    const options = (deviceType: string, state: object) => {
+      const configs = generateDiscoveryConfigs(
+        { deviceType, deviceId: 'venus123' },
+        jupiterTopics(deviceType, 'venus123'),
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      ).filter(c => c.topic.includes('/version_set/'));
+      if (configs.length === 0) return undefined;
+      expect(configs).toHaveLength(1);
+      return (configs[0].config as unknown as { options: string[] }).options;
+    };
+
+    // 600 W only on the Venus E 3.0 from 149, or while the device is on it.
+    expect(options('VNSE3-0', { deviceVersion: 151, versionSet: '2500W' })).toEqual([
+      '600W Version',
+      '800W Version',
+      '2500W Version',
+    ]);
+    expect(options('VNSE3-0', { deviceVersion: 148, versionSet: '2500W' })).toEqual([
+      '800W Version',
+      '2500W Version',
+    ]);
+    expect(options('HMG-50', { deviceVersion: 156, versionSet: '800W' })).toEqual([
+      '800W Version',
+      '2500W Version',
+    ]);
+    expect(options('VNSA-0', { deviceVersion: 151, versionSet: '600W' })).toEqual([
+      '600W Version',
+      '800W Version',
+      '1200W Version',
+      '1500W Version',
+    ]);
+    // The Venus D before 149 does not take 2500 W, unless it is on it.
+    expect(options('VNSD-0', { deviceVersion: 147, versionSet: '800W' })).toEqual([
+      '800W Version',
+      '1200W Version',
+      '2200W Version',
+    ]);
+    expect(options('VNSD-0', { deviceVersion: 147, versionSet: '2500W' })).toEqual([
+      '800W Version',
+      '1200W Version',
+      '2200W Version',
+      '2500W Version',
+    ]);
+    // Builds that ignore every change while on 600 W offer nothing else.
+    expect(options('HMG-50', { deviceVersion: 156, versionSet: '600W' })).toEqual(['600W Version']);
+    expect(options('VNSE3-0', { deviceVersion: 148, versionSet: '600W' })).toEqual([
+      '600W Version',
+    ]);
+    // Deferred until the device reports a version.
+    expect(options('VNSE3-0', { deviceVersion: 151 })).toBeUndefined();
+  });
+
+  test('should re-publish discovery when the Venus power versions on offer change', () => {
+    // mqttClient re-publishes discovery when the additional device info changes.
+    const info = (state: object) =>
+      getDeviceDefinition('VNSA-0')!
+        .messages.find(message => message.publishPath === 'data')!
+        .getAdditionalDeviceInfo(state as never);
+    const on800 = info({ deviceVersion: 151, versionSet: '800W' });
+    expect(on800).toHaveProperty('firmwareVersion', '151');
+    // Moving between versions on offer changes nothing; onto 600 W adds it.
+    expect(info({ deviceVersion: 151, versionSet: '1200W' })).toEqual(on800);
+    expect(info({ deviceVersion: 151, versionSet: '600W' })).not.toEqual(on800);
+  });
+
+  test('should offer only the Venus meter types the build accepts', () => {
+    const options = (deviceType: string, state: object) => {
+      const configs = generateDiscoveryConfigs(
+        { deviceType, deviceId: 'venus123' },
+        jupiterTopics(deviceType, 'venus123'),
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      ).filter(c => c.topic.includes('/meter_type/'));
+      expect(configs).toHaveLength(1);
+      return (configs[0].config as unknown as { options: string[] }).options;
+    };
+
+    // Up to meter=4 before HMG 147, where the select is write-only.
+    expect(options('HMG-50', { deviceVersion: 146 })).toEqual([
+      'CT001',
+      'Shelly Pro 3EM',
+      'P1 Meter',
+      'CT002',
+      'CT003',
+    ]);
+    expect(options('HMG-50', { deviceVersion: 147 })).toHaveLength(7);
+    expect(options('HMG-50', { deviceVersion: 148 })).toContain('EcoTracker');
+    expect(options('HMG-50', { deviceVersion: 153, meterType: 'ct002' })).toHaveLength(8);
+    expect(options('HMG-50', { deviceVersion: 156, meterType: 'ct002' })).toHaveLength(12);
+    // The Venus E 3.0 takes the Stromleser (meter=12) after 144.
+    expect(options('VNSE3-0', { deviceVersion: 144, meterType: 'ct002' })).not.toContain(
+      'Stromleser',
+    );
+    expect(options('VNSE3-0', { deviceVersion: 151, meterType: 'ct002' })).toHaveLength(13);
+    expect(options('VNSA-0', { meterType: 'ct002' })).toHaveLength(13);
+  });
+
   test('should keep the Venus C/E (HMG) maximum charging power until it is set', () => {
     const maxChargingPower = (deviceType: string) =>
       generateDiscoveryConfigs(
@@ -780,6 +962,39 @@ describe('Home Assistant Discovery', () => {
     });
     expect(versionSet).toMatch(/^\{% if value_json\.versionSet is defined %\}\{% set mapping = /);
     expect(versionSet).toMatch(/\{% else %\}None\{% endif %\}$/);
+  });
+
+  test('should show a Venus time period the device reports out of range as empty', () => {
+    const config = (id: string) =>
+      generateDiscoveryConfigs(
+        { deviceType: 'VNSE3-0', deviceId: 'venus123' },
+        jupiterTopics('VNSE3-0', 'venus123'),
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        {},
+      ).find(c => c.topic.includes(`/${id}/`))?.config as Record<string, unknown>;
+
+    for (const id of ['time_period_6_start_time', 'time_period_6_end_time']) {
+      const text = config(id);
+      const key = id.endsWith('start_time') ? 'startTime' : 'endTime';
+      // An absent time renders empty, which the pattern has to accept: Home
+      // Assistant checks a text entity's state against it.
+      expect(text).toHaveProperty(
+        'value_template',
+        `{% if value_json.timePeriods[6].${key} is defined %}{{ value_json.timePeriods[6].${key} }}{% endif %}`,
+      );
+      const pattern = new RegExp(text.pattern as string);
+      expect(pattern.test('')).toBe(true);
+      expect(pattern.test('23:59')).toBe(true);
+      expect(pattern.test('0:100')).toBe(false);
+      expect(pattern.test('255:255')).toBe(false);
+    }
+    // An absent power is unknown.
+    expect(config('time_period_6_power')).toHaveProperty(
+      'value_template',
+      '{% if value_json.timePeriods[6].power is defined %}{{ value_json.timePeriods[6].power }}{% else %}None{% endif %}',
+    );
   });
 
   test('should remove the Venus price, income, error and grid type sensors where unfilled', () => {

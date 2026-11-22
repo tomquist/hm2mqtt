@@ -477,7 +477,7 @@
       "step": 1,
       "unique_id": "0123456789ab_time_period_0_power",
       "unit_of_measurement": "W",
-      "value_template": "{{ value_json.timePeriods[0].power }}"
+      "value_template": "{% if value_json.timePeriods[0].power is defined %}{{ value_json.timePeriods[0].power }}{% else %}None{% endif %}"
     },
     "homeassistant/number/VNSA_0123456789ab/time_period_1_power/config": {
       "availability": [
@@ -513,7 +513,7 @@
       "step": 1,
       "unique_id": "0123456789ab_time_period_1_power",
       "unit_of_measurement": "W",
-      "value_template": "{{ value_json.timePeriods[1].power }}"
+      "value_template": "{% if value_json.timePeriods[1].power is defined %}{{ value_json.timePeriods[1].power }}{% else %}None{% endif %}"
     },
     "homeassistant/number/VNSA_0123456789ab/time_period_2_power/config": {
       "availability": [
@@ -549,7 +549,7 @@
       "step": 1,
       "unique_id": "0123456789ab_time_period_2_power",
       "unit_of_measurement": "W",
-      "value_template": "{{ value_json.timePeriods[2].power }}"
+      "value_template": "{% if value_json.timePeriods[2].power is defined %}{{ value_json.timePeriods[2].power }}{% else %}None{% endif %}"
     },
     "homeassistant/number/VNSA_0123456789ab/time_period_3_power/config": {
       "availability": [
@@ -585,7 +585,7 @@
       "step": 1,
       "unique_id": "0123456789ab_time_period_3_power",
       "unit_of_measurement": "W",
-      "value_template": "{{ value_json.timePeriods[3].power }}"
+      "value_template": "{% if value_json.timePeriods[3].power is defined %}{{ value_json.timePeriods[3].power }}{% else %}None{% endif %}"
     },
     "homeassistant/number/VNSA_0123456789ab/time_period_4_power/config": {
       "availability": [
@@ -621,7 +621,7 @@
       "step": 1,
       "unique_id": "0123456789ab_time_period_4_power",
       "unit_of_measurement": "W",
-      "value_template": "{{ value_json.timePeriods[4].power }}"
+      "value_template": "{% if value_json.timePeriods[4].power is defined %}{{ value_json.timePeriods[4].power }}{% else %}None{% endif %}"
     },
     "homeassistant/number/VNSA_0123456789ab/time_period_5_power/config": {
       "availability": [
@@ -657,7 +657,7 @@
       "step": 1,
       "unique_id": "0123456789ab_time_period_5_power",
       "unit_of_measurement": "W",
-      "value_template": "{{ value_json.timePeriods[5].power }}"
+      "value_template": "{% if value_json.timePeriods[5].power is defined %}{{ value_json.timePeriods[5].power }}{% else %}None{% endif %}"
     },
     "homeassistant/number/VNSA_0123456789ab/time_period_6_power/config": {
       "availability": [
@@ -693,7 +693,7 @@
       "step": 1,
       "unique_id": "0123456789ab_time_period_6_power",
       "unit_of_measurement": "W",
-      "value_template": "{{ value_json.timePeriods[6].power }}"
+      "value_template": "{% if value_json.timePeriods[6].power is defined %}{{ value_json.timePeriods[6].power }}{% else %}None{% endif %}"
     },
     "homeassistant/number/VNSA_0123456789ab/time_period_7_power/config": {
       "availability": [
@@ -729,7 +729,7 @@
       "step": 1,
       "unique_id": "0123456789ab_time_period_7_power",
       "unit_of_measurement": "W",
-      "value_template": "{{ value_json.timePeriods[7].power }}"
+      "value_template": "{% if value_json.timePeriods[7].power is defined %}{{ value_json.timePeriods[7].power }}{% else %}None{% endif %}"
     },
     "homeassistant/number/VNSA_0123456789ab/time_period_8_power/config": {
       "availability": [
@@ -765,7 +765,7 @@
       "step": 1,
       "unique_id": "0123456789ab_time_period_8_power",
       "unit_of_measurement": "W",
-      "value_template": "{{ value_json.timePeriods[8].power }}"
+      "value_template": "{% if value_json.timePeriods[8].power is defined %}{{ value_json.timePeriods[8].power }}{% else %}None{% endif %}"
     },
     "homeassistant/number/VNSA_0123456789ab/time_period_9_power/config": {
       "availability": [
@@ -801,7 +801,7 @@
       "step": 1,
       "unique_id": "0123456789ab_time_period_9_power",
       "unit_of_measurement": "W",
-      "value_template": "{{ value_json.timePeriods[9].power }}"
+      "value_template": "{% if value_json.timePeriods[9].power is defined %}{{ value_json.timePeriods[9].power }}{% else %}None{% endif %}"
     },
     "homeassistant/select/VNSA_0123456789ab/meter_type/config": {
       "availability": [
@@ -934,7 +934,7 @@
           "topic": "hm2mqtt/VNSA/availability/0123456789ab"
         }
       ],
-      "command_template": "{% set mapping = {\"600W Version\":\"600W\",\"800W Version\":\"800W\",\"1200W Version\":\"1200W\",\"1500W Version\":\"1500W\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
+      "command_template": "{% set mapping = {\"800W Version\":\"800W\",\"1200W Version\":\"1200W\",\"1500W Version\":\"1500W\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
       "command_topic": "hm2mqtt/VNSA/control/0123456789ab/version-set",
       "device": {
         "connections": [["bluetooth", "01:23:45:67:89:AB"]],
@@ -946,14 +946,14 @@
       },
       "icon": "mdi:power-socket",
       "name": "Version Set",
-      "options": ["600W Version", "800W Version", "1200W Version", "1500W Version"],
+      "options": ["800W Version", "1200W Version", "1500W Version"],
       "origin": {
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_version_set",
-      "value_template": "{% if value_json.versionSet is defined %}{% set mapping = {\"600W\":\"600W Version\",\"800W\":\"800W Version\",\"1200W\":\"1200W Version\",\"1500W\":\"1500W Version\"} %}{% set stringifiedValue = value_json.versionSet | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}{% else %}None{% endif %}"
+      "value_template": "{% if value_json.versionSet is defined %}{% set mapping = {\"800W\":\"800W Version\",\"1200W\":\"1200W Version\",\"1500W\":\"1500W Version\"} %}{% set stringifiedValue = value_json.versionSet | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}{% else %}None{% endif %}"
     },
     "homeassistant/select/VNSA_0123456789ab/working_mode/config": {
       "availability": [
@@ -3417,10 +3417,10 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$",
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_0_end_time",
-      "value_template": "{{ value_json.timePeriods[0].endTime }}"
+      "value_template": "{% if value_json.timePeriods[0].endTime is defined %}{{ value_json.timePeriods[0].endTime }}{% endif %}"
     },
     "homeassistant/text/VNSA_0123456789ab/time_period_0_start_time/config": {
       "availability": [
@@ -3449,10 +3449,10 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$",
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_0_start_time",
-      "value_template": "{{ value_json.timePeriods[0].startTime }}"
+      "value_template": "{% if value_json.timePeriods[0].startTime is defined %}{{ value_json.timePeriods[0].startTime }}{% endif %}"
     },
     "homeassistant/text/VNSA_0123456789ab/time_period_0_weekday/config": {
       "availability": [
@@ -3513,10 +3513,10 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$",
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_1_end_time",
-      "value_template": "{{ value_json.timePeriods[1].endTime }}"
+      "value_template": "{% if value_json.timePeriods[1].endTime is defined %}{{ value_json.timePeriods[1].endTime }}{% endif %}"
     },
     "homeassistant/text/VNSA_0123456789ab/time_period_1_start_time/config": {
       "availability": [
@@ -3545,10 +3545,10 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$",
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_1_start_time",
-      "value_template": "{{ value_json.timePeriods[1].startTime }}"
+      "value_template": "{% if value_json.timePeriods[1].startTime is defined %}{{ value_json.timePeriods[1].startTime }}{% endif %}"
     },
     "homeassistant/text/VNSA_0123456789ab/time_period_1_weekday/config": {
       "availability": [
@@ -3609,10 +3609,10 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$",
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_2_end_time",
-      "value_template": "{{ value_json.timePeriods[2].endTime }}"
+      "value_template": "{% if value_json.timePeriods[2].endTime is defined %}{{ value_json.timePeriods[2].endTime }}{% endif %}"
     },
     "homeassistant/text/VNSA_0123456789ab/time_period_2_start_time/config": {
       "availability": [
@@ -3641,10 +3641,10 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$",
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_2_start_time",
-      "value_template": "{{ value_json.timePeriods[2].startTime }}"
+      "value_template": "{% if value_json.timePeriods[2].startTime is defined %}{{ value_json.timePeriods[2].startTime }}{% endif %}"
     },
     "homeassistant/text/VNSA_0123456789ab/time_period_2_weekday/config": {
       "availability": [
@@ -3705,10 +3705,10 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$",
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_3_end_time",
-      "value_template": "{{ value_json.timePeriods[3].endTime }}"
+      "value_template": "{% if value_json.timePeriods[3].endTime is defined %}{{ value_json.timePeriods[3].endTime }}{% endif %}"
     },
     "homeassistant/text/VNSA_0123456789ab/time_period_3_start_time/config": {
       "availability": [
@@ -3737,10 +3737,10 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$",
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_3_start_time",
-      "value_template": "{{ value_json.timePeriods[3].startTime }}"
+      "value_template": "{% if value_json.timePeriods[3].startTime is defined %}{{ value_json.timePeriods[3].startTime }}{% endif %}"
     },
     "homeassistant/text/VNSA_0123456789ab/time_period_3_weekday/config": {
       "availability": [
@@ -3801,10 +3801,10 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$",
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_4_end_time",
-      "value_template": "{{ value_json.timePeriods[4].endTime }}"
+      "value_template": "{% if value_json.timePeriods[4].endTime is defined %}{{ value_json.timePeriods[4].endTime }}{% endif %}"
     },
     "homeassistant/text/VNSA_0123456789ab/time_period_4_start_time/config": {
       "availability": [
@@ -3833,10 +3833,10 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$",
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_4_start_time",
-      "value_template": "{{ value_json.timePeriods[4].startTime }}"
+      "value_template": "{% if value_json.timePeriods[4].startTime is defined %}{{ value_json.timePeriods[4].startTime }}{% endif %}"
     },
     "homeassistant/text/VNSA_0123456789ab/time_period_4_weekday/config": {
       "availability": [
@@ -3897,10 +3897,10 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$",
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_5_end_time",
-      "value_template": "{{ value_json.timePeriods[5].endTime }}"
+      "value_template": "{% if value_json.timePeriods[5].endTime is defined %}{{ value_json.timePeriods[5].endTime }}{% endif %}"
     },
     "homeassistant/text/VNSA_0123456789ab/time_period_5_start_time/config": {
       "availability": [
@@ -3929,10 +3929,10 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$",
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_5_start_time",
-      "value_template": "{{ value_json.timePeriods[5].startTime }}"
+      "value_template": "{% if value_json.timePeriods[5].startTime is defined %}{{ value_json.timePeriods[5].startTime }}{% endif %}"
     },
     "homeassistant/text/VNSA_0123456789ab/time_period_5_weekday/config": {
       "availability": [
@@ -3993,10 +3993,10 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$",
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_6_end_time",
-      "value_template": "{{ value_json.timePeriods[6].endTime }}"
+      "value_template": "{% if value_json.timePeriods[6].endTime is defined %}{{ value_json.timePeriods[6].endTime }}{% endif %}"
     },
     "homeassistant/text/VNSA_0123456789ab/time_period_6_start_time/config": {
       "availability": [
@@ -4025,10 +4025,10 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$",
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_6_start_time",
-      "value_template": "{{ value_json.timePeriods[6].startTime }}"
+      "value_template": "{% if value_json.timePeriods[6].startTime is defined %}{{ value_json.timePeriods[6].startTime }}{% endif %}"
     },
     "homeassistant/text/VNSA_0123456789ab/time_period_6_weekday/config": {
       "availability": [
@@ -4089,10 +4089,10 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$",
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_7_end_time",
-      "value_template": "{{ value_json.timePeriods[7].endTime }}"
+      "value_template": "{% if value_json.timePeriods[7].endTime is defined %}{{ value_json.timePeriods[7].endTime }}{% endif %}"
     },
     "homeassistant/text/VNSA_0123456789ab/time_period_7_start_time/config": {
       "availability": [
@@ -4121,10 +4121,10 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$",
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_7_start_time",
-      "value_template": "{{ value_json.timePeriods[7].startTime }}"
+      "value_template": "{% if value_json.timePeriods[7].startTime is defined %}{{ value_json.timePeriods[7].startTime }}{% endif %}"
     },
     "homeassistant/text/VNSA_0123456789ab/time_period_7_weekday/config": {
       "availability": [
@@ -4185,10 +4185,10 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$",
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_8_end_time",
-      "value_template": "{{ value_json.timePeriods[8].endTime }}"
+      "value_template": "{% if value_json.timePeriods[8].endTime is defined %}{{ value_json.timePeriods[8].endTime }}{% endif %}"
     },
     "homeassistant/text/VNSA_0123456789ab/time_period_8_start_time/config": {
       "availability": [
@@ -4217,10 +4217,10 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$",
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_8_start_time",
-      "value_template": "{{ value_json.timePeriods[8].startTime }}"
+      "value_template": "{% if value_json.timePeriods[8].startTime is defined %}{{ value_json.timePeriods[8].startTime }}{% endif %}"
     },
     "homeassistant/text/VNSA_0123456789ab/time_period_8_weekday/config": {
       "availability": [
@@ -4281,10 +4281,10 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$",
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_9_end_time",
-      "value_template": "{{ value_json.timePeriods[9].endTime }}"
+      "value_template": "{% if value_json.timePeriods[9].endTime is defined %}{{ value_json.timePeriods[9].endTime }}{% endif %}"
     },
     "homeassistant/text/VNSA_0123456789ab/time_period_9_start_time/config": {
       "availability": [
@@ -4313,10 +4313,10 @@
         "name": "hm2mqtt",
         "url": "https://github.com/tomquist/hm2mqtt"
       },
-      "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+      "pattern": "^(([0-1]?[0-9]|2[0-3]):[0-5][0-9])?$",
       "state_topic": "hm2mqtt/VNSA/device/0123456789ab/data",
       "unique_id": "0123456789ab_time_period_9_start_time",
-      "value_template": "{{ value_json.timePeriods[9].startTime }}"
+      "value_template": "{% if value_json.timePeriods[9].startTime is defined %}{{ value_json.timePeriods[9].startTime }}{% endif %}"
     },
     "homeassistant/text/VNSA_0123456789ab/time_period_9_weekday/config": {
       "availability": [

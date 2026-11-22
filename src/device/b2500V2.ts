@@ -66,15 +66,14 @@ const CT_POWER_SENTINEL = 60000;
  */
 const ctPower = () => inRange(-(CT_POWER_SENTINEL - 1), CT_POWER_SENTINEL - 1);
 
+type ModelState = Partial<Pick<B2500V2DeviceData, 'deviceType' | 'deviceInfo'>>;
+
 /**
  * Whether the device is an HMJ whose firmware is known to be `version` or
  * older. Unknown type or version is not a match.
  */
-function isHmjAtMost(
-  state: Pick<B2500V2DeviceData, 'deviceType' | 'deviceInfo'>,
-  version: number,
-): boolean {
-  if (state.deviceType == null || extractBaseType(state.deviceType) !== 'HMJ') {
+function isHmjAtMost(state: ModelState, version: number): boolean {
+  if (state.deviceType == null || extractBaseType(state.deviceType).toUpperCase() !== 'HMJ') {
     return false;
   }
   const deviceVersion = state.deviceInfo?.deviceVersion;
@@ -82,15 +81,30 @@ function isHmjAtMost(
 }
 
 /**
+ * For discovery: whether the firmware is `version` or older on the HMJ
+ * registration, and `undefined` until it is known; `false` on the other
+ * models. Discovery cannot read the model from the device state, so the
+ * registration says which one it is.
+ */
+function hmjFirmwareAtMost(isHmj: boolean, state: ModelState, version: number) {
+  if (!isHmj) {
+    return false;
+  }
+  const deviceVersion = state.deviceInfo?.deviceVersion;
+  return deviceVersion == null ? undefined : deviceVersion <= version;
+}
+
+/**
  * HMJ firmware 116 and older only has drivers for meter codes 0-7. It stores a
  * higher code anyway and is then left without a working meter, so those are
- * refused there. Warns when it refuses.
+ * neither offered nor sent there.
  */
-function isMeterUnsupported(
-  state: Pick<B2500V2DeviceData, 'deviceType' | 'deviceInfo'>,
-  meterType: MeterType,
-): boolean {
-  if (meterTypeCommandCodes[meterType] < 8 || !isHmjAtMost(state, 116)) {
+const HMJ_LACKS_NEWER_METERS_UP_TO = 116;
+const isNewerMeter = (meterType: MeterType) => meterTypeCommandCodes[meterType] >= 8;
+
+/** Refuses a meter the firmware has no driver for, with a warning. */
+function isMeterUnsupported(state: ModelState, meterType: MeterType): boolean {
+  if (!isNewerMeter(meterType) || !isHmjAtMost(state, HMJ_LACKS_NEWER_METERS_UP_TO)) {
     return false;
   }
   logger.warn(
@@ -164,17 +178,25 @@ export const timePeriodSettingHandler = (
 
       logger.debug(`Current period ${periodNumber} settings:`, newTimePeriodSettings[periodIndex]);
 
-      // The device never runs a period that ends before it starts, because it
-      // does not wrap a period past midnight, and replaces it with 00:00-23:59
-      // at its next restart, so it then runs all day. Editing the start and
-      // end one at a time passes through such states, so warn but still send.
+      // The device does not wrap a period past midnight. HMJ firmware 110 and
+      // 116 refuse a period that ends before it starts and keep its previous
+      // times (the rest of the command still applies), so it is not sent there
+      // and not shown either. What the other models do with one is not known:
+      // editing the start and end one at a time passes through such states, so
+      // there it is only warned about.
       const { startTime, endTime } = newTimePeriodSettings[periodIndex];
       if (
         (setting === 'start-time' || setting === 'end-time') &&
         minutesOfDay(startTime) > minutesOfDay(endTime)
       ) {
+        if (isHmjAtMost(state, HMJ_REFUSES_OVERNIGHT_PERIODS_UP_TO)) {
+          logger.warn(
+            `Time period ${periodNumber} would end before it starts (${startTime}-${endTime}). This firmware refuses that and keeps the previous times, so it is not sent; change the end time first, or split a period that crosses midnight into two.`,
+          );
+          return;
+        }
         logger.warn(
-          `Time period ${periodNumber} ends before it starts (${startTime}-${endTime}). The device never runs such a period, and runs it all day after its next restart; split it at midnight instead.`,
+          `Time period ${periodNumber} ends before it starts (${startTime}-${endTime}). The device does not run a period past midnight; split it at midnight instead.`,
         );
       }
 
@@ -199,6 +221,9 @@ export const timePeriodSettingHandler = (
     });
   },
 });
+
+/** Newest HMJ firmware known to refuse a period that ends before it starts. */
+const HMJ_REFUSES_OVERNIGHT_PERIODS_UP_TO = 116;
 
 // Home Assistant checks reported states against the text pattern too. Devices
 // report `24:0` for a period ending at midnight, so the entity accepts 24:00
@@ -260,9 +285,10 @@ function buildTimePeriodParams(
 }
 
 function registerB2500V2Definition(deviceTypes: string[], options: B2500BaseMessageOptions) {
+  const isHmj = deviceTypes.includes('HMJ');
   registerDeviceDefinition({ deviceTypes }, ({ message }) => {
-    registerRuntimeInfoMessage(message, options);
-    registerCtDiagnosisMessage(message);
+    registerRuntimeInfoMessage(message, options, isHmj);
+    registerCtDiagnosisMessage(message, isHmj);
     registerExtraBatteryData(message);
     registerCellDataMessage(message);
     registerB2500CellBalancingMessage(message, { hasPackCurrent: true });
@@ -275,7 +301,11 @@ function registerB2500V2Definition(deviceTypes: string[], options: B2500BaseMess
 registerB2500V2Definition(['HMA', 'HMF', 'HMK'], { reportsPassThrough: true });
 registerB2500V2Definition(['HMJ'], { reportsPassThrough: false });
 
-function registerRuntimeInfoMessage(message: BuildMessageFn, baseOptions: B2500BaseMessageOptions) {
+function registerRuntimeInfoMessage(
+  message: BuildMessageFn,
+  baseOptions: B2500BaseMessageOptions,
+  isHmj: boolean,
+) {
   let options = {
     refreshDataPayload: 'cd=1',
     isMessage: isB2500RuntimeInfoMessage,
@@ -1015,19 +1045,34 @@ function registerRuntimeInfoMessage(message: BuildMessageFn, baseOptions: B2500B
         });
       },
     });
-    advertise(
-      ['meterType'],
+    const meterTypeSelect = (valueMappings: Partial<Record<MeterType, string>>) =>
       selectComponent<NonNullable<B2500V2DeviceData['meterType']>>({
         id: 'meter_type',
         name: 'Meter Type',
         icon: 'mdi:meter-electric',
         command: 'meter-type',
-        valueMappings: meterTypeLabels,
+        valueMappings: valueMappings as Record<MeterType, string>,
         // Write-only: the device never reports the configured meter type back.
         // The separate CT Type sensor shows what the device actually took.
         optimistic: true,
         enabled_by_default: false,
-      }),
+      });
+    // Firmware without the newer meters' drivers does not offer them, nor does
+    // an HMJ whose firmware is not known yet; the two advertisements never
+    // apply at the same time.
+    const lacksNewerMeterDrivers = (state: ModelState) =>
+      hmjFirmwareAtMost(isHmj, state, HMJ_LACKS_NEWER_METERS_UP_TO);
+    advertise(['meterType'], meterTypeSelect(meterTypeLabels), {
+      enabled: state => (lacksNewerMeterDrivers(state) === false ? true : undefined),
+    });
+    advertise(
+      ['meterType'],
+      meterTypeSelect(
+        Object.fromEntries(
+          Object.entries(meterTypeLabels).filter(([type]) => !isNewerMeter(type as MeterType)),
+        ),
+      ),
+      { enabled: state => (lacksNewerMeterDrivers(state) === false ? undefined : true) },
     );
   });
 }
@@ -1053,14 +1098,32 @@ function supportsCtDiagnosis(state: BaseDeviceData): boolean {
   if (deviceType == null || version == null) {
     return false;
   }
-  if (extractBaseType(deviceType) === 'HMJ') {
+  if (extractBaseType(deviceType).toUpperCase() === 'HMJ') {
     return version >= 102;
   }
   const subversion = deviceInfo?.deviceSubversion;
   return version > 224 || (version === 224 && subversion != null && subversion >= 3);
 }
 
-function registerCtDiagnosisMessage(message: BuildMessageFn) {
+/**
+ * HMJ firmware 110 and 116 look for `dchrg=`, `seq_check` and `rechrg_seq=`
+ * only in a `cd=27` command without `meter=`, and then search the null result
+ * of the `meter=` search instead of the command, so they never find them. They
+ * ignore the recharge mode and phase diagnosis commands, while still reporting
+ * the recharge mode in `cd=28`.
+ */
+const HMJ_IGNORES_CD27_EXTRAS_UP_TO = 116;
+const CD27_EXTRAS_IGNORED = 'This firmware ignores the recharge mode and phase diagnosis commands';
+
+function registerCtDiagnosisMessage(message: BuildMessageFn, isHmj: boolean) {
+  // `false` removes the entity, also one retained from an earlier version;
+  // `undefined` waits until an HMJ's firmware is known.
+  const ignoresCd27Extras = (state: BaseDeviceData) =>
+    hmjFirmwareAtMost(isHmj, state as ModelState, HMJ_IGNORES_CD27_EXTRAS_UP_TO);
+  const offered = (state: BaseDeviceData, enabled: boolean | undefined) => {
+    const ignored = ignoresCd27Extras(state);
+    return ignored === false ? enabled : ignored === true ? false : undefined;
+  };
   const options = {
     refreshDataPayload: 'cd=28',
     isMessage: isB2500CtDiagnosisMessage,
@@ -1081,6 +1144,10 @@ function registerCtDiagnosisMessage(message: BuildMessageFn) {
       handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
         if (!isValidB2500RechargeMode(message)) {
           logger.warn('Invalid recharge mode value:', message);
+          return;
+        }
+        if (isHmjAtMost(deviceState as ModelState, HMJ_IGNORES_CD27_EXTRAS_UP_TO)) {
+          logger.warn(CD27_EXTRAS_IGNORED);
           return;
         }
         updateDeviceState(() => ({ rechargeMode: message }));
@@ -1123,17 +1190,21 @@ function registerCtDiagnosisMessage(message: BuildMessageFn) {
         enabled_by_default: false,
       });
     advertise(['rechargeMode'], rechargeModeSelect(false), {
-      enabled: state => (state.rechargeModeReported ? true : undefined),
+      enabled: state => offered(state, state.rechargeModeReported ? true : undefined),
     });
     advertise(['rechargeMode'], rechargeModeSelect(true), {
-      enabled: state => (state.rechargeModeReported ? undefined : true),
+      enabled: state => offered(state, state.rechargeModeReported ? undefined : true),
     });
 
     // Starts the grid-phase detection routine. The device clears the phase and
     // moves the CT status to "Preparing to diagnose CT001 (Step 1)", so progress
     // can be followed on the CT Status and Phase Detection sensors.
     command('phase-diagnosis', {
-      handler: ({ message, publishCallback }) => {
+      handler: ({ message, publishCallback, deviceState }) => {
+        if (isHmjAtMost(deviceState as ModelState, HMJ_IGNORES_CD27_EXTRAS_UP_TO)) {
+          logger.warn(CD27_EXTRAS_IGNORED);
+          return;
+        }
         if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
           // `seq_check` is a bare flag, so it cannot go through processCommand.
           publishCallback(`cd=${CommandType.SET_SMART_METER_TYPE},seq_check`);
@@ -1150,6 +1221,7 @@ function registerCtDiagnosisMessage(message: BuildMessageFn) {
         payload_press: 'PRESS',
         enabled_by_default: false,
       }),
+      { enabled: state => offered(state, true) },
     );
 
     field({
