@@ -13,17 +13,10 @@ import { Rig, entitySlug, canRunScenarios, startRig, waitFor } from '../harness/
 const describeE2e = canRunScenarios() ? describe : describe.skip;
 
 /**
- * Known findings, not noise.
- *
- * One sensor reads a value its device declares but does not always send —
- * *WiFi Signal Strength* on the B2500 V2. Home Assistant then renders its
- * template against a payload without the value and logs a warning on every
- * poll — the same spam as a template pointed at a value no device reports,
- * except that this field is merely optional rather than absent. Guarding the
- * template with `is defined` fixes it; delete the entry with the fix, and note
- * that anything *new* still fails the assertion below.
+ * Known findings, not noise: a pattern per finding Home Assistant still logs,
+ * deleted with its fix. Anything *new* still fails the assertion below.
  */
-const KNOWN_FINDINGS = [/has no attribute 'wifiSignalStrength'/];
+const KNOWN_FINDINGS: RegExp[] = [];
 
 describeE2e('a fresh installation', () => {
   let rig: Rig;

@@ -3,6 +3,15 @@ export type { Broker } from './broker.js';
 export { startSimulatedDevice } from './device.js';
 export type { SimulatedDevice } from './device.js';
 export {
+  DEFAULT_EMULATED_DEVICES,
+  MISSING_EMULATOR,
+  emulatorSetup,
+  findImage,
+  parseDeviceList,
+  startEmulatedDevice,
+} from './emulator.js';
+export type { EmulatedDevice, EmulatedDeviceSpec, EmulatorSetup } from './emulator.js';
+export {
   E2E_ROOT,
   HASS_BIN,
   MISSING_HOME_ASSISTANT,

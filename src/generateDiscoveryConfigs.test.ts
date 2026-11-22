@@ -756,6 +756,32 @@ describe('Home Assistant Discovery', () => {
     );
   });
 
+  test('should show a discarded value as unknown instead of a missing key', () => {
+    const template = (deviceType: string, id: string, state: Record<string, unknown>) => {
+      const config = generateDiscoveryConfigs(
+        { deviceType, deviceId: 'dev123' },
+        jupiterTopics(deviceType, 'dev123'),
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      ).find(c => c.topic.includes(`/${id}/`))?.config as Record<string, unknown> | undefined;
+      return config?.value_template;
+    };
+
+    // B2500: an implausible RSSI is dropped from the state (inRange)
+    expect(template('HMA-1', 'wifi_signal_strength', {})).toBe(
+      '{% if value_json.wifiSignalStrength is defined %}{{ value_json.wifiSignalStrength }}{% else %}None{% endif %}',
+    );
+    // Venus: a power-version code the model has no version for clears versionSet
+    const versionSet = template('HMG-50', 'version_set', {
+      versionSet: '800W',
+      deviceVersion: 156,
+    });
+    expect(versionSet).toMatch(/^\{% if value_json\.versionSet is defined %\}\{% set mapping = /);
+    expect(versionSet).toMatch(/\{% else %\}None\{% endif %\}$/);
+  });
+
   test('should remove the Venus price, income, error and grid type sensors where unfilled', () => {
     const ids = [
       'charging_price',

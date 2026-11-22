@@ -2028,6 +2028,8 @@ function registerRuntimeInfoMessage(
         name: 'Version Set',
         icon: 'mdi:power-socket',
         command: 'version-set',
+        // a code this model has no version for clears the value
+        unknownWhenAbsent: true,
         valueMappings: Object.fromEntries(
           venusVersionSetOptions(model).map(version => [version, venusVersionSetLabels[version]]),
         ) as Record<VenusVersionSet, string>,
