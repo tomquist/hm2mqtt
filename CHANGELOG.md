@@ -27,7 +27,7 @@
 - B2500 V2/V3: Changing a timer period also switches the device out of adaptive mode. *Adaptive Mode* now shows this straight away (PR #462)
 - B2500 V2/V3: Timer start and end times from 24:00 to 29:59 are no longer accepted. The device turns them into an all-day period after its next restart (PR #462)
 - B2500 (HMJ): Removed the *Input 1/2 Pass Through* sensors, which this model never reports and which were always off (PR #462)
-- B2500 (HMJ): Choosing an SMR or TPM2 meter is refused on firmware 116 and older, which cannot use them and would be left without a working meter (PR #462)
+- B2500 (HMJ): *Meter Type* no longer offers the SMR and TPM2 meters on firmware 116 and older, and refuses them there, because the device cannot use them and would be left without a working meter (PR #462, PR #TBD)
 - Smart meters: The CT003 with device type `HME-3` or `HME-5` was handled as a CT002, so its energy and P1 status sensors were missing (fixes #202, PR #462)
 - Smart meters: *Bluetooth Signal* is now *Bluetooth State* and shows the connection state, e.g. *Connected*, instead of a number. *WiFi Status* names its states the same way (PR #462)
 - Venus: *Working Mode* offers *Trading* only on Venus C/E (HMG) firmware that still has it (146 and older), and shows *Passive* or *Modbus* instead of *Automatic* while the Local API or Modbus is in control (fixes #127, PR #462)

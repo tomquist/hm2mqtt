@@ -247,6 +247,42 @@ describe('Home Assistant Discovery', () => {
     ).not.toBeNull();
   });
 
+  test('should offer only the meters the B2500 firmware has drivers for', () => {
+    const meterTypeOptions = (deviceType: string, deviceInfo: object) => {
+      const configs = generateDiscoveryConfigs(
+        { deviceType, deviceId: 'test123' },
+        {
+          deviceTopicOld: `hame_energy/${deviceType}/device/test123/ctrl`,
+          deviceTopicNew: `marstek_energy/${deviceType}/device/test123/ctrl`,
+          publishTopic: `hame_energy/${deviceType}/device/test123/data`,
+          deviceControlTopicOld: `hame_energy/${deviceType}/App/test123/ctrl`,
+          deviceControlTopicNew: `marstek_energy/${deviceType}/App/test123/ctrl`,
+          controlSubscriptionTopic: `hame_energy/${deviceType}/control/test123/control`,
+          availabilityTopic: `hame_energy/${deviceType}/availability/test123`,
+        },
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        { deviceType, deviceInfo },
+      ).filter(c => c.topic.endsWith('/meter_type/config'));
+      expect(configs).toHaveLength(1);
+      return (configs[0].config as unknown as { options: string[] }).options;
+    };
+    const newerMeters = ['SMR-P1', 'SMR-IR', 'SMR-TIC', 'TPM2-100CT'];
+
+    const hmj116 = meterTypeOptions('HMJ-2', { deviceVersion: 116 });
+    expect(hmj116).toContain('CT003');
+    for (const meter of newerMeters) {
+      expect(hmj116).not.toContain(meter);
+    }
+    expect(meterTypeOptions('HMJ-2', { deviceVersion: 117 })).toEqual(
+      expect.arrayContaining(newerMeters),
+    );
+    expect(meterTypeOptions('HMA-1', {})).toEqual(expect.arrayContaining(newerMeters));
+    // Only the meters every HMJ firmware has while its firmware is unknown.
+    expect(meterTypeOptions('HMJ-2', {})).toEqual(hmj116);
+  });
+
   test('should keep the B2500 Recharge Mode optimistic until the device reports it', () => {
     const deviceType = 'HMA-1';
     const device: Device = { deviceType, deviceId: 'test123' };

@@ -66,14 +66,13 @@ const CT_POWER_SENTINEL = 60000;
  */
 const ctPower = () => inRange(-(CT_POWER_SENTINEL - 1), CT_POWER_SENTINEL - 1);
 
+type ModelState = Partial<Pick<B2500V2DeviceData, 'deviceType' | 'deviceInfo'>>;
+
 /**
  * Whether the device is an HMJ whose firmware is known to be `version` or
  * older. Unknown type or version is not a match.
  */
-function isHmjAtMost(
-  state: Pick<B2500V2DeviceData, 'deviceType' | 'deviceInfo'>,
-  version: number,
-): boolean {
+function isHmjAtMost(state: ModelState, version: number): boolean {
   if (state.deviceType == null || extractBaseType(state.deviceType) !== 'HMJ') {
     return false;
   }
@@ -82,15 +81,30 @@ function isHmjAtMost(
 }
 
 /**
+ * For discovery: whether the firmware is `version` or older on the HMJ
+ * registration, and `undefined` until it is known; `false` on the other
+ * models. Discovery cannot read the model from the device state, so the
+ * registration says which one it is.
+ */
+function hmjFirmwareAtMost(isHmj: boolean, state: ModelState, version: number) {
+  if (!isHmj) {
+    return false;
+  }
+  const deviceVersion = state.deviceInfo?.deviceVersion;
+  return deviceVersion == null ? undefined : deviceVersion <= version;
+}
+
+/**
  * HMJ firmware 116 and older only has drivers for meter codes 0-7. It stores a
  * higher code anyway and is then left without a working meter, so those are
- * refused there. Warns when it refuses.
+ * neither offered nor sent there.
  */
-function isMeterUnsupported(
-  state: Pick<B2500V2DeviceData, 'deviceType' | 'deviceInfo'>,
-  meterType: MeterType,
-): boolean {
-  if (meterTypeCommandCodes[meterType] < 8 || !isHmjAtMost(state, 116)) {
+const HMJ_LACKS_NEWER_METERS_UP_TO = 116;
+const isNewerMeter = (meterType: MeterType) => meterTypeCommandCodes[meterType] >= 8;
+
+/** Refuses a meter the firmware has no driver for, with a warning. */
+function isMeterUnsupported(state: ModelState, meterType: MeterType): boolean {
+  if (!isNewerMeter(meterType) || !isHmjAtMost(state, HMJ_LACKS_NEWER_METERS_UP_TO)) {
     return false;
   }
   logger.warn(
@@ -260,8 +274,9 @@ function buildTimePeriodParams(
 }
 
 function registerB2500V2Definition(deviceTypes: string[], options: B2500BaseMessageOptions) {
+  const isHmj = deviceTypes.includes('HMJ');
   registerDeviceDefinition({ deviceTypes }, ({ message }) => {
-    registerRuntimeInfoMessage(message, options);
+    registerRuntimeInfoMessage(message, options, isHmj);
     registerCtDiagnosisMessage(message);
     registerExtraBatteryData(message);
     registerCellDataMessage(message);
@@ -275,7 +290,11 @@ function registerB2500V2Definition(deviceTypes: string[], options: B2500BaseMess
 registerB2500V2Definition(['HMA', 'HMF', 'HMK'], { reportsPassThrough: true });
 registerB2500V2Definition(['HMJ'], { reportsPassThrough: false });
 
-function registerRuntimeInfoMessage(message: BuildMessageFn, baseOptions: B2500BaseMessageOptions) {
+function registerRuntimeInfoMessage(
+  message: BuildMessageFn,
+  baseOptions: B2500BaseMessageOptions,
+  isHmj: boolean,
+) {
   let options = {
     refreshDataPayload: 'cd=1',
     isMessage: isB2500RuntimeInfoMessage,
@@ -1015,19 +1034,34 @@ function registerRuntimeInfoMessage(message: BuildMessageFn, baseOptions: B2500B
         });
       },
     });
-    advertise(
-      ['meterType'],
+    const meterTypeSelect = (valueMappings: Partial<Record<MeterType, string>>) =>
       selectComponent<NonNullable<B2500V2DeviceData['meterType']>>({
         id: 'meter_type',
         name: 'Meter Type',
         icon: 'mdi:meter-electric',
         command: 'meter-type',
-        valueMappings: meterTypeLabels,
+        valueMappings: valueMappings as Record<MeterType, string>,
         // Write-only: the device never reports the configured meter type back.
         // The separate CT Type sensor shows what the device actually took.
         optimistic: true,
         enabled_by_default: false,
-      }),
+      });
+    // Firmware without the newer meters' drivers does not offer them, nor does
+    // an HMJ whose firmware is not known yet; the two advertisements never
+    // apply at the same time.
+    const lacksNewerMeterDrivers = (state: ModelState) =>
+      hmjFirmwareAtMost(isHmj, state, HMJ_LACKS_NEWER_METERS_UP_TO);
+    advertise(['meterType'], meterTypeSelect(meterTypeLabels), {
+      enabled: state => (lacksNewerMeterDrivers(state) === false ? true : undefined),
+    });
+    advertise(
+      ['meterType'],
+      meterTypeSelect(
+        Object.fromEntries(
+          Object.entries(meterTypeLabels).filter(([type]) => !isNewerMeter(type as MeterType)),
+        ),
+      ),
+      { enabled: state => (lacksNewerMeterDrivers(state) === false ? undefined : true) },
     );
   });
 }
