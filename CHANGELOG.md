@@ -40,7 +40,7 @@
 - Venus: Time periods the device has never stored, as it reports them after a restart, no longer make Home Assistant log an error on every update. Their times now show as empty and their power as unknown (PR #TBD)
 - Venus E 3.0: The cell and MOSFET temperatures with *Enable Cell Data* were ten times too high, and *Battery Health* showed 1000 % for a healthy battery (PR #TBD)
 - Venus A/D: *PV Energy Total* was this month's PV energy, not a lifetime total, and is now called *PV Energy This Month* (PR #462)
-- Venus: *Maximum Charging Power* stayed empty on Venus C/E (HMG) firmware 153 and later, which does not report it, and now shows the last value set there. Values the model's firmware rejects are now refused (PR #462)
+- Venus: *Maximum Charging Power* stayed empty on Venus C/E (HMG) firmware 153 and later, which does not report it, and now shows the last value set there, also after a restart (under Docker, with `/data` mounted). Values the model's firmware rejects are now refused (PR #462, PR #TBD)
 - Venus C/E (HMG) and Venus E 3.0: *Enable Cell Data* no longer requests per-pack battery details these models do not provide (PR #462)
 - Venus C/E (HMG): The network sensors, such as the IP address, never appeared because this model answers in a slightly different format (PR #462)
 - HMI inverters: *Total Energy Generated* no longer drops at every month change, a firmware bug, and now includes the energy already lost. It jumps up once after updating, so fix its statistics in Home Assistant if the Energy dashboard counts that jump (fixes #473, PR #474)

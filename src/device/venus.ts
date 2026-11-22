@@ -596,6 +596,8 @@ function registerRuntimeInfoMessage(
     getAdditionalDeviceInfo: extractAdditionalDeviceInfo(model),
     pollInterval: globalPollInterval,
     controlsDeviceAvailability: true,
+    // HMG from 153 does not report the maximum charging power (see below).
+    rememberedKeys: model === 'HMG' ? (['maxChargingPower'] as const) : undefined,
   };
   message<VenusDeviceData>(options, ({ field, command, advertise }) => {
     advertise(
@@ -2755,7 +2757,8 @@ function registerRuntimeInfoMessage(
     // set but the charge limit in effect at that moment: 153 and 154 report 0,
     // 155 and later the limit as a negative number (`mcp_w=-1000` after
     // `cp=1000`). Neither says what was set, so there `mcp_w` is ignored and
-    // the control shows the last value set from Home Assistant.
+    // the control shows the last value set from Home Assistant, which is kept
+    // across restarts where HM2MQTT_DATA_DIR persists (`rememberedKeys`).
     field({
       key: 'mcp_w',
       path: ['maxChargingPower'],

@@ -197,6 +197,14 @@ export interface MessageDefinition<T extends BaseDeviceData> {
    * the last of several requests arriving close together.
    */
   pollOffsetMs?: number;
+  /**
+   * Top-level state keys kept across hm2mqtt restarts, for settings the device
+   * does not report back, so that hm2mqtt only knows them from the command
+   * that set them. Stored under HM2MQTT_DATA_DIR where that persists, and
+   * restored into the message's initial state; a value the device reports
+   * replaces it as usual.
+   */
+  rememberedKeys?: readonly string[];
 }
 
 export type BaseDeviceData = {
@@ -257,6 +265,7 @@ export type BuildMessageFn = <T extends BaseDeviceData>(
     derive?: DeriveFn<T>;
     shouldPoll?: (state: BaseDeviceData) => boolean;
     pollOffsetMs?: number;
+    rememberedKeys?: readonly (keyof T & string)[];
   },
   args: BuildMessageDefinitionFn<T>,
 ) => void;
