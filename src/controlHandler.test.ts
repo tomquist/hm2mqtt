@@ -3,6 +3,7 @@ import './device/registry.js';
 import logger from './logger.js';
 import { ControlHandler } from './controlHandler.js';
 import { DeviceManager, DeviceStateData } from './deviceManager.js';
+import { parseMessage } from './parser.js';
 import { getDeviceDefinition } from './deviceDefinition.js';
 import { MqttConfig, Device, B2500V2DeviceData, B2500BaseDeviceData } from './types.js';
 import { DEFAULT_TOPIC_PREFIX } from './constants.js';
@@ -460,6 +461,23 @@ describe('ControlHandler', () => {
       // Turning phase 1 back off leaves 2 and 3: 2 | 4 = 6
       handleControlTopic(ct002, 'phase1-measurement-reversed', 'false');
       expect(publishCallback).toHaveBeenLastCalledWith(ct002, 'cd=5,p1=6');
+    });
+
+    test('should treat the unwritten setting 255 as all phases reversed, as the meter does', () => {
+      // A meter whose setting was never written reports cur_d=255. HME-4
+      // firmware 120 and 124 measure with it exactly as with 7, the inverse
+      // of 0, so all three switches are on, and turning one off sends the
+      // other two bits as the meter applies them.
+      const { data } = parseMessage('pwr_a=0,pwr_b=0,pwr_c=0,pwr_t=0,cur_d=255', 'HME-4', 'x');
+      deviceManager.updateDeviceState(ct002, 'data', () => data);
+      expect(deviceManager.getDeviceState(ct002)).toMatchObject({
+        phase1MeasurementReversed: true,
+        phase2MeasurementReversed: true,
+        phase3MeasurementReversed: true,
+      });
+
+      handleControlTopic(ct002, 'phase1-measurement-reversed', 'false');
+      expect(publishCallback).toHaveBeenCalledWith(ct002, 'cd=5,p1=6');
     });
 
     test('should use the p1 parameter on TPM-CN and dir on TPM2', () => {

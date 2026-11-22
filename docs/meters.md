@@ -236,6 +236,11 @@ For example, `cd=5,p1=5` reverses phases A and C and leaves phase B as measured.
 The `HME-4` only uses the low byte of `p1` (`p1=256` is taken as `0`) and
 rejects values above `7`. It does not recognise `dir`.
 
+A meter whose setting was never written reports `cur_d=255`. The `HME-4`
+(firmware 120 and 124) measures with it exactly as with `7`, all phases
+reversed, so hm2mqtt shows all three as reversed, and turning one of them off
+sends the other two bits.
+
 > **Note:** On the CT003 family, `cd=5` configures the connected smart meter
 > instead — see [section 6](#6-configure-the-connected-smart-meter). Do not send
 > the direction command to a CT003.
