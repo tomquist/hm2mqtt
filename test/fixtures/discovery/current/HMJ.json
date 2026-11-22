@@ -745,37 +745,6 @@
       "payload_press": "PRESS",
       "unique_id": "0123456789ab_factory_reset"
     },
-    "homeassistant/button/HMJ_0123456789ab/phase_diagnosis/config": {
-      "availability": [
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/availability"
-        },
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/HMJ/availability/0123456789ab"
-        }
-      ],
-      "command_topic": "hm2mqtt/HMJ/control/0123456789ab/phase-diagnosis",
-      "device": {
-        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
-        "ids": ["hame_energy_0123456789ab"],
-        "manufacturer": "HAME Energy",
-        "model_id": "HMJ",
-        "name": "HAME Energy HMJ 0123456789ab"
-      },
-      "enabled_by_default": false,
-      "icon": "mdi:sine-wave",
-      "name": "Phase Diagnosis",
-      "origin": {
-        "name": "hm2mqtt",
-        "url": "https://github.com/tomquist/hm2mqtt"
-      },
-      "payload_press": "PRESS",
-      "unique_id": "0123456789ab_phase_diagnosis"
-    },
     "homeassistant/button/HMJ_0123456789ab/refresh/config": {
       "availability": [
         {
@@ -1173,38 +1142,6 @@
         "url": "https://github.com/tomquist/hm2mqtt"
       },
       "unique_id": "0123456789ab_meter_type"
-    },
-    "homeassistant/select/HMJ_0123456789ab/recharge_mode/config": {
-      "availability": [
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/availability"
-        },
-        {
-          "payload_available": "online",
-          "payload_not_available": "offline",
-          "topic": "hm2mqtt/HMJ/availability/0123456789ab"
-        }
-      ],
-      "command_template": "{% set mapping = {\"Single Phase\":\"singlePhase\",\"Three Phase\":\"threePhase\"} %}{% set stringifiedValue = value | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}",
-      "command_topic": "hm2mqtt/HMJ/control/0123456789ab/recharge-mode",
-      "device": {
-        "connections": [["bluetooth", "01:23:45:67:89:AB"]],
-        "ids": ["hame_energy_0123456789ab"],
-        "manufacturer": "HAME Energy",
-        "model_id": "HMJ",
-        "name": "HAME Energy HMJ 0123456789ab"
-      },
-      "enabled_by_default": false,
-      "icon": "mdi:flash",
-      "name": "Recharge Mode",
-      "options": ["Single Phase", "Three Phase"],
-      "origin": {
-        "name": "hm2mqtt",
-        "url": "https://github.com/tomquist/hm2mqtt"
-      },
-      "unique_id": "0123456789ab_recharge_mode"
     },
     "homeassistant/sensor/HMJ_0123456789ab/avg_cell_voltage_extra1/config": null,
     "homeassistant/sensor/HMJ_0123456789ab/avg_cell_voltage_extra2/config": null,

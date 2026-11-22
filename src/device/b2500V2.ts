@@ -288,7 +288,7 @@ function registerB2500V2Definition(deviceTypes: string[], options: B2500BaseMess
   const isHmj = deviceTypes.includes('HMJ');
   registerDeviceDefinition({ deviceTypes }, ({ message }) => {
     registerRuntimeInfoMessage(message, options, isHmj);
-    registerCtDiagnosisMessage(message);
+    registerCtDiagnosisMessage(message, isHmj);
     registerExtraBatteryData(message);
     registerCellDataMessage(message);
     registerB2500CellBalancingMessage(message, { hasPackCurrent: true });
@@ -1105,7 +1105,25 @@ function supportsCtDiagnosis(state: BaseDeviceData): boolean {
   return version > 224 || (version === 224 && subversion != null && subversion >= 3);
 }
 
-function registerCtDiagnosisMessage(message: BuildMessageFn) {
+/**
+ * HMJ firmware 110 and 116 look for `dchrg=`, `seq_check` and `rechrg_seq=`
+ * only in a `cd=27` command without `meter=`, and then search the null result
+ * of the `meter=` search instead of the command, so they never find them. They
+ * ignore the recharge mode and phase diagnosis commands, while still reporting
+ * the recharge mode in `cd=28`.
+ */
+const HMJ_IGNORES_CD27_EXTRAS_UP_TO = 116;
+const CD27_EXTRAS_IGNORED = 'This firmware ignores the recharge mode and phase diagnosis commands';
+
+function registerCtDiagnosisMessage(message: BuildMessageFn, isHmj: boolean) {
+  // `false` removes the entity, also one retained from an earlier version;
+  // `undefined` waits until an HMJ's firmware is known.
+  const ignoresCd27Extras = (state: BaseDeviceData) =>
+    hmjFirmwareAtMost(isHmj, state as ModelState, HMJ_IGNORES_CD27_EXTRAS_UP_TO);
+  const offered = (state: BaseDeviceData, enabled: boolean | undefined) => {
+    const ignored = ignoresCd27Extras(state);
+    return ignored === false ? enabled : ignored === true ? false : undefined;
+  };
   const options = {
     refreshDataPayload: 'cd=28',
     isMessage: isB2500CtDiagnosisMessage,
@@ -1126,6 +1144,10 @@ function registerCtDiagnosisMessage(message: BuildMessageFn) {
       handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
         if (!isValidB2500RechargeMode(message)) {
           logger.warn('Invalid recharge mode value:', message);
+          return;
+        }
+        if (isHmjAtMost(deviceState as ModelState, HMJ_IGNORES_CD27_EXTRAS_UP_TO)) {
+          logger.warn(CD27_EXTRAS_IGNORED);
           return;
         }
         updateDeviceState(() => ({ rechargeMode: message }));
@@ -1168,17 +1190,21 @@ function registerCtDiagnosisMessage(message: BuildMessageFn) {
         enabled_by_default: false,
       });
     advertise(['rechargeMode'], rechargeModeSelect(false), {
-      enabled: state => (state.rechargeModeReported ? true : undefined),
+      enabled: state => offered(state, state.rechargeModeReported ? true : undefined),
     });
     advertise(['rechargeMode'], rechargeModeSelect(true), {
-      enabled: state => (state.rechargeModeReported ? undefined : true),
+      enabled: state => offered(state, state.rechargeModeReported ? undefined : true),
     });
 
     // Starts the grid-phase detection routine. The device clears the phase and
     // moves the CT status to "Preparing to diagnose CT001 (Step 1)", so progress
     // can be followed on the CT Status and Phase Detection sensors.
     command('phase-diagnosis', {
-      handler: ({ message, publishCallback }) => {
+      handler: ({ message, publishCallback, deviceState }) => {
+        if (isHmjAtMost(deviceState as ModelState, HMJ_IGNORES_CD27_EXTRAS_UP_TO)) {
+          logger.warn(CD27_EXTRAS_IGNORED);
+          return;
+        }
         if (message.toLowerCase() === 'true' || message === '1' || message === 'PRESS') {
           // `seq_check` is a bare flag, so it cannot go through processCommand.
           publishCallback(`cd=${CommandType.SET_SMART_METER_TYPE},seq_check`);
@@ -1195,6 +1221,7 @@ function registerCtDiagnosisMessage(message: BuildMessageFn) {
         payload_press: 'PRESS',
         enabled_by_default: false,
       }),
+      { enabled: state => offered(state, true) },
     );
 
     field({

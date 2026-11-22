@@ -26,6 +26,7 @@
 - B2500 V2/V3: The `time-zone` command refuses offsets the device would ignore, and logs a warning instead (PR #462)
 - B2500 V2/V3: Changing a timer period also switches the device out of adaptive mode. *Adaptive Mode* now shows this straight away (PR #462)
 - B2500 V2/V3: Timer start and end times from 24:00 to 29:59 are no longer accepted, as the device ignores them or runs the period all day after its next restart. On the HMJ, a time that would make a period end before it starts is refused too, because the device ignores it (PR #462, PR #TBD)
+- B2500 (HMJ): Removed *Recharge Mode* and *Phase Diagnosis* on firmware 116 and older, which ignores them (PR #TBD)
 - B2500 (HMJ): Removed the *Input 1/2 Pass Through* sensors, which this model never reports and which were always off (PR #462)
 - B2500 (HMJ): *Meter Type* no longer offers the SMR and TPM2 meters on firmware 116 and older, and refuses them there, because the device cannot use them and would be left without a working meter (PR #462, PR #TBD)
 - Smart meters: The CT003 with device type `HME-3` or `HME-5` was handled as a CT002, so its energy and P1 status sensors were missing (fixes #202, PR #462)

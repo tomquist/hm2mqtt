@@ -813,6 +813,31 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
   {
+    // HMJ firmware 110 and 116 never act on cd=27 without `meter=`.
+    description: 'B2500V2 recharge-mode is refused on HMJ firmware 116',
+    deviceType: 'HMJ-2',
+    initialState: { deviceType: 'HMJ-2', deviceInfo: { deviceVersion: 116 } },
+    command: 'recharge-mode',
+    input: 'singlePhase',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 phase-diagnosis is refused on HMJ firmware 110',
+    deviceType: 'HMJ-2',
+    initialState: { deviceType: 'HMJ-2', deviceInfo: { deviceVersion: 110 } },
+    command: 'phase-diagnosis',
+    input: 'PRESS',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 phase-diagnosis is sent on newer HMJ firmware',
+    deviceType: 'HMJ-2',
+    initialState: { deviceType: 'HMJ-2', deviceInfo: { deviceVersion: 117 } },
+    command: 'phase-diagnosis',
+    input: 'PRESS',
+    expectedOutput: 'cd=27,seq_check',
+  },
+  {
     description: 'B2500V2 meter-type invalid',
     deviceType: 'HMA-1',
     command: 'meter-type',
