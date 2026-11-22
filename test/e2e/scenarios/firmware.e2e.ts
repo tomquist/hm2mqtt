@@ -109,9 +109,19 @@ describeFirmware('hm2mqtt against real firmware', () => {
           continue;
         }
         const dataTopic = `hm2mqtt/${deviceType}/device/${deviceId}/data`;
-        const version = rig.probe.latestJson<{ deviceVersion?: number }>(dataTopic)?.deviceVersion;
-        if (deviceType.startsWith('HMG-') && version !== undefined && version < 151) {
-          continue; // hm2mqtt offers Restart on the Venus C/E from control firmware 151
+        const diagnose = () =>
+          `marsemu output:\n${rig.emulated[index].output().split('\n').slice(-20).join('\n')}`;
+        if (deviceType.startsWith('HMG-')) {
+          // hm2mqtt offers Restart on the Venus C/E from control firmware 151,
+          // and only once it knows the version: wait for it before deciding.
+          const version = await waitFor(
+            `${deviceType} to report its firmware version`,
+            () => rig.probe.latestJson<{ deviceVersion?: number }>(dataTopic)?.deviceVersion,
+            { timeoutMs: 120_000, diagnose },
+          );
+          if (version < 151) {
+            continue;
+          }
         }
         // Discovery can trail the first data message; a supported device
         // without its button is a failure, not a reason to skip it.
@@ -121,22 +131,19 @@ describeFirmware('hm2mqtt against real firmware', () => {
             rig.probe.latestJson<{ command_topic: string; payload_press?: string }>(
               `homeassistant/button/${deviceType}_${deviceId}/restart/config`,
             ),
-          { timeoutMs: 60_000 },
+          { timeoutMs: 60_000, diagnose },
         );
         const commandTopic = `/App/${deviceId}/ctrl`;
         const subscriptions = () =>
           rig.broker.subscribed.filter(filter => filter.includes(commandTopic)).length;
         const before = subscriptions();
         await rig.probe.publish(button.command_topic, button.payload_press ?? 'PRESS');
-        const diagnose = () =>
-          `marsemu output:\n${rig.emulated[index].output().split('\n').slice(-20).join('\n')}`;
         await waitFor(
           `${deviceType} to reboot and subscribe again`,
           () => subscriptions() > before,
-          {
-            timeoutMs: 240_000,
-            diagnose,
-          },
+          // a Venus C/E emulates at about a sixth of real time and needs ~40
+          // emulated seconds to reach MQTT again
+          { timeoutMs: 600_000, diagnose },
         );
         const mark = rig.probe.messages().length;
         await waitFor(
@@ -146,7 +153,7 @@ describeFirmware('hm2mqtt against real firmware', () => {
               .messages()
               .slice(mark)
               .filter(message => message.topic === dataTopic).length >= 2,
-          { timeoutMs: 120_000, diagnose },
+          { timeoutMs: 300_000, diagnose },
         );
       }
     },
