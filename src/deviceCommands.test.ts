@@ -726,6 +726,19 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
   {
+    description:
+      'B2500V2 meter-type SMR-TIC is refused on HMJ firmware 116 configured in lower case',
+    deviceType: 'hmj-2',
+    initialState: {
+      deviceType: 'hmj-2',
+      deviceInfo: { deviceVersion: 116 },
+      meterMac: 'aabbccddeeff',
+    },
+    command: 'meter-type',
+    input: 'smrTic',
+    expectedOutput: null,
+  },
+  {
     description: 'B2500V2 meter-type EcoTracker is still accepted on HMJ firmware 116',
     deviceType: 'HMJ-2',
     initialState: {

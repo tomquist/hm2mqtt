@@ -243,6 +243,27 @@ describe('remembered settings', () => {
     expect(fs.statSync(path.join(dir, file)).mtime).toEqual(stamp);
   });
 
+  it('retries a failed write, but not on every poll', () => {
+    jest.useFakeTimers({ now: new Date('2026-01-01T00:00:00Z') });
+    const rename = jest.spyOn(fs, 'renameSync').mockImplementation(() => {
+      throw Object.assign(new Error('read-only file system'), { code: 'EROFS' });
+    });
+    try {
+      saveSettings('HMG-50', 'a', { maxChargingPower: 1200 });
+      saveSettings('HMG-50', 'a', { maxChargingPower: 1200 });
+      expect(rename).toHaveBeenCalledTimes(1);
+      rename.mockRestore();
+      // the same value again once the disk is back and a minute has passed
+      jest.advanceTimersByTime(60_000);
+      saveSettings('HMG-50', 'a', { maxChargingPower: 1200 });
+    } finally {
+      rename.mockRestore();
+      jest.useRealTimers();
+    }
+    resetSettingsProbe({ available: true, dir });
+    expect(loadSettings('HMG-50', 'a')).toEqual({ maxChargingPower: 1200 });
+  });
+
   it('is empty without storage and for a file it cannot read', () => {
     fs.writeFileSync(path.join(dir, 'garbage'), '');
     saveSettings('HMG-50', 'a', { maxChargingPower: 1200 });

@@ -278,6 +278,9 @@ export type RememberedSettings = Record<string, unknown>;
 
 let settingsProbed: PersistenceProbe | undefined;
 const rememberedSettings = new Map<string, RememberedSettings>();
+/** When a settings file last failed to write, so a failing disk is retried, but not on every poll. */
+const failedSettingsWrites = new Map<string, number>();
+const SETTINGS_RETRY_MS = 60_000;
 
 function getSettingsPersistence(): PersistenceProbe {
   if (settingsProbed == null) {
@@ -297,6 +300,7 @@ function getSettingsPersistence(): PersistenceProbe {
 export function resetSettingsProbe(override?: PersistenceProbe): void {
   settingsProbed = override;
   rememberedSettings.clear();
+  failedSettingsWrites.clear();
 }
 
 /** The settings remembered for a device; empty when there are none or no storage. */
@@ -342,12 +346,19 @@ export function saveSettings(
   if (JSON.stringify(next) === JSON.stringify(previous)) {
     return;
   }
-  // Taken as written even if the write fails, so that an unwritable directory
-  // costs one warning per change rather than one per poll.
-  rememberedSettings.set(file, next);
+  // Remembered as written only once the write succeeded, so a failed write is
+  // retried, but at most once a minute: an unwritable directory then costs a
+  // warning a minute rather than one per poll.
+  const failedAt = failedSettingsWrites.get(file);
+  if (failedAt !== undefined && Date.now() - failedAt < SETTINGS_RETRY_MS) {
+    return;
+  }
   try {
     writeAtomically(file, JSON.stringify(next));
+    rememberedSettings.set(file, next);
+    failedSettingsWrites.delete(file);
   } catch (error) {
+    failedSettingsWrites.set(file, Date.now());
     logger.warn(`Could not write the remembered settings to ${file}:`, error);
   }
 }

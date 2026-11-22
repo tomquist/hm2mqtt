@@ -73,7 +73,7 @@ type ModelState = Partial<Pick<B2500V2DeviceData, 'deviceType' | 'deviceInfo'>>;
  * older. Unknown type or version is not a match.
  */
 function isHmjAtMost(state: ModelState, version: number): boolean {
-  if (state.deviceType == null || extractBaseType(state.deviceType) !== 'HMJ') {
+  if (state.deviceType == null || extractBaseType(state.deviceType).toUpperCase() !== 'HMJ') {
     return false;
   }
   const deviceVersion = state.deviceInfo?.deviceVersion;
@@ -1098,7 +1098,7 @@ function supportsCtDiagnosis(state: BaseDeviceData): boolean {
   if (deviceType == null || version == null) {
     return false;
   }
-  if (extractBaseType(deviceType) === 'HMJ') {
+  if (extractBaseType(deviceType).toUpperCase() === 'HMJ') {
     return version >= 102;
   }
   const subversion = deviceInfo?.deviceSubversion;
