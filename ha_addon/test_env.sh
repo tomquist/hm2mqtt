@@ -15,6 +15,26 @@ echo "Building test Docker image..."
 # Build from the root directory to include all necessary files
 docker build -t hm2mqtt-test -f ha_addon/Dockerfile .
 
+# The base image's Node.js must satisfy "engines" in package.json
+echo -e "\nRunning test: Node.js version satisfies engines"
+if ! docker run --rm --entrypoint node -w /app hm2mqtt-test -e '
+    const range = require("./package.json").engines.node;
+    const v = process.versions.node.split(".").map(Number);
+    const ok = range.split("||").some((r) => {
+        const m = /^(\^|>=)(\d+)\.(\d+)\.(\d+)$/.exec(r.trim());
+        if (!m) throw new Error(`Unsupported engines range: ${r.trim()}`);
+        const min = [+m[2], +m[3], +m[4]];
+        const cmp = v[0] - min[0] || v[1] - min[1] || v[2] - min[2];
+        return cmp >= 0 && (m[1] === ">=" || v[0] === min[0]);
+    });
+    console.log(`Node.js ${process.versions.node}, engines: ${range}`);
+    process.exit(ok ? 0 : 1);
+'; then
+    echo -e "${RED}✗${NC} Node.js in the add-on image does not satisfy engines"
+    exit 1
+fi
+echo -e "${GREEN}✓${NC} Node.js version satisfies engines"
+
 # Create temporary directory for test configs
 TEST_DIR=$(mktemp -d)
 trap 'rm -rf "$TEST_DIR"' EXIT
@@ -38,13 +58,16 @@ run_test() {
     # Create config file
     create_test_config "$config_file" "$config_content"
     
-    # Run container with the test configuration and mock run script
+    # Run container with the test configuration and mock run script. The
+    # base image's /init is skipped: its services ask the Supervisor API for
+    # the add-on's options, and without a Supervisor the newer base images
+    # stop the container. with-contenv only needs the directory /init creates.
     local output
-    output=$(docker run --rm \
+    output=$(docker run --rm --entrypoint "" \
         -v "$config_file:/data/options.json" \
         -v "$SCRIPT_DIR/test_run.sh:/test_run.sh" \
         hm2mqtt-test \
-        bash -c "chmod +x /test_run.sh && /test_run.sh" 2>&1)
+        bash -c "mkdir -p /run/s6/container_environment && chmod +x /test_run.sh && /test_run.sh" 2>&1)
     
     # Check each expected variable
     local all_passed=true

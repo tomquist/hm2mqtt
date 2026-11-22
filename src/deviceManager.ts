@@ -8,6 +8,7 @@ import {
   MessageDefinition,
 } from './deviceDefinition.js';
 import { calculateNewVersionTopicId } from './utils/crypt.js';
+import { loadSettings, saveSettings } from './persistence.js';
 import logger from './logger.js';
 
 /**
@@ -17,6 +18,15 @@ import logger from './logger.js';
  * period reset persists and is accepted once confirmed.
  */
 const MONOTONIC_RESET_CONFIRMATIONS = 1;
+
+function pickDefined(
+  source: Record<string, unknown>,
+  keys: readonly string[],
+): Record<string, unknown> {
+  return Object.fromEntries(
+    keys.filter(key => source[key] !== undefined).map(key => [key, source[key]]),
+  );
+}
 
 /**
  * Interface for device state data
@@ -171,11 +181,29 @@ export class DeviceManager {
     device: Device,
     publishPath: string,
   ): DeviceStateData & T {
-    const deviceDefinition = getDeviceDefinition(device.deviceType);
-    const defaultState = deviceDefinition?.messages.find(
+    const message = this.getMessageDefinition(device, publishPath);
+    const remembered = message?.rememberedKeys?.length
+      ? pickDefined(loadSettings(device.deviceType, device.deviceId), message.rememberedKeys)
+      : {};
+    return { ...message?.defaultState, ...remembered } as DeviceStateData & T;
+  }
+
+  private getMessageDefinition(device: Device, publishPath: string) {
+    return getDeviceDefinition(device.deviceType)?.messages.find(
       msg => msg.publishPath === publishPath,
-    )?.defaultState;
-    return (defaultState ?? {}) as DeviceStateData & T;
+    );
+  }
+
+  /** Keep the message's `rememberedKeys` across restarts. */
+  private rememberSettings(device: Device, publishPath: string, state: DeviceStateData): void {
+    const keys = this.getMessageDefinition(device, publishPath)?.rememberedKeys;
+    if (keys?.length) {
+      saveSettings(
+        device.deviceType,
+        device.deviceId,
+        pickDefined(state as Record<string, unknown>, keys),
+      );
+    }
   }
 
   /**
@@ -201,6 +229,7 @@ export class DeviceManager {
       ...this.deviceStates[deviceKey],
       [path]: newDeviceState,
     };
+    this.rememberSettings(device, path, newDeviceState as DeviceStateData);
     this.onUpdateState(device, path, newDeviceState);
     this.runDerivations(device, path);
     return newDeviceState as DeviceStateData & T;
@@ -282,7 +311,9 @@ export class DeviceManager {
    * counters. A reading lower than the last good value is rejected — the last
    * good value is written back into the candidate — until a subsequent reading
    * confirms the drop persists, at which point it is accepted as a genuine
-   * period reset. Mutates `candidate` in place.
+   * period reset. A field with `monotonicHoldDropsUpTo` holds through any drop
+   * no larger than that, and only treats a larger one as a possible reset.
+   * Mutates `candidate` in place.
    */
   private guardMonotonicFields(
     device: Device,
@@ -318,7 +349,20 @@ export class DeviceManager {
         continue;
       }
 
-      // Backward jump.
+      // Backward jump. A drop small enough to come from a reading that was too
+      // high is held until the counter catches up.
+      const holdDropsUpTo = field.monotonicHoldDropsUpTo;
+      if (holdDropsUpTo != null && prevVal - nextVal <= holdDropsUpTo) {
+        if (counts[fieldId] == null) {
+          logger.warn(
+            `Holding ${device.deviceType}:${device.deviceId} ${fieldPath.join('.')} at ${prevVal} after a small drop to ${nextVal}, until the counter catches up`,
+          );
+        }
+        // 0: holding, with no reset awaiting confirmation.
+        counts[fieldId] = 0;
+        setAtPath(candidate, fieldPath, prevVal);
+        continue;
+      }
       const count = (counts[fieldId] ?? 0) + 1;
       if (count > MONOTONIC_RESET_CONFIRMATIONS) {
         // Drop confirmed across consecutive readings: accept as a genuine reset.

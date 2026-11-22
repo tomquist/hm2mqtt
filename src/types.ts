@@ -22,6 +22,7 @@ export type B2500V2SmartMeterStatus =
   | 'diagnosisTimeout'
   | 'chargingInProgress'
   | 'unableToFindChannel'
+  | 'fullBatteryPassThrough'
   | 'notInDiagnosis';
 /**
  * Meter a storage device reports as configured in its `ct_t` field. Each family
@@ -89,9 +90,8 @@ export const reportedCtTypeCodes: Record<string, ReportedMeterType> = {
 };
 
 /**
- * Grid recharge mode set with `cd=27,dchrg=`. The device does not report the
- * current value in any response hm2mqtt polls, so the entity reflects the last
- * value that was set rather than the device's own state.
+ * Grid recharge mode set with `cd=27,dchrg=` and reported as `dchrg_t` in the
+ * `cd=28` CT diagnosis.
  */
 const validB2500RechargeModes = ['singlePhase', 'threePhase'] as const;
 export type B2500RechargeMode = (typeof validB2500RechargeModes)[number];
@@ -316,6 +316,10 @@ export interface B2500V2DeviceData extends B2500BaseDeviceData {
   // Surplus Feed-in state
   surplusFeedInEnabled?: boolean;
 
+  // `fktc`: keep passing PV through once every pack is full (surplus feed-in
+  // on) instead of stopping the output
+  fullBatteryPassThrough?: boolean;
+
   // Smart meter configuration (cd=27)
   meterType?: MeterType;
   meterMac?: string;
@@ -323,9 +327,21 @@ export interface B2500V2DeviceData extends B2500BaseDeviceData {
   // The meter the device reports as configured (`ct_t`). Its numeric codes are
   // distinct from the ones the `cd=27,meter=` command takes.
   ctType?: ReportedMeterType;
+}
 
-  // Last grid recharge mode set via `cd=27,dchrg=` (not reported by the device)
+/**
+ * The `cd=28` CT diagnosis.
+ */
+export interface B2500V2CtDiagnosisData extends BaseDeviceData {
+  // Grid recharge mode (`dchrg_t`), set via `cd=27,dchrg=`
   rechargeMode?: B2500RechargeMode;
+  // Whether the device has reported `dchrg_t` (a command does not set this)
+  rechargeModeReported?: boolean;
+  // Phase detection progress (`seq_s`)
+  phaseDetection?: 'idle' | 'detecting' | 'failed' | 'done';
+  // Not part of this reply: command handlers see the merged device state,
+  // which carries the flag from the runtime info message.
+  useFlashCommands?: boolean;
 }
 
 type SolarSocketData = {
@@ -412,13 +428,33 @@ export type VenusWorkingStatus =
 export type VenusCTStatus = 'notConnected' | 'connected' | 'weakSignal';
 
 /**
+ * State of the Venus Bluetooth module, reported as `ble`. The advertising
+ * setting is separate (`bl`).
+ */
+export type VenusBluetoothState =
+  | 'notInitialised'
+  | 'advertising'
+  | 'connected'
+  | 'disconnected'
+  | 'notAdvertising';
+
+/**
  * Venus device battery working status types
  */
 export type VenusBatteryWorkingStatus = 'notWorking' | 'charging' | 'discharging' | 'unknown';
 
-const validVenusWorkingModes = ['automatic', 'manual', 'trading', 'ai'] as const;
+const validVenusWorkingModes = [
+  'automatic',
+  'manual',
+  'trading',
+  'ai',
+  'passive',
+  'modbus',
+] as const;
 /**
- * Venus device working mode types
+ * Venus device working mode types. `trading` exists only on the Venus C/E (HMG)
+ * up to control firmware 146. `passive` (Local API) and `modbus` are reported
+ * but cannot be selected.
  */
 export type VenusWorkingMode = (typeof validVenusWorkingModes)[number];
 
@@ -514,6 +550,24 @@ export const meterTypeCommandCodes: Record<MeterType, number> = {
 };
 
 /**
+ * Meter types the first-generation Venus can be configured for: the shared ones
+ * plus the Stromleser (`meter=12`), which only the Venus E 3.0, Venus A and
+ * Venus D accept.
+ */
+const validVenusMeterTypes = [...validMeterTypes, 'stromleser'] as const;
+export type VenusMeterType = (typeof validVenusMeterTypes)[number];
+
+export function isValidVenusMeterType(type: string): type is VenusMeterType {
+  return validVenusMeterTypes.includes(type as VenusMeterType);
+}
+
+/** The `meter=` code a Venus takes for each meter type. */
+export const venusMeterTypeCommandCodes: Record<VenusMeterType, number> = {
+  ...meterTypeCommandCodes,
+  stromleser: 12,
+};
+
+/**
  * Human-readable labels for each meter type, used for Home Assistant discovery.
  */
 export const meterTypeLabels = Object.fromEntries(
@@ -554,8 +608,9 @@ export type WeekdaySet = `${0 | ''}${1 | ''}${2 | ''}${3 | ''}${4 | ''}${5 | ''}
 
 // Rated output power ("power version") of a Venus. The device reports this as a
 // numeric code in the `set_v` field, while the `cd=15,vs=` command takes the
-// rated power in watts. These are the power versions the Marstek app offers;
-// which of them a given unit accepts depends on its model and region.
+// rated power in watts. This is every power version a `set_v` code can stand
+// for; which of them a unit accepts depends on its model and control firmware
+// (see venus.ts).
 const venusValidVersionSets = [
   '600W',
   '800W',
@@ -578,10 +633,11 @@ export function isValidVenusVersionSet(set: string): set is VenusVersionSet {
  * Venus time period configuration
  */
 export interface VenusTimePeriod {
-  startTime: string;
-  endTime: string;
+  // absent while the device reports no valid time or power for the slot
+  startTime?: string;
+  endTime?: string;
   weekday: WeekdaySet;
-  power: number;
+  power?: number;
   enabled: boolean;
 }
 
@@ -617,7 +673,7 @@ export interface VenusDeviceData extends BaseDeviceData {
   pv4Connected?: boolean;
   totalPvPower?: number;
   pvEnergyToday?: number;
-  pvEnergyTotal?: number;
+  pvEnergyTotal?: number; // this month's PV energy (Wh), despite the name
 
   // Grid information
   offGridPower?: number;
@@ -631,9 +687,9 @@ export interface VenusDeviceData extends BaseDeviceData {
   batteryWorkingStatus?: VenusBatteryWorkingStatus;
   batterySoc?: number;
 
-  // Error codes
-  errorCode?: number;
-  warningCode?: number;
+  // Error codes, as the hex digits the device reports
+  errorCode?: string;
+  warningCode?: string;
 
   // Device information
   deviceVersion?: number;
@@ -656,7 +712,7 @@ export interface VenusDeviceData extends BaseDeviceData {
   ctType?: ReportedMeterType;
   phaseType?: VenusPhaseType;
   rechargeMode?: VenusRechargeMode;
-  meterType?: MeterType; // last configured via cd=18
+  meterType?: VenusMeterType; // prc_d, set via cd=18 (HMG before 149: the last value set)
   meterMac?: string; // MAC used when configuring the meter type
   bmsVersion?: number;
   communicationModuleVersion?: string;
@@ -667,7 +723,10 @@ export interface VenusDeviceData extends BaseDeviceData {
   depthOfDischarge?: number; // dod
   ledEnabled?: boolean; // led
   surplusFeedInEnabled?: boolean; // set via cd=43 (no status field; tracked optimistically)
-  bluetoothAdvertisingEnabled?: boolean; // set via cd=55 (tracked optimistically)
+  bluetoothAdvertisingEnabled?: boolean; // bl, set via cd=55
+  bluetoothState?: VenusBluetoothState; // ble
+  meterError?: number; // prc_c (HMG from 148, VNS)
+  mpptErrorCode?: string; // em, hex digits (Venus A/D)
   phaseDiagnosisStatus?: number; // seq_s
   inverterVersion?: number; // inv_v
   mpptVersion?: number; // mppt
@@ -693,7 +752,37 @@ export interface VenusDeviceData extends BaseDeviceData {
 // via live app testing (VENUS_MINI_IMPLEMENTATION_PROMPT.md). A 4th value
 // exists in the app UI for an "AI optimization" mode but is greyed out as
 // "coming soon" and not yet observed on the wire.
-export type VenusMiniScheduleDirection = 'charge' | 'discharge' | 'selfConsumption' | 'unknown';
+// What a Venus E Mini schedule slot does while it is active (ms{n}, set with
+// cd=47..52): idle, charge or discharge at the slot's power, or follow the
+// meter as in self-consumption.
+const validVenusMiniScheduleDirections = [
+  'idle',
+  'charge',
+  'discharge',
+  'selfConsumption',
+] as const;
+export type VenusMiniScheduleDirection =
+  | (typeof validVenusMiniScheduleDirections)[number]
+  | 'unknown';
+
+export function isValidVenusMiniScheduleDirection(
+  direction: string,
+): direction is Exclude<VenusMiniScheduleDirection, 'unknown'> {
+  return validVenusMiniScheduleDirections.includes(
+    direction as (typeof validVenusMiniScheduleDirections)[number],
+  );
+}
+
+// The ms{n} code each direction is sent and reported as.
+export const venusMiniScheduleDirectionCodes: Record<
+  Exclude<VenusMiniScheduleDirection, 'unknown'>,
+  number
+> = {
+  idle: 0,
+  charge: 1,
+  discharge: 2,
+  selfConsumption: 3,
+};
 
 /**
  * A single charge/discharge schedule slot reported by a Venus E Mini. Unlike
@@ -703,20 +792,19 @@ export type VenusMiniScheduleDirection = 'charge' | 'discharge' | 'selfConsumpti
  */
 export interface VenusMiniTimePeriod {
   enabled?: boolean; // m{n}
-  power?: number; // mp{n}
-  startTime?: string; // st{n}
-  endTime?: string; // et{n}
-  direction?: VenusMiniScheduleDirection; // ms{n}, mapped
-  modeRaw?: number; // ms{n} (raw, kept alongside direction for any future unmapped value)
-  repeatRaw?: number; // re{n} (raw; meaning unconfirmed, possibly a weekday bitmask)
+  power?: number; // mp{n} (W)
+  startTime?: string; // st{n} (HH:MM)
+  endTime?: string; // et{n} (HH:MM; 23:59 runs to midnight)
+  direction?: VenusMiniScheduleDirection; // ms{n}
+  weekday?: WeekdaySet; // re{n}, a bitmask with bit 0 = Monday .. bit 6 = Sunday
 }
 
-// Working mode of a Venus E Mini, reported in cm and set with cd=2. Only 0
-// (self-consumption, named `automatic` to match the same mode on the other
-// Venus models) and 2 (manual) have been observed; the "AI optimization" mode
-// is greyed out as "coming soon" in the app UI, and 3 is the code it will
-// report.
-const validVenusMiniWorkingModes = ['automatic', 'manual', 'ai'] as const;
+// Working mode of a Venus E Mini, reported in cm and set with cd=02:
+// 0 self-consumption (named `automatic` to match the same mode on the other
+// Venus models), 1 UPS (charges from the grid at the UPS charge power),
+// 2 manual (the schedule slots), 3 AI (a plan the device fetches from the
+// Marstek cloud). The control firmware treats every other value like 0.
+const validVenusMiniWorkingModes = ['automatic', 'ups', 'manual', 'ai'] as const;
 export type VenusMiniWorkingMode = (typeof validVenusMiniWorkingModes)[number];
 
 export function isValidVenusMiniWorkingMode(mode: string): mode is VenusMiniWorkingMode {
@@ -728,6 +816,7 @@ export function isValidVenusMiniWorkingMode(mode: string): mode is VenusMiniWork
 // that file would set the wrong mode.
 export const venusMiniWorkingModeCommandCodes: Record<VenusMiniWorkingMode, number> = {
   automatic: 0,
+  ups: 1,
   manual: 2,
   ai: 3,
 };
@@ -743,10 +832,42 @@ export type VenusMiniDeviceState =
   | 'fault'
   | 'unknown';
 
-// Feed-in power limit preset reported by a Venus E Mini in gps. Not a literal
-// wattage value - it selects between Germany's simplified-registration cap
-// and the alternative limit.
-export type VenusMiniFeedInPowerLimit = '800W' | '1500W' | 'unknown';
+// Feed-in power limit preset reported by a Venus E Mini in gps and set with
+// cd=57's first value. The app calls the higher one 1500 W; inverter firmware
+// 270 caps the output at 1250 W with it.
+const validVenusMiniFeedInPowerLimits = ['800W', '1500W'] as const;
+export type VenusMiniFeedInPowerLimit =
+  | (typeof validVenusMiniFeedInPowerLimits)[number]
+  | 'unknown';
+export function isValidVenusMiniFeedInPowerLimit(
+  value: string,
+): value is (typeof validVenusMiniFeedInPowerLimits)[number] {
+  return validVenusMiniFeedInPowerLimits.includes(
+    value as (typeof validVenusMiniFeedInPowerLimits)[number],
+  );
+}
+
+// Grid-charge power limit of a Venus E Mini, reported in ogpc and set with
+// cd=57's second value: 0 = 1250 W, 1 = 800 W (inverter firmware 270).
+const validVenusMiniGridChargePowerLimits = ['1250W', '800W'] as const;
+export type VenusMiniGridChargePowerLimit =
+  | (typeof validVenusMiniGridChargePowerLimits)[number]
+  | 'unknown';
+export function isValidVenusMiniGridChargePowerLimit(
+  value: string,
+): value is (typeof validVenusMiniGridChargePowerLimits)[number] {
+  return validVenusMiniGridChargePowerLimits.includes(
+    value as (typeof validVenusMiniGridChargePowerLimits)[number],
+  );
+}
+
+// Which phases a Venus E Mini balances (rechg_type, set with cd=63): only the
+// phase it is connected to, or the sum of all three.
+const validVenusMiniPhaseModes = ['ownPhase', 'allPhases'] as const;
+export type VenusMiniPhaseMode = (typeof validVenusMiniPhaseModes)[number];
+export function isValidVenusMiniPhaseMode(value: string): value is VenusMiniPhaseMode {
+  return validVenusMiniPhaseModes.includes(value as VenusMiniPhaseMode);
+}
 
 /**
  * Venus E Mini (VNSEMINI) device data. This model reports a `cd=1` payload
@@ -774,12 +895,21 @@ export interface VenusMiniDeviceData extends BaseDeviceData {
   wifiStatus?: boolean; // wif_s (1 = ok)
   mqttStatus?: boolean; // mq_s (1 = ok)
   wifiSignal?: number; // wifi_a (dBm), reported as the magnitude and negated on the way in
-  ctType?: number; // ct_type (only 0 = "no external meter" observed so far, full enum unconfirmed)
-  ctPhase?: number; // ct_ph (only 0 observed so far, meaning unconfirmed)
+  ctType?: number; // ct_type: the meter code last set with cd=18,ct_t= (0 until one is set, also CT001's code)
+  ctPhase?: number; // ct_ph: the phase found by phase detection, 0 until it has run, 1-3 = phase A-C
+  meterConnected?: boolean; // ct (1 while the configured meter answers)
+  cell1Temperature?: number; // cell1_t (degC, reported x10)
+  cell2Temperature?: number; // cell2_t (degC, reported x10)
   deviceTime?: string; // time, device-local timestamp, parsed to ISO-8601 assuming the device clock is in the host's local timezone (the same assumption the sync-time command makes)
   ledEnabled?: boolean; // leds, inverted: leds=0 means the LED is on
-  bluetoothLockRaw?: number; // bbs, direction confirmed (higher = more locked) but the absolute mapping across every LED x Bluetooth-lock combination is not, so kept as a raw diagnostic rather than a binary sensor
+  bluetoothLockRaw?: number; // bbs: the value last set with cd=55 (1/3 = Bluetooth off after ten minutes, 2/4 = on, 0 = default)
   feedInPowerLimit?: VenusMiniFeedInPowerLimit; // gps
+  gridChargePowerLimit?: VenusMiniGridChargePowerLimit; // ogpc
+  upsChargePower?: number; // ups_p (W), the grid-charge power in UPS mode
+  localApiEnabled?: boolean; // lapi_en
+  localApiPort?: number; // self_port, the UDP port the local API listens on
+  localApiRemotePort?: number; // rem_port, sent back unchanged with cd=65
+  meterIp?: string; // last value set with cd=66 (not reported back)
   workingMode?: VenusMiniWorkingMode; // cm
   deviceState?: VenusMiniDeviceState; // dev_sta
   batteryDischargedEnergyToday?: number; // dbd (Wh)
@@ -790,28 +920,27 @@ export interface VenusMiniDeviceData extends BaseDeviceData {
   gridImportedEnergyTotal?: number; // tgs (Wh) - lifetime counterpart, named by symmetry
   loadConsumedEnergyToday?: number; // dgb (Wh)
   gridExportedEnergyToday?: number; // dgp (Wh)
+  loadConsumedEnergyTotal?: number; // tgb (Wh), lifetime counterpart of dgb
+  gridExportedEnergyTotal?: number; // tgp (Wh), lifetime counterpart of dgp
   loadState?: number; // ls (raw; the app treats it as a load state, individual codes unknown)
   gridMode?: number; // gs (raw; grid mode, individual codes unknown)
   serverState?: number; // ser (raw; server state, individual codes unknown)
-  rechargeType?: number; // rechg_type (raw; recharge type, individual codes unknown)
-  bluetoothAdvertisingEnabled?: boolean; // last value written with the bluetooth-advertising command. `bbs` is the likely readback but its polarity is unconfirmed, so nothing parses it into this field yet - see venusEMini.ts
-  meterType?: MeterType; // last configured via cd=18. The device reports a meter code back in ct_type, but nothing establishes that it uses the same numbering as the `meter` the command takes, so this holds what was written rather than what was read
+  phaseMode?: VenusMiniPhaseMode; // rechg_type: 0 = own phase, 1 = all phases
+  bluetoothAdvertisingEnabled?: boolean; // from bbs: false once the Bluetooth lock (cd=55,adv=1) is set - see venusEMini.ts
+  meterType?: MeterType; // last configured via cd=18,ct_t=. The device reports the code back in ct_type, but that reads 0 both with no meter and with a CT001, so this holds what was written rather than what was read
   meterMac?: string; // MAC used when configuring the meter type
   timePeriods?: VenusMiniTimePeriod[];
-  // cd=59 per-phase CT readings, in W. Only reported by a unit with an external
-  // meter configured, so these stay unset on a device with ct_type=0.
+  // cd=19 per-phase CT readings, in W (all zero while no meter is set).
   phaseAPower?: number; // power_a
   phaseBPower?: number; // power_b
   phaseCPower?: number; // power_c
   totalPhasePower?: number; // power_s
-  // Further cd=59 keys the vendor app reads next to power_a..power_s, with no
-  // confirmed meaning. Kept in their own record rather than in `raw` below:
+  // Further cd=19 keys next to power_a..power_s, with no confirmed meaning. Kept in their own record rather than in `raw` below:
   // device state is merged per publish path, so one shared record would let
   // whichever of the two messages arrived last erase the other's keys.
   ctRaw?: Record<string, number>;
   // Fields observed in the payload with no confirmed meaning, keyed by their
-  // raw MQTT field name (eg, cv, ct (bare, distinct from ct_type), gn, ar,
-  // aw, apt, e1-e7, tgb/tgp). Exposed as disabled-by-default sensors so the
+  // raw MQTT field name (eg, cv, gn, ar, aw, apt, e1-e7). Exposed as disabled-by-default sensors so the
   // data is available for correlation without asserting semantics.
   raw?: Record<string, number>;
 }
@@ -1089,9 +1218,9 @@ export interface JupiterBMSInfo extends BaseDeviceData {
 }
 
 /**
- * Runtime values every Marstek meter reports. The CT002 smart meter (`HME-X`,
- * `TPM-CN`, `TPM2-X`) and the SMR smart meter readers (`SMR-X`) speak the same
- * protocol, so they share these keys.
+ * Runtime values every Marstek meter reports. The CT002 smart meter (`HME-2`,
+ * `HME-4`, `TPM-CN`, `TPM2-X`) and the CT003 smart meter readers (`HME-3`,
+ * `HME-5`, `SMR-X`) speak the same protocol, so they share these keys.
  */
 export interface MeterBaseDeviceData extends BaseDeviceData {
   phase1Power?: number; // pwr_a
@@ -1102,18 +1231,18 @@ export interface MeterBaseDeviceData extends BaseDeviceData {
   phase2MeasurementReversed?: boolean; // cur_d bit 1
   phase3MeasurementReversed?: boolean; // cur_d bit 2
   slaveCount?: number; // slv_n
-  bluetoothSignal?: number; // ble_s
+  bluetoothSignal?: number; // ble_s (Bluetooth state, not a signal strength)
   wifiRssi?: number; // wif_r
   fc4Version?: string; // fc4_v
   firmwareVersion?: number; // ver_v
-  wifiStatus?: number; // wif_s
+  wifiStatus?: number; // wif_s (WiFi connection state)
 }
 
 export interface CT002DeviceData extends MeterBaseDeviceData {}
 
 /**
- * Per-phase charge/discharge counters the CT002 returns for `cd=19`. They are
- * not part of the `cd=1` runtime payload.
+ * Per-phase charge/discharge counters the CT002 (`TPM-CN`, `TPM2-X`; unverified)
+ * returns for `cd=19`. They are not part of the `cd=1` runtime payload.
  *
  * The counters are raw: their unit and scale could not be established, so
  * hm2mqtt publishes the reported value unchanged and without a unit.
@@ -1128,12 +1257,48 @@ export interface CT002PhaseEnergyInfo extends BaseDeviceData {
 }
 
 /**
- * Marstek smart meter reader (device type `SMR-X`), sold as the Marstek P1
- * Meter (SMR-0), Infrared Meter (SMR-1) and TIC Meter (SMR-2). They are sold as
- * the Marstek CT003 Smart Meter Reader.
+ * Per-phase voltage, current and related readings the CT002 (`HME-4` firmware
+ * 124 and later) returns for `cd=31`. The power-factor, plain reactive-power
+ * and `ui*` fields of that reply are always 0, so they are not mapped.
+ */
+export interface CT002PhaseMeasurementInfo extends BaseDeviceData {
+  phase1Voltage?: number; // va
+  phase2Voltage?: number; // vb
+  phase3Voltage?: number; // vc
+  phase1Current?: number; // ia
+  phase2Current?: number; // ib
+  phase3Current?: number; // ic
+  phase1ReactivePower?: number; // fvara
+  phase2ReactivePower?: number; // fvarb
+  phase3ReactivePower?: number; // fvarc
+  phase12VoltageAngle?: number; // uab
+  phase23VoltageAngle?: number; // ubc
+  phase31VoltageAngle?: number; // uca
+}
+
+/**
+ * Per-phase energy counters the CT002 (`HME-4` firmware 124 and later) returns
+ * for `cd=32`, in Wh. They count since the meter last started. Which direction
+ * is "positive" depends on how the clamps are oriented.
+ */
+export interface CT002EnergyInfo extends BaseDeviceData {
+  phase1PositiveEnergy?: number; // kwh_a
+  phase2PositiveEnergy?: number; // kwh_b
+  phase3PositiveEnergy?: number; // kwh_c
+  phase1NegativeEnergy?: number; // n_kwh_a
+  phase2NegativeEnergy?: number; // n_kwh_b
+  phase3NegativeEnergy?: number; // n_kwh_c
+  totalPositiveEnergy?: number; // sum of kwh_a..kwh_c
+  totalNegativeEnergy?: number; // sum of n_kwh_a..n_kwh_c
+}
+
+/**
+ * Marstek CT003 smart meter reader: device types `HME-3`, `HME-5` and `SMR-X`,
+ * the latter sold as the Marstek P1 Meter (SMR-0), Infrared Meter (SMR-1) and
+ * TIC Meter (SMR-2).
  */
 export interface SmrMeterDeviceData extends MeterBaseDeviceData {
-  totalEnergy?: number; // eng_t (reported in 0.1 Wh)
+  totalEnergy?: number; // eng_t (reported in 0.1 Wh; import on SML, net on DSMR)
   meterNumber?: number; // smt_n
   p1DeviceConnected?: boolean; // har_f
   p1ReadStatus?: number; // sof_f

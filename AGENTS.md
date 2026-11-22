@@ -47,6 +47,10 @@ See `test/e2e/README.md`. At release time, freeze the current baseline under
 `test/fixtures/discovery/released/<version>/`. The e2e suite needs Python
 3.14.2 or newer.
 
+To check a change against real device firmware rather than fixtures (a
+release QA, a field a fixture can't vouch for), run the firmware scenario with
+marsemu and a firmware folder: `test/e2e/README.md`, "Against real firmware".
+
 If a change could affect memory use (dependencies, logging, MQTT client
 options, anything kept per device or per message), measure it:
 

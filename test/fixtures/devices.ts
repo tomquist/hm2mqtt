@@ -1,4 +1,4 @@
-import { extractBaseType } from '../../src/deviceDefinition.js';
+import { extractBaseType, getRegisteredDeviceTypes } from '../../src/deviceDefinition.js';
 
 /**
  * Canned device responses, keyed by device type and by the `cd=` request they
@@ -38,15 +38,69 @@ const b2500V2: DeviceFixture = {
 
 const venus: DeviceFixture = {
   deviceType: 'VNSE3-0',
-  source: 'Venus E3 runtime reading (src/parser.test.ts)',
+  source: 'Venus E3 runtime reading, synthetic, follows the VNSE3 151 cd=1 format',
   responses: {
     1:
       'cd=1,tot_i=8848,tot_o=7097,ele_d=537,ele_m=8848,grd_d=328,grd_m=7097,inc_d=0,inc_m=0,' +
-      'grd_f=0,grd_o=613,grd_t=3,gct_s=1,cel_s=3,cel_p=327,cel_c=64,err_t=0,err_a=0,dev_n=158,' +
+      'grd_f=0,grd_o=613,grd_t=3,gct_s=1,cel_s=3,cel_p=327,cel_c=64,err_t=0,err_a=0,dev_n=151,' +
       'grd_y=0,wor_m=0,tim_0=0|0|0|0|0|0|0,cts_m=0,bac_u=0,tra_a=1,tra_i=0,tra_o=0,htt_p=0,' +
       'prc_c=0,prc_d=1,wif_s=33,inc_a=0,set_v=0,mcp_w=2500,mdp_w=2500,ct_t=4,phase_t=1,' +
       'dchrg_t=1,bms_v=212,fc_v=202409090159,wifi_n=e2e-wifi,seq_s=0,ctrl_r=1,par=255,gen=255,' +
-      'ble=3,shelly_p=1010,c_ratio=90,dod=88',
+      'ble=3,shelly_p=1010,c_ratio=90,udp=0,api=0,net=0,port=30000,inv_v=0,id=2|0|0|0|0,lk=0,' +
+      'bp=0,ei=0,eb=0,rp=0,gp=0,vp=613,bl=1,dod=88,bl_p=0,led=1,as=0,lf=0,pl=0,soh=100,' +
+      'peak_status=0,peak_power=0,df=0',
+  },
+};
+
+// The Venus C/E (HMG) answers cd=1 without a `cd=1,` prefix.
+const venusHmg: DeviceFixture = {
+  deviceType: 'HMG-50',
+  source: 'Venus E (HMG-50) control firmware 156 runtime reading, from issue #240',
+  responses: {
+    1:
+      'tot_i=102607,tot_o=84500,ele_d=469,ele_m=1119,grd_d=391,grd_m=930,inc_d=0,inc_m=0,' +
+      'grd_f=0,grd_o=0,grd_t=1,gct_s=1,cel_s=1,cel_p=56,cel_c=11,err_t=0,err_a=0,dev_n=156,' +
+      'grd_y=0,wor_m=0,tim_0=0|0|0|0|0|0|0,tim_1=0|0|0|0|0|0|0,tim_2=0|0|0|0|0|0|0,' +
+      'tim_3=0|0|0|0|0|0|0,tim_4=0|0|0|0|0|0|0,tim_5=0|0|0|0|0|0|0,tim_6=0|0|0|0|0|0|0,' +
+      'tim_7=0|0|0|0|0|0|0,tim_8=0|0|0|0|0|0|0,tim_9=0|0|23|59|127|-2500|1,cts_m=0,bac_u=1,' +
+      'tra_a=1,tra_i=0,tra_o=0,htt_p=0,prc_c=0,prc_d=2,wif_s=49,inc_a=0,set_v=1,mcp_w=-1,' +
+      'mdp_w=800,ct_t=5,phase_t=1,dchrg_t=0,bms_v=216,fc_v=202501211626,wifi_n=XXX,seq_s=0,' +
+      'ctrl_r=1,par=0,gen=255,ble=2,shelly_p=1010,c_ratio=100,udp=0,api=0,port=30000,' +
+      'id=2|0|1|255|0,bl=1,dod=88',
+  },
+};
+
+const venusA: DeviceFixture = {
+  deviceType: 'VNSA-0',
+  source: 'Venus A control firmware 143 runtime reading, from issue #218',
+  responses: {
+    1:
+      'cd=1,tot_i=0,tot_o=0,ele_d=0,ele_m=0,grd_d=0,grd_m=0,inc_d=1,inc_m=0,grd_f=0,grd_o=0,' +
+      'grd_t=1,gct_s=0,cel_s=2,cel_p=157,cel_c=75,err_t=800,err_a=8,dev_n=143,grd_y=0,wor_m=1,' +
+      'tim_0=0|0|0|0|0|0|0,tim_1=0|0|0|0|0|0|0,tim_2=0|0|0|0|0|0|0,tim_3=0|0|0|0|0|0|0,' +
+      'tim_4=0|0|0|0|0|0|0,tim_5=0|0|0|0|0|0|0,tim_6=0|0|0|0|0|0|0,tim_7=0|0|0|0|0|0|0,' +
+      'tim_8=0|0|0|0|0|0|0,tim_9=0|0|0|0|0|0|0,cts_m=0,bac_u=0,tra_a=74,tra_i=1,tra_o=0,' +
+      'htt_p=0,prc_c=0,prc_d=1,wif_s=51,inc_a=0,set_v=4,mcp_w=1200,mdp_w=1200,ct_t=1,phase_t=0,' +
+      'dchrg_t=1,bms_v=106,fc_v=202409090159,wifi_n=XXX,seq_s=1,ctrl_r=0,par=0,gen=0,ble=3,' +
+      'shelly_p=1010,c_ratio=100,udp=0,api=1,net=1,port=48977,inv_v=113,id=2|0|0|0|0,lk=0,' +
+      'bp=99,ei=0,eb=0,rp=107,gp=0,vp=0,mppt=0,pv1=1076|1,pv2=0|0,pv3=0|0,pv4=0|0,' +
+      'pack=1|1|1|0,pv=41|57,fu=1|0,em=0',
+  },
+};
+
+const venusD: DeviceFixture = {
+  deviceType: 'VNSD-0',
+  source: 'Venus D control firmware 147 runtime reading (src/parser.test.ts)',
+  responses: {
+    1:
+      'cd=1,tot_i=6,tot_o=1109,ele_d=0,ele_m=0,grd_d=27,grd_m=27,inc_d=0,inc_m=0,grd_f=0,' +
+      'grd_o=801,grd_t=3,gct_s=1,cel_s=2,cel_p=233,cel_c=45,err_t=800,err_a=4,dev_n=147,' +
+      'grd_y=0,wor_m=5,tim_0=0|0|23|59|127|250|0,cts_m=0,bac_u=0,tra_a=74,tra_i=0,tra_o=0,' +
+      'htt_p=0,prc_c=0,prc_d=3,wif_s=72,inc_a=0,set_v=1,mcp_w=2200,mdp_w=800,ct_t=3,phase_t=1,' +
+      'dchrg_t=0,bms_v=116,fc_v=202409090159,wifi_n=XXX,seq_s=3,ctrl_r=0,par=0,gen=0,ble=3,' +
+      'shelly_p=1010,c_ratio=100,udp=0,api=0,net=0,port=30000,inv_v=115,id=2|0|0|0|0,lk=0,' +
+      'bp=291,ei=0,eb=0,rp=347,gp=801,vp=801,bl=1,dod=88,bl_p=-1,led=1,as=3,mppt=104,' +
+      'pv1=2584|1,pv2=2638|1,pv3=3180|1,pv4=3080|1,pack=2|3|2|0,pv=24|24,fu=0|0,em=0',
   },
 };
 
@@ -65,20 +119,41 @@ const jupiterPlus: DeviceFixture = {
   },
 };
 
+const ct003: DeviceFixture = {
+  deviceType: 'HME-3',
+  source: 'CT003 firmware 117 runtime reading, from a user report (#202)',
+  responses: {
+    1:
+      'pwr_a=52,pwr_b=-7,pwr_c=-36,pwr_t=9,ble_s=6,wif_r=-73,fc4_v=202409090159,ver_v=117,' +
+      'eng_t=4553480,wif_s=2,slv_n=1,com_t=1,com_b=0,ptl_t=1,smt_n=100,har_f=1,sof_f=1,irs_f=0,' +
+      'pwr_f=7,frm_c=249,upd_t=1,udp_v=3',
+  },
+};
+
 /**
  * Fixtures used by the end-to-end scenarios. One device per family keeps a run
  * short while still covering three independent device definitions; the
  * discovery baseline covers every registered device type on its own.
  */
-export const deviceFixtures: DeviceFixture[] = [b2500V2, venus, jupiterPlus];
+export const e2eFixtures: DeviceFixture[] = [b2500V2, venus, jupiterPlus];
+
+/**
+ * Every fixture. The discovery baseline of a device type is generated from its
+ * fixture here, or from empty state when there is none.
+ */
+export const deviceFixtures: DeviceFixture[] = [...e2eFixtures, venusHmg, venusA, venusD, ct003];
 
 /**
  * Look a fixture up by concrete type (`HMA-1`) or by the registered base type
- * (`HMA`) the device definitions are keyed on.
+ * (`HMA`) the device definitions are keyed on. A fixture whose concrete type is
+ * registered on its own (`HME-3`) only belongs to that type, not to its base
+ * type.
  */
 export function findDeviceFixture(deviceType: string): DeviceFixture | undefined {
+  const registered = new Set(getRegisteredDeviceTypes());
   return deviceFixtures.find(
     fixture =>
-      fixture.deviceType === deviceType || extractBaseType(fixture.deviceType) === deviceType,
+      fixture.deviceType === deviceType ||
+      (extractBaseType(fixture.deviceType) === deviceType && !registered.has(fixture.deviceType)),
   );
 }

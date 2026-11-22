@@ -10,8 +10,10 @@ import { identity } from '../transforms.js';
  *
  *   cd=26,dev_net_info:ip:1.2.3.4,gate:1.2.3.1,mask:255.255.255.0,dns:1.2.3.1,ct_connect_ip:1.2.3.255
  *
- * The message parser normalizes that non-standard colon-delimited format into
- * plain `ip=…` key/value pairs before the fields below see it.
+ * The Venus C/E (HMG) sends the same reply without the `cd=26,` prefix, and
+ * control firmware 149 leaves out `ct_connect_ip`. The message parser
+ * normalizes that non-standard colon-delimited format into plain `ip=…`
+ * key/value pairs before the fields below see it.
  */
 
 const networkFields = [
@@ -25,6 +27,8 @@ const networkFields = [
 export interface NetworkInfoMessageOptions {
   /** Device-specific `cd` code for requesting the network information. */
   commandCode: number;
+  /** The request as sent, where it is not `cd=<commandCode>` (e.g. `cd=03`). */
+  refreshDataPayload?: string;
   /** Recognizes the normalized `cd=26` response for this device family. */
   isMessage: (values: Record<string, string>) => boolean;
   /**
@@ -36,11 +40,11 @@ export interface NetworkInfoMessageOptions {
 
 export function registerNetworkInfoMessage(
   message: BuildMessageFn,
-  { commandCode, isMessage, ipEnabledByDefault }: NetworkInfoMessageOptions,
+  { commandCode, refreshDataPayload, isMessage, ipEnabledByDefault }: NetworkInfoMessageOptions,
 ): void {
   message<NetworkInfo>(
     {
-      refreshDataPayload: `cd=${commandCode}`,
+      refreshDataPayload: refreshDataPayload ?? `cd=${commandCode}`,
       isMessage,
       publishPath: 'network',
       defaultState: {},

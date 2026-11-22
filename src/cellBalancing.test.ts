@@ -460,7 +460,8 @@ describe('family adapters', () => {
   });
 
   describe('Venus', () => {
-    // cd=14 sample straight from the firmware, cells already in mV.
+    // cd=14 sample straight from a Venus C/E (HMG, BMS 212), cells already in
+    // mV and temperatures in degrees.
     const bmsPayload =
       'b_ver=212,b_chv=571,b_rci=1000,b_rdi=1000,b_soc=65,b_soh=100,b_cap=5120,b_vol=5223,' +
       'b_cur=-94,b_tem=250,b_chf=192,b_slf=0,b_cpc=332,b_err=0,b_war=0,b_ret=102482070,' +
@@ -468,7 +469,7 @@ describe('family adapters', () => {
       'b_vo1=3265,b_vo2=3265,b_vo3=3265,b_vo4=3265,b_vo5=3264,b_vo6=3264,b_vo7=3265,b_vo8=3265,' +
       'b_vo9=3264,b_vo10=3265,b_vo11=3264,b_vo12=3265,b_vo13=3265,b_vo14=3265,b_vo15=3264,b_vo16=3262';
 
-    const bmsState = () => parseMessage(bmsPayload, 'VNSE3-0', 'dev')['bms'];
+    const bmsState = () => parseMessage(bmsPayload, 'HMG-50', 'dev')['bms'];
 
     it('takes cell voltages as millivolts unchanged', () => {
       const sampleOut = extractVenusSample({ bms: bmsState() }, clock)!;

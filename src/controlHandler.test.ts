@@ -3,6 +3,7 @@ import './device/registry.js';
 import logger from './logger.js';
 import { ControlHandler } from './controlHandler.js';
 import { DeviceManager, DeviceStateData } from './deviceManager.js';
+import { parseMessage } from './parser.js';
 import { getDeviceDefinition } from './deviceDefinition.js';
 import { MqttConfig, Device, B2500V2DeviceData, B2500BaseDeviceData } from './types.js';
 import { DEFAULT_TOPIC_PREFIX } from './constants.js';
@@ -261,25 +262,29 @@ describe('ControlHandler', () => {
     });
 
     test('should handle sync-time control topic with PRESS', () => {
-      // Freeze time so that the generated payload is deterministic
+      // Freeze time so that the generated payload is deterministic. A host
+      // without a time zone runs in UTC.
       const mockDate = new Date(Date.UTC(2023, 0, 1, 12, 30, 45));
       jest.useFakeTimers().setSystemTime(mockDate);
+      jest.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(0);
 
-      // Call the method with a sync time message
-      handleControlTopic(testDeviceV2, 'sync-time', 'PRESS');
+      try {
+        // Call the method with a sync time message
+        handleControlTopic(testDeviceV2, 'sync-time', 'PRESS');
 
-      // Check that the publish callback was called with the correct payload
-      const expectedWy = -mockDate.getTimezoneOffset();
-      expect(publishCallback).toHaveBeenCalledWith(
-        testDeviceV2,
-        expect.stringContaining(`cd=8,wy=${expectedWy},yy=123,mm=0,rr=1,hh=12,mn=30,ss=45`),
-      );
-      // Restore timers
-      jest.useRealTimers();
+        // Only the clock is sent: the device's time zone (`cd=9`) is left as
+        // it was set in the app or with `time-zone`.
+        expect(publishCallback.mock.calls.map(call => call[1])).toEqual([
+          'cd=8,wy=0,yy=123,mm=0,rr=1,hh=12,mn=30,ss=45',
+        ]);
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     test('should sync UTC clock fields together with the local offset', () => {
-      // The device's clock is UTC; `wy` tells it how far local time is ahead.
+      // The device's clock is UTC; the host's offset still goes in `wy`, which
+      // the device requires but ignores.
       // Simulate UTC+5:30 at 2023-12-31T23:59:58Z, which is local 2024-01-01
       // 05:29:58 — every field except the seconds differs between the two zones,
       // so a regression to any single local getter changes the payload. The
@@ -298,10 +303,9 @@ describe('ControlHandler', () => {
       try {
         handleControlTopic(testDeviceV2, 'sync-time', 'PRESS');
 
-        expect(publishCallback).toHaveBeenCalledWith(
-          testDeviceV2,
-          expect.stringContaining('cd=8,wy=330,yy=123,mm=11,rr=31,hh=23,mn=59,ss=58'),
-        );
+        expect(publishCallback.mock.calls.map(call => call[1])).toEqual([
+          'cd=8,wy=330,yy=123,mm=11,rr=31,hh=23,mn=59,ss=58',
+        ]);
       } finally {
         jest.useRealTimers();
       }
@@ -321,10 +325,9 @@ describe('ControlHandler', () => {
       handleControlTopic(testDeviceV2, 'sync-time', JSON.stringify(timeData));
 
       // Check that the publish callback was called with the correct payload
-      expect(publishCallback).toHaveBeenCalledWith(
-        testDeviceV2,
-        expect.stringContaining('cd=8,wy=480,yy=123,mm=1,rr=2,hh=23,mn=56,ss=56'),
-      );
+      expect(publishCallback.mock.calls.map(call => call[1])).toEqual([
+        'cd=8,wy=480,yy=123,mm=1,rr=2,hh=23,mn=56,ss=56',
+      ]);
     });
 
     test('should handle invalid sync-time JSON', () => {
@@ -460,6 +463,23 @@ describe('ControlHandler', () => {
       expect(publishCallback).toHaveBeenLastCalledWith(ct002, 'cd=5,p1=6');
     });
 
+    test('should treat the unwritten setting 255 as all phases reversed, as the meter does', () => {
+      // A meter whose setting was never written reports cur_d=255. HME-4
+      // firmware 120 and 124 measure with it exactly as with 7, the inverse
+      // of 0, so all three switches are on, and turning one off sends the
+      // other two bits as the meter applies them.
+      const { data } = parseMessage('pwr_a=0,pwr_b=0,pwr_c=0,pwr_t=0,cur_d=255', 'HME-4', 'x');
+      deviceManager.updateDeviceState(ct002, 'data', () => data);
+      expect(deviceManager.getDeviceState(ct002)).toMatchObject({
+        phase1MeasurementReversed: true,
+        phase2MeasurementReversed: true,
+        phase3MeasurementReversed: true,
+      });
+
+      handleControlTopic(ct002, 'phase1-measurement-reversed', 'false');
+      expect(publishCallback).toHaveBeenCalledWith(ct002, 'cd=5,p1=6');
+    });
+
     test('should use the p1 parameter on TPM-CN and dir on TPM2', () => {
       const cases: Array<[string, string]> = [
         ['TPM-CN', 'cd=5,p1=1'],
@@ -512,6 +532,26 @@ describe('ControlHandler', () => {
       handleControlTopic(smr, 'phase1-measurement-reversed', 'true');
 
       // cd=5 configures the attached smart meter on the SMR, so nothing is sent
+      expect(publishCallback).not.toHaveBeenCalled();
+    });
+
+    test('should not register the command for the HME-3 (CT003)', () => {
+      const ct003: Device = { deviceType: 'HME-3', deviceId: 'ct003device' };
+      const config: MqttConfig = {
+        brokerUrl: 'mqtt://test.mosquitto.org',
+        clientId: 'test-client',
+        topicPrefix: DEFAULT_TOPIC_PREFIX,
+        autodiscoveryTopicPrefix: 'homeassistant',
+        devices: [ct003],
+        responseTimeout: 15000,
+      };
+      deviceManager = new DeviceManager(config, () => {});
+      publishCallback = jest.fn();
+      controlHandler = controlHandlerFor(deviceManager, publishCallback);
+
+      handleControlTopic(ct003, 'phase1-measurement-reversed', 'true');
+
+      // On the CT003, cd=5 configures the meter interface and reboots the reader
       expect(publishCallback).not.toHaveBeenCalled();
     });
   });

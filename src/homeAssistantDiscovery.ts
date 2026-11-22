@@ -141,13 +141,35 @@ function valueTemplate(
   args: AdvertiseBuilderArgs & {
     valueMappings?: Record<string | number, string>;
     defaultValue?: string;
+    optional?: boolean;
+    unknownWhenAbsent?: boolean;
   },
 ) {
   let value = getJinjaPath(args.keyPath);
   if (args.valueMappings) {
-    return mappingValueTemplate({ value, valueMappings: args.valueMappings });
+    const template = mappingValueTemplate({ value, valueMappings: args.valueMappings });
+    return args.unknownWhenAbsent ? unknownWhenAbsent(value, template) : template;
+  }
+  if (args.unknownWhenAbsent) {
+    return unknownWhenAbsent(value, `{{ ${value} }}`);
+  }
+  if (args.optional) {
+    // Renders nothing while the value is absent, which Home Assistant ignores,
+    // instead of warning about the missing key on every message.
+    return `{% if ${value} is defined %}{{ ${value} }}{% endif %}`;
   }
   return `{{ ${value}${args.defaultValue ? ` | default('${args.defaultValue}')` : ''} }}`;
+}
+
+/**
+ * Render `template` while `value` is present and `None` while it is absent,
+ * which Home Assistant's MQTT sensor and select take as "unknown". For a value
+ * hm2mqtt drops because the device reported something it cannot use (out of
+ * range, an unknown code): without this, Home Assistant warns about the missing
+ * key on every message and keeps showing the last value.
+ */
+function unknownWhenAbsent(value: string, template: string) {
+  return `{% if ${value} is defined %}${template}{% else %}None{% endif %}`;
 }
 
 function mappingValueTemplate({
@@ -175,6 +197,12 @@ export interface HaBaseComponentArgs {
 
 export interface HaBaseStateComponentArgs extends HaBaseComponentArgs {
   defaultValue?: string;
+  /**
+   * The value can drop out of the state while the entity exists, because the
+   * device reported something hm2mqtt discards (see `unknownWhenAbsent`). Home
+   * Assistant then shows the entity as unknown instead of warning.
+   */
+  unknownWhenAbsent?: boolean;
 }
 
 /**
@@ -259,6 +287,11 @@ export const numberComponent =
       max?: number;
       step?: number;
       mode?: string;
+      /**
+       * The value can be absent from the state, e.g. until it is set from Home
+       * Assistant. Home Assistant then keeps the value it last received.
+       */
+      optional?: boolean;
     },
   ): HaStatefulAdvertiseBuilder<number> =>
   args => ({
@@ -300,11 +333,19 @@ export const textComponent =
         max?: number;
         min?: number;
         pattern?: string;
+        /**
+         * The value can be absent from the state. The entity then shows an
+         * empty value, so `pattern` must accept the empty string: Home
+         * Assistant checks a reported state against it.
+         */
+        optional?: boolean;
       },
   ): HaStatefulAdvertiseBuilder<T> =>
   args => ({
     ...baseSensor(definition)(args),
-    ...stateSource(definition, args, () => valueTemplate(args)),
+    ...stateSource(definition, args, () =>
+      valueTemplate({ ...args, optional: definition.optional }),
+    ),
     type: 'text',
     command_topic: commandTopic({ ...args, ...definition }),
     max: definition.max,
@@ -322,12 +363,11 @@ export const selectComponent =
   ): HaStatefulAdvertiseBuilder<T, HaSelectComponent> =>
   args => ({
     ...baseSensor(definition)(args),
-    ...stateSource(definition, args, () =>
-      mappingValueTemplate({
-        value: getJinjaPath(args.keyPath),
-        valueMappings: definition.valueMappings,
-      }),
-    ),
+    ...stateSource(definition, args, () => {
+      const value = getJinjaPath(args.keyPath);
+      const template = mappingValueTemplate({ value, valueMappings: definition.valueMappings });
+      return definition.unknownWhenAbsent ? unknownWhenAbsent(value, template) : template;
+    }),
     type: 'select',
     command_template: mappingValueTemplate({
       value: 'value',

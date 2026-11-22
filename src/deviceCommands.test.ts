@@ -19,8 +19,11 @@ interface CommandTestCase {
   command: string;
   /** Input message sent to the command */
   input: string;
-  /** Expected MQTT output message (null if no output expected) */
-  expectedOutput: string | null;
+  /**
+   * Expected MQTT output message (null if no output expected). A list means
+   * the command publishes exactly these messages, in this order.
+   */
+  expectedOutput: string | string[] | null;
   /** Expected state changes after command (if any) */
   expectedStateChanges?: Partial<DeviceStateData>;
   /** Whether to use flash commands (defaults to true in tests) */
@@ -451,12 +454,36 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
   {
-    // The select publishes the state name, not the code.
-    description: 'B2500V2 connected-phase searching maps to md=3',
+    // The select publishes the state name, not the code: `searching` is the
+    // state of the All Phases option.
+    description: 'B2500V2 connected-phase searching (All Phases) maps to md=3',
     deviceType: 'HMA-1',
     command: 'connected-phase',
     input: 'searching',
     expectedOutput: 'cd=22,md=3',
+  },
+  {
+    description: 'B2500V2 connected-phase all maps to md=3',
+    deviceType: 'HMA-1',
+    command: 'connected-phase',
+    input: 'all',
+    expectedOutput: 'cd=22,md=3',
+  },
+  {
+    description: 'B2500V2 connected-phase refuses Phase 1 on HMJ firmware 110',
+    deviceType: 'HMJ-2',
+    initialState: { deviceType: 'HMJ-2', deviceInfo: { deviceVersion: 110 }, adaptiveMode: true },
+    command: 'connected-phase',
+    input: '0',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 connected-phase allows Phase 1 on newer HMJ firmware',
+    deviceType: 'HMJ-2',
+    initialState: { deviceType: 'HMJ-2', deviceInfo: { deviceVersion: 116 } },
+    command: 'connected-phase',
+    input: '0',
+    expectedOutput: 'cd=22,md=0',
   },
   {
     description: 'B2500V2 connected-phase numeric 3 is accepted',
@@ -502,6 +529,41 @@ const commandTestCases: CommandTestCase[] = [
     input: 'abc',
     expectedOutput: null,
   },
+  {
+    description: 'B2500V2 time-zone not a multiple of 10 (invalid)',
+    deviceType: 'HMA-1',
+    command: 'time-zone',
+    input: '345',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 time-zone above 720 (invalid)',
+    deviceType: 'HMA-1',
+    command: 'time-zone',
+    input: '730',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 time-zone below -720 (invalid)',
+    deviceType: 'HMA-1',
+    command: 'time-zone',
+    input: '-730',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 time-zone fraction (invalid)',
+    deviceType: 'HMA-1',
+    command: 'time-zone',
+    input: '60.5',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 time-zone at the limit',
+    deviceType: 'HMA-1',
+    command: 'time-zone',
+    input: '-720',
+    expectedOutput: 'cd=9,wy=-720',
+  },
 
   // sync-time command with JSON (V2 only)
   {
@@ -509,7 +571,7 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'HMA-1',
     command: 'sync-time',
     input: '{"wy":480,"yy":123,"mm":1,"rr":2,"hh":23,"mn":56,"ss":56}',
-    expectedOutput: 'cd=8,wy=480,yy=123,mm=1,rr=2,hh=23,mn=56,ss=56',
+    expectedOutput: ['cd=8,wy=480,yy=123,mm=1,rr=2,hh=23,mn=56,ss=56'],
   },
   {
     // Every field here is a legal 0: UTC+0, January, midnight, zero minute/second.
@@ -517,7 +579,7 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'HMA-1',
     command: 'sync-time',
     input: '{"wy":0,"yy":126,"mm":0,"rr":1,"hh":0,"mn":0,"ss":0}',
-    expectedOutput: 'cd=8,wy=0,yy=126,mm=0,rr=1,hh=0,mn=0,ss=0',
+    expectedOutput: ['cd=8,wy=0,yy=126,mm=0,rr=1,hh=0,mn=0,ss=0'],
   },
   {
     description: 'B2500V2 sync-time with incomplete JSON (invalid)',
@@ -640,6 +702,76 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: 'cd=27,meter=10,mac=aabbccddeeff',
   },
   {
+    description: 'B2500V2 meter-type SMR-TIC is refused on HMJ firmware 116',
+    deviceType: 'HMJ-2',
+    initialState: {
+      deviceType: 'HMJ-2',
+      deviceInfo: { deviceVersion: 116 },
+      meterMac: 'aabbccddeeff',
+    },
+    command: 'meter-type',
+    input: 'smrTic',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 meter-type TPM2-100CT is refused on HMJ firmware 116',
+    deviceType: 'HMJ-2',
+    initialState: {
+      deviceType: 'HMJ-2',
+      deviceInfo: { deviceVersion: 116 },
+      meterMac: 'aabbccddeeff',
+    },
+    command: 'meter-type',
+    input: 'tpm2100ct',
+    expectedOutput: null,
+  },
+  {
+    description:
+      'B2500V2 meter-type SMR-TIC is refused on HMJ firmware 116 configured in lower case',
+    deviceType: 'hmj-2',
+    initialState: {
+      deviceType: 'hmj-2',
+      deviceInfo: { deviceVersion: 116 },
+      meterMac: 'aabbccddeeff',
+    },
+    command: 'meter-type',
+    input: 'smrTic',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 meter-type EcoTracker is still accepted on HMJ firmware 116',
+    deviceType: 'HMJ-2',
+    initialState: {
+      deviceType: 'HMJ-2',
+      deviceInfo: { deviceVersion: 116 },
+      meterMac: 'aabbccddeeff',
+    },
+    command: 'meter-type',
+    input: 'ecoTracker',
+    expectedOutput: 'cd=27,meter=7,mac=aabbccddeeff',
+  },
+  {
+    description: 'B2500V2 meter-type SMR-TIC is accepted on newer HMJ firmware',
+    deviceType: 'HMJ-2',
+    initialState: {
+      deviceType: 'HMJ-2',
+      deviceInfo: { deviceVersion: 117 },
+      meterMac: 'aabbccddeeff',
+    },
+    command: 'meter-type',
+    input: 'smrTic',
+    expectedOutput: 'cd=27,meter=10,mac=aabbccddeeff',
+  },
+  {
+    description: 'B2500V2 meter-mac does not re-apply an SMR meter on HMJ firmware 116',
+    deviceType: 'HMJ-2',
+    initialState: { deviceType: 'HMJ-2', deviceInfo: { deviceVersion: 116 }, meterType: 'smrP1' },
+    command: 'meter-mac',
+    input: 'aabbccddeeff',
+    expectedOutput: null,
+    expectedStateChanges: { meterMac: 'aabbccddeeff' },
+  },
+  {
     description: 'B2500V2 meter-type P1 Meter without MAC is rejected',
     deviceType: 'HMA-1',
     command: 'meter-type',
@@ -694,6 +826,31 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
   {
+    // HMJ firmware 110 and 116 never act on cd=27 without `meter=`.
+    description: 'B2500V2 recharge-mode is refused on HMJ firmware 116',
+    deviceType: 'HMJ-2',
+    initialState: { deviceType: 'HMJ-2', deviceInfo: { deviceVersion: 116 } },
+    command: 'recharge-mode',
+    input: 'singlePhase',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 phase-diagnosis is refused on HMJ firmware 110',
+    deviceType: 'HMJ-2',
+    initialState: { deviceType: 'HMJ-2', deviceInfo: { deviceVersion: 110 } },
+    command: 'phase-diagnosis',
+    input: 'PRESS',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 phase-diagnosis is sent on newer HMJ firmware',
+    deviceType: 'HMJ-2',
+    initialState: { deviceType: 'HMJ-2', deviceInfo: { deviceVersion: 117 } },
+    command: 'phase-diagnosis',
+    input: 'PRESS',
+    expectedOutput: 'cd=27,seq_check',
+  },
+  {
     description: 'B2500V2 meter-type invalid',
     deviceType: 'HMA-1',
     command: 'meter-type',
@@ -721,6 +878,7 @@ const commandTestCases: CommandTestCase[] = [
     command: 'time-period/1/enabled',
     input: 'true',
     expectedOutput: 'cd=7,md=0,a1=1,b1=8:0,e1=20:0,v1=500',
+    expectedStateChanges: { adaptiveMode: false },
   },
   {
     description: 'B2500V2 time-period/1/end-time should send minutes without zero padding',
@@ -731,6 +889,7 @@ const commandTestCases: CommandTestCase[] = [
     command: 'time-period/1/end-time',
     input: '08:01',
     expectedOutput: 'cd=7,md=0,a1=1,b1=8:0,e1=8:1,v1=500',
+    expectedStateChanges: { adaptiveMode: false },
   },
   {
     description: 'B2500V2 time-period/1/enabled false',
@@ -741,6 +900,7 @@ const commandTestCases: CommandTestCase[] = [
     command: 'time-period/1/enabled',
     input: 'false',
     expectedOutput: 'cd=7,md=0,a1=0,b1=8:0,e1=20:0,v1=500',
+    expectedStateChanges: { adaptiveMode: false },
   },
   {
     description: 'B2500V2 time-period/1/start-time valid',
@@ -751,6 +911,7 @@ const commandTestCases: CommandTestCase[] = [
     command: 'time-period/1/start-time',
     input: '06:30',
     expectedOutput: 'cd=7,md=0,a1=1,b1=6:30,e1=20:0,v1=500',
+    expectedStateChanges: { adaptiveMode: false },
   },
   {
     description: 'B2500V2 time-period/1/start-time invalid format (letters)',
@@ -773,6 +934,111 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
   {
+    description: 'B2500V2 time-period/1/start-time hour 24 (invalid)',
+    deviceType: 'HMA-1',
+    initialState: {
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/start-time',
+    input: '24:00',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 time-period/1/end-time hour 24 (invalid)',
+    deviceType: 'HMA-1',
+    initialState: {
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/end-time',
+    input: '24:00',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 time-period/1/end-time hour 29 (invalid)',
+    deviceType: 'HMA-1',
+    initialState: {
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/end-time',
+    input: '29:59',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 time-period/1/end-time 23:59 is the latest valid time',
+    deviceType: 'HMA-1',
+    initialState: {
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/end-time',
+    input: '23:59',
+    expectedOutput: 'cd=7,md=0,a1=1,b1=8:0,e1=23:59,v1=500',
+  },
+  {
+    // Only warned about: editing start and end separately passes through this.
+    description: 'B2500V2 time-period/1/end-time before the start time is still sent',
+    deviceType: 'HMA-1',
+    initialState: {
+      timePeriods: [{ enabled: true, startTime: '22:00', endTime: '23:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/end-time',
+    input: '06:00',
+    expectedOutput: 'cd=7,md=0,a1=1,b1=22:0,e1=6:0,v1=500',
+  },
+  {
+    // HMJ 110 and 116 refuse it and keep the previous times, so neither
+    // sent nor shown.
+    description: 'B2500V2 time-period/1/end-time before the start time is refused on HMJ 116',
+    deviceType: 'HMJ-2',
+    initialState: {
+      deviceType: 'HMJ-2',
+      deviceInfo: { deviceVersion: 116 },
+      timePeriods: [{ enabled: true, startTime: '22:00', endTime: '23:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/end-time',
+    input: '06:00',
+    expectedOutput: null,
+    expectedStateChanges: {
+      timePeriods: [{ enabled: true, startTime: '22:00', endTime: '23:00', outputValue: 500 }],
+    },
+  },
+  {
+    description: 'B2500V2 time-period/1/start-time after the end time is refused on HMJ 110',
+    deviceType: 'HMJ-2',
+    initialState: {
+      deviceType: 'HMJ-2',
+      deviceInfo: { deviceVersion: 110 },
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '09:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/start-time',
+    input: '22:00',
+    expectedOutput: null,
+  },
+  {
+    // The HMJ takes a period that starts and ends at the same time.
+    description: 'B2500V2 time-period/1/end-time equal to the start time is sent on HMJ 116',
+    deviceType: 'HMJ-2',
+    initialState: {
+      deviceType: 'HMJ-2',
+      deviceInfo: { deviceVersion: 116 },
+      timePeriods: [{ enabled: true, startTime: '12:00', endTime: '13:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/end-time',
+    input: '12:00',
+    expectedOutput: 'cd=7,md=0,a1=1,b1=12:0,e1=12:0,v1=500',
+  },
+  {
+    description: 'B2500V2 time-period/1/end-time before the start time is sent on newer HMJ',
+    deviceType: 'HMJ-2',
+    initialState: {
+      deviceType: 'HMJ-2',
+      deviceInfo: { deviceVersion: 117 },
+      timePeriods: [{ enabled: true, startTime: '22:00', endTime: '23:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/end-time',
+    input: '06:00',
+    expectedOutput: 'cd=7,md=0,a1=1,b1=22:0,e1=6:0,v1=500',
+  },
+  {
     description: 'B2500V2 time-period/1/end-time valid',
     deviceType: 'HMA-1',
     initialState: {
@@ -781,6 +1047,7 @@ const commandTestCases: CommandTestCase[] = [
     command: 'time-period/1/end-time',
     input: '22:45',
     expectedOutput: 'cd=7,md=0,a1=1,b1=8:0,e1=22:45,v1=500',
+    expectedStateChanges: { adaptiveMode: false },
   },
   {
     description: 'B2500V2 time-period/1/output-value valid',
@@ -791,6 +1058,7 @@ const commandTestCases: CommandTestCase[] = [
     command: 'time-period/1/output-value',
     input: '750',
     expectedOutput: 'cd=7,md=0,a1=1,b1=8:0,e1=20:0,v1=750',
+    expectedStateChanges: { adaptiveMode: false },
   },
   {
     description: 'B2500V2 time-period/1/output-value above max (invalid)',
@@ -801,6 +1069,31 @@ const commandTestCases: CommandTestCase[] = [
     command: 'time-period/1/output-value',
     input: '801',
     expectedOutput: null,
+  },
+  {
+    // Editing a period turns adaptive mode off on the device.
+    description: 'B2500V2 time-period edit while adaptive mode is on',
+    deviceType: 'HMA-1',
+    initialState: {
+      adaptiveMode: true,
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/output-value',
+    input: '300',
+    expectedOutput: 'cd=7,md=0,a1=1,b1=8:0,e1=20:0,v1=300',
+    expectedStateChanges: { adaptiveMode: false },
+  },
+  {
+    description: 'B2500V2 time-period invalid edit leaves adaptive mode alone',
+    deviceType: 'HMA-1',
+    initialState: {
+      adaptiveMode: true,
+      timePeriods: [{ enabled: true, startTime: '08:00', endTime: '20:00', outputValue: 500 }],
+    },
+    command: 'time-period/1/output-value',
+    input: '801',
+    expectedOutput: null,
+    expectedStateChanges: { adaptiveMode: true },
   },
   {
     description: 'B2500V2 time-period/6/enabled (invalid period number)',
@@ -833,11 +1126,42 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: 'cd=2,md=1',
   },
   {
-    description: 'Venus working-mode trading',
+    description: 'Venus working-mode trading on HMG control firmware 146',
     deviceType: 'HMG-1',
+    initialState: { deviceVersion: 146 },
     command: 'working-mode',
     input: 'trading',
     expectedOutput: 'cd=2,md=2',
+  },
+  {
+    description: 'Venus working-mode trading refused on HMG control firmware 147 and later',
+    deviceType: 'HMG-50',
+    initialState: { deviceVersion: 156 },
+    command: 'working-mode',
+    input: 'trading',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus working-mode trading refused on the Venus E 3.0',
+    deviceType: 'VNSE3-0',
+    initialState: { deviceVersion: 151 },
+    command: 'working-mode',
+    input: 'trading',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus working-mode passive cannot be selected',
+    deviceType: 'VNSE3-0',
+    command: 'working-mode',
+    input: 'passive',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus working-mode modbus cannot be selected',
+    deviceType: 'VNSA-0',
+    command: 'working-mode',
+    input: 'modbus',
+    expectedOutput: null,
   },
   {
     description: 'Venus working-mode ai',
@@ -851,6 +1175,31 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'HMG-1',
     command: 'working-mode',
     input: 'invalid',
+    expectedOutput: null,
+  },
+
+  // transaction-mode command (cd=3,md=2): HMG up to control firmware 146
+  {
+    description: 'Venus transaction-mode on HMG control firmware 146',
+    deviceType: 'HMG-1',
+    initialState: { deviceVersion: 146 },
+    command: 'transaction-mode',
+    input: '{"id":1,"in":40000,"on":50000}',
+    expectedOutput: 'cd=3,md=2,id=1,in=40000,on=50000',
+  },
+  {
+    description: 'Venus transaction-mode refused on HMG control firmware 156',
+    deviceType: 'HMG-50',
+    initialState: { deviceVersion: 156 },
+    command: 'transaction-mode',
+    input: '{"id":1,"in":40000,"on":50000}',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus transaction-mode refused on the Venus D',
+    deviceType: 'VNSD-0',
+    command: 'transaction-mode',
+    input: '{"id":1,"in":40000,"on":50000}',
     expectedOutput: null,
   },
 
@@ -877,6 +1226,24 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
 
+  // auto-switch-working-mode command
+  {
+    description: 'Venus auto-switch-working-mode on',
+    deviceType: 'VNSD-0',
+    command: 'auto-switch-working-mode',
+    input: 'ON',
+    expectedOutput: 'cd=8,dt=1',
+    expectedStateChanges: { autoSwitchWorkingMode: true },
+  },
+  {
+    description: 'Venus auto-switch-working-mode off',
+    deviceType: 'HMG-50',
+    command: 'auto-switch-working-mode',
+    input: 'OFF',
+    expectedOutput: 'cd=8,dt=0',
+    expectedStateChanges: { autoSwitchWorkingMode: false },
+  },
+
   // meter-mac + meter-type commands
   {
     description: 'Venus meter-mac normalizes separators and case',
@@ -887,12 +1254,12 @@ const commandTestCases: CommandTestCase[] = [
     expectedStateChanges: { meterMac: 'aabbccddeeff' },
   },
   {
-    description: 'Venus meter-mac re-applies configured meter type with new MAC',
-    deviceType: 'HMG-1',
+    description: 'Venus meter-mac does not re-apply a meter type read back from the device',
+    deviceType: 'VNSA-0',
     initialState: { meterType: 'ct002' },
     command: 'meter-mac',
     input: 'aabbccddeeff',
-    expectedOutput: 'cd=18,meter=3,mac=aabbccddeeff',
+    expectedOutput: null,
     expectedStateChanges: { meterMac: 'aabbccddeeff' },
   },
   {
@@ -958,6 +1325,107 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
   {
+    description: 'Venus meter-type SMR-P1 is refused before HMG control firmware 156',
+    deviceType: 'HMG-50',
+    initialState: { meterMac: '112233445566', deviceVersion: 155 },
+    command: 'meter-type',
+    input: 'smrP1',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus meter-type SMR-P1 on HMG control firmware 156',
+    deviceType: 'HMG-50',
+    initialState: { meterMac: '112233445566', deviceVersion: 156 },
+    command: 'meter-type',
+    input: 'smrP1',
+    expectedOutput: 'cd=18,meter=8,mac=112233445566',
+  },
+  {
+    description: 'Venus meter-type EcoTracker is refused on HMG control firmware 147',
+    deviceType: 'HMG-50',
+    initialState: { meterMac: '112233445566', deviceVersion: 147 },
+    command: 'meter-type',
+    input: 'ecoTracker',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus meter-type EcoTracker on HMG control firmware 148',
+    deviceType: 'HMG-50',
+    initialState: { meterMac: '112233445566', deviceVersion: 148 },
+    command: 'meter-type',
+    input: 'ecoTracker',
+    expectedOutput: 'cd=18,meter=7,mac=112233445566',
+  },
+  {
+    description: 'Venus meter-type Shelly EM Gen3 is refused on HMG control firmware 146',
+    deviceType: 'HMG-50',
+    initialState: { meterMac: '112233445566', deviceVersion: 146 },
+    command: 'meter-type',
+    input: 'shellyEmGen3',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus meter-type SMR-P1 on HMG control firmware 158.1',
+    deviceType: 'HMG-25',
+    initialState: { meterMac: '112233445566', deviceVersion: 1581 },
+    command: 'meter-type',
+    input: 'smrP1',
+    expectedOutput: 'cd=18,meter=8,mac=112233445566',
+  },
+  {
+    description: 'Venus meter-type TPM2-100CT on every Venus E 3.0 build',
+    deviceType: 'VNSE3-0',
+    initialState: { meterMac: '112233445566', deviceVersion: 144 },
+    command: 'meter-type',
+    input: 'tpm2100ct',
+    expectedOutput: 'cd=18,meter=11,mac=112233445566',
+  },
+  {
+    description: 'Venus meter-type P1 Meter without MAC is sent without one',
+    deviceType: 'VNSD-0',
+    command: 'meter-type',
+    input: 'p1Meter',
+    expectedOutput: 'cd=18,meter=2',
+    expectedStateChanges: { meterType: 'p1Meter' },
+  },
+  {
+    description: 'Venus meter-type EcoTracker without MAC is sent without one',
+    deviceType: 'HMG-50',
+    command: 'meter-type',
+    input: 'ecoTracker',
+    expectedOutput: 'cd=18,meter=7',
+  },
+  {
+    description: 'Venus meter-type Stromleser on the Venus A',
+    deviceType: 'VNSA-0',
+    command: 'meter-type',
+    input: 'stromleser',
+    expectedOutput: 'cd=18,meter=12',
+  },
+  {
+    description: 'Venus meter-type Stromleser is refused on the Venus C/E (HMG)',
+    deviceType: 'HMG-50',
+    command: 'meter-type',
+    input: 'stromleser',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus meter-type Stromleser is refused on Venus E 3.0 control firmware 144',
+    deviceType: 'VNSE3-0',
+    initialState: { deviceVersion: 144 },
+    command: 'meter-type',
+    input: 'stromleser',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus meter-type Stromleser on Venus E 3.0 control firmware 147',
+    deviceType: 'VNSE3-0',
+    initialState: { deviceVersion: 147 },
+    command: 'meter-type',
+    input: 'stromleser',
+    expectedOutput: 'cd=18,meter=12',
+  },
+  {
     description: 'Venus meter-type invalid',
     deviceType: 'HMG-1',
     command: 'meter-type',
@@ -965,7 +1433,52 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
 
-  // version-set command
+  // time-period commands store the whole slot
+  {
+    description: 'Venus time-period power keeps the rest of the slot',
+    deviceType: 'VNSE3-0',
+    initialState: {
+      timePeriods: [
+        { startTime: '8:05', endTime: '17:30', weekday: '01234', power: 350, enabled: true },
+      ],
+    },
+    command: 'time-period/0/power',
+    input: '-800',
+    expectedOutput: 'cd=3,md=1,nm=0,bt=08:05,et=17:30,wk=31,vv=-800,as=1',
+  },
+  {
+    description: 'Venus time-period start time on a slot the device reports no times for',
+    deviceType: 'VNSE3-0',
+    initialState: {
+      // tim_0=255|255|255|255|255|-1|255, a slot the device never stored
+      timePeriods: [{ weekday: '0123456', power: -1, enabled: false }],
+    },
+    command: 'time-period/0/start-time',
+    input: '8:00',
+    expectedOutput: 'cd=3,md=1,nm=0,bt=08:00,et=00:00,wk=127,vv=-1,as=0',
+  },
+  {
+    description: 'Venus time-period enabled on a slot without a valid power',
+    deviceType: 'VNSE3-0',
+    initialState: {
+      timePeriods: [{ startTime: '1:00', endTime: '2:00', weekday: '', enabled: false }],
+    },
+    command: 'time-period/0/enabled',
+    input: 'true',
+    expectedOutput: 'cd=3,md=1,nm=0,bt=01:00,et=02:00,wk=0,vv=0,as=1',
+  },
+  {
+    description: 'Venus time-period start time refuses an empty value',
+    deviceType: 'VNSE3-0',
+    initialState: {
+      timePeriods: [{ weekday: '0123456', enabled: false }],
+    },
+    command: 'time-period/0/start-time',
+    input: '',
+    expectedOutput: null,
+  },
+
+  // version-set command: only the power versions the model and build accept
   {
     description: 'Venus version-set 800W',
     deviceType: 'HMG-1',
@@ -981,19 +1494,18 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: 'cd=15,vs=2500',
   },
   {
-    // The command carries the rated power in watts, not the set_v code.
-    description: 'Venus version-set 1200W',
+    description: 'Venus version-set 1200W is not an HMG power version',
     deviceType: 'HMG-1',
     command: 'version-set',
     input: '1200W',
-    expectedOutput: 'cd=15,vs=1200',
+    expectedOutput: null,
   },
   {
-    description: 'Venus version-set 3600W',
+    description: 'Venus version-set 3600W is not an HMG power version',
     deviceType: 'HMG-1',
     command: 'version-set',
     input: '3600W',
-    expectedOutput: 'cd=15,vs=3600',
+    expectedOutput: null,
   },
   {
     description: 'Venus version-set invalid',
@@ -1002,34 +1514,213 @@ const commandTestCases: CommandTestCase[] = [
     input: '1000W',
     expectedOutput: null,
   },
+  {
+    description: 'Venus version-set 600W refused on VNSE3 before control firmware 149',
+    deviceType: 'VNSE3-0',
+    initialState: { deviceVersion: 148 },
+    command: 'version-set',
+    input: '600W',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus version-set 600W on VNSE3 control firmware 151',
+    deviceType: 'VNSE3-0',
+    initialState: { deviceVersion: 151 },
+    command: 'version-set',
+    input: '600W',
+    expectedOutput: 'cd=15,vs=600',
+  },
+  {
+    description: 'Venus version-set 2200W refused on VNSA control firmware 151',
+    deviceType: 'VNSA-0',
+    initialState: { deviceVersion: 151 },
+    command: 'version-set',
+    input: '2200W',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus version-set 2200W refused on VNSA control firmware 148',
+    deviceType: 'VNSA-0',
+    initialState: { deviceVersion: 148 },
+    command: 'version-set',
+    input: '2200W',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus version-set 600W refused on HMG',
+    deviceType: 'HMG-50',
+    command: 'version-set',
+    input: '600W',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus version-set 600W refused on VNSA',
+    deviceType: 'VNSA-0',
+    command: 'version-set',
+    input: '600W',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus version-set 600W refused on VNSD',
+    deviceType: 'VNSD-0',
+    initialState: { deviceVersion: 151 },
+    command: 'version-set',
+    input: '600W',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus version-set 600W on VNSE3 while the build is unknown',
+    deviceType: 'VNSE3-0',
+    command: 'version-set',
+    input: '600W',
+    expectedOutput: 'cd=15,vs=600',
+  },
+  {
+    description: 'Venus version-set refused on VNSA control firmware 148 while on the 600W version',
+    deviceType: 'VNSA-0',
+    initialState: { versionSet: '600W', deviceVersion: 148 },
+    command: 'version-set',
+    input: '800W',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus version-set on VNSA control firmware 151 while on the 600W version',
+    deviceType: 'VNSA-0',
+    initialState: { versionSet: '600W', deviceVersion: 151 },
+    command: 'version-set',
+    input: '800W',
+    expectedOutput: 'cd=15,vs=800',
+  },
+  {
+    description: 'Venus version-set 2500W refused on VNSD control firmware 147',
+    deviceType: 'VNSD-0',
+    initialState: { deviceVersion: 147 },
+    command: 'version-set',
+    input: '2500W',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus version-set refused on HMG while on the 600W version',
+    deviceType: 'HMG-50',
+    initialState: { versionSet: '600W', deviceVersion: 156 },
+    command: 'version-set',
+    input: '800W',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus version-set refused on HMG control firmware 147 (no cd=15)',
+    deviceType: 'HMG-1',
+    initialState: { deviceVersion: 147 },
+    command: 'version-set',
+    input: '800W',
+    expectedOutput: null,
+  },
 
-  // max-discharge-power command
+  // max-discharge-power command (cd=17,dp=)
   {
     description: 'Venus max-discharge-power valid',
     deviceType: 'HMG-1',
     command: 'max-discharge-power',
     input: '1500',
-    expectedOutput: 'cd=15,vs=1500',
+    expectedOutput: 'cd=17,dp=1500',
+    expectedStateChanges: { maxDischargePower: 1500 },
   },
   {
-    description: 'Venus max-discharge-power minimum',
+    description: 'Venus max-discharge-power 0 refused',
     deviceType: 'HMG-1',
     command: 'max-discharge-power',
     input: '0',
-    expectedOutput: 'cd=15,vs=0',
+    expectedOutput: null,
   },
   {
     description: 'Venus max-discharge-power maximum',
     deviceType: 'HMG-1',
     command: 'max-discharge-power',
     input: '2500',
-    expectedOutput: 'cd=15,vs=2500',
+    expectedOutput: 'cd=17,dp=2500',
   },
   {
     description: 'Venus max-discharge-power above max (invalid)',
     deviceType: 'HMG-1',
     command: 'max-discharge-power',
     input: '2501',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus max-discharge-power not an integer (invalid)',
+    deviceType: 'HMG-1',
+    command: 'max-discharge-power',
+    input: '1000.5',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus max-discharge-power at the Venus A maximum',
+    deviceType: 'VNSA-0',
+    command: 'max-discharge-power',
+    input: '1500',
+    expectedOutput: 'cd=17,dp=1500',
+  },
+  {
+    description: 'Venus max-discharge-power above the Venus A maximum',
+    deviceType: 'VNSA-0',
+    command: 'max-discharge-power',
+    input: '1600',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus max-discharge-power above 2200 W on VNSD control firmware 147',
+    deviceType: 'VNSD-0',
+    initialState: { deviceVersion: 147 },
+    command: 'max-discharge-power',
+    input: '2300',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus max-discharge-power up to 2500 W on VNSD control firmware 149',
+    deviceType: 'VNSD-0',
+    initialState: { deviceVersion: 149 },
+    command: 'max-discharge-power',
+    input: '2300',
+    expectedOutput: 'cd=17,dp=2300',
+  },
+  {
+    description: 'Venus max-discharge-power above 800 W refused on the 800 W version',
+    deviceType: 'HMG-50',
+    initialState: { deviceVersion: 156, versionSet: '800W' },
+    command: 'max-discharge-power',
+    input: '1000',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus max-discharge-power above 600 W refused on the 600 W version',
+    deviceType: 'VNSE3-0',
+    initialState: { deviceVersion: 151, versionSet: '600W' },
+    command: 'max-discharge-power',
+    input: '700',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus max-discharge-power above 600 W refused on HMG on the 600 W version',
+    deviceType: 'HMG-50',
+    initialState: { deviceVersion: 156, versionSet: '600W' },
+    command: 'max-discharge-power',
+    input: '700',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus max-discharge-power on the 2500 W version',
+    deviceType: 'HMG-50',
+    initialState: { deviceVersion: 156, versionSet: '2500W' },
+    command: 'max-discharge-power',
+    input: '1000',
+    expectedOutput: 'cd=17,dp=1000',
+  },
+  {
+    description: 'Venus max-discharge-power refused on HMG control firmware 147',
+    deviceType: 'HMG-50',
+    initialState: { deviceVersion: 147 },
+    command: 'max-discharge-power',
+    input: '1000',
     expectedOutput: null,
   },
 
@@ -1047,6 +1738,85 @@ const commandTestCases: CommandTestCase[] = [
     command: 'max-charging-power',
     input: '3000',
     expectedOutput: null,
+  },
+  {
+    description: 'Venus max-charging-power above the Venus A maximum',
+    deviceType: 'VNSA-0',
+    command: 'max-charging-power',
+    input: '2000',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus max-charging-power at the Venus A maximum',
+    deviceType: 'VNSA-0',
+    initialState: { deviceVersion: 151 },
+    command: 'max-charging-power',
+    input: '1500',
+    expectedOutput: 'cd=16,cp=1500',
+  },
+  {
+    description: 'Venus max-charging-power below 300 W refused on VNSE3 control firmware 151',
+    deviceType: 'VNSE3-0',
+    initialState: { deviceVersion: 151 },
+    command: 'max-charging-power',
+    input: '200',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus max-charging-power below 300 W on VNSE3 control firmware 148',
+    deviceType: 'VNSE3-0',
+    initialState: { deviceVersion: 148 },
+    command: 'max-charging-power',
+    input: '200',
+    expectedOutput: 'cd=16,cp=200',
+  },
+  {
+    description: 'Venus max-charging-power below 300 W while the build is unknown',
+    deviceType: 'VNSA-0',
+    command: 'max-charging-power',
+    input: '200',
+    expectedOutput: 'cd=16,cp=200',
+  },
+  {
+    description: 'Venus max-charging-power below 300 W on HMG',
+    deviceType: 'HMG-50',
+    initialState: { deviceVersion: 156 },
+    command: 'max-charging-power',
+    input: '200',
+    expectedOutput: 'cd=16,cp=200',
+    expectedStateChanges: { maxChargingPower: 200 },
+  },
+  {
+    description: 'Venus max-charging-power below 300 W refused on VNSD control firmware 149.2',
+    deviceType: 'VNSD-0',
+    initialState: { deviceVersion: 1492 },
+    command: 'max-charging-power',
+    input: '200',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus max-charging-power below 300 W on VNSD control firmware 149',
+    deviceType: 'VNSD-0',
+    initialState: { deviceVersion: 149 },
+    command: 'max-charging-power',
+    input: '200',
+    expectedOutput: 'cd=16,cp=200',
+  },
+  {
+    description: 'Venus max-charging-power above 2200 W on VNSD control firmware 147',
+    deviceType: 'VNSD-0',
+    initialState: { deviceVersion: 147 },
+    command: 'max-charging-power',
+    input: '2300',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus max-charging-power up to 2500 W on VNSD control firmware 151',
+    deviceType: 'VNSD-0',
+    initialState: { deviceVersion: 151 },
+    command: 'max-charging-power',
+    input: '2500',
+    expectedOutput: 'cd=16,cp=2500',
   },
 
   // discharge-depth command (Venus: 30-88%)
@@ -1087,11 +1857,40 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
   {
-    description: 'Venus discharge-depth above maximum (invalid)',
+    description: 'Venus discharge-depth 89% on HMG sent as-is',
+    deviceType: 'HMG-50',
+    command: 'discharge-depth',
+    input: '89',
+    expectedOutput: 'cd=56,dod=89',
+  },
+  {
+    description: 'Venus discharge-depth HMG maximum (90%) sent as-is',
+    deviceType: 'HMG-50',
+    command: 'discharge-depth',
+    input: '90',
+    expectedOutput: 'cd=56,dod=90',
+    expectedStateChanges: { depthOfDischarge: 90 },
+  },
+  {
+    description: 'Venus discharge-depth above the HMG maximum (invalid)',
     deviceType: 'HMG-1',
+    command: 'discharge-depth',
+    input: '91',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus discharge-depth above the Venus A maximum (invalid)',
+    deviceType: 'VNSA-0',
     command: 'discharge-depth',
     input: '89',
     expectedOutput: null,
+  },
+  {
+    description: 'Venus discharge-depth Venus D maximum (88%) sent as 0',
+    deviceType: 'VNSD-0',
+    command: 'discharge-depth',
+    input: '88',
+    expectedOutput: 'cd=56,dod=0',
   },
   {
     description: 'Venus discharge-depth with trailing garbage (invalid)',
@@ -1122,11 +1921,11 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: null,
   },
 
-  // local-api-enabled command (requires firmware >= 153)
+  // local-api-enabled command (cd=30; HMG from 153, every VNS build)
   {
     description: 'Venus local-api-enabled enable',
     deviceType: 'HMG-1',
-    initialState: { deviceVersion: 153, localApiPort: 8080 },
+    initialState: { deviceVersion: 153, localApiEnabled: false, localApiPort: 8080 },
     command: 'local-api-enabled',
     input: 'true',
     expectedOutput: 'cd=30,api=1,port=8080',
@@ -1134,35 +1933,76 @@ const commandTestCases: CommandTestCase[] = [
   {
     description: 'Venus local-api-enabled disable',
     deviceType: 'HMG-1',
-    initialState: { deviceVersion: 153, localApiPort: 8080 },
+    initialState: { deviceVersion: 153, localApiEnabled: true, localApiPort: 8080 },
     command: 'local-api-enabled',
     input: 'false',
     expectedOutput: 'cd=30,api=0,port=8080',
   },
   {
-    description: 'Venus local-api-enabled unsupported firmware (no output)',
+    description: 'Venus local-api-enabled without a reported local API state (no output)',
     deviceType: 'HMG-1',
-    initialState: { deviceVersion: 150 },
+    initialState: { deviceVersion: 153 },
     command: 'local-api-enabled',
     input: 'true',
     expectedOutput: null,
   },
+  {
+    description: 'Venus local-api-enabled refused on HMG control firmware 152',
+    deviceType: 'HMG-1',
+    initialState: { deviceVersion: 152, localApiEnabled: false },
+    command: 'local-api-enabled',
+    input: 'true',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus local-api-enabled on VNSD control firmware 147',
+    deviceType: 'VNSD-0',
+    initialState: { deviceVersion: 147, localApiEnabled: false, localApiPort: 30000 },
+    command: 'local-api-enabled',
+    input: 'ON',
+    expectedOutput: 'cd=30,api=1,port=30000',
+  },
 
-  // local-api-port command
+  // local-api-port command: `api` must precede `port`
   {
     description: 'Venus local-api-port valid',
     deviceType: 'HMG-1',
     initialState: { deviceVersion: 153, localApiEnabled: true },
     command: 'local-api-port',
     input: '9090',
-    expectedOutput: 'cd=30,port=9090,api=1',
+    expectedOutput: 'cd=30,api=1,port=9090',
+    expectedStateChanges: { localApiPort: 9090 },
+  },
+  {
+    description: 'Venus local-api-port on VNSA control firmware 143',
+    deviceType: 'VNSA-0',
+    initialState: { deviceVersion: 143, localApiEnabled: true },
+    command: 'local-api-port',
+    input: '48977',
+    expectedOutput: 'cd=30,api=1,port=48977',
   },
   {
     description: 'Venus local-api-port invalid (above max)',
     deviceType: 'HMG-1',
-    initialState: { deviceVersion: 153 },
+    initialState: { deviceVersion: 153, localApiEnabled: true },
     command: 'local-api-port',
     input: '70000',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus local-api-port invalid (0)',
+    deviceType: 'VNSE3-0',
+    initialState: { deviceVersion: 151, localApiEnabled: true },
+    command: 'local-api-port',
+    input: '0',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus local-api-port without a reported local API state (no output)',
+    deviceType: 'HMG-50',
+    initialState: { deviceVersion: 156 },
+    command: 'local-api-port',
+    input: '9090',
     expectedOutput: null,
   },
 
@@ -1271,6 +2111,46 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: 'cd=5,rs=2',
   },
 
+  // restart command (cd=28): every VNS build, HMG from 151
+  {
+    description: 'Venus restart with PRESS on the Venus D',
+    deviceType: 'VNSD-0',
+    command: 'restart',
+    input: 'PRESS',
+    expectedOutput: 'cd=28',
+  },
+  {
+    description: 'Venus restart refused on HMG control firmware 149',
+    deviceType: 'HMG-50',
+    initialState: { deviceVersion: 149 },
+    command: 'restart',
+    input: 'PRESS',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus restart on HMG control firmware 151',
+    deviceType: 'HMG-50',
+    initialState: { deviceVersion: 151 },
+    command: 'restart',
+    input: 'PRESS',
+    expectedOutput: 'cd=28',
+  },
+  {
+    description: 'Venus restart on HMG control firmware 158.1 (dev_n=1581)',
+    deviceType: 'HMG-25',
+    initialState: { deviceVersion: 1581 },
+    command: 'restart',
+    input: 'PRESS',
+    expectedOutput: 'cd=28',
+  },
+  {
+    description: 'Venus restart ignores an unrelated payload',
+    deviceType: 'VNSE3-0',
+    command: 'restart',
+    input: 'nope',
+    expectedOutput: null,
+  },
+
   // get-ct-power command
   {
     description: 'Venus get-ct-power with PRESS',
@@ -1342,6 +2222,30 @@ const commandTestCases: CommandTestCase[] = [
     command: 'bluetooth-advertising',
     input: 'false',
     expectedOutput: 'cd=55,adv=0',
+  },
+  {
+    description: 'Venus bluetooth-advertising refused on HMG control firmware 155',
+    deviceType: 'HMG-50',
+    initialState: { deviceVersion: 155 },
+    command: 'bluetooth-advertising',
+    input: 'on',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus bluetooth-advertising on HMG control firmware 158.1 (dev_n=1581)',
+    deviceType: 'HMG-25',
+    initialState: { deviceVersion: 1581 },
+    command: 'bluetooth-advertising',
+    input: 'on',
+    expectedOutput: 'cd=55,adv=1',
+  },
+  {
+    description: 'Venus bluetooth-advertising refused on VNSA control firmware 143',
+    deviceType: 'VNSA-0',
+    initialState: { deviceVersion: 143 },
+    command: 'bluetooth-advertising',
+    input: 'on',
+    expectedOutput: null,
   },
 
   // phase-diagnosis command (cd=18,seq_check)
@@ -1833,28 +2737,28 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'VNSEMINI-0',
     command: 'bluetooth-advertising',
     input: 'true',
-    expectedOutput: 'cd=55,adv=1',
+    expectedOutput: 'cd=55,adv=2',
   },
   {
     description: 'Venus E Mini bluetooth-advertising disable',
     deviceType: 'VNSEMINI-0',
     command: 'bluetooth-advertising',
     input: 'false',
-    expectedOutput: 'cd=55,adv=0',
+    expectedOutput: 'cd=55,adv=1',
   },
   {
     description: 'Venus E Mini bluetooth-advertising with on',
     deviceType: 'VNSEMINI-0',
     command: 'bluetooth-advertising',
     input: 'on',
-    expectedOutput: 'cd=55,adv=1',
+    expectedOutput: 'cd=55,adv=2',
   },
   {
     description: 'Venus E Mini bluetooth-advertising with 1',
     deviceType: 'VNSEMINI-0',
     command: 'bluetooth-advertising',
     input: '1',
-    expectedOutput: 'cd=55,adv=1',
+    expectedOutput: 'cd=55,adv=2',
   },
 
   // Depth of discharge is cd=44 on this generation, where the Venus C/D/E use
@@ -1916,7 +2820,7 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'VNSEMINI-0',
     command: 'restart',
     input: 'PRESS',
-    expectedOutput: 'cd=61',
+    expectedOutput: 'cd=61,rst=1',
   },
   {
     description: 'Venus E Mini restart ignores an unrelated payload',
@@ -1990,7 +2894,7 @@ const commandTestCases: CommandTestCase[] = [
     initialState: { meterMac: 'aabbccddeeff' },
     command: 'meter-type',
     input: 'ct002',
-    expectedOutput: 'cd=18,meter=3,mac=aabbccddeeff',
+    expectedOutput: 'cd=18,ct_t=3,mac=aabbccddeeff',
     expectedStateChanges: { meterType: 'ct002' },
   },
   {
@@ -1998,7 +2902,7 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'VNSEMINI-0',
     command: 'meter-type',
     input: 'shellyPro3em',
-    expectedOutput: 'cd=18,meter=1,mac=000000000000',
+    expectedOutput: 'cd=18,ct_t=1,mac=000000000000',
   },
   {
     description: 'Venus E Mini meter-type CT002 without a MAC is rejected',
@@ -2012,6 +2916,333 @@ const commandTestCases: CommandTestCase[] = [
     deviceType: 'VNSEMINI-0',
     command: 'meter-type',
     input: 'notameter',
+    expectedOutput: null,
+  },
+  // Status LED: cd=56, inverted (led=0 is on).
+  {
+    description: 'Venus E Mini led-enabled on',
+    deviceType: 'VNSEMINI-0',
+    command: 'led-enabled',
+    input: 'ON',
+    expectedOutput: 'cd=56,led=0',
+    expectedStateChanges: { ledEnabled: true },
+  },
+  {
+    description: 'Venus E Mini led-enabled off',
+    deviceType: 'VNSEMINI-0',
+    command: 'led-enabled',
+    input: 'OFF',
+    expectedOutput: 'cd=56,led=1',
+    expectedStateChanges: { ledEnabled: false },
+  },
+  {
+    description: 'Venus E Mini working-mode UPS',
+    deviceType: 'VNSEMINI-0',
+    command: 'working-mode',
+    input: 'ups',
+    expectedOutput: 'cd=02,md=1',
+    expectedStateChanges: { workingMode: 'ups' },
+  },
+  {
+    description: 'Venus E Mini ups-charge-power',
+    deviceType: 'VNSEMINI-0',
+    command: 'ups-charge-power',
+    input: '300',
+    expectedOutput: 'cd=64,ups_p=300',
+    expectedStateChanges: { upsChargePower: 300 },
+  },
+  {
+    description: 'Venus E Mini ups-charge-power below the firmware minimum',
+    deviceType: 'VNSEMINI-0',
+    command: 'ups-charge-power',
+    input: '99',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini ups-charge-power above the firmware maximum',
+    deviceType: 'VNSEMINI-0',
+    command: 'ups-charge-power',
+    input: '1501',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini phase-mode all phases',
+    deviceType: 'VNSEMINI-0',
+    command: 'phase-mode',
+    input: 'allPhases',
+    expectedOutput: 'cd=63,ct_chg_type=1',
+    expectedStateChanges: { phaseMode: 'allPhases' },
+  },
+  {
+    description: 'Venus E Mini phase-mode own phase',
+    deviceType: 'VNSEMINI-0',
+    command: 'phase-mode',
+    input: 'ownPhase',
+    expectedOutput: 'cd=63,ct_chg_type=0',
+  },
+  {
+    description: 'Venus E Mini phase-mode rejects junk',
+    deviceType: 'VNSEMINI-0',
+    command: 'phase-mode',
+    input: 'both',
+    expectedOutput: null,
+  },
+  // cd=57 carries both limits, so each command sends the other's current value.
+  {
+    description: 'Venus E Mini feed-in-power-limit keeps the grid charge limit',
+    deviceType: 'VNSEMINI-0',
+    initialState: { feedInPowerLimit: '800W', gridChargePowerLimit: '800W' },
+    command: 'feed-in-power-limit',
+    input: '1500W',
+    expectedOutput: 'cd=57,gps=1,ogpc=1',
+    expectedStateChanges: { feedInPowerLimit: '1500W' },
+  },
+  {
+    description: 'Venus E Mini feed-in-power-limit on a build without ogpc sends the default',
+    deviceType: 'VNSEMINI-0',
+    initialState: { feedInPowerLimit: '1500W' },
+    command: 'feed-in-power-limit',
+    input: '800W',
+    expectedOutput: 'cd=57,gps=0,ogpc=0',
+  },
+  {
+    description: 'Venus E Mini grid-charge-power-limit keeps the feed-in limit',
+    deviceType: 'VNSEMINI-0',
+    initialState: { feedInPowerLimit: '1500W', gridChargePowerLimit: '1250W' },
+    command: 'grid-charge-power-limit',
+    input: '800W',
+    expectedOutput: 'cd=57,gps=1,ogpc=1',
+    expectedStateChanges: { gridChargePowerLimit: '800W' },
+  },
+  {
+    description: 'Venus E Mini grid-charge-power-limit waits for the feed-in limit',
+    deviceType: 'VNSEMINI-0',
+    command: 'grid-charge-power-limit',
+    input: '800W',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini feed-in-power-limit rejects junk',
+    deviceType: 'VNSEMINI-0',
+    initialState: { feedInPowerLimit: '800W' },
+    command: 'feed-in-power-limit',
+    input: '1250W',
+    expectedOutput: null,
+  },
+  // Local API: cd=65 always carries enable, own port and remote port.
+  {
+    description: 'Venus E Mini local-api-enabled on',
+    deviceType: 'VNSEMINI-0',
+    initialState: { localApiEnabled: false, localApiPort: 30000, localApiRemotePort: 30000 },
+    command: 'local-api-enabled',
+    input: 'ON',
+    expectedOutput: 'cd=65,en=1,sp=30000,rp=30000',
+    expectedStateChanges: { localApiEnabled: true },
+  },
+  {
+    description: 'Venus E Mini local-api-port keeps the enable flag and remote port',
+    deviceType: 'VNSEMINI-0',
+    initialState: { localApiEnabled: true, localApiPort: 30000, localApiRemotePort: 30002 },
+    command: 'local-api-port',
+    input: '30005',
+    expectedOutput: 'cd=65,en=1,sp=30005,rp=30002',
+    expectedStateChanges: { localApiPort: 30005 },
+  },
+  {
+    description: 'Venus E Mini local-api-enabled waits for the device to report the local API',
+    deviceType: 'VNSEMINI-0',
+    command: 'local-api-enabled',
+    input: 'ON',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini local-api-port rejects an invalid port',
+    deviceType: 'VNSEMINI-0',
+    initialState: { localApiEnabled: true, localApiPort: 30000, localApiRemotePort: 30000 },
+    command: 'local-api-port',
+    input: '70000',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini meter-ip',
+    deviceType: 'VNSEMINI-0',
+    command: 'meter-ip',
+    input: '192.168.1.20',
+    expectedOutput: 'cd=66,meter_ip=192.168.1.20',
+    expectedStateChanges: { meterIp: '192.168.1.20' },
+  },
+  {
+    description: 'Venus E Mini meter-ip rejects a host name',
+    deviceType: 'VNSEMINI-0',
+    command: 'meter-ip',
+    input: 'p1meter.local',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini meter-type P1 Meter without a MAC sends zeros',
+    deviceType: 'VNSEMINI-0',
+    command: 'meter-type',
+    input: 'p1Meter',
+    expectedOutput: 'cd=18,ct_t=2,mac=000000000000',
+  },
+  // Schedule slots: every command sends all eight values of the slot.
+  {
+    description: 'Venus E Mini schedule enable sends the whole slot',
+    deviceType: 'VNSEMINI-0',
+    initialState: {
+      timePeriods: [
+        {
+          enabled: false,
+          power: 300,
+          direction: 'charge',
+          startTime: '08:15',
+          endTime: '17:45',
+          weekday: '0123456',
+        },
+      ],
+    },
+    command: 'schedule/1/enabled',
+    input: 'ON',
+    expectedOutput: 'cd=47,m=1,mp=300,ms=1,st=08:15,et=17:45,re=127',
+  },
+  {
+    description: 'Venus E Mini schedule power on slot 6',
+    deviceType: 'VNSEMINI-0',
+    initialState: {
+      timePeriods: [
+        {},
+        {},
+        {},
+        {},
+        {},
+        {
+          enabled: false,
+          power: 300,
+          direction: 'charge',
+          startTime: '08:15',
+          endTime: '17:45',
+          weekday: '0123456',
+        },
+      ],
+    },
+    command: 'schedule/6/power',
+    input: '1500',
+    expectedOutput: 'cd=52,m=0,mp=1500,ms=1,st=08:15,et=17:45,re=127',
+  },
+  {
+    description: 'Venus E Mini schedule power above the firmware cap',
+    deviceType: 'VNSEMINI-0',
+    initialState: {
+      timePeriods: [
+        {
+          enabled: false,
+          power: 300,
+          direction: 'charge',
+          startTime: '08:15',
+          endTime: '17:45',
+          weekday: '0123456',
+        },
+      ],
+    },
+    command: 'schedule/1/power',
+    input: '1501',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini schedule start time is zero-padded',
+    deviceType: 'VNSEMINI-0',
+    initialState: {
+      timePeriods: [
+        {
+          enabled: false,
+          power: 300,
+          direction: 'charge',
+          startTime: '08:15',
+          endTime: '17:45',
+          weekday: '0123456',
+        },
+      ],
+    },
+    command: 'schedule/1/start-time',
+    input: '7:05',
+    expectedOutput: 'cd=47,m=0,mp=300,ms=1,st=07:05,et=17:45,re=127',
+  },
+  {
+    description: 'Venus E Mini schedule end time rejects an invalid time',
+    deviceType: 'VNSEMINI-0',
+    initialState: {
+      timePeriods: [
+        {
+          enabled: false,
+          power: 300,
+          direction: 'charge',
+          startTime: '08:15',
+          endTime: '17:45',
+          weekday: '0123456',
+        },
+      ],
+    },
+    command: 'schedule/1/end-time',
+    input: '24:00',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini schedule direction self-consumption',
+    deviceType: 'VNSEMINI-0',
+    initialState: {
+      timePeriods: [
+        {
+          enabled: false,
+          power: 300,
+          direction: 'charge',
+          startTime: '08:15',
+          endTime: '17:45',
+          weekday: '0123456',
+        },
+      ],
+    },
+    command: 'schedule/1/direction',
+    input: 'selfConsumption',
+    expectedOutput: 'cd=47,m=0,mp=300,ms=3,st=08:15,et=17:45,re=127',
+  },
+  {
+    description: 'Venus E Mini schedule weekdays Monday to Friday',
+    deviceType: 'VNSEMINI-0',
+    initialState: {
+      timePeriods: [
+        {
+          enabled: false,
+          power: 300,
+          direction: 'charge',
+          startTime: '08:15',
+          endTime: '17:45',
+          weekday: '0123456',
+        },
+      ],
+    },
+    command: 'schedule/1/weekday',
+    input: '01234',
+    expectedOutput: 'cd=47,m=0,mp=300,ms=1,st=08:15,et=17:45,re=31',
+  },
+  {
+    description: 'Venus E Mini schedule waits for the device to report the slot',
+    deviceType: 'VNSEMINI-0',
+    command: 'schedule/2/enabled',
+    input: 'ON',
+    expectedOutput: null,
+  },
+  {
+    description: 'Venus E Mini phase-detection with PRESS',
+    deviceType: 'VNSEMINI-0',
+    command: 'phase-detection',
+    input: 'PRESS',
+    expectedOutput: 'cd=58,dt=1',
+  },
+  {
+    description: 'Venus E Mini phase-detection ignores an unrelated payload',
+    deviceType: 'VNSEMINI-0',
+    command: 'phase-detection',
+    input: 'nope',
     expectedOutput: null,
   },
   {
@@ -2098,13 +3329,17 @@ describe('Device Commands', () => {
       expectedStateChanges,
       useFlashCommands,
     }) => {
-      test(`input: "${input}" -> output: ${expectedOutput === null ? 'null' : `"${expectedOutput}"`}`, () => {
+      test(`input: "${input}" -> output: ${expectedOutput === null ? 'null' : JSON.stringify(expectedOutput)}`, () => {
         const device = setupTest(deviceType, initialState, useFlashCommands ?? true);
 
         handleControlTopic(device, command, input);
 
         if (expectedOutput === null) {
           expect(publishCallback).not.toHaveBeenCalled();
+        } else if (Array.isArray(expectedOutput)) {
+          expect(publishCallback.mock.calls).toEqual(
+            expectedOutput.map(output => [device, output]),
+          );
         } else {
           expect(publishCallback).toHaveBeenCalledWith(device, expectedOutput);
         }
@@ -2120,6 +3355,50 @@ describe('Device Commands', () => {
   );
 
   // Test for unknown command
+  describe('Venus E Mini sync-time', () => {
+    afterEach(() => jest.useRealTimers());
+    test('sends the host local time as day, month, year, hour, minute, second', () => {
+      jest.useFakeTimers({ now: new Date(2026, 10, 21, 7, 5, 9) });
+      const device = setupTest('VNSEMINI-0');
+      handleControlTopic(device, 'sync-time', 'PRESS');
+      expect(publishCallback).toHaveBeenCalledWith(device, 'cd=33,d=21,m=11,y=2026,h=7,mi=5,s=9');
+    });
+  });
+
+  describe('Venus meter-mac after a meter type set from Home Assistant', () => {
+    function setMeterType(deviceType: string, meterType: string) {
+      const device = setupTest(deviceType, { meterMac: '112233445566' });
+      handleControlTopic(device, 'meter-type', meterType);
+      expect(publishCallback).toHaveBeenCalledTimes(1);
+      publishCallback.mockClear();
+      return device;
+    }
+
+    test.each([
+      ['HMG-1', 'ct002', 'cd=18,meter=3,mac=aabbccddeeff'],
+      ['VNSD-0', 'stromleser', 'cd=18,meter=12,mac=aabbccddeeff'],
+    ])('%s re-applies %s with the new MAC', (deviceType, meterType, expected) => {
+      const device = setMeterType(deviceType, meterType);
+      handleControlTopic(device, 'meter-mac', 'aabbccddeeff');
+      expect(publishCallback.mock.calls).toEqual([[device, expected]]);
+    });
+
+    test('does not re-apply a meter type the device has since left', () => {
+      const device = setMeterType('VNSA-0', 'ct002');
+      deviceManager.updateDeviceState(device, 'data', () => ({ meterType: 'p1Meter' }));
+      handleControlTopic(device, 'meter-mac', 'aabbccddeeff');
+      expect(publishCallback).not.toHaveBeenCalled();
+    });
+
+    test('keeps the meter type set from Home Assistant out of the published state', () => {
+      const device = setMeterType('VNSE3-0', 'ct002');
+      handleControlTopic(device, 'meter-mac', 'aabbccddeeff');
+      expect(deviceState).toHaveProperty('meterType', 'ct002');
+      expect(Object.keys(deviceState)).not.toContain('lastSetMeterType');
+      expect(JSON.stringify(deviceState)).not.toMatch(/lastSet/);
+    });
+  });
+
   describe('Unknown commands', () => {
     test('should not call publish callback for unknown command', () => {
       const device = setupTest('HMA-1');

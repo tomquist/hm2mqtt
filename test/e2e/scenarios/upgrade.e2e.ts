@@ -6,7 +6,7 @@ import {
   latestReleasedVersion,
   readBaselines,
 } from '../../discovery/paths.js';
-import { deviceFixtures } from '../../fixtures/devices.js';
+import { e2eFixtures } from '../../fixtures/devices.js';
 import { Rig, entitySlug, canRunScenarios, startRig, waitFor } from '../harness/index.js';
 
 /**
@@ -25,8 +25,13 @@ import { Rig, entitySlug, canRunScenarios, startRig, waitFor } from '../harness/
  */
 const describeE2e = canRunScenarios() ? describe : describe.skip;
 
-/** See the note on KNOWN_FINDINGS in smoke.e2e.ts. */
-const KNOWN_FINDINGS = [/has no attribute '(wifiSignalStrength|localApiEnabled|localApiPort)'/];
+/**
+ * See the note on KNOWN_FINDINGS in smoke.e2e.ts. One more here: the previous
+ * release's *WiFi Signal Strength* template had no guard for a missing value,
+ * and it stays in force until the new build's discovery replaces it, so the
+ * first message after the upgrade can still trip it once.
+ */
+const KNOWN_FINDINGS = [/has no attribute 'wifiSignalStrength'/];
 
 const releasedVersion = latestReleasedVersion();
 
@@ -34,7 +39,7 @@ describeE2e(`upgrading an installation that already ran ${releasedVersion}`, () 
   let rig: Rig;
 
   beforeAll(async () => {
-    rig = await startRig({ name: 'upgrade', fixtures: deviceFixtures });
+    rig = await startRig({ name: 'upgrade', fixtures: e2eFixtures });
 
     // What the previous release left in the broker, for the devices this
     // scenario runs. Baselines are stored per device definition, so each is

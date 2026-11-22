@@ -1,4 +1,54 @@
 # Changelog
+## [1.11.0] - 2026-11-22
+
+### Added
+
+- B2500 (HMJ firmware 116 and later): *CT Status* now recognises the full-battery PV pass-through state, and a new *Full Battery Pass-Through* sensor shows whether that option is enabled (PR #462)
+- Smart meters: The CT002 (`HME-4`, firmware 124 and later) now also reports voltage, current and energy per phase (PR #462)
+- Venus C/E (HMG): *Depth of Discharge* now goes up to 90 %, which the firmware allows (PR #462)
+- Venus: New *Restart* button (disabled by default). On the Venus C/E (HMG) it needs control firmware 151 or later (PR #462)
+- Venus: *Meter Type* accepts the P1 Meter and EcoTracker without a *Meter MAC*, and offers the Stromleser on the Venus E 3.0, Venus A and Venus D (PR #462)
+- Venus: *Auto Switch Working Mode* can now be turned on and off from Home Assistant. It is now a switch instead of a binary sensor, so automations using the old entity need updating (PR #462)
+- Venus: New diagnostic sensors (disabled by default) for the Bluetooth state, the external meter's error code and, on the Venus A/D, the PV charger's error code (PR #462)
+- Venus E Mini: The schedules and most settings, including UPS mode and the power limits, can now be changed from Home Assistant. The read-only entities they replace are removed, so automations using them need updating (PR #483)
+
+### Changed
+
+- Home Assistant add-on: Runs on Node.js 24 instead of the outdated Node.js 18, which uses about 4 MB more memory (PR #461)
+- Docker image and Home Assistant add-on: Built with the Node.js October 2026 security release (fixes #467, PR #468)
+- B2500 V2/V3: On firmware that reports it, *Recharge Mode* now shows the device's actual setting, and a new *Phase Detection* sensor shows the progress of phase detection (PR #462)
+
+### Fixed
+
+- B2500: *Calibration Charge* and *Calibration Discharge* now show the learned battery capacity in mAh. They showed a value 3.6 times too large before (PR #475)
+- B2500: *WiFi Signal Strength* shows unknown while the device has no signal reading, instead of Home Assistant logging a warning on every update (PR #485)
+- B2500 V2/V3: *CT Connected Phase* labelled the all-phases setting *Searching* and the setting that starts phase detection *None*. They are now called *All Phases* and *Auto-detect* (PR #462)
+- B2500 V2/V3: The `time-zone` command refuses offsets the device would ignore, and logs a warning instead (PR #462)
+- B2500 V2/V3: Changing a timer period also switches the device out of adaptive mode. *Adaptive Mode* now shows this straight away (PR #462)
+- B2500 V2/V3: Timer start and end times from 24:00 to 29:59 are no longer accepted, as the device ignores them or runs the period all day after its next restart. On the HMJ, a time that would make a period end before it starts is refused too, because the device ignores it (PR #462, PR #486)
+- B2500 (HMJ): Removed *Recharge Mode* and *Phase Diagnosis* on firmware 116 and older, which ignores them (PR #486)
+- B2500 (HMJ): Removed the *Input 1/2 Pass Through* sensors, which this model never reports and which were always off (PR #462)
+- B2500 (HMJ): *Meter Type* no longer offers the SMR and TPM2 meters on firmware 116 and older, and refuses them there, because the device cannot use them and would be left without a working meter (PR #462, PR #486)
+- Smart meters: The CT003 with device type `HME-3` or `HME-5` was handled as a CT002, so its energy and P1 status sensors were missing (fixes #202, PR #462)
+- Smart meters: *Total Energy* of the CT003 and the other Marstek meter readers no longer drops to 0 while they read no meter, e.g. with the cable unplugged, which upset Home Assistant's energy statistics (PR #486)
+- Smart meters: *Bluetooth Signal* is now *Bluetooth State* and shows the connection state, e.g. *Connected*, instead of a number. *WiFi Status* names its states the same way (PR #462)
+- Venus: *Working Mode* offers *Trading* only on Venus C/E (HMG) firmware that still has it (146 and older), and shows *Passive* or *Modbus* instead of *Automatic* while the Local API or Modbus is in control (fixes #127, PR #462)
+- Venus: *Meter Type* now shows the meter the device is configured for, instead of the last value set from Home Assistant (PR #462)
+- Venus: The *Bluetooth Advertising* switch showed the Bluetooth connection state instead of the setting, so it was often wrong. It now shows the setting, and on the Venus C/E (HMG) appears only from control firmware 156, the first to support it (PR #462)
+- Venus: The *Local API* switch and port now show up on the Venus E 3.0, Venus A and Venus D, and changing the port now takes effect (PR #462)
+- Venus: *Version Set* and *Meter Type* offer only the power versions and meters the device's firmware accepts, as choosing any other did nothing (PR #462, PR #486)
+- Venus: *Maximum Discharge Power* changed the power version instead of the discharge limit, so most values did nothing and 800 or 2500 W switched the version. It now sets the discharge limit (fixes #60, PR #462)
+- Venus: Removed the price, income and *Grid Type* sensors, and the error and warning code sensors on the Venus C/E (HMG), where the firmware never fills them; they showed meter data or a constant zero. Error codes containing letters are no longer cut short (PR #462)
+- Venus: Time periods the device has never stored, as it reports them after a restart, no longer make Home Assistant log an error on every update. Their times now show as empty and their power as unknown (PR #486)
+- Venus E 3.0: The cell and MOSFET temperatures with *Enable Cell Data* were ten times too high, and *Battery Health* showed 1000 % for a healthy battery (PR #486)
+- Venus A/D: *PV Energy Total* was this month's PV energy, not a lifetime total, and is now called *PV Energy This Month* (PR #462)
+- Venus: *Maximum Charging Power* stayed empty on Venus C/E (HMG) firmware 153 and later, which does not report it, and now shows the last value set there, also after a restart (under Docker, with `/data` mounted). Values the model's firmware rejects are now refused (PR #462, PR #486)
+- Venus C/E (HMG) and Venus E 3.0: *Enable Cell Data* no longer requests per-pack battery details these models do not provide (PR #462)
+- Venus C/E (HMG): The network sensors, such as the IP address, never appeared because this model answers in a slightly different format (PR #462)
+- HMI inverters: *Total Energy Generated* no longer drops at every month change, a firmware bug, and now includes the energy already lost. It jumps up once after updating, so fix its statistics in Home Assistant if the Energy dashboard counts that jump (fixes #473, PR #474)
+- Venus E Mini: *Meter Type* had no effect, because the device ignored the command it sent. A new *Phase Detection* button starts the phase detection the device needs before it follows the meter (PR #483)
+- Venus E Mini: The per-phase meter power sensors never appeared, *Restart* did nothing, and *Bluetooth Advertising* switched Bluetooth off ten minutes after it was turned on. All three work now, and new sensors show the lifetime grid export and load consumption, the cell temperatures and whether the meter answers (PR #483)
+
 ## [1.10.2] - 2026-10-13
 
 ### Changed

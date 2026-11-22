@@ -33,7 +33,7 @@ hm2mqtt is a bridge application that connects Hame energy storage devices (like 
 - Marstek Jupiter E
 - Marstek Jupiter Plus
 - Marstek CT002 Smart Meter (including the CT002-CN and the TPM2-100CT)
-- Marstek CT003 Smart Meter Reader (device types `SMR-0` P1, `SMR-1` Infrared, `SMR-2` TIC)
+- Marstek CT003 Smart Meter Reader (device types `HME-3`, `HME-5`, `SMR-0` P1, `SMR-1` Infrared, `SMR-2` TIC)
 - Marstek HMI micro inverters (MI800, HMI-2000 with 4 PV inputs)
 
 ## Prerequisites
@@ -284,11 +284,11 @@ services:
 | `MQTT_PASSWORD` | MQTT password | -                       |
 | `MQTT_POLLING_INTERVAL` | Interval between device polls in seconds | `60`                 |
 | `MQTT_RESPONSE_TIMEOUT` | Timeout for device responses in seconds | `15`                 |
-| `POLL_CELL_DATA` | Enable cell-level battery data: individual cell voltages and temperatures, plus detailed per-pack BMS data on Venus. B2500, Greensolar, Venus and Jupiter | false |
+| `POLL_CELL_DATA` | Enable cell-level battery data: individual cell voltages and temperatures, plus detailed per-pack BMS data on the Venus A and Venus D. B2500, Greensolar, Venus and Jupiter | false |
 | `POLL_EXTRA_BATTERY_DATA` | Enable extra battery data reporting (B2500 and Greensolar storage only) | false |
 | `POLL_CALIBRATION_DATA` | Enable calibration data reporting (B2500 and Greensolar storage only) | false |
 | `CELL_BALANCING_DIAGNOSTICS` | Enable the cell balancing diagnostics (B2500, Greensolar and Venus; requires `POLL_CELL_DATA`) | false |
-| `HM2MQTT_DATA_DIR` | Directory for data that must survive a restart, currently the cell balancing charge-cycle history | `/data` |
+| `HM2MQTT_DATA_DIR` | Directory for data that must survive a restart: the cell balancing charge-cycle history, and settings a device does not report back, such as the Venus C/E maximum charging power | `/data` |
 | `DEVICE_n` | Device configuration in format `{type}:{mac}` | -                       |
 | `MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS` | Number of consecutive timeouts before a device is marked offline | `3` |
 | `MQTT_PROXY_ENABLED` | Enable MQTT proxy server for B2500 client ID conflict resolution | `false` |
@@ -557,11 +557,12 @@ The device type can be one of the following:
 - **VNSE3-X**: (e.g. VNSE3-0) Venus E 3.0
 - **VNSA-X**: (e.g. VNSA-1) Venus A
 - **VNSD-X**: (e.g. VNSD-1) Venus D
-- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini — **beta**; sensors plus *Depth of Discharge*, *Working Mode*, *Bluetooth Advertising*, *Meter Type*, *Meter MAC*, *Refresh*, *Get CT Power*, *Restart* and *Factory Reset* controls. These share their names with the Venus ones and their options where the two overlap, but the ranges are the model's own: this one has no *Trading* working mode, and takes a depth of discharge of 30-90% against the Venus 30-88%. The remaining Venus write commands do not apply to it.
+- **VNSEMINI-X**: (e.g. VNSEMINI-0) Venus E Mini — **beta**; sensors plus *Depth of Discharge*, *Working Mode*, *Bluetooth Advertising*, *UPS Charge Power*, the six *Schedule Slot* controls, *Feed-in Power Limit*, *Grid Charge Power Limit*, *Phase Mode*, *Status LED*, *Local API*, *Meter Type*, *Meter MAC*, *Meter IP*, *Phase Detection*, *Sync Time*, *Refresh*, *Get CT Power*, *Restart* and *Factory Reset* controls. These share their names with the Venus ones and their options where the two overlap, but the ranges are the model's own: this one has no *Trading* working mode, and takes a depth of discharge of 30-90% against 30-88% on the Venus E 3.0, Venus A and Venus D. The remaining Venus write commands do not apply to it.
 - **HMN-X**: (e.g. HMN-1) Marstek Jupiter E
 - **HMM-X**: (e.g. HMM-1) Marstek Jupiter C
 - **JPLS-X**: (e.g. JPLS-8H) Jupiter Plus
-- **HME-X**: (e.g. HME-3) Marstek CT002 Smart Meter
+- **HME-2** / **HME-4**: Marstek CT002 Smart Meter
+- **HME-3** / **HME-5**: Marstek CT003 Smart Meter Reader (P1 port or infrared head)
 - **TPM-CN**: Marstek CT002-CN Smart Meter
 - **TPM2-X**: (e.g. TPM2-0) Marstek TPM2-100CT Smart Meter
 - **SMR-X**: Marstek CT003 Smart Meter Reader — `SMR-0` P1, `SMR-1` Infrared, `SMR-2` TIC
@@ -676,40 +677,48 @@ homeassistant/{component}/{node_id}/{object_id}/config
 - `output2`: Enables/disables output port 2 (`on` or `off`)
 
 ### B2500 V2/V3 Specific Commands
-- `charging-mode`: Sets charging mode (`chargeDischargeSimultaneously` or `chargeThenDischarge`)
-- `adaptive-mode`: Toggles adaptive mode (`on` or `off`)
+- `charging-mode`: Sets charging mode (`chargeDischargeSimultaneously` or `chargeThenDischarge`). On HMJ firmware 116 the device goes back to `chargeDischargeSimultaneously` at every restart.
+- `adaptive-mode`: Toggles adaptive mode (`on` or `off`). Changing any time period switches adaptive mode off on the device.
 - `time-period/[1-5]/enabled`: Enables/disables specific time period (`on` or `off`)
-- `time-period/[1-5]/start-time`: Sets start time for period (HH:MM format)
-- `time-period/[1-5]/end-time`: Sets end time for period (HH:MM format)
+- `time-period/[1-5]/start-time`: Sets start time for period (HH:MM format, 00:00-23:59)
+- `time-period/[1-5]/end-time`: Sets end time for period (HH:MM format, 00:00-23:59). The device does not run a period past midnight, so split a period that crosses midnight into two. On HMJ firmware 116 and older, which refuses such a period and keeps the previous times, a time that would make the period end before it starts is not sent: change the end time first when moving a period later.
 - `time-period/[1-5]/output-value`: Sets output power for period (0-800W)
-- `connected-phase`: Sets connected phase for CT meter (`0`, `1` or `2` for phase 1, 2 and 3, `3`/`searching` for the searching state, or `255`/`none` for no phase)
-- `time-zone`: Sets time zone (UTC offset in minutes, e.g. `60` for UTC+1)
-- `sync-time`: Synchronizes device time with server
+- `connected-phase`: Sets the phase the CT meter regulates on (`0`, `1` or `2` for phase 1, 2 and 3, `3`/`all` for all phases, or `255`/`auto` to start phase detection, which only runs in adaptive mode). On HMJ firmware 110, phase 1 cannot be selected.
+- `time-zone`: Sets time zone (UTC offset in minutes, e.g. `60` for UTC+1). The device only accepts a multiple of 10 between `-720` and `720`. This is the only command that sets the offset the discharge timers use, so send it again after a daylight-saving change.
+- `sync-time`: Synchronizes the device clock with the server. It does not change the device's time zone.
 - `surplus-feed-in`: Toggles Surplus Feed-in mode (`on` or `off`). When enabled, surplus PV power is fed into the home grid when the battery is nearly full.
-- `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`). The device does not report this back, so the entity shows the last value set.
-- `phase-diagnosis`: Starts grid-phase detection. Progress shows up on the *CT Status* sensor.
+- `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits; `:`/`-` in the input are stripped). The device does not report this back, so the entity shows the last value set.
+- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `p1Meter`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50`, `ecoTracker`, `smrP1`, `smrIr`, `smrTic` or `tpm2100ct`). For every meter except the CT001 and the Shelly Pro 3EM, set `meter-mac` first. On HMJ firmware 116 and older, which cannot use them, the SMR and TPM2 meters are not offered, and refused. The *CT Type* sensor shows the meter the device took.
+- `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`). The device reports the setting back from HMJ firmware 102, and on the other models from firmware 224.3. On older firmware the entity shows the last value set. Not available on HMJ firmware 116 and older, which ignores it.
+- `phase-diagnosis`: Starts grid-phase detection. Progress shows up on the *CT Status* sensor, and on the same firmware as above also on the *Phase Detection* sensor. Not available on HMJ firmware 116 and older, which ignores it; there, setting `connected-phase` to `auto` in adaptive mode starts phase detection instead.
 
 ### Venus Device Commands
 Applies to HMG/VNSE3/VNSA/VNSD. None of the commands below are available on the Venus E Mini (VNSEMINI), which has its own, much smaller command set — see [Venus E Mini Commands](#venus-e-mini-commands).
-- `working-mode`: Sets working mode (`automatic`, `manual`, `trading`, or `ai`). The `ai` value expands to `cd=2,md=5,nl=1` (AI mode requires both `md=5` and `nl=1`).
+- `working-mode`: Sets working mode (`automatic`, `manual` or `ai`; `trading` only on the Venus C/E (HMG) up to control firmware 146). The device also reports `passive` while the local API controls it and `modbus` under Modbus control; neither can be set. The `ai` value is sent as `cd=2,md=5,nl=1`, as the Marstek app sends it; the device ignores `nl` there.
 - `recharge-mode`: Sets the grid recharge mode (`singlePhase` or `threePhase`)
-- `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped). The device does not report this back, so the entity shows the last value set.
-- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `p1Meter`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50`, `ecoTracker`, `smrP1`, `smrIr`, `smrTic` or `tpm2100ct`). For every meter except the CT001 and the Shelly Pro 3EM, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero MAC. The device does not report this back, so the entity shows the last value set.
-- `auto-switch-working-mode`: Toggles automatic mode switching (`on` or `off`)
-- `time-period/[0-9]/enabled`: Enables/disables time period (`on` or `off`)
+- `meter-mac`: Sets the MAC address used when configuring an external meter (12 hex digits, no separators; `:`/`-` in the input are stripped). The device does not report this back, so the entity shows the last value set. The MAC is sent with the next `meter-type`. If the meter type was set from Home Assistant since hm2mqtt started and the device is still on it, a new MAC is also sent with that type straight away; so when switching to another meter, choose the new meter type right after setting its MAC.
+- `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`, `p1Meter`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50`, `ecoTracker`, `smrP1`, `smrIr`, `smrTic`, `tpm2100ct` or, on the Venus E 3.0, Venus A and Venus D, `stromleser`). The P1 Meter, EcoTracker and Stromleser are found by IP address and need no MAC, but hm2mqtt cannot set that IP address: set it on the device first, for example in the Marstek app. For every other meter except the CT001 and the Shelly Pro 3EM, set `meter-mac` first. Shelly Pro 3EM always uses an all-zero MAC. The entity shows the meter the device is configured for; on the Venus C/E (HMG) before control firmware 149, which does not report it, it shows the last value set. The Venus C/E (HMG) accepts the Shelly EM Gen3 and Pro EM50 from control firmware 147, the EcoTracker from 148, and the SMR and TPM2 meters from 156.
+- `auto-switch-working-mode`: Toggles automatic working-mode switching based on the meter (`on` or `off`). Turning it on can also change the working mode at once: Automatic while the meter delivers data, Manual when it does not.
+- `time-period/[0-9]/enabled`: Enables/disables time period (`on` or `off`). Any time-period change switches the device to manual mode, even one the device rejects.
 - `time-period/[0-9]/start-time`: Sets start time for period (HH:MM format)
 - `time-period/[0-9]/end-time`: Sets end time for period (HH:MM format)
-- `time-period/[0-9]/power`: Sets power value for period (-2500 to 2500W)
-- `time-period/[0-9]/weekday`: Sets days of week for period (0-6, where 0 is Sunday)
+- `time-period/[0-9]/power`: Sets power value for period (-2500 to 2500W; negative charges the battery)
+- `time-period/[0-9]/weekday`: Sets days of week for period (0-6; 0 is most likely Monday, which is not confirmed)
 - `get-ct-power`: Gets current transformer power readings
-- `transaction-mode`: Sets transaction mode parameters
-- `discharge-depth`: Sets the battery depth of discharge (30-88%). Only available on devices that report it.
+- `transaction-mode`: Sets transaction mode parameters. Venus C/E (HMG) up to control firmware 146 only.
+- `discharge-depth`: Sets the battery depth of discharge (30-88%; 30-90% on the Venus C/E (HMG)). Only available on devices that report it.
 - `backup-enabled`: Toggles the backup/EPS ("UPS") power function (`on` or `off`)
 - `led-enabled`: Toggles the status LED (`on` or `off`). Only available on firmware that reports the LED state.
 - `surplus-feed-in`: Toggles surplus feed-in into the grid (`on` or `off`). Only available on Venus models with PV inputs (Venus A/D).
-- `bluetooth-advertising`: Toggles Bluetooth advertising (`on` enables advertising, `off` disables it / "Bluetooth lock")
+- `max-charging-power`: Sets the maximum charging power in watts (0-2500; up to 1500 on the Venus A, up to 2200 on the Venus D before control firmware 149). The Venus E 3.0 and Venus A from control firmware 150 and the Venus D from 149.2 need at least 300 W. On the Venus C/E (HMG) from control firmware 153 the device no longer reports the value set, so the control shows the last value set from Home Assistant, which is kept across restarts where `HM2MQTT_DATA_DIR` persists.
+- `max-discharge-power`: Sets the maximum discharge power in watts (1-2500; 1-1500 on the Venus A, 1-2200 on the Venus D before control firmware 149). On the 800 W power version the device only accepts up to 800 W, so change *Version Set* first. This is a saved setting: the device writes every accepted value to its non-volatile memory, so do not send it over and over from an automation. On the Venus C/E (HMG) from control firmware 153 the value read back is the momentary limit, which can be lower than the value set.
+- `version-set`: Sets the power version (`800W`, `2500W` and so on). Only the versions the model accepts are sent: 800/2500 W on the Venus C/E (HMG); 600/800/2500 W on the Venus E 3.0 (600 W from control firmware 149); 800/1200/1500 W on the Venus A; 800/1200/2200/2500 W on the Venus D (1200 W only before 149, 2500 W from 149). Every model also lists 600 W so that a unit on the 600 W version shows it. While on 600 W, the Venus C/E (HMG) from control firmware 149 and the other models before 149 ignore every change, so hm2mqtt refuses it.
+- `local-api-enabled`: Toggles the device's local API (`ON` or `OFF`). Available on firmware that reports the local API state: every Venus E 3.0, Venus A and Venus D, and control firmware 153 or later on the Venus C/E (HMG).
+- `local-api-port`: Sets the local API port (1-65535). Same availability as `local-api-enabled`.
+- `bluetooth-advertising`: Toggles Bluetooth advertising (`on` enables advertising, `off` disables it / "Bluetooth lock"). Requires control firmware 156 or later on the Venus C/E (HMG), and 144 or later on the other models.
 - `phase-diagnosis`: Starts the grid-phase detection routine
-- `peak-shaving`: Toggles peak shaving, which caps the power drawn from the grid (`on` or `off`). Only available on firmware that reports the peak-shaving state (control v150 and up on Venus D/E).
+- `restart`: Restarts the device (`PRESS`). Available on every Venus E 3.0, Venus A and Venus D, and on the Venus C/E (HMG) from control firmware 151. Disabled by default.
+- `peak-shaving`: Toggles peak shaving, which caps the power drawn from the grid (`on` or `off`). Only available on firmware that reports the peak-shaving state: the Venus E 3.0, Venus A and Venus D from control firmware 150.
 - `peak-shaving-power`: Sets the peak-shaving power cap in watts. Only takes effect on the device while peak shaving is enabled; while it is off the value is stored and applied the next time you enable it.
 - `parallel-mode`: Controls parallel operation (`off`, `wiringCheck` or `on`), which links several units into one group for a higher combined output. **Disabled by default, and best left that way unless you know you need it** — see the warning below.
 
@@ -736,46 +745,82 @@ enabling. The matching *Parallel Mode* entity reports the current state (*Turned
 Off*, *Wiring Check*, *Turned On*, or *Unknown* on units that do not support
 parallel operation).
 
-Venus devices also report a *Battery Health* sensor (state of health) on control
-firmware 149.2 and later, plus a set of raw diagnostic sensors for fields the
-device sends that have no confirmed meaning. All of the raw ones are disabled by
-default. See [docs/venus-generations.md](docs/venus-generations.md).
+Venus devices also report a *Battery Health* sensor (state of health): the Venus
+E 3.0 and Venus A from control firmware 150 and the Venus D from 149.2. There is
+also a set of raw diagnostic sensors for fields the device sends that have no
+confirmed meaning. All of the raw ones are disabled by default. See [docs/venus-generations.md](docs/venus-generations.md). The
+*Bluetooth State*, *Meter Error* (0 means OK) and, on the Venus A/D, *MPPT Error
+Code* diagnostic sensors are disabled by default as well.
 
 ### Venus E Mini Commands
 
 Applies to VNSEMINI. Despite the name this model shares almost nothing with the
 Venus commands above.
 
-- `bluetooth-advertising`: Turns the device's Bluetooth advertising on or off.
-  The *Bluetooth Advertising* switch shows the last value that was set rather
-  than the device's own state. The Mini most likely does report the setting back
-  in the field behind the *Bluetooth Lock (Raw)* sensor, but which value means
-  "advertising on" is not established, and a switch wired the wrong way round
-  would show the opposite of reality — so it stays on the last value set until
-  someone confirms the direction on a device.
-- `discharge-depth`: Sets the usable-discharge percentage, 30-90%. The device
-  reports the setting back, so the *Discharge Depth* entity shows its real
-  state.
-- `working-mode`: Sets the working mode (`automatic`, `manual` or `ai`) — the
-  same option names as the Venus command above, though this model sends
-  different codes for them and has no `trading` mode. The device reports its
-  mode back, so the *Working Mode* entity shows its real state.
-- `meter-mac`: Sets the MAC address used when configuring an external meter
-  (12 hex digits, no separators). Shows the last value set. Disabled by default.
+- `working-mode`: Sets the working mode — `automatic` (follows the meter),
+  `ups` (charges from the grid at the UPS charge power), `manual` (follows the
+  schedule slots) or `ai` (follows a plan the device fetches from the Marstek
+  cloud, and idles without one). The option names match the Venus command above
+  where the modes match; this model has no `trading` mode. The *Working Mode*
+  entity shows the device's mode.
+- `ups-charge-power`: Sets the grid-charge power in UPS mode, 100-1500 W.
+- `schedule/[1-6]/enabled`, `schedule/[1-6]/power` (0-1500 W),
+  `schedule/[1-6]/start-time` and `schedule/[1-6]/end-time` (HH:MM),
+  `schedule/[1-6]/direction` and `schedule/[1-6]/weekday`: Set the six
+  schedule slots used in manual mode. While a slot is active the device idles
+  (`idle`), charges or discharges at the slot's power (`charge`,
+  `discharge`), or follows the meter (`selfConsumption`). `weekday` takes the
+  days as digits, 0 = Monday to 6 = Sunday (`0123456` every day). A slot runs
+  from its start up to its end; an end of 23:59 runs to midnight, and a slot
+  cannot cross midnight. Outside every slot the device follows the meter while
+  the enabled slots only idle or charge, and idles as soon as one of them
+  discharges or follows the meter. A slot can only be changed once the device
+  has reported it.
+- `feed-in-power-limit`: `800W` or `1500W`, the app's two feed-in settings.
+  With inverter firmware 270 the higher one allows 1250 W.
+- `grid-charge-power-limit`: `1250W` or `800W`, how much the device may charge
+  from the grid. Only offered by firmware that reports it.
+- `phase-mode`: `ownPhase` covers the consumption on the phase the device is
+  connected to; `allPhases` covers the sum of all three phases, which is what a
+  meter that nets the phases bills.
+- `discharge-depth`: Sets the usable-discharge percentage, 30-90%.
+- `led-enabled`: Turns the status LED on or off.
+- `bluetooth-advertising`: Turns Bluetooth on at once, or off — the app's
+  Bluetooth lock, which the device applies about ten minutes later.
+- `local-api-enabled` and `local-api-port`: Turn the local API (Marstek's Open
+  API, JSON over UDP) on or off and set the port it listens on. Offered once the
+  device reports them.
 - `meter-type`: Configures the external meter (`ct001`, `shellyPro3em`,
   `p1Meter`, `ct002`, `ct003`, `shellyEmGen3`, `shellyProEm50`, `ecoTracker`,
-  `smrP1`, `smrIr`, `smrTic` or `tpm2100ct`) — the same command and the same
-  meter codes as the other families. For every meter except the CT001 and the
-  Shelly Pro 3EM, set `meter-mac` first; Shelly Pro 3EM always uses an all-zero
-  MAC. Shows the last value set. Disabled by default.
+  `smrP1`, `smrIr`, `smrTic` or `tpm2100ct`) — the same meter codes as the
+  other families. Set `meter-mac` first for the CT002, CT003, Shelly EM gen3,
+  Shelly Pro EM 50 and the SMR and TPM2 meters, and `meter-ip` for the P1 Meter
+  and the EcoTracker; the Shelly Pro 3EM and the CT001 need neither. Run
+  `phase-detection` afterwards if the device has not found its phase yet. Shows
+  the last value set. Disabled by default.
+- `meter-mac`: Sets the MAC address used when configuring an external meter
+  (12 hex digits, no separators). Shows the last value set. Disabled by default.
+- `meter-ip`: Sets the IP address of a P1 Meter (HomeWizard API) or an
+  EcoTracker. Shows the last value set. Disabled by default.
+- `phase-detection`: Starts the grid-phase detection, as the app does after
+  setting the meter. The device briefly charges or discharges 800 W and reports
+  the phase it finds in *CT Phase* (1-3 for phase A-C). Until it has a phase, it
+  does not follow the meter. Disabled by default.
+- `sync-time`: Sets the device clock to hm2mqtt's local time. The schedule
+  slots run on this clock. Disabled by default.
 - `refresh`: Refreshes the device data. Disabled by default.
-- `get-ct-power`: Gets current transformer power readings. Disabled by default.
+- `get-ct-power`: Gets the meter's per-phase power readings, which hm2mqtt also
+  polls on its own. Disabled by default.
 - `restart`: Reboots the device. Disabled by default.
 - `factory-reset`: Resets the device to factory settings. Disabled by default.
 
-**Beta.** The read-only refresh command has been confirmed on a real device.
-The other commands were read out of the Marstek app rather than captured from
-a real device, so they have not been confirmed end to end.
+The network information (IP address, gateway, subnet mask and DNS server) is
+polled every five minutes.
+
+**Beta.** Only the device's status report has been checked against a real
+device. The commands were read out of the Marstek app and then checked against
+the Mini's own control firmware (309) running in an emulator, but have not all
+been confirmed on hardware.
 
 The Venus E Mini runs a second generation of Marstek's Venus firmware, together
 with the Venus X and Venus G. It numbers its commands differently from the
@@ -784,27 +829,11 @@ info all moved — and uses a different MQTT topic namespace. That is why it has
 its own command list here rather than sharing the Venus one. See
 [docs/venus-generations.md](docs/venus-generations.md) for the full map.
 
-The rest of the app's commands for this model are not exposed. For most of them
-the reason is that the values they accept are not known; the grid-connection
-power limit is a different case, and is called out below:
-
-- Configuring the device's server, and setting the recharge type — neither has a
-  documented value set, and pointing a device at a different server can take it
-  off the network.
-- The grid-connection power limit (the 800 W / 1500 W setting). The app does not
-  set this over MQTT at all; it goes through Marstek's cloud, which then
-  provisions the device. hm2mqtt shows the result in the *Feed-in Power Limit*
-  sensor but cannot change it.
-- Anti-reverse-flow, which takes three parameters of which only one has a
-  guessable meaning.
-- Setting the device time. The parameters are known but not whether the clock
-  fields are meant to be local or UTC, and getting that wrong sets the clock off
-  by your timezone offset.
-- Reading the network info and error code, whose replies have a shape nothing
-  here can parse yet.
-- Manual-mode scheduling, which the app assembles per call and the device
-  reports nothing back about.
-- Configuring WiFi, which carries network credentials and has no MQTT form.
+A few of the firmware's commands are deliberately not exposed: the firmware
+update of the device's boards, the cloud region, a custom port for Shelly
+meters (which cannot be reset to the default), and the anti-reverse-flow
+setting, most of which the inverter ignores. Configuring WiFi carries network
+credentials and has no MQTT form.
 
 ### Jupiter Device Commands
 
@@ -830,9 +859,9 @@ The following commands are supported by both Jupiter C, Jupiter E and Jupiter Pl
 
 ### Smart Meter Commands (CT002 and CT003)
 - `refresh`: Requests the device data immediately, instead of waiting for the next poll
-- `factory-reset`: Resets the meter to factory settings
-- `hardware-reset`: Performs a hardware reset of the meter
-- `phase1-measurement-reversed` / `phase2-measurement-reversed` / `phase3-measurement-reversed`: Inverts the measurement direction of that phase (`on` or `off`). CT002 device types only (`HME-X`, `TPM-CN`, `TPM2-X`); on the CT003 readers the measurement direction is reported but cannot be set.
+- `factory-reset`: Resets the meter to factory settings. The `HME-3` and `HME-4` firmware up to 122 and 124 ignores this command
+- `hardware-reset`: Restarts the meter. No setting is changed
+- `phase1-measurement-reversed` / `phase2-measurement-reversed` / `phase3-measurement-reversed`: Inverts the measurement direction of that phase (`on` or `off`). CT002 device types only (`HME-2`, `HME-4`, `TPM-CN`, `TPM2-X`); the CT003 readers have no measurement-direction setting.
 
 All meter entities are disabled by default. See [docs/meters.md](docs/meters.md) for the underlying MQTT protocol.
 
