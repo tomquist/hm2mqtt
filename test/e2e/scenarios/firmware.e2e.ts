@@ -25,7 +25,6 @@ const specs = setup?.devices ?? DEFAULT_EMULATED_DEVICES;
  * Known findings, not noise; delete an entry with its fix. Anything new still
  * fails the assertion below.
  *
- * - *WiFi Signal Strength* on the B2500 (see the smoke test).
  * - The Venus time periods after a restart: the firmware reports the slots it
  *   has not initialised as times like `0:100` and `255:255`, hm2mqtt publishes
  *   them as they are, and Home Assistant rejects them against the time text
@@ -33,7 +32,6 @@ const specs = setup?.devices ?? DEFAULT_EMULATED_DEVICES;
  *   0:00–23:59 (`parseTimePeriod` in `src/device/venus.ts`).
  */
 const KNOWN_FINDINGS = [
-  /has no attribute 'wifiSignalStrength'/,
   /Value error while updating state of text\.\S+_time_period_\d+_time_(from|to)\b/,
 ];
 

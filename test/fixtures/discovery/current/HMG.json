@@ -848,7 +848,7 @@
       },
       "state_topic": "hm2mqtt/HMG/device/0123456789ab/data",
       "unique_id": "0123456789ab_version_set",
-      "value_template": "{% set mapping = {\"600W\":\"600W Version\",\"800W\":\"800W Version\",\"2500W\":\"2500W Version\"} %}{% set stringifiedValue = value_json.versionSet | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}"
+      "value_template": "{% if value_json.versionSet is defined %}{% set mapping = {\"600W\":\"600W Version\",\"800W\":\"800W Version\",\"2500W\":\"2500W Version\"} %}{% set stringifiedValue = value_json.versionSet | string %}{% if stringifiedValue in mapping %}{{ mapping[stringifiedValue] }}{% else %}{{ stringifiedValue }}{% endif %}{% else %}None{% endif %}"
     },
     "homeassistant/select/HMG_0123456789ab/working_mode/config": {
       "availability": [

@@ -292,6 +292,7 @@ export function registerBaseMessage(
       device_class: 'signal_strength',
       unit_of_measurement: 'dBm',
       state_class: 'measurement',
+      unknownWhenAbsent: true,
     }),
   );
 

@@ -2285,7 +2285,7 @@
       "state_topic": "hm2mqtt/HMJ/device/0123456789ab/data",
       "unique_id": "0123456789ab_wifi_signal_strength",
       "unit_of_measurement": "dBm",
-      "value_template": "{{ value_json.wifiSignalStrength }}"
+      "value_template": "{% if value_json.wifiSignalStrength is defined %}{{ value_json.wifiSignalStrength }}{% else %}None{% endif %}"
     },
     "homeassistant/switch/HMJ_0123456789ab/adaptive_mode/config": {
       "availability": [

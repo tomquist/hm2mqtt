@@ -25,7 +25,12 @@ import { Rig, entitySlug, canRunScenarios, startRig, waitFor } from '../harness/
  */
 const describeE2e = canRunScenarios() ? describe : describe.skip;
 
-/** See the note on KNOWN_FINDINGS in smoke.e2e.ts. */
+/**
+ * See the note on KNOWN_FINDINGS in smoke.e2e.ts. One more here: the previous
+ * release's *WiFi Signal Strength* template had no guard for a missing value,
+ * and it stays in force until the new build's discovery replaces it, so the
+ * first message after the upgrade can still trip it once.
+ */
 const KNOWN_FINDINGS = [/has no attribute 'wifiSignalStrength'/];
 
 const releasedVersion = latestReleasedVersion();
