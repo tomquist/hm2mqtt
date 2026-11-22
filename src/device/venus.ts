@@ -505,20 +505,24 @@ registerDeviceDefinition(
   },
 );
 
+// The Venus E 3.0 reports the BMS cell and MOSFET temperatures in tenths of a
+// degree, like the Venus A and Venus D, and the state of health in tenths of a
+// percent: BMS 115 sends `b_tem=25` beside `b_tp1=250` and `b_mot=250`, and
+// `b_soh=1000` (as does `soh` in cd=1).
 registerDeviceDefinition(
   {
     deviceTypes: ['VNSE3'],
   },
   ({ message }) => {
     registerRuntimeInfoMessage(message, { model: 'VNSE3' });
-    registerBMSInfoMessage(message);
+    registerBMSInfoMessage(message, { scaleTemperatures: true, scaleStateOfHealth: true });
     registerVenusCellBalancingMessage(message);
     registerVenusNetworkInfoMessage(message);
   },
 );
 
-// Venus A (VNSA) and Venus D (VNSD) use a different scaling for the BMS
-// cell/MOSFET temperatures (factor of 10) compared to the other Venus variants.
+// Venus A (VNSA) and Venus D (VNSD) report the BMS cell/MOSFET temperatures in
+// tenths of a degree, like the Venus E 3.0; the Venus C/E (HMG) in degrees.
 // Only these two have the per-pack BMS commands (cd=40 to cd=45); the Venus
 // C/E (HMG) and Venus E 3.0 do not answer them.
 // They are registered separately so options and limits can differ per model.
@@ -1594,16 +1598,19 @@ function registerRuntimeInfoMessage(
 
     // State of health. Added to the cd=1 response in control firmware 150 on
     // the Venus E 3.0 and Venus A and 149.2 on the Venus D, so it only appears
-    // on units new enough to send it. The same quantity is
-    // reported as `b_soh` in the cd=14 BMS response, where a real capture read
-    // 100 on a healthy pack - hence the percentage. That capture is the whole
-    // basis for the unit: no cd=1 payload carrying `soh` has been seen, so if
-    // a device ever reports something like 1000 here, the scale is wrong and
-    // this wants dividing by 10.
+    // on units new enough to send it. The same quantity is reported as `b_soh`
+    // in the cd=14 BMS response. The Venus E 3.0 (151, BMS 115) reports a new
+    // pack as 1000 in both, so there it is in tenths of a percent. The Venus A
+    // and Venus D have only been seen reporting 0, which says nothing about the
+    // scale, so they stay in percent, as the HMG reports `b_soh` (100).
     //
     // Deliberately not device_class 'battery': that is the charge level, and
     // Home Assistant would render state of health as if it were one.
-    field({ key: 'soh', path: ['batteryHealth'], transform: number() });
+    field({
+      key: 'soh',
+      path: ['batteryHealth'],
+      transform: model === 'VNSE3' ? divide(10) : number(),
+    });
     advertise(
       ['batteryHealth'],
       sensorComponent<number>({
@@ -2799,7 +2806,15 @@ function isVenusBmsInfoMessage(values: Record<string, string>): boolean {
 }
 function registerBMSInfoMessage(
   message: BuildMessageFn,
-  { scaleTemperatures = false }: { scaleTemperatures?: boolean } = {},
+  {
+    scaleTemperatures = false,
+    scaleStateOfHealth = false,
+  }: {
+    /** `b_tp1`-`b_tp4` and `b_mot` are in tenths of a degree. `b_tem` never is. */
+    scaleTemperatures?: boolean;
+    /** `b_soh` is in tenths of a percent. */
+    scaleStateOfHealth?: boolean;
+  } = {},
 ) {
   message<VenusBMSInfo>(
     {
@@ -2920,7 +2935,7 @@ function registerBMSInfoMessage(
       const bmsFields = [
         ['b_ver', { id: 'version' }],
         ['b_soc', { id: 'soc' }],
-        ['b_soh', { id: 'soh' }],
+        ['b_soh', { id: 'soh', transform: scaleStateOfHealth ? divide(10) : undefined }],
         ['b_cap', { id: 'capacity' }],
         // Battery pack voltage is reported in centivolts (e.g. 4328 -> 43.28 V)
         [
