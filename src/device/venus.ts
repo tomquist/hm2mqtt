@@ -1,4 +1,5 @@
 import {
+  AdditionalDeviceInfo,
   BuildMessageFn,
   globalPollInterval,
   registerDeviceDefinition,
@@ -218,6 +219,30 @@ function venusVersionSetOptions(model: VenusModel): VenusVersionSet[] {
   );
 }
 
+/**
+ * The power versions the Version Set select offers: those the build accepts,
+ * and the one the device reports, which Home Assistant would otherwise reject
+ * as a state that is not among the options.
+ */
+function offeredVenusVersionSets(
+  model: VenusModel,
+  { deviceVersion, versionSet }: Pick<VenusDeviceData, 'deviceVersion' | 'versionSet'>,
+): VenusVersionSet[] {
+  if (versionSet === '600W' && venusLocksOn600W(model, deviceVersion)) return ['600W'];
+  const accepted = acceptedVenusVersionSets(model, deviceVersion);
+  return venusVersionSetOptions(model).filter(
+    version => accepted.includes(version) || version === versionSet,
+  );
+}
+
+/**
+ * Every value a function of the build can take: a build unknown, and every
+ * build up to 300. The per-build gates in this file are all below that.
+ */
+function overEveryBuild<T>(perBuild: (deviceVersion: number | undefined) => T): T[] {
+  return [undefined, ...Array.from({ length: 300 }, (_, i) => i + 1)].map(perBuild);
+}
+
 // Peak shaving caps the power drawn from the grid. The Marstek app defaults the
 // cap to 2000 W and does not enforce an upper bound of its own, so the limit
 // below only exists to give the Home Assistant number entity a sane range.
@@ -360,13 +385,15 @@ function timePeriodParams(periodIndex: number, period: VenusTimePeriod): Command
 /**
  * Extract additional device info for Home Assistant discovery
  *
- * @param state - Device state
- * @returns Additional device info
+ * @param model - The model the data message is for
+ * @returns The additional device info for a device state
  */
-function extractAdditionalDeviceInfo(state: VenusDeviceData) {
-  return {
+function extractAdditionalDeviceInfo(model: VenusModel) {
+  return (state: VenusDeviceData): AdditionalDeviceInfo => ({
     firmwareVersion: state.deviceVersion?.toString(),
-  };
+    // the Version Set options include the version the device reports
+    discoveryState: offeredVenusVersionSets(model, state).join(),
+  });
 }
 
 // Max number of additional packs polled via cd=42,bms_idx=N. A Venus A supports
@@ -566,7 +593,7 @@ function registerRuntimeInfoMessage(
     isMessage: isVenusRuntimeInfoMessage,
     publishPath: 'data',
     defaultState: {},
-    getAdditionalDeviceInfo: extractAdditionalDeviceInfo,
+    getAdditionalDeviceInfo: extractAdditionalDeviceInfo(model),
     pollInterval: globalPollInterval,
     controlsDeviceAvailability: true,
   };
@@ -2083,8 +2110,11 @@ function registerRuntimeInfoMessage(
       path: ['versionSet'],
       transform: map(venusPowerVersions[model]),
     });
-    advertise(
-      ['versionSet'],
+    // Only the versions the build accepts are offered, plus the one reported.
+    // One advertisement per list of options the model can offer, of which at
+    // most one applies; a change of the reported version re-publishes
+    // discovery (see the data message's getAdditionalDeviceInfo).
+    const versionSetSelect = (versions: VenusVersionSet[]) =>
       selectComponent<NonNullable<VenusDeviceData['versionSet']>>({
         id: 'version_set',
         name: 'Version Set',
@@ -2093,11 +2123,26 @@ function registerRuntimeInfoMessage(
         // a code this model has no version for clears the value
         unknownWhenAbsent: true,
         valueMappings: Object.fromEntries(
-          venusVersionSetOptions(model).map(version => [version, venusVersionSetLabels[version]]),
+          versions.map(version => [version, venusVersionSetLabels[version]]),
         ) as Record<VenusVersionSet, string>,
-      }),
-      { enabled: state => (state.versionSet != null ? true : undefined) },
+      });
+    const versionSetOfferings = new Map(
+      overEveryBuild(deviceVersion =>
+        venusVersionSetOptions(model).map(versionSet =>
+          offeredVenusVersionSets(model, { deviceVersion, versionSet }),
+        ),
+      )
+        .flat()
+        .map(versions => [versions.join(), versions]),
     );
+    for (const [key, versions] of versionSetOfferings) {
+      advertise(['versionSet'], versionSetSelect(versions), {
+        enabled: state =>
+          state.versionSet != null && offeredVenusVersionSets(model, state).join() === key
+            ? true
+            : undefined,
+      });
+    }
 
     command('version-set', {
       handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
@@ -2601,31 +2646,47 @@ function registerRuntimeInfoMessage(
     });
     const reportsMeterType = (deviceVersion: number | undefined) =>
       venusSupports(model, deviceVersion, { HMG: 149, VNSE3: 0, VNSA: 0, VNSD: 0 });
-    const meterTypeSelect = (optimistic: boolean) =>
+    // Only the meter types the build accepts are offered (see
+    // venusMaxMeterCode); `meter-type` refuses the others. One advertisement
+    // per highest code the model has, of which at most one applies.
+    const meterTypeLabelsByCode = Object.entries(
+      model === 'HMG'
+        ? meterTypeLabels
+        : { ...meterTypeLabels, stromleser: reportedMeterTypeLabels.stromleser },
+    ) as [VenusMeterType, string][];
+    const meterTypeSelect = (optimistic: boolean, maxCode: number) =>
       selectComponent<NonNullable<VenusDeviceData['meterType']>>({
         id: 'meter_type',
         name: 'Meter Type',
         icon: 'mdi:meter-electric',
         command: 'meter-type',
-        // The Stromleser is only offered where `meter=12` exists.
-        valueMappings: (model === 'HMG'
-          ? meterTypeLabels
-          : { ...meterTypeLabels, stromleser: reportedMeterTypeLabels.stromleser }) as Record<
-          VenusMeterType,
-          string
-        >,
+        valueMappings: Object.fromEntries(
+          meterTypeLabelsByCode.filter(
+            ([meterType]) => venusMeterTypeCommandCodes[meterType] <= maxCode,
+          ),
+        ) as Record<VenusMeterType, string>,
         optimistic,
         enabled_by_default: false,
       });
-    advertise(['meterType'], meterTypeSelect(false), {
-      enabled: state =>
-        reportsMeterType(state.deviceVersion) === true && state.meterType != null
-          ? true
-          : undefined,
-    });
-    advertise(['meterType'], meterTypeSelect(true), {
-      enabled: state => (reportsMeterType(state.deviceVersion) === false ? true : undefined),
-    });
+    const maxMeterCodes = new Set(
+      overEveryBuild(deviceVersion => venusMaxMeterCode(model, deviceVersion)),
+    );
+    for (const maxCode of maxMeterCodes) {
+      const acceptsUpTo = (state: VenusDeviceData) =>
+        venusMaxMeterCode(model, state.deviceVersion) === maxCode;
+      advertise(['meterType'], meterTypeSelect(false, maxCode), {
+        enabled: state =>
+          reportsMeterType(state.deviceVersion) === true &&
+          state.meterType != null &&
+          acceptsUpTo(state)
+            ? true
+            : undefined,
+      });
+      advertise(['meterType'], meterTypeSelect(true, maxCode), {
+        enabled: state =>
+          reportsMeterType(state.deviceVersion) === false && acceptsUpTo(state) ? true : undefined,
+      });
+    }
 
     // Maximum discharge power (`cd=17,dp=<W>`). The device rejects a limit
     // above the model's maximum, or above 800 W while on the 800 W power

@@ -4,7 +4,7 @@ import { generateDiscoveryConfigs, publishDiscoveryConfigs } from './generateDis
 import { parseMessage } from './parser.js';
 import { Device } from './types.js';
 import { DeviceTopics } from './deviceManager.js';
-import { AdditionalDeviceInfo } from './deviceDefinition.js';
+import { AdditionalDeviceInfo, getDeviceDefinition } from './deviceDefinition.js';
 import { DEFAULT_TOPIC_PREFIX } from './constants.js';
 
 describe('Home Assistant Discovery', () => {
@@ -732,6 +732,109 @@ describe('Home Assistant Discovery', () => {
     // Only the Venus E 3.0, Venus A and Venus D offer the Stromleser.
     expect(vnsa[0]!.options).toContain('Stromleser');
     expect(hmg[0]!.options).not.toContain('Stromleser');
+  });
+
+  test('should offer only the Venus power versions the build accepts, and the one reported', () => {
+    const options = (deviceType: string, state: object) => {
+      const configs = generateDiscoveryConfigs(
+        { deviceType, deviceId: 'venus123' },
+        jupiterTopics(deviceType, 'venus123'),
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      ).filter(c => c.topic.includes('/version_set/'));
+      if (configs.length === 0) return undefined;
+      expect(configs).toHaveLength(1);
+      return (configs[0].config as unknown as { options: string[] }).options;
+    };
+
+    // 600 W only on the Venus E 3.0 from 149, or while the device is on it.
+    expect(options('VNSE3-0', { deviceVersion: 151, versionSet: '2500W' })).toEqual([
+      '600W Version',
+      '800W Version',
+      '2500W Version',
+    ]);
+    expect(options('VNSE3-0', { deviceVersion: 148, versionSet: '2500W' })).toEqual([
+      '800W Version',
+      '2500W Version',
+    ]);
+    expect(options('HMG-50', { deviceVersion: 156, versionSet: '800W' })).toEqual([
+      '800W Version',
+      '2500W Version',
+    ]);
+    expect(options('VNSA-0', { deviceVersion: 151, versionSet: '600W' })).toEqual([
+      '600W Version',
+      '800W Version',
+      '1200W Version',
+      '1500W Version',
+    ]);
+    // The Venus D before 149 does not take 2500 W, unless it is on it.
+    expect(options('VNSD-0', { deviceVersion: 147, versionSet: '800W' })).toEqual([
+      '800W Version',
+      '1200W Version',
+      '2200W Version',
+    ]);
+    expect(options('VNSD-0', { deviceVersion: 147, versionSet: '2500W' })).toEqual([
+      '800W Version',
+      '1200W Version',
+      '2200W Version',
+      '2500W Version',
+    ]);
+    // Builds that ignore every change while on 600 W offer nothing else.
+    expect(options('HMG-50', { deviceVersion: 156, versionSet: '600W' })).toEqual(['600W Version']);
+    expect(options('VNSE3-0', { deviceVersion: 148, versionSet: '600W' })).toEqual([
+      '600W Version',
+    ]);
+    // Deferred until the device reports a version.
+    expect(options('VNSE3-0', { deviceVersion: 151 })).toBeUndefined();
+  });
+
+  test('should re-publish discovery when the Venus power versions on offer change', () => {
+    // mqttClient re-publishes discovery when the additional device info changes.
+    const info = (state: object) =>
+      getDeviceDefinition('VNSA-0')!
+        .messages.find(message => message.publishPath === 'data')!
+        .getAdditionalDeviceInfo(state as never);
+    const on800 = info({ deviceVersion: 151, versionSet: '800W' });
+    expect(on800).toHaveProperty('firmwareVersion', '151');
+    // Moving between versions on offer changes nothing; onto 600 W adds it.
+    expect(info({ deviceVersion: 151, versionSet: '1200W' })).toEqual(on800);
+    expect(info({ deviceVersion: 151, versionSet: '600W' })).not.toEqual(on800);
+  });
+
+  test('should offer only the Venus meter types the build accepts', () => {
+    const options = (deviceType: string, state: object) => {
+      const configs = generateDiscoveryConfigs(
+        { deviceType, deviceId: 'venus123' },
+        jupiterTopics(deviceType, 'venus123'),
+        {},
+        DEFAULT_TOPIC_PREFIX,
+        'homeassistant',
+        state,
+      ).filter(c => c.topic.includes('/meter_type/'));
+      expect(configs).toHaveLength(1);
+      return (configs[0].config as unknown as { options: string[] }).options;
+    };
+
+    // Up to meter=4 before HMG 147, where the select is write-only.
+    expect(options('HMG-50', { deviceVersion: 146 })).toEqual([
+      'CT001',
+      'Shelly Pro 3EM',
+      'P1 Meter',
+      'CT002',
+      'CT003',
+    ]);
+    expect(options('HMG-50', { deviceVersion: 147 })).toHaveLength(7);
+    expect(options('HMG-50', { deviceVersion: 148 })).toContain('EcoTracker');
+    expect(options('HMG-50', { deviceVersion: 153, meterType: 'ct002' })).toHaveLength(8);
+    expect(options('HMG-50', { deviceVersion: 156, meterType: 'ct002' })).toHaveLength(12);
+    // The Venus E 3.0 takes the Stromleser (meter=12) after 144.
+    expect(options('VNSE3-0', { deviceVersion: 144, meterType: 'ct002' })).not.toContain(
+      'Stromleser',
+    );
+    expect(options('VNSE3-0', { deviceVersion: 151, meterType: 'ct002' })).toHaveLength(13);
+    expect(options('VNSA-0', { meterType: 'ct002' })).toHaveLength(13);
   });
 
   test('should keep the Venus C/E (HMG) maximum charging power until it is set', () => {

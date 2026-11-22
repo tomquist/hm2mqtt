@@ -233,6 +233,12 @@ export type BuildMessageDefinitionFn<T extends BaseDeviceData> = (
 
 export interface AdditionalDeviceInfo {
   firmwareVersion?: string;
+  /**
+   * Reported state that discovery depends on beyond the firmware version, such
+   * as a setting that decides which options a select offers. Discovery is
+   * re-published when it changes; it is not shown anywhere.
+   */
+  discoveryState?: string;
 }
 
 const deviceDefinitionRegistry: Map<string, DeviceDefinition<any>> = new Map();

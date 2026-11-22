@@ -34,7 +34,7 @@
 - Venus: *Meter Type* now shows the meter the device is configured for, instead of the last value set from Home Assistant (PR #462)
 - Venus: The *Bluetooth Advertising* switch showed the Bluetooth connection state instead of the setting, so it was often wrong. It now shows the setting, and on the Venus C/E (HMG) appears only from control firmware 156, the first to support it (PR #462)
 - Venus: The *Local API* switch and port now show up on the Venus E 3.0, Venus A and Venus D, and changing the port now takes effect (PR #462)
-- Venus: *Version Set* no longer sends power versions the model's firmware ignores (PR #462)
+- Venus: *Version Set* and *Meter Type* offer only the power versions and meters the device's firmware accepts, as choosing any other did nothing (PR #462, PR #TBD)
 - Venus: *Maximum Discharge Power* changed the power version instead of the discharge limit, so most values did nothing and 800 or 2500 W switched the version. It now sets the discharge limit (fixes #60, PR #462)
 - Venus: Removed the price, income and *Grid Type* sensors, and the error and warning code sensors on the Venus C/E (HMG), where the firmware never fills them; they showed meter data or a constant zero. Error codes containing letters are no longer cut short (PR #462)
 - Venus: Time periods the device has never stored, as it reports them after a restart, no longer make Home Assistant log an error on every update. Their times now show as empty and their power as unknown (PR #TBD)
