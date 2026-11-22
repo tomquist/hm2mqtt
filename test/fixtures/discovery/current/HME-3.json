@@ -540,7 +540,7 @@
       "state_topic": "hm2mqtt/HME-3/device/0123456789ab/data",
       "unique_id": "0123456789ab_total_energy",
       "unit_of_measurement": "Wh",
-      "value_template": "{{ value_json.totalEnergy }}"
+      "value_template": "{% if value_json.totalEnergy is defined %}{{ value_json.totalEnergy }}{% else %}None{% endif %}"
     },
     "homeassistant/sensor/HME-3_0123456789ab/total_power/config": {
       "availability": [

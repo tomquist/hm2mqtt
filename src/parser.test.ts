@@ -642,6 +642,18 @@ describe('MQTT Message Parser', () => {
     expect(data as SmrMeterDeviceData).toHaveProperty('p1DeviceConnected', false);
   });
 
+  test('should not take the 0 total energy a CT003 reports without a meter', () => {
+    // HME-3 firmware 122 (in marsemu) with the P1 meter unplugged.
+    const message =
+      'pwr_a=0,pwr_b=0,pwr_c=0,pwr_t=0,ble_s=2,wif_r=-48,fc4_v=202409090159,ver_v=122,eng_t=0,' +
+      'wif_s=2,slv_n=0,com_t=1,com_b=0,ptl_t=1,smt_n=255,har_f=0,sof_f=0,irs_f=0,pwr_f=0,' +
+      'frm_c=56,upd_t=0,udp_v=4';
+    const { data } = parseMessage(message, 'HME-3', '0123456789ab');
+
+    expect(data as SmrMeterDeviceData).toHaveProperty('p1DeviceConnected', false);
+    expect(data as SmrMeterDeviceData).not.toHaveProperty('totalEnergy');
+  });
+
   test('corrects the HMI lifetime energy on firmware that halves it at rollover', () => {
     const message =
       'ele_d=212,ele_s=7888,ele_m=5887,pv1_v=334,pv1_i=0,pv1_p=16,pv1_s=1,pv2_v=335,pv2_i=0,pv2_p=15,pv2_s=1,pe1_v=17,fb1_v=847,fb2_v=826,grd_f=4999,grd_v=2455,grd_s=1,grd_o=29,chp_t=33,rel_s=1,err_t=0,err_c=0,err_d=0,ver_s=118,mpt_m=1,ble_s=1';
