@@ -17,7 +17,6 @@ import {
 } from '../types.js';
 import logger from '../logger.js';
 import {
-  B2500BaseMessageOptions,
   CommandType,
   extractAdditionalDeviceInfo,
   isB2500RuntimeInfoMessage,
@@ -284,10 +283,10 @@ function buildTimePeriodParams(
   return params;
 }
 
-function registerB2500V2Definition(deviceTypes: string[], options: B2500BaseMessageOptions) {
+function registerB2500V2Definition(deviceTypes: string[]) {
   const isHmj = deviceTypes.includes('HMJ');
   registerDeviceDefinition({ deviceTypes }, ({ message }) => {
-    registerRuntimeInfoMessage(message, options, isHmj);
+    registerRuntimeInfoMessage(message, isHmj);
     registerCtDiagnosisMessage(message, isHmj);
     registerExtraBatteryData(message);
     registerCellDataMessage(message);
@@ -298,14 +297,10 @@ function registerB2500V2Definition(deviceTypes: string[], options: B2500BaseMess
 
 // The HMJ is registered on its own because its firmware reports less than the
 // other models, and discovery cannot read the model from the device state.
-registerB2500V2Definition(['HMA', 'HMF', 'HMK'], { reportsPassThrough: true });
-registerB2500V2Definition(['HMJ'], { reportsPassThrough: false });
+registerB2500V2Definition(['HMA', 'HMF', 'HMK']);
+registerB2500V2Definition(['HMJ']);
 
-function registerRuntimeInfoMessage(
-  message: BuildMessageFn,
-  baseOptions: B2500BaseMessageOptions,
-  isHmj: boolean,
-) {
+function registerRuntimeInfoMessage(message: BuildMessageFn, isHmj: boolean) {
   let options = {
     refreshDataPayload: 'cd=1',
     isMessage: isB2500RuntimeInfoMessage,
@@ -334,7 +329,7 @@ function registerRuntimeInfoMessage(
   };
 
   message<B2500V2DeviceData>(options, ({ field, command, advertise }) => {
-    registerBaseMessage({ command, advertise, field }, baseOptions);
+    registerBaseMessage({ command, advertise, field });
 
     // Charging and discharging settings
     field({
@@ -955,27 +950,65 @@ function registerRuntimeInfoMessage(
       },
     });
 
-    // `fktc` decides what happens once every pack is full while surplus feed-in
-    // is on: with `1` the device keeps passing PV through (CT status 12), with
-    // `0` it stops its output. It is set with `cd=38,fktc=`.
+    // `fktc` decides how a full battery passes PV through while surplus feed-in
+    // is on: with `1` through the converters, so the power stays measured (CT
+    // status 12); with `0` it turns the converters off (bit 1 of `p1`/`p2`,
+    // input and output power read 0) and, by the pins it drives, most likely
+    // routes PV straight to the outputs. It is set with `cd=38,fktc=`, which has no
+    // no-flash variant. Only firmware that reports `fktc` (HMJ 116 and later)
+    // gets the switch.
     field({
       key: 'fktc',
       path: ['fullBatteryPassThrough'],
       transform: equalsBoolean('1'),
     });
+    const reportsFullBatteryPassThrough = (state: B2500V2DeviceData) =>
+      state.fullBatteryPassThrough != null ? true : undefined;
+    advertise(
+      ['fullBatteryPassThrough'],
+      switchComponent({
+        id: 'full_battery_pass_through',
+        name: 'Full Battery Pass-Through',
+        icon: 'mdi:battery-arrow-up',
+        command: 'full-battery-pass-through',
+      }),
+      { enabled: reportsFullBatteryPassThrough },
+    );
+    // Remove the read-only binary sensor 1.11.0 advertised.
     advertise(
       ['fullBatteryPassThrough'],
       binarySensorComponent({
         id: 'full_battery_pass_through',
         name: 'Full Battery Pass-Through',
         icon: 'mdi:battery-arrow-up',
-        enabled_by_default: false,
       }),
-      {
-        enabled: (state: B2500V2DeviceData) =>
-          state.fullBatteryPassThrough != null ? true : undefined,
-      },
+      { enabled: () => false },
     );
+    command('full-battery-pass-through', {
+      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
+        if (deviceState.fullBatteryPassThrough == null) {
+          logger.warn(
+            `Full battery pass-through is not reported by ${deviceState.deviceType} ` +
+              `version ${deviceState.deviceInfo?.deviceVersion}, so it is not set`,
+          );
+          return;
+        }
+        const normalized = message.trim().toLowerCase();
+        const enable = normalized === 'true' || normalized === '1' || normalized === 'on';
+        if (!enable && normalized !== 'false' && normalized !== '0' && normalized !== 'off') {
+          logger.warn('Invalid full battery pass-through value (expected true or false):', message);
+          return;
+        }
+        updateDeviceState(() => ({ fullBatteryPassThrough: enable }));
+        publishCallback(
+          processCommand(
+            CommandType.FULL_BATTERY_PASS_THROUGH,
+            { fktc: enable ? 1 : 0 },
+            deviceState.useFlashCommands,
+          ),
+        );
+      },
+    });
 
     // MAC address used when configuring an external meter (CT002/CT003/Shelly).
     command('meter-mac', {

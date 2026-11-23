@@ -361,6 +361,7 @@
       "unique_id": "0123456789ab_extra2_battery_undervoltage",
       "value_template": "{{ value_json.batteryStatus.extra2.undervoltage }}"
     },
+    "homeassistant/binary_sensor/HMK_0123456789ab/full_battery_pass_through/config": null,
     "homeassistant/binary_sensor/HMK_0123456789ab/host_battery_charging/config": {
       "availability": [
         {
