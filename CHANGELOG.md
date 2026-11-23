@@ -3,7 +3,11 @@
 
 ### Added
 
-- B2500 (HMJ firmware 116 and later): *Full Battery Pass-Through* can now be switched from Home Assistant, so with *Surplus Feed-in* on, a full battery keeps passing PV through instead of stopping its output. It replaces the read-only sensor, so automations using that need updating (#91)
+- B2500 (HMJ firmware 116 and later): *Full Battery Pass-Through* can now be switched from Home Assistant. Turned on, a full battery passes PV through in a way that still shows in the input and output power. It replaces the read-only sensor, so automations using that need updating (#91)
+
+### Fixed
+
+- B2500 (HMJ): The *Input 1/2 Pass Through* sensors are back. 1.11.0 removed them by mistake, although the device does report them (fixes #487)
 
 ## [1.11.0] - 2026-11-22
 

@@ -17,7 +17,6 @@ import {
 } from '../types.js';
 import logger from '../logger.js';
 import {
-  B2500BaseMessageOptions,
   CommandType,
   extractAdditionalDeviceInfo,
   isB2500RuntimeInfoMessage,
@@ -284,10 +283,10 @@ function buildTimePeriodParams(
   return params;
 }
 
-function registerB2500V2Definition(deviceTypes: string[], options: B2500BaseMessageOptions) {
+function registerB2500V2Definition(deviceTypes: string[]) {
   const isHmj = deviceTypes.includes('HMJ');
   registerDeviceDefinition({ deviceTypes }, ({ message }) => {
-    registerRuntimeInfoMessage(message, options, isHmj);
+    registerRuntimeInfoMessage(message, isHmj);
     registerCtDiagnosisMessage(message, isHmj);
     registerExtraBatteryData(message);
     registerCellDataMessage(message);
@@ -298,14 +297,10 @@ function registerB2500V2Definition(deviceTypes: string[], options: B2500BaseMess
 
 // The HMJ is registered on its own because its firmware reports less than the
 // other models, and discovery cannot read the model from the device state.
-registerB2500V2Definition(['HMA', 'HMF', 'HMK'], { reportsPassThrough: true });
-registerB2500V2Definition(['HMJ'], { reportsPassThrough: false });
+registerB2500V2Definition(['HMA', 'HMF', 'HMK']);
+registerB2500V2Definition(['HMJ']);
 
-function registerRuntimeInfoMessage(
-  message: BuildMessageFn,
-  baseOptions: B2500BaseMessageOptions,
-  isHmj: boolean,
-) {
+function registerRuntimeInfoMessage(message: BuildMessageFn, isHmj: boolean) {
   let options = {
     refreshDataPayload: 'cd=1',
     isMessage: isB2500RuntimeInfoMessage,
@@ -334,7 +329,7 @@ function registerRuntimeInfoMessage(
   };
 
   message<B2500V2DeviceData>(options, ({ field, command, advertise }) => {
-    registerBaseMessage({ command, advertise, field }, baseOptions);
+    registerBaseMessage({ command, advertise, field });
 
     // Charging and discharging settings
     field({
@@ -955,9 +950,10 @@ function registerRuntimeInfoMessage(
       },
     });
 
-    // `fktc` decides what happens once every pack is full while surplus feed-in
-    // is on: with `1` the device keeps passing PV through (CT status 12), with
-    // `0` it stops its output. It is set with `cd=38,fktc=`, which has no
+    // `fktc` decides how a full battery passes PV through while surplus feed-in
+    // is on: with `1` through the converters, so the power stays measured (CT
+    // status 12); with `0` straight through to the outputs, past the
+    // converters (bit 1 of `p1`/`p2`, input and output power read 0). It is set with `cd=38,fktc=`, which has no
     // no-flash variant. Only firmware that reports `fktc` (HMJ 116 and later)
     // gets the switch.
     field({

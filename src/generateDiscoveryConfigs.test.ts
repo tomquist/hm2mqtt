@@ -205,7 +205,7 @@ describe('Home Assistant Discovery', () => {
     expect(surplusSwitchDisabled?.config).toBeNull();
   });
 
-  test('should clear the pass-through sensors on HMJ, which never reports them', () => {
+  test('should offer the pass-through sensors on every V2 model, HMJ included (#487)', () => {
     const configsFor = (deviceType: string) => {
       const device: Device = { deviceType, deviceId: 'test123' };
       const deviceTopics: DeviceTopics = {
@@ -233,15 +233,13 @@ describe('Home Assistant Discovery', () => {
           c.topic.endsWith(`/input${input}_pass_through/config`),
       );
 
-    for (const input of [1, 2] as const) {
-      const hmj = passThrough('HMJ-2', input);
-      expect(hmj).toBeDefined();
-      expect(hmj?.config).toBeNull();
-
-      const hma = passThrough('HMA-1', input);
-      expect(hma?.config).not.toBeNull();
+    // HMJ firmware sets bit 1 of `p1`/`p2` while it switches PV straight
+    // through to the outputs, so its sensors are real (1.11.0 removed them).
+    for (const deviceType of ['HMJ-2', 'HMA-1', 'HMK-10']) {
+      for (const input of [1, 2] as const) {
+        expect(passThrough(deviceType, input)?.config).not.toBeNull();
+      }
     }
-    // The charging flag in bit 0 stays.
     expect(
       configsFor('HMJ-2').find(c => c.topic.endsWith('/input1_charging/config'))?.config,
     ).not.toBeNull();
