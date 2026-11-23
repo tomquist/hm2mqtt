@@ -233,11 +233,11 @@ describe('Home Assistant Discovery', () => {
           c.topic.endsWith(`/input${input}_pass_through/config`),
       );
 
-    // HMJ firmware sets bit 1 of `p1`/`p2` while it switches PV straight
-    // through to the outputs, so its sensors are real (1.11.0 removed them).
+    // HMJ firmware sets bit 1 of `p1`/`p2` too (#487), so its sensors are
+    // real (1.11.0 removed them).
     for (const deviceType of ['HMJ-2', 'HMA-1', 'HMK-10']) {
       for (const input of [1, 2] as const) {
-        expect(passThrough(deviceType, input)?.config).not.toBeNull();
+        expect(passThrough(deviceType, input)?.config).toMatchObject({ device_class: 'power' });
       }
     }
     expect(

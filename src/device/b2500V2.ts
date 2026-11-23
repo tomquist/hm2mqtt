@@ -952,8 +952,9 @@ function registerRuntimeInfoMessage(message: BuildMessageFn, isHmj: boolean) {
 
     // `fktc` decides how a full battery passes PV through while surplus feed-in
     // is on: with `1` through the converters, so the power stays measured (CT
-    // status 12); with `0` straight through to the outputs, past the
-    // converters (bit 1 of `p1`/`p2`, input and output power read 0). It is set with `cd=38,fktc=`, which has no
+    // status 12); with `0` it turns the converters off (bit 1 of `p1`/`p2`,
+    // input and output power read 0) and, by the pins it drives, most likely
+    // routes PV straight to the outputs. It is set with `cd=38,fktc=`, which has no
     // no-flash variant. Only firmware that reports `fktc` (HMJ 116 and later)
     // gets the switch.
     field({
