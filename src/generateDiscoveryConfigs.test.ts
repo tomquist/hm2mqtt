@@ -247,6 +247,44 @@ describe('Home Assistant Discovery', () => {
     ).not.toBeNull();
   });
 
+  test('should offer Full Battery Pass-Through as a switch once the firmware reports it', () => {
+    const deviceType = 'HMJ-2';
+    const device: Device = { deviceType, deviceId: 'test123' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: `hame_energy/${deviceType}/device/test123/ctrl`,
+      deviceTopicNew: `marstek_energy/${deviceType}/device/test123/ctrl`,
+      publishTopic: `hame_energy/${deviceType}/device/test123/data`,
+      deviceControlTopicOld: `hame_energy/${deviceType}/App/test123/ctrl`,
+      deviceControlTopicNew: `marstek_energy/${deviceType}/App/test123/ctrl`,
+      controlSubscriptionTopic: `hame_energy/${deviceType}/control/test123/control`,
+      availabilityTopic: `hame_energy/${deviceType}/availability/test123`,
+    };
+    const configsFor = (state: Record<string, unknown>) =>
+      generateDiscoveryConfigs(device, deviceTopics, {}, DEFAULT_TOPIC_PREFIX, 'homeassistant', {
+        deviceType,
+        deviceInfo: { deviceVersion: 116 },
+        ...state,
+      });
+    const find = (configs: ReturnType<typeof configsFor>, component: string) =>
+      configs.find(
+        c =>
+          c.topic.includes(`/${component}/`) &&
+          c.topic.endsWith('/full_battery_pass_through/config'),
+      );
+
+    const reported = configsFor({ fullBatteryPassThrough: false });
+    const fullBatterySwitch = find(reported, 'switch');
+    expect(fullBatterySwitch?.config).toMatchObject({
+      command_topic: expect.stringContaining('/full-battery-pass-through'),
+    });
+    // The read-only sensor earlier versions advertised is cleared.
+    expect(find(reported, 'binary_sensor')).toBeDefined();
+    expect(find(reported, 'binary_sensor')?.config).toBeNull();
+
+    // Firmware that never reported `fktc` gets no switch.
+    expect(find(configsFor({}), 'switch')?.config ?? null).toBeNull();
+  });
+
   test('should offer only the meters the B2500 firmware has drivers for', () => {
     const meterTypeOptions = (deviceType: string, deviceInfo: object) => {
       const configs = generateDiscoveryConfigs(

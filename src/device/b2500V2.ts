@@ -957,25 +957,61 @@ function registerRuntimeInfoMessage(
 
     // `fktc` decides what happens once every pack is full while surplus feed-in
     // is on: with `1` the device keeps passing PV through (CT status 12), with
-    // `0` it stops its output. It is set with `cd=38,fktc=`.
+    // `0` it stops its output. It is set with `cd=38,fktc=`, which has no
+    // no-flash variant. Only firmware that reports `fktc` (HMJ 116 and later)
+    // gets the switch.
     field({
       key: 'fktc',
       path: ['fullBatteryPassThrough'],
       transform: equalsBoolean('1'),
     });
+    const reportsFullBatteryPassThrough = (state: B2500V2DeviceData) =>
+      state.fullBatteryPassThrough != null ? true : undefined;
+    advertise(
+      ['fullBatteryPassThrough'],
+      switchComponent({
+        id: 'full_battery_pass_through',
+        name: 'Full Battery Pass-Through',
+        icon: 'mdi:battery-arrow-up',
+        command: 'full-battery-pass-through',
+      }),
+      { enabled: reportsFullBatteryPassThrough },
+    );
+    // Remove the read-only binary sensor 1.11.0 advertised.
     advertise(
       ['fullBatteryPassThrough'],
       binarySensorComponent({
         id: 'full_battery_pass_through',
         name: 'Full Battery Pass-Through',
         icon: 'mdi:battery-arrow-up',
-        enabled_by_default: false,
       }),
-      {
-        enabled: (state: B2500V2DeviceData) =>
-          state.fullBatteryPassThrough != null ? true : undefined,
-      },
+      { enabled: () => false },
     );
+    command('full-battery-pass-through', {
+      handler: ({ message, publishCallback, updateDeviceState, deviceState }) => {
+        if (deviceState.fullBatteryPassThrough == null) {
+          logger.warn(
+            `Full battery pass-through is not reported by ${deviceState.deviceType} ` +
+              `version ${deviceState.deviceInfo?.deviceVersion}, so it is not set`,
+          );
+          return;
+        }
+        const normalized = message.trim().toLowerCase();
+        const enable = normalized === 'true' || normalized === '1' || normalized === 'on';
+        if (!enable && normalized !== 'false' && normalized !== '0' && normalized !== 'off') {
+          logger.warn('Invalid full battery pass-through value (expected true or false):', message);
+          return;
+        }
+        updateDeviceState(() => ({ fullBatteryPassThrough: enable }));
+        publishCallback(
+          processCommand(
+            CommandType.FULL_BATTERY_PASS_THROUGH,
+            { fktc: enable ? 1 : 0 },
+            deviceState.useFlashCommands,
+          ),
+        );
+      },
+    });
 
     // MAC address used when configuring an external meter (CT002/CT003/Shelly).
     command('meter-mac', {

@@ -630,6 +630,50 @@ const commandTestCases: CommandTestCase[] = [
     expectedOutput: 'cd=31,touchuan_disa=0',
   },
 
+  // full-battery-pass-through command (V2, firmware that reports `fktc`)
+  {
+    description: 'B2500V2 full-battery-pass-through enable',
+    deviceType: 'HMJ-2',
+    initialState: { fullBatteryPassThrough: false },
+    command: 'full-battery-pass-through',
+    input: 'true',
+    expectedOutput: 'cd=38,fktc=1',
+    expectedStateChanges: { fullBatteryPassThrough: true },
+  },
+  {
+    description: 'B2500V2 full-battery-pass-through disable',
+    deviceType: 'HMJ-2',
+    initialState: { fullBatteryPassThrough: true },
+    command: 'full-battery-pass-through',
+    input: 'false',
+    expectedOutput: 'cd=38,fktc=0',
+    expectedStateChanges: { fullBatteryPassThrough: false },
+  },
+  {
+    description: 'B2500V2 full-battery-pass-through has no no-flash variant',
+    deviceType: 'HMJ-2',
+    initialState: { fullBatteryPassThrough: false },
+    command: 'full-battery-pass-through',
+    input: 'ON',
+    useFlashCommands: false,
+    expectedOutput: 'cd=38,fktc=1',
+  },
+  {
+    description: 'B2500V2 full-battery-pass-through refused when firmware does not report it',
+    deviceType: 'HMJ-2',
+    command: 'full-battery-pass-through',
+    input: 'true',
+    expectedOutput: null,
+  },
+  {
+    description: 'B2500V2 full-battery-pass-through with invalid value',
+    deviceType: 'HMJ-2',
+    initialState: { fullBatteryPassThrough: false },
+    command: 'full-battery-pass-through',
+    input: 'maybe',
+    expectedOutput: null,
+  },
+
   // meter-mac + meter-type commands (B2500V2, cd=27)
   {
     description: 'B2500V2 meter-mac normalizes separators and case',
