@@ -205,7 +205,7 @@ describe('Home Assistant Discovery', () => {
     expect(surplusSwitchDisabled?.config).toBeNull();
   });
 
-  test('should clear the pass-through sensors on HMJ, which never reports them', () => {
+  test('should offer the pass-through sensors on every V2 model, HMJ included (#487)', () => {
     const configsFor = (deviceType: string) => {
       const device: Device = { deviceType, deviceId: 'test123' };
       const deviceTopics: DeviceTopics = {
@@ -233,18 +233,54 @@ describe('Home Assistant Discovery', () => {
           c.topic.endsWith(`/input${input}_pass_through/config`),
       );
 
-    for (const input of [1, 2] as const) {
-      const hmj = passThrough('HMJ-2', input);
-      expect(hmj).toBeDefined();
-      expect(hmj?.config).toBeNull();
-
-      const hma = passThrough('HMA-1', input);
-      expect(hma?.config).not.toBeNull();
+    // HMJ firmware sets bit 1 of `p1`/`p2` too (#487), so its sensors are
+    // real (1.11.0 removed them).
+    for (const deviceType of ['HMJ-2', 'HMA-1', 'HMK-10']) {
+      for (const input of [1, 2] as const) {
+        expect(passThrough(deviceType, input)?.config).toMatchObject({ device_class: 'power' });
+      }
     }
-    // The charging flag in bit 0 stays.
     expect(
       configsFor('HMJ-2').find(c => c.topic.endsWith('/input1_charging/config'))?.config,
     ).not.toBeNull();
+  });
+
+  test('should offer Full Battery Pass-Through as a switch once the firmware reports it', () => {
+    const deviceType = 'HMJ-2';
+    const device: Device = { deviceType, deviceId: 'test123' };
+    const deviceTopics: DeviceTopics = {
+      deviceTopicOld: `hame_energy/${deviceType}/device/test123/ctrl`,
+      deviceTopicNew: `marstek_energy/${deviceType}/device/test123/ctrl`,
+      publishTopic: `hame_energy/${deviceType}/device/test123/data`,
+      deviceControlTopicOld: `hame_energy/${deviceType}/App/test123/ctrl`,
+      deviceControlTopicNew: `marstek_energy/${deviceType}/App/test123/ctrl`,
+      controlSubscriptionTopic: `hame_energy/${deviceType}/control/test123/control`,
+      availabilityTopic: `hame_energy/${deviceType}/availability/test123`,
+    };
+    const configsFor = (state: Record<string, unknown>) =>
+      generateDiscoveryConfigs(device, deviceTopics, {}, DEFAULT_TOPIC_PREFIX, 'homeassistant', {
+        deviceType,
+        deviceInfo: { deviceVersion: 116 },
+        ...state,
+      });
+    const find = (configs: ReturnType<typeof configsFor>, component: string) =>
+      configs.find(
+        c =>
+          c.topic.includes(`/${component}/`) &&
+          c.topic.endsWith('/full_battery_pass_through/config'),
+      );
+
+    const reported = configsFor({ fullBatteryPassThrough: false });
+    const fullBatterySwitch = find(reported, 'switch');
+    expect(fullBatterySwitch?.config).toMatchObject({
+      command_topic: expect.stringContaining('/full-battery-pass-through'),
+    });
+    // The read-only sensor earlier versions advertised is cleared.
+    expect(find(reported, 'binary_sensor')).toBeDefined();
+    expect(find(reported, 'binary_sensor')?.config).toBeNull();
+
+    // Firmware that never reported `fktc` gets no switch.
+    expect(find(configsFor({}), 'switch')?.config ?? null).toBeNull();
   });
 
   test('should offer only the meters the B2500 firmware has drivers for', () => {
