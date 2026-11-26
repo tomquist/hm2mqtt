@@ -67,13 +67,24 @@ describeE2e('communication diagnostics', () => {
 
     await rig.waitForEntity(`${slug}_communication_timeouts`);
 
-    const mark = rig.publishMark();
-
     await rig.startHm2mqtt();
 
     await waitFor(
-      'all communication discovery configs to be published',
-      () => configs.every(({ topic }) => rig.discoveryPublishesSince(mark).includes(topic)),
+      'all runtime communication discovery configs received by the probe',
+      () =>
+        configs.every(({ topic }) => {
+          const payload = rig.probe.latestJson<{
+            entity_category: string;
+            enabled_by_default: boolean;
+            state_topic: string;
+          }>(topic);
+
+          return (
+            payload?.entity_category === 'diagnostic' &&
+            payload.enabled_by_default === false &&
+            payload.state_topic === stateTopic
+          );
+        }),
       { timeoutMs: 30000 },
     );
 
@@ -135,8 +146,8 @@ describeE2e('communication diagnostics', () => {
     expect(timedOut.lastTimeoutAt).not.toBeNull();
 
     await waitFor(
-      'Home Assistant timeout counter',
-      () => Number(rig.entityState(timeoutEntity)) > 0,
+      'Home Assistant timeout counter increased',
+      () => Number(rig.entityState(timeoutEntity)) > healthy.totalTimeouts,
       { timeoutMs: 30000 },
     );
 

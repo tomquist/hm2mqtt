@@ -1037,6 +1037,42 @@ describe('MqttClient communication publishing', () => {
     });
   });
 
+  test('republishes diagnostics after reconnect following a cd=1 response', () => {
+    const client = createClient();
+
+    connect();
+    client.recordDeviceMessage(device);
+    client.onDeviceDataReceived(device, 'data');
+
+    setConnected(false);
+    client.recordDeviceMessage(device);
+
+    const expectedStats = client.getCommunicationStats(device);
+
+    mockPublish.mockClear();
+
+    connect();
+
+    expect(discoveryMessages()).toHaveLength(5);
+
+    for (const call of discoveryMessages()) {
+      expect(JSON.parse(String(call[1]))).toMatchObject({
+        entity_category: 'diagnostic',
+        enabled_by_default: false,
+        state_topic: stateTopic,
+      });
+
+      expect(call[2]).toEqual({
+        qos: 1,
+        retain: true,
+      });
+    }
+
+    expect(stateMessages()).toHaveLength(1);
+    expect(JSON.parse(String(stateMessages()[0][1]))).toEqual(expectedStats);
+    expect(expectedStats.receivedMessages).toBe(2);
+  });
+
   test('does not collect statistics when disabled', () => {
     const client = createClient(false);
 
