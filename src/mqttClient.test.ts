@@ -67,6 +67,7 @@ describe('MqttClient discovery re-publish', () => {
       clientId: 'test-client',
       topicPrefix: 'homeassistant',
       autodiscoveryTopicPrefix: 'homeassistant',
+      communicationDiagnostics: false,
     };
 
     const mqttClient = new MqttClient(config, deviceManager, jest.fn());
@@ -119,6 +120,7 @@ describe('MqttClient discovery re-publish', () => {
       clientId: 'test-client',
       topicPrefix: 'homeassistant',
       autodiscoveryTopicPrefix: 'homeassistant',
+      communicationDiagnostics: false,
     };
 
     const mqttClient = new MqttClient(config, deviceManager, jest.fn());
@@ -165,6 +167,7 @@ describe('MqttClient discovery re-publish', () => {
         clientId: 'test-client',
         topicPrefix: 'homeassistant',
         autodiscoveryTopicPrefix: 'homeassistant',
+        communicationDiagnostics: false,
       };
 
       const mqttClient = new MqttClient(config, deviceManager, jest.fn());
@@ -189,6 +192,7 @@ describe('MqttClient subscribe', () => {
       clientId: 'test-client',
       topicPrefix: 'homeassistant',
       autodiscoveryTopicPrefix: 'homeassistant',
+      communicationDiagnostics: false,
     };
 
     const mqttClient = new MqttClient(config, deviceManager, jest.fn());
@@ -269,6 +273,7 @@ describe('MqttClient shouldPoll gating', () => {
         clientId: 'test-client',
         topicPrefix: 'homeassistant',
         autodiscoveryTopicPrefix: 'homeassistant',
+        communicationDiagnostics: false,
       };
 
       const mqttClient = new MqttClient(config, deviceManager, jest.fn());
@@ -316,6 +321,7 @@ describe('MqttClient shouldPoll gating', () => {
         clientId: 'test-client',
         topicPrefix: 'homeassistant',
         autodiscoveryTopicPrefix: 'homeassistant',
+        communicationDiagnostics: false,
       };
 
       const mqttClient = new MqttClient(config, deviceManager, jest.fn());
@@ -410,6 +416,7 @@ describe('MqttClient poll offset', () => {
         clientId: 'test-client',
         topicPrefix: 'homeassistant',
         autodiscoveryTopicPrefix: 'homeassistant',
+        communicationDiagnostics: false,
       };
       const mqttClient = new MqttClient(config, deviceManager, jest.fn());
       const payloads = () => mockPublish.mock.calls.map((c: any[]) => c[1]);
@@ -473,6 +480,7 @@ describe('MqttClient forced refresh', () => {
       clientId: 'test-client',
       topicPrefix: 'homeassistant',
       autodiscoveryTopicPrefix: 'homeassistant',
+      communicationDiagnostics: false,
     };
     const mqttClient = new MqttClient(config, deviceManager, jest.fn());
     mqttClient.requestDeviceData(device);
@@ -594,6 +602,7 @@ describe('MqttClient connection logging', () => {
         clientId: 'test-client',
         topicPrefix: 'homeassistant',
         autodiscoveryTopicPrefix: 'homeassistant',
+        communicationDiagnostics: false,
       };
       const deviceManager: any = { getDevices: jest.fn(() => []) };
 
@@ -605,5 +614,479 @@ describe('MqttClient connection logging', () => {
     } finally {
       infoSpy.mockRestore();
     }
+  });
+});
+
+describe('MqttClient communication diagnostics', () => {
+  const device: Device = {
+    deviceType: 'HMJ-2',
+    deviceId: 'diagnostics-test',
+  };
+
+  const config: any = {
+    brokerUrl: 'mqtt://localhost:1883',
+    clientId: 'diagnostics-client',
+    topicPrefix: 'hm2mqtt',
+    autodiscoveryTopicPrefix: 'homeassistant',
+    communicationDiagnostics: true,
+  };
+
+  function createClient() {
+    return new MqttClient(
+      config,
+      {
+        getDevices: () => [],
+      } as any,
+      jest.fn(),
+    );
+  }
+
+  test('starts with empty communication statistics', () => {
+    const client = createClient();
+
+    expect(client.getCommunicationStats(device)).toEqual({
+      totalTimeouts: 0,
+      consecutiveTimeouts: 0,
+      receivedMessages: 0,
+      lastMessageAt: null,
+      lastTimeoutAt: null,
+    });
+  });
+
+  test('records incoming device messages', () => {
+    const client = createClient();
+
+    client.recordDeviceMessage(device);
+    client.recordDeviceMessage(device);
+
+    const stats = client.getCommunicationStats(device);
+
+    expect(stats.receivedMessages).toBe(2);
+    expect(stats.lastMessageAt).not.toBeNull();
+    expect(stats.consecutiveTimeouts).toBe(0);
+  });
+
+  test('keeps statistics isolated between devices', () => {
+    const client = createClient();
+
+    client.recordDeviceMessage(device);
+
+    expect(
+      client.getCommunicationStats({
+        ...device,
+        deviceId: 'another-device',
+      }).receivedMessages,
+    ).toBe(0);
+  });
+});
+
+describe('MqttClient communication timeout lifecycle', () => {
+  const device: Device = {
+    deviceType: 'HMJ-2',
+    deviceId: 'timeout-test',
+  };
+
+  const config: any = {
+    brokerUrl: 'mqtt://localhost:1883',
+    clientId: 'timeout-test-client',
+    topicPrefix: 'hm2mqtt',
+    autodiscoveryTopicPrefix: 'homeassistant',
+    communicationDiagnostics: true,
+    allowedConsecutiveTimeouts: 3,
+  };
+
+  let previousDefinition: any;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    mockPublish.mockClear();
+
+    previousDefinition = mockGetDeviceDefinition.getMockImplementation();
+
+    mockGetDeviceDefinition.mockReturnValue({
+      messages: [
+        {
+          refreshDataPayload: 'cd=1',
+          publishPath: 'data',
+          enabled: true,
+          pollInterval: 60000,
+          controlsDeviceAvailability: true,
+          getAdditionalDeviceInfo: () => ({}),
+        },
+      ],
+    } as any);
+  });
+
+  afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
+
+    if (previousDefinition) {
+      mockGetDeviceDefinition.mockImplementation(previousDefinition);
+    }
+  });
+
+  function createClient() {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+
+    const manager: any = {
+      getDevices: () => [],
+      getDeviceTopics: () => ({
+        deviceControlTopicOld: 'old/control',
+        deviceControlTopicNew: 'new/control',
+        availabilityTopic: 'test/availability',
+      }),
+      getDeviceState: () => ({}),
+      getResponseTimeout: () => 5000,
+
+      setResponseTimeout: (_device: Device, timer: ReturnType<typeof setTimeout>) => {
+        timers.push(timer);
+      },
+
+      clearResponseTimeout: () => {
+        timers.splice(0).forEach(timer => {
+          clearTimeout(timer);
+        });
+      },
+    };
+
+    const client = new MqttClient(config, manager, jest.fn());
+
+    return { client, manager };
+  }
+
+  function expirePoll(client: InstanceType<typeof MqttClient>) {
+    client.requestDeviceData(device);
+    jest.advanceTimersByTime(60000);
+  }
+
+  test('records real timeout callbacks and preserves the offline threshold', () => {
+    const { client } = createClient();
+
+    expirePoll(client);
+
+    expect(client.getCommunicationStats(device).totalTimeouts).toBe(1);
+
+    expect(client.getCommunicationStats(device).consecutiveTimeouts).toBe(1);
+
+    expect(client.getCommunicationStats(device).lastTimeoutAt).not.toBeNull();
+
+    expect(
+      mockPublish.mock.calls.some(call => call[0] === 'test/availability' && call[1] === 'offline'),
+    ).toBe(false);
+
+    expirePoll(client);
+    expirePoll(client);
+
+    expect(client.getCommunicationStats(device).totalTimeouts).toBe(3);
+
+    expect(client.getCommunicationStats(device).consecutiveTimeouts).toBe(3);
+
+    expect(
+      mockPublish.mock.calls.some(call => call[0] === 'test/availability' && call[1] === 'offline'),
+    ).toBe(true);
+  });
+
+  test('preserves cumulative statistics when communication recovers', () => {
+    const { client, manager } = createClient();
+
+    expirePoll(client);
+    expirePoll(client);
+
+    client.requestDeviceData(device);
+    jest.advanceTimersByTime(1000);
+
+    // Simulate the existing incoming-message lifecycle.
+    client.resetTimeoutCounter(device.deviceId);
+    manager.clearResponseTimeout(device);
+    client.recordDeviceMessage(device);
+
+    jest.advanceTimersByTime(59000);
+
+    const recovered = client.getCommunicationStats(device);
+
+    expect(recovered.totalTimeouts).toBe(2);
+    expect(recovered.consecutiveTimeouts).toBe(0);
+    expect(recovered.receivedMessages).toBe(1);
+    expect(recovered.lastMessageAt).not.toBeNull();
+
+    expirePoll(client);
+
+    const nextTimeout = client.getCommunicationStats(device);
+
+    expect(nextTimeout.totalTimeouts).toBe(3);
+    expect(nextTimeout.consecutiveTimeouts).toBe(1);
+
+    expect(
+      mockPublish.mock.calls.some(call => call[0] === 'test/availability' && call[1] === 'offline'),
+    ).toBe(false);
+  });
+});
+
+describe('MqttClient communication publishing', () => {
+  const device: Device = {
+    deviceType: 'HMJ-2',
+    deviceId: 'publishing-test',
+  };
+
+  const topics = {
+    deviceTopicOld: 'old/device',
+    deviceTopicNew: 'new/device',
+    publishTopic: 'hm2mqtt/test/device',
+    deviceControlTopicOld: 'old/control',
+    deviceControlTopicNew: 'new/control',
+    controlSubscriptionTopic: 'test/control',
+    availabilityTopic: 'test/availability',
+  };
+
+  const stateTopic = `${topics.publishTopic}/communication`;
+
+  const config = {
+    brokerUrl: 'mqtt://localhost:1883',
+    clientId: 'publishing-test-client',
+    topicPrefix: 'hm2mqtt',
+    autodiscoveryTopicPrefix: 'homeassistant',
+    communicationDiagnostics: false,
+    devices: [device],
+    allowedConsecutiveTimeouts: 3,
+  };
+
+  let previousDefinition: any;
+
+  function setConnected(connected: boolean) {
+    Object.assign(mockClient, { connected });
+  }
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    mockPublish.mockClear();
+    mockOn.mockClear();
+    mockSubscribe.mockClear();
+
+    previousDefinition = mockGetDeviceDefinition.getMockImplementation();
+
+    mockGetDeviceDefinition.mockReturnValue({
+      messages: [
+        {
+          refreshDataPayload: 'cd=1',
+          publishPath: 'data',
+          enabled: true,
+          pollInterval: 60000,
+          controlsDeviceAvailability: true,
+          getAdditionalDeviceInfo: () => ({}),
+        },
+      ],
+    } as any);
+
+    setConnected(true);
+  });
+
+  afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
+    Reflect.deleteProperty(mockClient, 'connected');
+
+    if (previousDefinition) {
+      mockGetDeviceDefinition.mockImplementation(previousDefinition);
+    }
+  });
+
+  function createClient(enabled = true) {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+
+    const manager: any = {
+      getDevices: () => [device],
+      getDeviceTopics: () => topics,
+      getControlTopics: () => [],
+      getDeviceState: () => ({}),
+      getPollingInterval: () => 60000,
+      getResponseTimeout: () => 5000,
+
+      setResponseTimeout: (_device: Device, timer: ReturnType<typeof setTimeout>) => {
+        timers.push(timer);
+      },
+
+      clearResponseTimeout: () => {
+        timers.splice(0).forEach(timer => clearTimeout(timer));
+      },
+    };
+
+    return new MqttClient(
+      {
+        ...config,
+        communicationDiagnostics: enabled,
+      },
+      manager,
+      jest.fn(),
+    );
+  }
+
+  function connect() {
+    setConnected(true);
+
+    const event = mockOn.mock.calls.find(call => call[0] === 'connect');
+
+    expect(event).toBeDefined();
+
+    (event![1] as () => void)();
+  }
+
+  function stateMessages() {
+    return mockPublish.mock.calls.filter(call => call[0] === stateTopic);
+  }
+
+  function discoveryMessages() {
+    return mockPublish.mock.calls.filter(
+      call =>
+        typeof call[0] === 'string' &&
+        call[0].startsWith('homeassistant/sensor/') &&
+        call[0].includes('/communication_') &&
+        call[0].endsWith('/config'),
+    );
+  }
+
+  test('publishes five retained diagnostic configs and initial state', () => {
+    createClient();
+    connect();
+
+    const discovery = discoveryMessages();
+
+    expect(discovery).toHaveLength(5);
+
+    for (const call of discovery) {
+      const payload = JSON.parse(String(call[1]));
+
+      expect(payload.entity_category).toBe('diagnostic');
+      expect(payload.enabled_by_default).toBe(false);
+      expect(payload.state_topic).toBe(stateTopic);
+
+      expect(call[2]).toEqual({
+        qos: 1,
+        retain: true,
+      });
+    }
+
+    const state = stateMessages();
+
+    expect(state).toHaveLength(1);
+
+    expect(JSON.parse(String(state[0][1]))).toEqual({
+      totalTimeouts: 0,
+      consecutiveTimeouts: 0,
+      receivedMessages: 0,
+      lastMessageAt: null,
+      lastTimeoutAt: null,
+    });
+
+    expect(state[0][2]).toEqual({
+      qos: 1,
+      retain: true,
+    });
+  });
+
+  test('publishes updated statistics after a device message', () => {
+    const client = createClient();
+
+    client.recordDeviceMessage(device);
+
+    const state = stateMessages();
+
+    expect(state).toHaveLength(1);
+
+    expect(JSON.parse(String(state[0][1]))).toMatchObject({
+      receivedMessages: 1,
+      consecutiveTimeouts: 0,
+    });
+  });
+
+  test('publishes statistics when the response timeout expires', () => {
+    const client = createClient();
+
+    client.requestDeviceData(device);
+    jest.advanceTimersByTime(5000);
+
+    const state = stateMessages();
+
+    expect(state).toHaveLength(1);
+
+    expect(JSON.parse(String(state[0][1]))).toMatchObject({
+      totalTimeouts: 1,
+      consecutiveTimeouts: 1,
+      receivedMessages: 0,
+    });
+  });
+
+  test('republishes current statistics after reconnect', () => {
+    const client = createClient();
+
+    connect();
+    client.recordDeviceMessage(device);
+
+    setConnected(false);
+    client.recordDeviceMessage(device);
+
+    mockPublish.mockClear();
+
+    connect();
+
+    expect(discoveryMessages()).toHaveLength(5);
+    expect(stateMessages()).toHaveLength(1);
+
+    expect(JSON.parse(String(stateMessages()[0][1]))).toMatchObject({
+      receivedMessages: 2,
+    });
+  });
+
+  test('does not collect statistics when disabled', () => {
+    const client = createClient(false);
+
+    client.recordDeviceMessage(device);
+    client.requestDeviceData(device);
+
+    jest.advanceTimersByTime(5000);
+
+    expect(stateMessages()).toHaveLength(0);
+
+    expect(client.getCommunicationStats(device)).toEqual({
+      totalTimeouts: 0,
+      consecutiveTimeouts: 0,
+      receivedMessages: 0,
+      lastMessageAt: null,
+      lastTimeoutAt: null,
+    });
+  });
+
+  test('clears retained diagnostic configs and state when disabled', () => {
+    createClient(false);
+    connect();
+
+    expect(discoveryMessages()).toHaveLength(5);
+
+    for (const call of discoveryMessages()) {
+      expect(call[1]).toBe('');
+      expect(call[2]).toEqual({
+        qos: 1,
+        retain: true,
+      });
+    }
+
+    expect(stateMessages()).toHaveLength(1);
+    expect(stateMessages()[0][1]).toBe('');
+    expect(stateMessages()[0][2]).toEqual({
+      qos: 1,
+      retain: true,
+    });
+  });
+
+  test('collects statistics without publishing while disconnected', () => {
+    const client = createClient();
+
+    setConnected(false);
+
+    client.recordDeviceMessage(device);
+
+    expect(stateMessages()).toHaveLength(0);
+
+    expect(client.getCommunicationStats(device).receivedMessages).toBe(1);
   });
 });

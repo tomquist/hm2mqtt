@@ -284,6 +284,7 @@ describe('remembered settings', () => {
       clientId: 'test-client',
       topicPrefix: DEFAULT_TOPIC_PREFIX,
       autodiscoveryTopicPrefix: 'homeassistant',
+      communicationDiagnostics: false,
       devices: [device],
     };
     // HMG 156 reports mcp_w=-2500 instead of the value set, which is ignored.

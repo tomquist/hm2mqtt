@@ -118,6 +118,7 @@ function createMqttConfig(devices: Device[]): MqttConfig {
       process.env.AUTODISCOVERY_TOPIC_PREFIX || DEFAULT_AUTODISCOVERY_TOPIC_PREFIX,
     devices,
     responseTimeout: parseInt(process.env.MQTT_RESPONSE_TIMEOUT || '15', 10) * 1000,
+    communicationDiagnostics: process.env.COMMUNICATION_DIAGNOSTICS === 'true',
     allowedConsecutiveTimeouts: parseInt(process.env.MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS || '3', 10),
   };
 }
@@ -217,6 +218,7 @@ async function main() {
             }
 
             deviceManager.clearResponseTimeout(device);
+            mqttClient.recordDeviceMessage(device);
             const updatedPaths = dataHandler.handleDeviceData(device, message.toString());
             // Re-publish discovery configs for each message path that received data for the first time
             updatedPaths.forEach(path => mqttClient.onDeviceDataReceived(device, path));

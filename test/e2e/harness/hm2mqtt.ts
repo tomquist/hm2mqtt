@@ -14,6 +14,7 @@ export interface Hm2mqttOptions {
   topicPrefix: string;
   /** Seconds between polls. Short, so a scenario does not wait a minute. */
   pollingIntervalSeconds?: number;
+  communicationDiagnostics?: boolean;
 }
 
 export interface Hm2mqttProcess {
@@ -47,6 +48,7 @@ export async function startHm2mqtt(options: Hm2mqttOptions): Promise<Hm2mqttProc
       MQTT_TOPIC_PREFIX: options.topicPrefix,
       MQTT_POLLING_INTERVAL: String(options.pollingIntervalSeconds ?? 2),
       MQTT_RESPONSE_TIMEOUT: '10',
+      COMMUNICATION_DIAGNOSTICS: options.communicationDiagnostics ? 'true' : 'false',
       LOG_LEVEL: 'debug',
       // Never let a developer's own .env leak into a scenario.
       DOTENV_CONFIG_PATH: '/dev/null',

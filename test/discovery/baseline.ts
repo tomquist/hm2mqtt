@@ -1,6 +1,7 @@
 import '../../src/device/registry.js';
 import { getDeviceDefinition, getRegisteredDeviceTypes } from '../../src/deviceDefinition.js';
 import { generateDiscoveryConfigs } from '../../src/generateDiscoveryConfigs.js';
+import { generateCommunicationDiscovery } from '../../src/communicationDiscovery.js';
 import { parseMessage } from '../../src/parser.js';
 import { DEFAULT_AUTODISCOVERY_TOPIC_PREFIX, DEFAULT_TOPIC_PREFIX } from '../../src/constants.js';
 import { Device } from '../../src/types.js';
@@ -98,6 +99,18 @@ export function generateBaseline(deviceType: string): DiscoveryBaseline {
     DEFAULT_TOPIC_PREFIX,
     DEFAULT_AUTODISCOVERY_TOPIC_PREFIX,
     state,
+  );
+
+  // Communication diagnostics are opt-in. By default the runtime
+  // removes their retained discovery configurations.
+  configs.push(
+    ...generateCommunicationDiscovery(
+      device,
+      topics.publishTopic,
+      DEFAULT_TOPIC_PREFIX,
+      DEFAULT_AUTODISCOVERY_TOPIC_PREFIX,
+      false,
+    ).map(({ topic }) => ({ topic, config: null })),
   );
 
   const components: Record<string, unknown> = {};

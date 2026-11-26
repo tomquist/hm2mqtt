@@ -1,6 +1,10 @@
 # Changelog
 ## [Next]
 
+### Added
+
+- Optional communication diagnostics in Home Assistant show device messages and response timeouts without additional device polling.
+
 
 ## [1.11.1] - 2026-11-23
 

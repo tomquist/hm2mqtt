@@ -11,12 +11,7 @@ import {
 } from './deviceDefinition.js';
 import { Device } from './types.js';
 
-const MAC_REGEX = /^[0-9a-fA-F]{12}$/;
-
-function formatMac(id: string): string {
-  const parts = id.toUpperCase().match(/.{2}/g);
-  return parts ? parts.join(':') : id.toUpperCase();
-}
+import { discoveryDeviceInfo } from './discoveryDeviceInfo.js';
 
 export interface HaAdvertisement<T, KP extends KeyPath<T> | []> {
   keyPath: KP;
@@ -35,18 +30,7 @@ export function generateDiscoveryConfigs(
   const deviceDefinition = getDeviceDefinition(device.deviceType);
   const configs: Array<{ topic: string; config: any }> = [];
 
-  const deviceInfo = {
-    ids: [`hame_energy_${device.deviceId}`],
-    name: `HAME Energy ${device.deviceType} ${device.deviceId}`,
-    model_id: device.deviceType,
-    manufacturer: 'HAME Energy',
-    ...(additionalDeviceInfo.firmwareVersion != null
-      ? { sw_version: additionalDeviceInfo.firmwareVersion }
-      : {}),
-    ...(MAC_REGEX.test(device.deviceId)
-      ? { connections: [['bluetooth', formatMac(device.deviceId)]] }
-      : {}),
-  };
+  const deviceInfo = discoveryDeviceInfo(device, additionalDeviceInfo);
   const origin = {
     name: 'hm2mqtt',
     url: 'https://github.com/tomquist/hm2mqtt',

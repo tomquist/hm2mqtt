@@ -408,6 +408,7 @@ export interface MqttConfig {
    * (default: 3)
    */
   allowedConsecutiveTimeouts?: number;
+  communicationDiagnostics?: boolean;
 }
 
 /**

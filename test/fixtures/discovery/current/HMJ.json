@@ -1431,6 +1431,11 @@
     "homeassistant/sensor/HMJ_0123456789ab/cell_voltage_host_7/config": null,
     "homeassistant/sensor/HMJ_0123456789ab/cell_voltage_host_8/config": null,
     "homeassistant/sensor/HMJ_0123456789ab/cell_voltage_host_9/config": null,
+    "homeassistant/sensor/HMJ_0123456789ab/communication_consecutive_timeouts/config": null,
+    "homeassistant/sensor/HMJ_0123456789ab/communication_last_message/config": null,
+    "homeassistant/sensor/HMJ_0123456789ab/communication_last_timeout/config": null,
+    "homeassistant/sensor/HMJ_0123456789ab/communication_received_messages/config": null,
+    "homeassistant/sensor/HMJ_0123456789ab/communication_total_timeouts/config": null,
     "homeassistant/sensor/HMJ_0123456789ab/ct_automatic_power_size/config": {
       "availability": [
         {

@@ -17,6 +17,9 @@ configuration:
   enableCellBalancingDiagnostics:
     name: Enable Cell Balancing Diagnostics (experimental)
     description: "Experimental: which sensors exist, and the thresholds behind them, may still change between releases. Enables cell balancing analysis, measuring the cell spread at the same point of every charge so it can be compared between days. Requires cell data (B2500, Greensolar and Venus)"
+  enableCommunicationDiagnostics:
+    name: Enable Communication Diagnostics
+    description: "Monitor device messages and response timeouts through read-only diagnostic sensors without additional device polling"
   allowedConsecutiveTimeouts:
     name: Allowed Consecutive Timeouts
     description: "Number of consecutive timeouts before a device is marked offline (default: 3)"
