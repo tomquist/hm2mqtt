@@ -100,6 +100,7 @@ run_test "Basic configuration (firmware < 226)" \
     "MQTT_BROKER_URL=mqtt://test:1883
 MQTT_TOPIC_PREFIX=hm2mqtt
 LOG_LEVEL=info
+COMMUNICATION_DIAGNOSTICS=false
 DEVICE_0=HMA-1:001a2b3c4d5e"
 
 # Test 2: Configuration with firmware >= 226
@@ -149,6 +150,7 @@ run_test "Additional configuration options" \
         "enableCalibrationData": true,
         "enableExtraBatteryData": true,
         "enableCellBalancingDiagnostics": true,
+        "enableCommunicationDiagnostics": true,
         "topicPrefix": "custom",
         "log_level": "debug",
         "devices": [
@@ -166,6 +168,7 @@ POLL_CELL_DATA=true
 POLL_EXTRA_BATTERY_DATA=true
 POLL_CALIBRATION_DATA=true
 CELL_BALANCING_DIAGNOSTICS=true
+COMMUNICATION_DIAGNOSTICS=true
 LOG_LEVEL=debug
 DEVICE_0=HMA-1:001a2b3c4d5e"
 

@@ -17,6 +17,9 @@ configuration:
   enableCellBalancingDiagnostics:
     name: "Balancing-Diagnose (experimentell)"
     description: "Experimentell: Welche Sensoren es gibt und welche Schwellwerte dahinterstehen, kann sich zwischen Releases noch ändern. Aktiviert die Balancing-Analyse, die die Zellspannungsspreizung an einem festen Punkt jeder Ladung misst und so über Tage vergleichbar macht. Benötigt Zellspannungen (B2500, Greensolar und Venus)"
+  enableCommunicationDiagnostics:
+    name: "Kommunikationsdiagnostik aktivieren"
+    description: "Überwacht Gerätenachrichten und Antwort-Timeouts über rein lesende Diagnosesensoren ohne zusätzliche Geräteabfragen"
   allowedConsecutiveTimeouts:
     name: Maximale aufeinanderfolgende Timeouts
     description: "Anzahl aufeinanderfolgender Timeouts, bevor ein Gerät als offline markiert wird (Standard: 3)"

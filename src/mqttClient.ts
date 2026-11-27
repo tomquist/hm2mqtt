@@ -4,6 +4,11 @@ import { DeviceManager } from './deviceManager.js';
 import { publishDiscoveryConfigs } from './generateDiscoveryConfigs.js';
 import { AdditionalDeviceInfo, BaseDeviceData, getDeviceDefinition } from './deviceDefinition.js';
 import logger from './logger.js';
+import {
+  communicationStateTopic,
+  generateCommunicationDiscovery,
+} from './communicationDiscovery.js';
+import { CommunicationDiagnostics, type CommunicationStats } from './communicationDiagnostics.js';
 import { POLL_TIMING_TOLERANCE_MS } from './constants.js';
 import { redactUrlCredentials } from './utils/redact.js';
 
@@ -16,6 +21,7 @@ export class MqttClient {
   private pollingInterval: NodeJS.Timeout | null = null;
   private discoveryInterval: NodeJS.Timeout | null = null;
   private timeoutCounters: Map<string, number> = new Map();
+  private readonly communicationDiagnostics = new CommunicationDiagnostics();
   private allowedConsecutiveTimeouts: number;
   private devicePathsWithData: Set<string> = new Set();
   private lastDiscoveryInfoSignatureByDevice: Map<string, string> = new Map();
@@ -97,6 +103,12 @@ export class MqttClient {
       this.subscribe(topics.deviceTopicOld);
       this.subscribe(topics.deviceTopicNew);
       this.subscribeToControlTopics(device);
+      if (
+        !this.config.communicationDiagnostics ||
+        !this.devicesRespondedToCd1.has(this.getDeviceKey(device))
+      ) {
+        this.publishCommunicationDiscovery(device);
+      }
       this.publish(topics.availabilityTopic, 'offline', { qos: 1, retain: true });
       // Only (re-)publish discovery for devices that have already responded to a
       // cd=1 request in this process lifetime. Devices that have never replied are
@@ -250,6 +262,8 @@ export class MqttClient {
       this.deviceManager.getDevices().forEach(device => {
         if (this.devicesRespondedToCd1.has(this.getDeviceKey(device))) {
           this.publishDiscoveryConfigs(device);
+        } else if (this.config.communicationDiagnostics) {
+          this.publishCommunicationDiscovery(device);
         }
       });
     }, 3600000); // Every hour
@@ -272,6 +286,10 @@ export class MqttClient {
         this.config.autodiscoveryTopicPrefix,
         deviceState,
       );
+      if (this.config.communicationDiagnostics) {
+        this.publishCommunicationDiscovery(device, additionalDeviceInfo);
+      }
+
       this.lastDiscoveryInfoSignatureByDevice.set(
         this.getDeviceKey(device),
         this.getDiscoveryInfoSignatureFromInfo(additionalDeviceInfo),
@@ -420,6 +438,10 @@ export class MqttClient {
         const currentCount = this.timeoutCounters.get(device.deviceId) || 0;
         const newCount = currentCount + 1;
         this.timeoutCounters.set(device.deviceId, newCount);
+        if (this.config.communicationDiagnostics) {
+          this.communicationDiagnostics.recordTimeout(device);
+          this.publishCommunicationStats(device);
+        }
         if (newCount >= this.allowedConsecutiveTimeouts) {
           // Mark device as offline after allowed consecutive timeouts
           this.publish(availabilityTopic, 'offline', { qos: 1, retain: true });
@@ -541,6 +563,73 @@ export class MqttClient {
 
     // End the client connection
     this.client.end();
+  }
+
+  public recordDeviceMessage(device: Device): void {
+    if (!this.config.communicationDiagnostics) {
+      return;
+    }
+
+    this.communicationDiagnostics.recordMessage(device);
+    this.publishCommunicationStats(device);
+  }
+
+  private publishCommunicationDiscovery(
+    device: Device,
+    additionalDeviceInfo?: AdditionalDeviceInfo,
+  ): void {
+    const topics = this.deviceManager.getDeviceTopics(device);
+    if (!topics || !this.client.connected) {
+      return;
+    }
+
+    const enabled = this.config.communicationDiagnostics === true;
+
+    const configs = generateCommunicationDiscovery(
+      device,
+      topics.publishTopic,
+      this.config.topicPrefix,
+      this.config.autodiscoveryTopicPrefix,
+      enabled,
+      additionalDeviceInfo,
+    );
+
+    for (const { topic, config } of configs) {
+      void this.publish(topic, config === null ? '' : JSON.stringify(config), {
+        qos: 1,
+        retain: true,
+      }).catch(error => logger.error('Error publishing communication discovery:', error));
+    }
+
+    if (enabled) {
+      this.publishCommunicationStats(device);
+    } else {
+      void this.publish(communicationStateTopic(topics.publishTopic), '', {
+        qos: 1,
+        retain: true,
+      }).catch(error => logger.error('Error clearing communication diagnostics:', error));
+    }
+  }
+
+  private publishCommunicationStats(device: Device): void {
+    if (!this.config.communicationDiagnostics || !this.client.connected) {
+      return;
+    }
+
+    const topics = this.deviceManager.getDeviceTopics(device);
+    if (!topics) {
+      return;
+    }
+
+    void this.publish(
+      communicationStateTopic(topics.publishTopic),
+      JSON.stringify(this.communicationDiagnostics.getSnapshot(device)),
+      { qos: 1, retain: true },
+    ).catch(error => logger.error('Error publishing communication diagnostics:', error));
+  }
+
+  public getCommunicationStats(device: Device): CommunicationStats {
+    return this.communicationDiagnostics.getSnapshot(device);
   }
 
   public resetTimeoutCounter(deviceId: string): void {

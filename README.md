@@ -288,17 +288,47 @@ services:
 | `POLL_EXTRA_BATTERY_DATA` | Enable extra battery data reporting (B2500 and Greensolar storage only) | false |
 | `POLL_CALIBRATION_DATA` | Enable calibration data reporting (B2500 and Greensolar storage only) | false |
 | `CELL_BALANCING_DIAGNOSTICS` | Enable the cell balancing diagnostics (B2500, Greensolar and Venus; requires `POLL_CELL_DATA`) | false |
+| `COMMUNICATION_DIAGNOSTICS` | Enable read-only device communication diagnostics | false |
 | `HM2MQTT_DATA_DIR` | Directory for data that must survive a restart: the cell balancing charge-cycle history, and settings a device does not report back, such as the Venus C/E maximum charging power | `/data` |
 | `DEVICE_n` | Device configuration in format `{type}:{mac}` | -                       |
 | `MQTT_ALLOWED_CONSECUTIVE_TIMEOUTS` | Number of consecutive timeouts before a device is marked offline | `3` |
 | `MQTT_PROXY_ENABLED` | Enable MQTT proxy server for B2500 client ID conflict resolution | `false` |
 | `MQTT_PROXY_PORT` | Port for the MQTT proxy server | `1890` |
 
+### Communication Diagnostics
+
+Set `COMMUNICATION_DIAGNOSTICS=true` or enable
+`enableCommunicationDiagnostics` in the Home Assistant add-on
+to expose read-only communication diagnostics for configured devices.
+
+The following diagnostic entities are available:
+
+- **Communication Timeouts:** total response timeout events.
+- **Consecutive Timeouts:** timeout events since the last device message.
+- **Received Device Messages:** number of received device messages.
+- **Last Device Message:** timestamp of the most recent device message.
+- **Last Communication Timeout:** timestamp of the most recent timeout.
+
+The entities are disabled by default in Home Assistant and can be
+enabled individually in the device's entity settings.
+
+Statistics are reset when hm2mqtt restarts. The diagnostic entities
+remain available during device communication failures as long as
+hm2mqtt is connected to the MQTT broker.
+
+These diagnostics do not change device polling or control behaviour.
+Received message counts are not a measure of successful requests:
+unsolicited messages and duplicate messages may also be counted.
+
+Disabling the option removes the retained diagnostic discovery
+configurations and state for the currently configured devices.
+
 ### App Configuration
 
 ```yaml
 pollingInterval: 60  # Interval between device polls in seconds
 responseTimeout: 30  # Timeout for device responses in seconds
+enableCommunicationDiagnostics: false  # Optional communication diagnostics
 allowedConsecutiveTimeouts: 3  # Number of consecutive timeouts before a device is marked offline
 topicPrefix: hm2mqtt  # Base MQTT topic prefix for published data
 autodiscoveryTopicPrefix: homeassistant  # Base MQTT topic prefix for HA auto discovery

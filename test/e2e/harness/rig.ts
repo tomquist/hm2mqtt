@@ -64,6 +64,7 @@ export interface RigOptions {
   emulator?: EmulatorSetup;
   /** Seconds between hm2mqtt's polls (default 2). */
   pollingIntervalSeconds?: number;
+  communicationDiagnostics?: boolean;
 }
 
 /**
@@ -155,6 +156,7 @@ export async function startRig(options: RigOptions): Promise<Rig> {
             brokerUrl: broker.url,
             topicPrefix: DEFAULT_TOPIC_PREFIX,
             pollingIntervalSeconds: options.pollingIntervalSeconds,
+            communicationDiagnostics: options.communicationDiagnostics,
             devices: [
               ...devices.map(device => ({
                 deviceType: device.deviceType,
